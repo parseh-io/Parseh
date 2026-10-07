@@ -189,3 +189,62 @@
 .stt-review-options-dock summary{padding-block:4px}
 .stt-review-tools .fieldnote{margin:0}
 .stt-pending-list{display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0}
+
+/* THE MODEL'S ANSWERS (asrwalk.js): what a review method said of each word, and the walk through it, a card at a time.
+   Four outcomes, each with a mark that is not a colour alone: ✎ proposes, ✔ agrees, ? not sure, ✗ no answer. */
+.stt-walk{margin-block:8px 12px;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;background:var(--boxbg)}
+.stt-walk h4{margin:0 0 8px;font-size:13px}
+.stt-walk-summary{margin:0 0 8px;font-size:13px;line-height:2}
+.stt-walk-chip[aria-pressed=true]{background:var(--hl);border-color:var(--accent)}
+.stt-walk-chip:disabled{opacity:.5}
+.stt-walk-bulk{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-block:8px}
+.stt-walk-bulk label{display:flex;align-items:center;gap:5px;margin:0;font-size:13px}
+.stt-walk-bulk input[type=checkbox]{width:auto}
+.stt-walk-list{margin-block:8px;padding:6px 10px;border-inline-start:3px solid var(--rule);font-size:13px;max-height:200px;overflow:auto}
+.stt-walk-list ul{margin:0;padding-inline-start:18px}
+.stt-walk-list li{margin-block:4px}
+.stt-walk-card{margin-top:8px;padding:12px;border:1px solid var(--rule);border-top:3px solid var(--accent);border-radius:10px;background:var(--card);font-size:14px}
+.stt-walk-card:focus{outline:none}
+.stt-walk-card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.stt-walk-count{margin:0 0 6px;font-size:12px;color:var(--dim)}
+.stt-walk-card progress{width:100%;height:6px;margin-bottom:8px}
+.stt-walk-head{margin:0 0 8px;font-size:15px}
+.stt-walk-agree{color:var(--ok)}
+.stt-walk-unsure,.stt-walk-none{color:var(--warn)}
+.stt-walk-caption{margin:8px 0;padding:8px 10px;border-radius:8px;background:var(--boxbg);font-size:17px;line-height:1.9;white-space:pre-wrap}
+.stt-walk-caption mark{background:var(--hl);color:inherit;padding:0 2px;border-radius:3px;outline:1px solid var(--accent)}
+.stt-walk-heard{margin:6px 0;font-size:13px;color:var(--dim)}
+.stt-walk-heard bdi{color:var(--ink);font-size:16px}
+.stt-walk-offers{margin:6px 0;padding-inline-start:18px}
+.stt-walk-offer{font-size:19px}
+.stt-walk-rating{font-size:13px}
+.stt-walk-sure{color:var(--ok)}
+.stt-walk-reason{margin:6px 0}
+.stt-walk-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
+.stt-walk-own{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:end}
+.stt-walk-own label{display:flex;flex-direction:column;gap:4px;margin:0;font-size:13px}
+.stt-walk-own input{font-size:16px;min-width:12em}
+.stt-walk-error{flex-basis:100%;margin:0;color:var(--danger)}
+.stt-walk-changes{margin:6px 0;padding-inline-start:18px}
+.stt-walk-changes li{margin-block:4px}
+.stt-walk-wordnote{margin:8px 0;padding:6px 10px;border-inline-start:3px solid var(--accent);background:var(--boxbg)}
+.stt-walk-wordnote.stt-walk-agree{border-inline-start-color:var(--ok)}
+.stt-walk-wordnote.stt-walk-unsure,.stt-walk-wordnote.stt-walk-none{border-inline-start-color:var(--warn)}
+.stt-review-word.asr-agree::after{content:'✔';font-size:11px;margin-inline-start:3px}
+.stt-review-word.asr-unsure{border:1px dashed var(--warn,currentColor)}
+.stt-review-word.asr-unsure::after{content:'?';font-size:11px;margin-inline-start:3px}
+.stt-review-word.asr-noanswer{border:1px dotted var(--danger,currentColor)}
+.stt-review-word.asr-noanswer::after{content:'✗';font-size:11px;margin-inline-start:3px}
+.stt-review-word.asr-accepted::after{content:'✓'}
+.stt-review-word.asr-walking{background:var(--hl)}
+/* where you are in the external chatbot review: five steps, the ones done ticked, the one you are on marked */
+.stt-steps{list-style:none;margin:8px 0;padding:0;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--dim);counter-reset:step}
+.stt-steps li{counter-increment:step}
+.stt-steps li::before{content:counter(step) '. ';font-variant-numeric:tabular-nums}
+.stt-steps li.done{color:var(--ink)}
+.stt-steps li.done::before{content:'✓ '}
+.stt-steps li.now{color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:4px}
+.stt-external-result{margin:6px 0}
+.stt-walk .wbtn.go{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.stt-walk .wbtn.go:disabled{opacity:.5}
+.stt-walk-summary{display:flex;flex-wrap:wrap;align-items:center;gap:6px}

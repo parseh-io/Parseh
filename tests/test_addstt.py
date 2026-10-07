@@ -113,7 +113,7 @@ class ThePage(unittest.TestCase):
         # (addfilm.js, which looks at the path and sends a file, comes after them: it
         # reads the path box and records nothing)
         self.assertEqual(js, ["/youtube/lib/subedit.js", "/youtube/lib/tabcapture.js",
-                              "/youtube/lib/asrreview.js", "/youtube/lib/addstt.js", "/youtube/lib/addfilm.js"],
+                              "/youtube/lib/asrwalk.js", "/youtube/lib/asrreview.js", "/youtube/lib/addstt.js", "/youtube/lib/addfilm.js"],
                          "the recording is loaded before the block that uses it")
         self.assertIn('href="/youtube/lib/addstt.css"', self.page)
         src = read(ADDSTT_JS)
@@ -130,10 +130,12 @@ class ThePage(unittest.TestCase):
         # Review is another reusable file, loaded before the add-flow glue.
         self.assertNotIn('stt_review_likelihood', ytpages.ADD_PAGE_JS)
         self.assertEqual(self.page.count('/youtube/lib/asrreview.js'), 1)
+        self.assertEqual(self.page.count('/youtube/lib/asrwalk.js'), 1)
+        self.assertLess(self.page.index('/youtube/lib/asrwalk.js'), self.page.index('/youtube/lib/asrreview.js'), "the walk is there when the review is mounted")
 
     def test_the_server_sends_both_files(self):
         import serve
-        for path in ("/youtube/lib/addstt.js", "/youtube/lib/addstt.css"):
+        for path in ("/youtube/lib/addstt.js", "/youtube/lib/addstt.css", "/youtube/lib/asrwalk.js", "/youtube/lib/asrreview.js"):
             self.assertIn(path, serve.STATIC_FILES, path)
         self.assertTrue(os.path.isfile(ADDSTT_JS) and os.path.isfile(ADDSTT_CSS))
 

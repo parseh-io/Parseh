@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Offline browser checks. Generate fixtures with tests/lm_likelihood_fixture.py.
+// Offline browser checks. It makes its own fixtures (tests/lm_likelihood_fixture.py).
 // PLAYWRIGHT_CORE=/path/to/playwright-core/index.mjs node tests/lm_likelihood.mjs
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const { chromium } = await import(process.env.PLAYWRIGHT_CORE || 'npm:playwright-core@1.52.0');
 const browser = await chromium.launch({executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox']});
+// the fixtures are made here, every run: a suite that waits for whoever ran the script last fails on a machine whose /tmp was
+// cleared since (release step 1 runs every suite and no script before it)
+const made = await new Deno.Command(Deno.env.get('PARSEH_PYTHON') || 'python3', {args: ['tests/lm_likelihood_fixture.py'], stdout: 'piped', stderr: 'piped'}).output();
+if (!made.success) throw new Error('tests/lm_likelihood_fixture.py failed: ' + new TextDecoder().decode(made.stderr).slice(-600));
 const fixture = JSON.parse(await readFile('/tmp/parseh-likelihood-browser-fixture.json', 'utf8'));
 let checks = 0;
 function ok(condition, message) { assert.ok(condition, message); checks++; }

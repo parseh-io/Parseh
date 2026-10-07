@@ -3149,10 +3149,11 @@ def add_page():
                      '<link rel="stylesheet" href="%s/lib/addfilm.css">\n'
                      '<script src="%s/lib/subedit.js"></script>\n'
                      '<script src="%s/lib/tabcapture.js"></script>\n'
+                     '<script src="%s/lib/asrwalk.js"></script>\n'
                      '<script src="%s/lib/asrreview.js"></script>\n'
                      '<script src="%s/lib/addstt.js"></script>\n'
                      '<script src="%s/lib/addfilm.js"></script>\n'
-                     '<script src="/lib/llmrow.js"></script>\n' % ((BASE,) * 8))
+                     '<script src="/lib/llmrow.js"></script>\n' % ((BASE,) * 9))
     return (head + ADD_PAGE_HEAD.replace("__GLOSSARIES__", gl)
                 .replace("__HOWS__", hows).replace("__LANGS__", langs)
                                 .replace("__GLOSSES__", glosses)

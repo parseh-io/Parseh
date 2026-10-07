@@ -12,6 +12,10 @@ from pathlib import Path
 import unicodedata
 
 FIELDS = ["word_ids", "original", "replacement", "reason"]
+# The fifth column says how sure the model is of the row, whether it changes the word or keeps Whisper's:
+# "sure" or "unsure".  Answers without it are still read (older skills write four columns).
+RATED = FIELDS + ["confidence"]
+CONFIDENCE = ("sure", "unsure")
 MAX_BYTES = 65536
 PREVIEW_BYTES = 1200
 
@@ -23,7 +27,7 @@ def _unsafe(text):
 
 def _csv(rows):
     stream = io.StringIO(newline="")
-    writer = csv.DictWriter(stream, fieldnames=FIELDS)
+    writer = csv.DictWriter(stream, fieldnames=RATED)
     try:
         writer.writeheader(); writer.writerows(rows)
         text = stream.getvalue()
@@ -47,8 +51,8 @@ def parse_csv(text):
         raise ValueError("Result CSV exceeds the 64 KiB limit.")
     try:
         reader = csv.DictReader(io.StringIO(text, newline=""), strict=True)
-        if reader.fieldnames != FIELDS:
-            raise ValueError("Use the header word_ids,original,replacement,reason exactly.")
+        if reader.fieldnames not in (FIELDS, RATED):
+            raise ValueError("Use the header word_ids,original,replacement,reason,confidence exactly.")
         rows = list(reader)
     except csv.Error:
         raise ValueError("Result CSV is malformed; check quoting and columns.") from None
@@ -100,9 +104,9 @@ def validate_rows(rows, words, captions, allowed, targets=None, required=(), com
         try:
             if number > len(allowed):
                 raise ValueError("Too many result rows for these editable words.")
-            if (not isinstance(row, dict) or set(row) != set(FIELDS)
+            if (not isinstance(row, dict) or set(row) not in (set(FIELDS), set(RATED))
                     or any(not isinstance(value, str) for value in row.values())):
-                raise ValueError("Every row must contain the four required text fields.")
+                raise ValueError("Every row must contain the required text fields: word_ids, original, replacement, reason and confidence.")
             if any(_unsafe(value) for value in row.values()):
                 raise ValueError("Fields cannot contain control characters or invalid Unicode.")
             ids = row["word_ids"].split()
@@ -116,11 +120,14 @@ def validate_rows(rows, words, captions, allowed, targets=None, required=(), com
                 raise ValueError("Replacement must be nonempty and fit the short-span limit.")
             if len(reason) > 500:
                 raise ValueError("Reason must be no longer than 500 characters.")
+            rating = row.get("confidence", "").strip().lower()
+            if rating not in ("",) + CONFIDENCE:
+                raise ValueError("Confidence must be sure or unsure.")
             punct = lambda text: "".join(char for char in text if unicodedata.category(char).startswith("P"))
             if punct(original) != punct(replacement):
                 raise ValueError("Keep the original punctuation in the replacement.")
             seen.update(ids)
-            checked.append(dict(row, word_ids=" ".join(ids)))
+            checked.append(dict(row, word_ids=" ".join(ids), **({"confidence": rating} if "confidence" in row else {})))
         except (KeyError, TypeError):
             raise ValueError("Row %d: Read-only source metadata is invalid." % number) from None
         except ValueError as error:
@@ -200,7 +207,7 @@ def _preview(rows, words, captions):
 def check(require_complete=False):
     """Print/return a bounded report for result.csv without changing any file."""
     report = {"structurally_valid": False, "valid": False, "complete": False,
-              "missing_required_ids": [], "errors": [], "rows": 0, "changed_rows": 0, "preview": []}
+              "missing_required_ids": [], "errors": [], "rows": 0, "changed_rows": 0, "unrated_rows": 0, "unsure_rows": 0, "preview": []}
     try:
         if type(require_complete) is not bool:
             raise ValueError("require_complete must be True or False.")
@@ -211,6 +218,7 @@ def check(require_complete=False):
         rows = parse_csv(path.read_text(encoding="utf-8"))
         rows, seen = validate_rows(rows, words, captions, allowed, targets, required)
         report.update(structurally_valid=True, rows=len(rows), changed_rows=sum(row['original'] != row['replacement'] for row in rows),
+                      unrated_rows=sum(not row.get('confidence') for row in rows), unsure_rows=sum(row.get('confidence') == 'unsure' for row in rows),
                       missing_required_ids=[ident for ident in required if ident not in seen], preview=_preview(rows, words, captions))
         report['complete'] = has_required and not report['missing_required_ids']
         if require_complete and not has_required:
@@ -224,7 +232,9 @@ def check(require_complete=False):
         report['errors'] = [str(error)]
     print('CSV structure: %s; required entries: %s. This does not judge linguistic accuracy.' % (
         'valid' if report['structurally_valid'] else 'invalid', 'complete' if report['complete'] else 'incomplete'))
-    print('%d rows; %d proposed changes.' % (report['rows'], report['changed_rows']))
+    print('%d rows; %d proposed changes; %d marked unsure.' % (report['rows'], report['changed_rows'], report['unsure_rows']))
+    if report['unrated_rows']:
+        print('%d rows have no confidence: give every row sure or unsure (unchanged rows too: sure says Whisper\'s word is right).' % report['unrated_rows'])
     if report['missing_required_ids']:
         print('Missing required IDs: ' + ' '.join(report['missing_required_ids'][:80]))
     for message in report['errors']:
@@ -235,17 +245,18 @@ def check(require_complete=False):
 
 
 def save(rows, require_complete=False):
-    """Save [(word_ids, replacement, reason), ...] only after full validation."""
+    """Save [(word_ids, replacement, reason, confidence), ...] only after full validation.  The confidence,
+    "sure" or "unsure", may be left out of a row."""
     words, _, captions, allowed, targets, required, has_required = _context()
     if require_complete and not has_required:
         raise ValueError('Required-entry metadata is missing; completeness cannot be checked.')
     prepared = []
     for number, entry in enumerate(rows, 1):
-        if number > len(allowed) or not isinstance(entry, (list, tuple)) or len(entry) != 3 or any(not isinstance(value, str) for value in entry):
-            raise ValueError('Use bounded (word_ids, replacement, reason) text tuples.')
-        id_text, replacement, reason = entry
+        if number > len(allowed) or not isinstance(entry, (list, tuple)) or len(entry) not in (3, 4) or any(not isinstance(value, str) for value in entry):
+            raise ValueError('Use bounded (word_ids, replacement, reason, confidence) text tuples.')
+        id_text, replacement, reason = entry[:3]
         _, _, _, original = _span(id_text.split(), words, captions, set(allowed), set(targets))
-        prepared.append(dict(word_ids=id_text, original=original, replacement=replacement, reason=reason))
+        prepared.append(dict(word_ids=id_text, original=original, replacement=replacement, reason=reason, **({"confidence": entry[3]} if len(entry) == 4 else {})))
     prepared, _ = validate_rows(prepared, words, captions, allowed, targets, required, complete=require_complete)
     text = _csv(prepared)
     # No rename/temp file: the isolated runtime permits writing only this file.

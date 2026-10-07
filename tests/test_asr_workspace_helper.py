@@ -145,6 +145,32 @@ class WorkspaceHelper(unittest.TestCase):
             self.assertTrue(report['valid']); self.assertTrue(report['complete'])
             self.assertIn('🙂 A notebook arrived.', report['preview'][0]['text'])
 
+    def test_a_row_says_how_sure_it_is_and_an_answer_without_that_is_still_read(self):
+        words, captions, allowed, targets, required = source()
+        # the header with the fifth column, and the old one, are both read
+        header5 = 'word_ids,original,replacement,reason,confidence\n"s0w2 s0w3","note\u00a0book",notebook,split,Sure\n'
+        rows = review.parse_csv(header5)
+        checked, _ = review.validate_rows(rows, words, captions, allowed, targets, required)
+        self.assertEqual(checked[0]['confidence'], 'sure', 'the word is read whichever its case')
+        old = review.parse_csv('word_ids,original,replacement,reason\n"s0w2 s0w3","note\u00a0book",notebook,split\n')
+        self.assertNotIn('confidence', review.validate_rows(old, words, captions, allowed, targets, required)[0][0])
+        with self.assertRaisesRegex(ValueError, 'Confidence must be sure or unsure'):
+            self.validate([row(confidence='maybe')])
+        self.assertEqual(self.validate([row(confidence='')])[0][0]['confidence'], '')
+        with self.assertRaises(ValueError):
+            review.parse_csv('word_ids,original,replacement,confidence\n')
+        with workspace() as root, contextlib.redirect_stdout(io.StringIO()) as shown:
+            report = review.save([('s0w2 s0w3', 'notebook', 'Split.', 'unsure')], require_complete=True)
+            self.assertEqual((report['unsure_rows'], report['unrated_rows']), (1, 0))
+            self.assertIn('1 marked unsure', shown.getvalue())
+            self.assertTrue((root / 'out/result.csv').read_text(encoding='utf-8').startswith('word_ids,original,replacement,reason,confidence\n'))
+            unrated = review.save([('s0w2 s0w3', 'notebook', 'Split.')], require_complete=True)
+            self.assertEqual((unrated['unsure_rows'], unrated['unrated_rows']), (0, 1))
+            self.assertTrue(unrated['valid'], 'a missing confidence is a note, not an error')
+            self.assertIn('give every row sure or unsure', shown.getvalue())
+            with self.assertRaises(ValueError):
+                review.save([('s0w2 s0w3', 'notebook', 'Split.', 'sure', 'extra')])
+
     def test_invalid_save_late_row_leaves_previous_result_intact(self):
         with workspace() as root, contextlib.redirect_stdout(io.StringIO()):
             review.save([('s0w2 s0w3', 'notebook', 'Split word.')]); before = (root / 'out/result.csv').read_bytes()

@@ -360,6 +360,55 @@ class Schema(unittest.TestCase):
             with self.assertRaises(llmconfig.LLMError):
                 correction.full_sentence_result(answer, unit)
 
+    def test_every_refusal_of_a_reply_says_its_own_reason_and_a_chatty_reply_is_read(self):
+        # one sentence used to cover them all: "could not be tied to the original words"
+        _, req = evidence("loro anno detto ciao e anno poi.")
+        unit = correction.sentence_units(req)[0]
+        refused = {
+            "": "it is empty",
+            "hanno": "less than half of the sentence's other letters",
+            "loro hanno detto ciao e anno poi. (anno \u2192 hanno)": "an arrow",
+            "loro hanno detto ciao e anno poi. Explanation: " + "the verb must agree with its subject. " * 8: "much longer than the sentence",
+            '{"sentence": "loro hanno detto ciao e anno poi."}': "JSON or a list",
+            "[Corrected] loro hanno detto ciao e anno poi.": "JSON or a list",
+            "x" * 6001: "longer than 6000",
+            "loro hanno\ndetto\x01 ciao e anno poi.": "control characters",
+        }
+        for answer, why in refused.items():
+            with self.subTest(answer=answer[:40]):
+                with self.assertRaises(llmconfig.LLMError) as caught:
+                    correction.sentence_result(answer, unit)
+                self.assertEqual(caught.exception.code, "invalid-suggestions")
+                self.assertIn(why, caught.exception.say)
+                self.assertIn("The model's reply was refused", caught.exception.say)
+                self.assertNotIn("could not be tied", caught.exception.say)
+        # the sentence is the line that resembles the one asked about: a preface or a note on a line of its own is not the sentence
+        for answer in ("Here is the corrected sentence:\nloro hanno detto ciao e anno poi.",
+                       "loro hanno detto ciao e anno poi.\n(the verb needed to be plural)",
+                       "Sure!\n\n\"loro hanno detto ciao e anno poi.\"\n\nanno \u2192 hanno: the verb",
+                       "loro hanno detto ciao e anno poi.\n\nExplanation: " + "the verb must agree with its subject. " * 8):
+            with self.subTest(answer=answer[:30]):
+                proposals, _ = correction.sentence_result(answer, unit)
+                self.assertEqual([p["candidates"][0]["text"] for p in proposals], ["hanno"])
+        # ... but a reply of several lines of which none is the sentence is still refused, with its reason
+        with self.assertRaises(llmconfig.LLMError) as caught:
+            correction.sentence_result("a translation:\nthey said hello\nand a year later", unit)
+        self.assertIn("several lines", caught.exception.say)
+        # and what is refused when the choices are applied says so as well
+        panel = "0:00\nloro anno detto ciao e anno poi.\n"
+        with self.assertRaises(llmconfig.LLMError) as caught:
+            correction.apply(panel + "changed", req, {"suggestions": []}, {})
+        self.assertIn("not the text that was reviewed", caught.exception.say)
+        self.assertNotIn("The model's reply", caught.exception.say)
+
+    def test_a_refused_sentence_leaves_its_words_with_no_answer_and_the_reason(self):
+        _, req = evidence("loro anno detto ciao")
+        adapter = mock.Mock()
+        adapter.generate_text.return_value = "hanno (anno \u2192 hanno)"
+        result = correction.correct(req, adapter, llmadapter.Cancellation(), lambda a, b: None)
+        self.assertEqual(result["failed_word_ids"], ["s0w1"])
+        self.assertIn("arrow", result["failed_reasons"]["s0w1"])
+
     def test_failure_is_local_progress_counts_words_and_retry_filters(self):
         _, req = evidence("loro anno detto ciao")
         second = copy.deepcopy(req["segments"][0]); second["start"] = 10; second["end"] = 12

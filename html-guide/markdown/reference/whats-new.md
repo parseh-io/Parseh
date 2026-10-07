@@ -27,6 +27,35 @@ and the page is what you came for. The books' page and the videos' page are
 titled **Books** and **Videos**, and no longer *Ilya Frank reading editions* and
 *Frank-method videos*.
 
+### The model's answers, one by one
+
+A review used to leave you with a transcript full of ✎ words to open one by one,
+and said nothing of the words the model had looked at and left alone: the
+importer threw those rows away, reason and all. Now every word the model was
+asked about ends in one of four outcomes, **✎ changed**, **✔ agrees with
+Whisper**, **? not sure either way** or **✗ no answer**, with the model's
+reason, in the transcript, in the word's panel and in a summary line above it.
+**Go through the answers** opens by itself when an answer comes in and shows one
+word at a time (the caption with the word marked, what Whisper heard, what the
+model proposes and why) with **Accept**, **Keep Whisper's word**, **Write my
+own**, **Skip** and **Back**, and at the end what will change. **Accept the sure
+edits, then look at the rest** and **Accept all the edits** take them together.
+A chatbot's workspace answer now says **sure** or **unsure** for every row, in a
+fifth column the prompt asks for; an answer without it is still read. The
+external panel shows five steps and where you are in them
+([Go through the model's answers](../lookup-and-languages/llm-integration.md#go-through-the-models-answers)).
+
+### The reasoning workspace is not divided unless you ask
+
+An external chatbot review by **Reasoning workspace** (copy and paste) used to
+cut a long transcript into several prompts, one batch at a time. The workspace
+ZIP already holds the whole transcript, which is the point of a workspace, so
+it is now one prompt, and the prompt only says where everything is. **Divide
+into several prompts**, under the method and off by default, gives it parts
+again, for a chatbot that cannot open files
+([Use an external chatbot](../lookup-and-languages/llm-integration.md#use-an-external-chatbot)).
+**Suspect words** and **Whole text** are divided as before.
+
 ## a0.5.0 — 7 October 2026
 
 ### One panel of settings on every page: ⚙ page

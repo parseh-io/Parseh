@@ -209,8 +209,15 @@ def messages(request, unit, use_skill=False, task="suspect", context_limit=600):
     return prompt
 
 
-def invalid():
-    raise LLMError("invalid-suggestions", "The model's sentence could not be tied to the original words. Inspect LLM responses; the Whisper result is intact.")
+def invalid(why="", reply=True):
+    """Refuse, and SAY WHICH RULE.  One sentence used to cover every refusal -- two dozen of them, in the model's reply and
+    in the choices being applied -- and so told nobody what to mend.  `reply`: it is the model's reply that was refused
+    (its words are in LLM responses); otherwise it is a choice that could not be applied to the transcript."""
+    if not why:
+        raise LLMError("invalid-suggestions", "The model's sentence could not be tied to the original words. Inspect LLM responses; the Whisper result is intact.")
+    if reply:
+        raise LLMError("invalid-suggestions", "The model's reply was refused: %s. Inspect LLM responses; the Whisper result is intact." % why)
+    raise LLMError("invalid-suggestions", "These choices could not be applied to the transcript: %s. The transcript is unchanged." % why)
 
 
 def _punctuation(surface):
@@ -223,18 +230,41 @@ def _punctuation(surface):
     return surface[:a], surface[a:b], surface[b:]
 
 
+def _the_sentence_of(answer, original):
+    """A chatbot often says something around the sentence -- "Here is the corrected sentence:", a note under it -- on lines of its
+    own.  The sentence is the line that most resembles the one that was asked about, among the lines that do not explain a
+    change with an arrow; a reply of one line is that line.  (A caption that itself has line breaks is answered as it is.)"""
+    lines = [line.strip() for line in answer.splitlines() if line.strip()]
+    if len(lines) < 2 or "\n" in original:
+        return answer
+    candidates = [line for line in lines if not any(mark in line for mark in ("→", "->"))]
+    best = max(candidates, key=lambda line: difflib.SequenceMatcher(None, original, line, autojunk=False).ratio(), default="")
+    return best if best and difflib.SequenceMatcher(None, original, best, autojunk=False).ratio() >= .5 else answer
+
+
 def _sentence_answer(answer, unit):
-    if not isinstance(answer, str) or not answer.strip() or len(answer) > 6000:
-        invalid()
+    if not isinstance(answer, str):
+        invalid("it is not text")
+    if not answer.strip():
+        invalid("it is empty")
+    if len(answer) > 6000:
+        invalid("it is longer than 6000 characters")
     answer = answer.strip()
     if answer.startswith("```") and answer.endswith("```"):
         answer = "\n".join(answer.splitlines()[1:-1]).strip()
+    answer = _the_sentence_of(answer, unit["text"])
     if len(answer) >= 2 and answer[0] == answer[-1] and answer[0] in ('"', "'", "“", "”"):
         answer = answer[1:-1].strip()
-    if (not answer or any(ord(c) < 32 or 0xD800 <= ord(c) <= 0xDFFF for c in answer)
-            or answer.startswith(("{", "[")) or len(answer) > 3 * len(unit["text"]) + 100
-            or any(mark in answer for mark in ("→", "->"))):
-        invalid()
+    if not answer:
+        invalid("it is empty")
+    if any(ord(c) < 32 or 0xD800 <= ord(c) <= 0xDFFF for c in answer):
+        invalid("it has several lines and none of them is the sentence, or it has control characters in it")
+    if answer.startswith(("{", "[")):
+        invalid("it is JSON or a list, and the sentence itself is what is asked for")
+    if len(answer) > 3 * len(unit["text"]) + 100:
+        invalid("it is much longer than the sentence, so something was added to it")
+    if any(mark in answer for mark in ("→", "->")):
+        invalid("it explains the change with an arrow instead of returning the sentence")
     return answer
 
 
@@ -252,7 +282,7 @@ def sentence_result(answer, unit):
     untouched = sum(c.isalnum() for i, c in enumerate(original)
                     if not any(w["region_start"] <= i < w["region_end"] for w in targets))
     if untouched and unchanged < untouched * .5:
-        invalid()
+        invalid("it keeps less than half of the sentence's other letters (a fragment, a translation or a rewrite?)")
     edits, ignored, replacements = {}, [], {}
     source_tokens = list(re.finditer(r"\S+", original))
     reply_tokens = list(re.finditer(r"\S+", answer))
@@ -327,7 +357,7 @@ def full_sentence_result(answer, unit):
     ops = difflib.SequenceMatcher(a=original, b=answer, autojunk=False).get_opcodes()
     unchanged = sum(b - a for tag, a, b, _, _ in ops if tag == "equal")
     if len(original) > 24 and unchanged < len(original) * .5:
-        invalid()
+        invalid("it rewrites more than half of the sentence")
     groups = []
     for tag, a, b, _, _ in ops:
         if tag == "equal":
@@ -338,7 +368,7 @@ def full_sentence_result(answer, unit):
             if not owners:
                 owners = [i for i, w in enumerate(words) if w["region_start"] == a]
         if not owners:
-            invalid()
+            invalid("a change could not be tied to any word of the sentence")
         left, right = min(owners), max(owners)
         if groups and left <= groups[-1][1]:
             groups[-1] = (groups[-1][0], max(right, groups[-1][1]))
@@ -363,18 +393,18 @@ def full_sentence_result(answer, unit):
         if not {w["word_id"] for w in members} <= {w["word_id"] for w in unit["targets"]}:
             continue
         if len(members) > 8 or any(not w["reviewable"] for w in members):
-            invalid()
+            invalid("a change spans more than eight words, or a word that cannot be edited")
         a, b = members[0]["region_start"], members[-1]["region_end"]
         covered = {i for w in members for i in range(w["region_start"], w["region_end"])}
         if any(not original[i].isspace() and i not in covered for i in range(a, b)):
-            invalid()
+            invalid("a change covers text that is not part of the words it names")
         source = original[a:b]
         replacement = answer[project(a, False):project(b, True)]
         import unicodedata
         punctuation = lambda text: "".join(c for c in text if unicodedata.category(c).startswith("P"))
         if (not replacement.strip() or len(replacement) > min(200, max(24, 3 * len(source)))
                 or punctuation(source) != punctuation(replacement)):
-            invalid()
+            invalid("a replacement is empty, too long, or changes the punctuation")
         w = members[0]
         proposal = dict(public_word(w), original=source, word_ids=[m["word_id"] for m in members],
                         span_start=w["span_start"], span_end=members[-1]["span_end"],
@@ -399,7 +429,7 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
         units = [u for u in units if u["targets"]]
     total = sum(len(u["targets"]) for u in units)
     progress(0, total)
-    completed, all_suggestions, failed, unresolved = 0, [], [], []
+    completed, all_suggestions, failed, unresolved, why = 0, [], [], [], {}
     for unit in units:
         cancel.check()
         prompt = messages(request, unit, use_skill, task, min(600, max(64, limit // 3)))
@@ -435,12 +465,13 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
                     continue
                 failed.extend(w["word_id"] for w in unit["targets"])
                 unresolved.extend(w["word_id"] for w in unit["targets"])
+                why.update((w["word_id"], e.say) for w in unit["targets"])   # no word of a refused sentence goes without its reason
                 break
         completed += len(unit["targets"])
         progress(completed, total)
     cancel.check()
     return {"schema_version": 1, "suggestions": all_suggestions, "uncertain_word_ids": unresolved,
-            "failed_word_ids": failed,
+            "failed_word_ids": failed, "failed_reasons": why,
             "assessment": "partial" if failed else "suggestions" if all_suggestions else "kept_original" if units else "no_flagged_words",
             "method": "span-text" if task == "full" else "sentence-text", "task": task,
             "reviewed_word_ids": [w["word_id"] for u in units for w in u["targets"]],
@@ -449,20 +480,20 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
 
 def apply(panel, request, result, decisions, manual_edits=None):
     if hashlib.sha256(panel.encode("utf-8")).hexdigest() != request["source_sha256"]:
-        invalid()
+        invalid("the transcript is not the text that was reviewed", False)
     if not isinstance(decisions, dict) or len(decisions) > MAX_SUGGESTIONS:
-        invalid()
+        invalid("the list of accepted suggestions is not valid", False)
     sources, edits = index(request), []
     manual_edits = {} if manual_edits is None else manual_edits
     if not isinstance(manual_edits, dict) or len(manual_edits) > MAX_SUGGESTIONS or set(manual_edits) & set(decisions):
-        invalid()
+        invalid("a word has both an accepted suggestion and an edit of your own", False)
     proposals = {s["word_id"]: s for s in result.get("suggestions", [])}
     for ident, choice in decisions.items():
         if ident not in proposals or type(choice) is not int or not 0 <= choice < len(proposals[ident]["candidates"]):
-            invalid()
+            invalid("an accepted suggestion is not one of the current review's", False)
         a, b, original = proposal_span(proposals[ident], sources)
         if panel[a:b] != original:
-            invalid()
+            invalid("the transcript text under an accepted suggestion is not what was reviewed", False)
         candidate = proposals[ident]["candidates"][choice]
         replacement = candidate["text"]
         if result.get("task") == "likelihood":
@@ -470,9 +501,9 @@ def apply(panel, request, result, decisions, manual_edits=None):
             from lmgguf import ScoringError
             try:
                 if not candidate.get("applicable") or checked_replacement(original, replacement) != replacement:
-                    invalid()
+                    invalid("a chosen likelihood candidate cannot be applied as it stands", False)
             except ScoringError:
-                invalid()
+                invalid("a chosen likelihood candidate cannot be applied as it stands", False)
         if replacement != panel[a:b]:
             edits.append((a, b, replacement))
     for ident, replacement in manual_edits.items():
@@ -480,23 +511,23 @@ def apply(panel, request, result, decisions, manual_edits=None):
         ids = [ident]
         if isinstance(replacement, dict):
             if set(replacement) != {"text", "word_ids"} or not isinstance(replacement["word_ids"], list):
-                invalid()
+                invalid("an edit of your own over several words is not valid", False)
             ids, replacement = replacement["word_ids"], replacement["text"]
         if (not w or not w["reviewable"] or not isinstance(replacement, str)
                 or not replacement.strip() or len(replacement) > 200
                 or any(ord(c) < 32 or 0xD800 <= ord(c) <= 0xDFFF for c in replacement)
                 or (len(ids) == 1 and any(c.isspace() for c in replacement))):
-            invalid()
+            invalid("an edit of your own is empty, too long, has a line break, or has a space in a single word", False)
         a, b, _ = proposal_span({"word_id": ident, "word_ids": ids, "original": ""}, sources)
         if len(ids) == 1 and panel[a:b] != w["text"]:
-            invalid()
+            invalid("the transcript text under an edit of your own is not what was reviewed", False)
         if replacement != panel[a:b]:
             edits.append((a, b, replacement))
     edits.sort(reverse=True)
     last = len(panel)
     for a, b, replacement in edits:
         if b > last:
-            invalid()
+            invalid("two of the edits overlap", False)
         panel = panel[:a] + replacement + panel[b:]
         last = a
     return panel, bool(edits)
@@ -507,16 +538,16 @@ def proposal_span(proposal, sources):
     ids = proposal.get("word_ids", [ident])
     if (not isinstance(ids, list) or not ids or any(not isinstance(i, str) for i in ids)
             or ids[0] != ident or len(ids) > 8 or len(set(ids)) != len(ids)):
-        invalid()
+        invalid("a suggestion names its words wrongly", False)
     members = [sources.get(i) for i in ids]
     if any(not m or not m["reviewable"] for m in members):
-        invalid()
+        invalid("a suggestion names a word that is not in this transcript or cannot be edited", False)
     segment = members[0]["segment_id"]
     all_words = [w for w in sources.values() if w["segment_id"] == segment]
     start = next(i for i, w in enumerate(all_words) if w["word_id"] == ident)
     if [w["word_id"] for w in all_words[start:start + len(ids)]] != ids:
-        invalid()
+        invalid("a suggestion joins words that are not next to each other", False)
     a, b = members[0]["span_start"], members[-1]["span_end"]
     if proposal.get("span_start", a) != a or proposal.get("span_end", b) != b:
-        invalid()
+        invalid("a suggestion's place in the transcript does not match its words", False)
     return a, b, proposal["original"]

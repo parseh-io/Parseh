@@ -42,8 +42,9 @@ class ExternalAnswers(unittest.TestCase):
         original = copy.deepcopy(request)
         for task in asrexternal.TASKS:
             with self.subTest(task=task):
-                units = asrexternal.batches(request, task)[0]
-                text = asrexternal.prompt(request, task, units)
+                # a reasoning workspace puts its evidence in the prompt only when divided into prompts
+                units = asrexternal.batches(request, task, divide=True)[0]
+                text = asrexternal.prompt(request, task, units, divided=True)
                 self.assertIn("Language: Italian (it).", text)
                 self.assertIn("hanno", text)
                 self.assertIn("sequence", text)
@@ -105,6 +106,47 @@ class ExternalAnswers(unittest.TestCase):
                 asrexternal.parse(request, "workspace", units, asrworkspace._csv(rows, asrworkspace.FIELDS))
         missing = asrexternal.parse(request, "workspace", units, "word_ids,original,replacement,reason\n")
         self.assertEqual(missing["failed_word_ids"], ["s0w1"])
+
+    def test_a_row_that_keeps_whispers_word_is_an_answer_with_its_reason_and_confidence(self):
+        # "the model looked and Whisper is right" and "the model could not tell" are answers the review shows;
+        # only a word with no row is silence (it is a failure, to retry)
+        _, request = source("Loro anno detto ciao e anno poi.")
+        units = asrexternal.batches(request, "workspace")[0]
+        self.assertEqual(asrexternal.workspace_files(request, units)["input/required.txt"].split(), ["s0w1", "s0w5"])
+        def csv_of(rows):
+            return asrworkspace._csv(rows, asrworkspace.FIELDS)
+        change = {"word_ids": "s0w1", "original": "anno", "replacement": "hanno", "reason": "needs the verb", "confidence": "Sure"}
+        agree = {"word_ids": "s0w5", "original": "anno", "replacement": "anno", "reason": "a year, as it should be", "confidence": "sure"}
+        done = asrexternal.parse(request, "workspace", units, csv_of([change, agree]))
+        self.assertEqual([(s["word_id"], s["rating"], s["reason"]) for s in done["suggestions"]], [("s0w1", "sure", "needs the verb")])
+        self.assertEqual(done["kept"], [{"word_ids": ["s0w5"], "original": "anno", "rating": "sure", "reason": "a year, as it should be"}])
+        self.assertEqual(done["failed_word_ids"], [])
+        doubt = asrexternal.parse(request, "workspace", units, csv_of([dict(change, confidence="unsure"), dict(agree, confidence="unsure", reason="cannot tell")]))
+        self.assertEqual((doubt["suggestions"][0]["rating"], doubt["kept"][0]["rating"], doubt["kept"][0]["reason"]), ("unsure", "unsure", "cannot tell"))
+        # an answer without the column (older chatbots, older skills) is read, its rows unrated
+        old = asrexternal.parse(request, "workspace", units, "word_ids,original,replacement,reason\ns0w1,anno,hanno,x\ns0w5,anno,anno,y\n")
+        self.assertEqual((old["suggestions"][0]["rating"], old["kept"][0]["rating"]), (None, None))
+        # a word with no row at all is still no answer, and a rating that is neither word is refused
+        silent = asrexternal.parse(request, "workspace", units, csv_of([agree]))
+        self.assertEqual((silent["failed_word_ids"], [k["word_ids"] for k in silent["kept"]]), (["s0w1"], [["s0w5"]]))
+        with self.assertRaises(llmconfig.LLMError):
+            asrexternal.parse(request, "workspace", units, csv_of([dict(change, confidence="maybe")]))
+        # the sentence methods have no rows to keep
+        self.assertEqual(asrexternal.parse(request, "suspect", asrexternal.batches(request, "suspect")[0], "sentence0: Loro hanno detto ciao e anno poi.")["kept"], [])
+
+    def test_a_sentence_the_importer_refuses_says_why_for_each_of_its_words(self):
+        _, request = source("Loro anno detto ciao e anno poi.", "Una frase pulita.")
+        units = asrexternal.batches(request, "suspect")[0]
+        arrow = asrexternal.parse(request, "suspect", units, "sentence0: Loro hanno detto ciao (anno \u2192 hanno)")
+        self.assertEqual(sorted(arrow["failed_word_ids"]), ["s0w1", "s0w5"])
+        self.assertEqual(set(arrow["failed_reasons"]), {"s0w1", "s0w5"})
+        self.assertTrue(all("arrow" in say for say in arrow["failed_reasons"].values()), arrow["failed_reasons"])
+        # the other sentence of the prompt was not answered at all, and that is the reason it says
+        own = [u for u in units if u["sentence_id"] == "sentence0"]
+        self.assertEqual(asrexternal.parse(request, "suspect", own, "sentence0: Loro hanno detto ciao e anno poi.")["failed_reasons"], {})
+        words = asrexternal.workspace_files(request, asrexternal.batches(request, "workspace")[0])["input/required.txt"].split()
+        silent = asrexternal.parse(request, "workspace", asrexternal.batches(request, "workspace")[0], "word_ids,original,replacement,reason,confidence\n")
+        self.assertEqual(silent["failed_reasons"], {w: "the answer has no row for this word" for w in words})
 
     def test_workspace_zip_is_text_only_with_fixed_names(self):
         _, request = source()
@@ -179,6 +221,65 @@ class ExternalAnswers(unittest.TestCase):
             self.assertLessEqual(len(asrexternal.prompt(request, "suspect", batch).encode("utf-8")), asrexternal.MAX_PROMPT)
 
 
+class WorkspaceIsNotDividedUnlessAsked(unittest.TestCase):
+    """The workspace's files hold the whole transcript, which is what a workspace is for: it is handed
+    to the chatbot at once, and dividing it into prompts is an option for a chatbot with no file tools."""
+
+    def long_request(self, captions=60):
+        return source(*("Loro anno detto ciao e poi anno detto di nuovo %d." % n for n in range(captions)))[1]
+
+    def test_by_default_one_prompt_holds_every_word_and_the_others_are_still_divided(self):
+        request = self.long_request()
+        every = {ident for ident, word in correction.index(request).items() if word["reviewable"]}
+        whole = asrexternal.batches(request, "workspace")
+        self.assertEqual(len(whole), 1)
+        self.assertEqual(asrexternal.ids(whole[0]), every)
+        divided = asrexternal.batches(request, "workspace", divide=True)
+        self.assertGreater(len(divided), 1)
+        self.assertEqual(asrexternal.ids([u for batch in divided for u in batch]), asrexternal.ids(whole[0]))
+        for task in ("suspect", "full"):
+            self.assertGreater(len(asrexternal.batches(request, task)), 1, task)
+            self.assertEqual(len(asrexternal.batches(request, task, divide=False)), len(asrexternal.batches(request, task, divide=True)), task)
+        self.assertEqual(asrexternal.batches(source("")[1], "workspace"), [])
+
+    def test_the_whole_prompt_says_where_the_evidence_is_and_repeats_none_of_it(self):
+        request = self.long_request(400)
+        units = asrexternal.batches(request, "workspace")[0]
+        text = asrexternal.prompt(request, "workspace", units)
+        self.assertLessEqual(len(text.encode("utf-8")), asrexternal.MAX_PROMPT)
+        self.assertIn("What is in the workspace follows.", text)
+        self.assertNotIn("Current batch", text)
+        self.assertNotIn("this batch", text)
+        self.assertNotIn("word_id,", text)
+        self.assertIn("First skim the whole transcript", text)
+        self.assertIn("None of it is repeated in this prompt", text)
+        self.assertNotIn("{{", text)
+        # the same evidence, divided into prompts, is in each prompt and each batch's words are its own
+        batch = asrexternal.batches(request, "workspace", divide=True)[0]
+        piece = asrexternal.prompt(request, "workspace", batch, divided=True)
+        self.assertIn("Current batch and read-only evidence follow.", piece)
+        self.assertIn("this batch", piece)
+        self.assertNotIn("What is in the workspace follows.", piece)
+
+    def test_the_zip_of_the_whole_holds_all_of_it_and_a_csv_for_every_entry_is_accepted(self):
+        request = self.long_request(40)
+        units = asrexternal.batches(request, "workspace")[0]
+        files = asrexternal.workspace_files(request, units)
+        required = files["input/required.txt"].split()
+        self.assertEqual(len(required), sum(1 for u in units for w in u["targets"] if correction.suspect(w)))
+        self.assertGreater(len(required), 40)
+        self.assertEqual(files["input/allowed.txt"].split(), sorted(asrexternal.ids(units), key=files["input/allowed.txt"].split().index))
+        with zipfile.ZipFile(io.BytesIO(asrexternal.bundle(request, units, asrexternal.prompt(request, "workspace", units)))) as archive:
+            names = {name.split("/", 1)[1] for name in archive.namelist()}
+            words = archive.read("parseh-review/input/words.csv").decode("utf-8")
+        self.assertLessEqual({"PROMPT.txt", "review.py", "input/required.txt", "input/words.csv", "out/result.csv"}, names)
+        self.assertEqual(words.count("\n") - 1, sum(len(u["words"]) for u in units))
+        rows = [{"word_ids": ident, "original": correction.index(request)[ident]["text"], "replacement": "hanno", "reason": "x"} for ident in required]
+        done = asrexternal.parse(request, "workspace", units, asrworkspace._csv(rows, asrworkspace.FIELDS))
+        self.assertEqual(len(done["suggestions"]), len(required))
+        self.assertEqual(done["failed_word_ids"], [])
+
+
 class ExternalJobs(unittest.TestCase):
     def setUp(self):
         private = tempfile.TemporaryDirectory()
@@ -219,6 +320,46 @@ class ExternalJobs(unittest.TestCase):
         self.assertEqual(self.job["text"], self.panel)
         retry = sttjobs.external_start(self.token, self.hash, "suspect", ["s12w1"])
         self.assertEqual(len(retry["review"]["result"]["suggestions"]), 1)
+
+    def test_a_workspace_review_is_one_prompt_unless_divided_and_the_choice_stays_with_its_session(self):
+        whole = sttjobs.external_start(self.token, self.hash, "workspace")["review"]["external"]
+        self.assertEqual((whole["batches"], whole["divided"]), (1, False))
+        self.assertIn("What is in the workspace follows.", whole["prompt"])
+        self.assertEqual(whole["words_total"], 13 * 4)
+        files = sttjobs.external_files(self.token, self.hash, whole["id"], 0)
+        with zipfile.ZipFile(io.BytesIO(files)) as archive:
+            self.assertIn("What is in the workspace follows.", archive.read("parseh-review/PROMPT.txt").decode("utf-8"))
+        with self.assertRaises(sttjobs.Refusal):
+            sttjobs.external_files(self.token, self.hash, whole["id"], 1)
+        # an answer goes back to the same undivided prompt, and it finishes the review
+        view = sttjobs.external_action(self.token, self.hash, whole["id"], "answer", 0, "word_ids,original,replacement,reason\ns0w1,anno,hanno,x\n")
+        self.assertTrue(view["review"]["external"]["finished"] or view["review"]["external"]["submitted"] == [0])
+        divided = sttjobs.external_start(self.token, self.hash, "workspace", None, True)["review"]["external"]
+        self.assertTrue(divided["divided"])
+        self.assertGreater(divided["batches"], 1)
+        self.assertIn("Current batch and read-only evidence follow.", divided["prompt"])
+        files = sttjobs.external_files(self.token, self.hash, divided["id"], 1)
+        with zipfile.ZipFile(io.BytesIO(files)) as archive:
+            self.assertIn("Current batch and read-only evidence follow.", archive.read("parseh-review/PROMPT.txt").decode("utf-8"))
+        # the other methods take no such choice: they are divided either way
+        for choice in (False, True):
+            view = sttjobs.external_start(self.token, self.hash, "suspect", None, choice)["review"]["external"]
+            self.assertEqual((view["batches"], view["divided"]), (2, True))
+
+    def test_the_kept_words_of_each_prompt_are_merged_and_replaced_like_the_proposals(self):
+        whole = sttjobs.external_start(self.token, self.hash, "workspace", None, True)["review"]["external"]
+        self.assertGreater(whole["batches"], 1)
+        first = sttjobs.external_files(self.token, self.hash, whole["id"], 0)
+        rows = "word_ids,original,replacement,reason,confidence\ns0w1,anno,anno,fine,sure\ns1w1,anno,hanno,verb,unsure\n"
+        view = sttjobs.external_action(self.token, self.hash, whole["id"], "answer", 0, rows)
+        out = view["review"]["result"]
+        self.assertEqual([k["word_ids"] for k in out["kept"]], [["s0w1"]])
+        self.assertEqual([(s["word_id"], s["rating"]) for s in out["suggestions"]], [("s1w1", "unsure")])
+        # importing the same prompt again replaces its rows; the other prompts' stay
+        again = sttjobs.external_action(self.token, self.hash, whole["id"], "answer", 0,
+                                        "word_ids,original,replacement,reason,confidence\ns0w1,anno,hanno,changed my mind,sure\ns1w1,anno,anno,fine,sure\n")["review"]["result"]
+        self.assertEqual(again["kept"], [{"word_ids": ["s1w1"], "original": "anno", "rating": "sure", "reason": "fine"}])
+        self.assertEqual([(s["word_id"], s["rating"]) for s in again["suggestions"]], [("s0w1", "sure")])
 
     def test_three_methods_work_without_config_and_bad_prepare_is_atomic(self):
         for task in asrexternal.TASKS:

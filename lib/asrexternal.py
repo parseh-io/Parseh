@@ -17,7 +17,12 @@ MAX_BUNDLE = 8 * 1024 * 1024
 MAX_PROMPT = 64 * 1024
 
 
-def batches(request, task, word_ids=None):
+def batches(request, task, word_ids=None, divide=False):
+    """The prompts of a review, each a list of units.  A reasoning workspace is not divided unless
+    asked (`divide`): its files hold the whole transcript, which is what a workspace is for, so the
+    chatbot is handed all of it in one prompt and reads what it needs.  Dividing it is for a chatbot
+    that cannot open files and needs the evidence in the prompt itself, in pieces that fit; the
+    other two methods put their evidence in the prompt and are always divided."""
     if task not in TASKS:
         raise LLMError("bad-review", "Choose a transcript review method.")
     units = correction.sentence_units(request, 1200, "full" if task == "workspace" else task)
@@ -37,6 +42,10 @@ def batches(request, task, word_ids=None):
             targets.append(word); size += cost
         if targets:
             bounded.append(dict(unit, targets=targets))
+    if task == "workspace" and not divide:
+        for number, unit in enumerate(bounded):
+            unit["sentence_id"] = "sentence%d" % number
+        return [bounded] if bounded else []
     out, window, size = [], [], 0
     for number, unit in enumerate(bounded):
         unit["sentence_id"] = "sentence%d" % number
@@ -59,11 +68,14 @@ def workspace_files(request, units):
     required = allowed.intersection(slots)
     region = {word["word_id"] for unit in units for word in unit["words"]}
     current_words = [dict(row) for row in words if row["word_id"] in region]
+    by_caption = {}
+    for row in current_words:
+        by_caption.setdefault(row["segment_id"], []).append(row)
     current_captions, active = [], []
     # Keep inline evidence bounded even when a recognizer emits one enormous
     # caption. Helper offsets refer to these exact caption excerpts.
     for caption in captions:
-        members = [row for row in current_words if row["segment_id"] == caption["segment_id"]]
+        members = by_caption.get(caption["segment_id"], [])
         if not members:
             continue
         start = max(0, min(row["char_start"] for row in members) - 100)
@@ -97,7 +109,8 @@ def workspace_files(request, units):
                 "Check work in progress with: python review.py --check\n"
                 "Before returning out/result.csv, run: python review.py --check --complete\n"
                 "For tools using Python directly: import review; review.show(); review.save(rows); review.check()\n"
-                "Include every ID in input/required.txt, keeping the exact original when unsure. "
+                "Include every ID in input/required.txt: change the word, or keep the exact original. "
+                "Give every row a confidence, sure or unsure (unchanged and sure: Whisper's word is right). "
                 "Unchanged unflagged words do not need result rows.\n"
                 "This checks source spans, limits, punctuation and required coverage; it cannot decide "
                 "whether a transcription is linguistically correct. Parseh independently validates imported edits.\n"
@@ -107,21 +120,33 @@ def workspace_files(request, units):
     return files
 
 
-def assembled(request, task, units):
+def assembled(request, task, units, divided=False):
+    flags = None
     if task == "workspace":
         files = workspace_files(request, units)
-        data = "\n\n".join(name + ":\n" + files[name] for name in ("input/active.txt", "input/allowed.txt", "input/targets.txt", "input/required.txt", "input/words.csv", "input/suspects.csv", "input/captions.csv"))
+        flags = {"divided": divided, "whole": not divided}
+        if divided:
+            data = "\n\n".join(name + ":\n" + files[name] for name in ("input/active.txt", "input/allowed.txt", "input/targets.txt", "input/required.txt", "input/words.csv", "input/suspects.csv", "input/captions.csv"))
+        else:
+            # nothing of it is repeated: it is the workspace's, and a prompt that held the whole of a long
+            # transcript would be refused for its size
+            data = ("input/transcript.txt and input/active.txt are the transcript, the second with its numbered blanks; "
+                    "input/required.txt lists the %d numbered entries to answer, input/allowed.txt every ID that may be edited; "
+                    "input/words.csv, input/suspects.csv and input/captions.csv hold the evidence. "
+                    "None of it is repeated in this prompt: attach the workspace ZIP "
+                    "(a chatbot that cannot open files needs the review divided into several prompts)."
+                    % len(files["input/required.txt"].split()))
     else:
         regions = []
         for unit in units:
             item = correction.messages(request, unit, task=task)[-1]["content"]
             regions.append("TARGET LABEL: " + unit["sentence_id"] + "\n" + item)
         data = "\n\n".join(regions)
-    return promptkit.assemble("asr-" + task, request["language"], data=data)
+    return promptkit.assemble("asr-" + task, request["language"], data=data, flags=flags)
 
 
-def prompt(request, task, units):
-    text = str(assembled(request, task, units))
+def prompt(request, task, units, divided=False):
+    text = str(assembled(request, task, units, divided))
     if len(text.encode("utf-8")) > MAX_PROMPT:
         raise LLMError("too-large", "This prompt exceeds its size limit. Review received suggestions and edit these words manually.")
     return text
@@ -159,15 +184,16 @@ def clean(answer):
 def parse(request, task, units, answer):
     answer = clean(answer)
     allowed = ids(units)
-    proposals, failed, ignored = [], set(), []
+    proposals, failed, ignored, kept, why = [], set(), [], [], {}
     if task == "workspace":
         # Only parse the pasted CSV. Never execute a pasted response or its code.
         with tempfile.TemporaryDirectory(prefix="parseh-pasted-csv-") as folder:
             root = Path(folder); (root / "out").mkdir()
             (root / "out/result.csv").write_text(answer, encoding="utf-8")
-            proposals, seen = asrworkspace._proposals(root, request, allowed)
+            proposals, seen = asrworkspace._proposals(root, request, allowed, kept=kept)
         sources = correction.index(request)
         failed = {ident for ident in allowed - seen if correction.suspect(sources[ident])}
+        why = {ident: "the answer has no row for this word" for ident in failed}
     else:
         expected = {unit["sentence_id"]: unit for unit in units}
         lines = {}
@@ -181,6 +207,7 @@ def parse(request, task, units, answer):
         for ident, unit in expected.items():
             if ident not in lines:
                 failed.update(word["word_id"] for word in unit["targets"])
+                why.update((word["word_id"], "the answer has no line for this sentence") for word in unit["targets"])
                 continue
             try:
                 edits, extra = (correction.full_sentence_result if task == "full" else correction.sentence_result)(lines[ident], unit)
@@ -190,8 +217,9 @@ def parse(request, task, units, answer):
                         proposals.append(edit)
                     else:
                         ignored.append({"original": edit["original"], "replacement": edit["candidates"][0]["text"], "reason": "Outside the selected retry words."})
-            except LLMError:
+            except LLMError as error:
                 failed.update(word["word_id"] for word in unit["targets"])
+                why.update((word["word_id"], error.say) for word in unit["targets"])
     proposed = {ident for proposal in proposals for ident in proposal.get("word_ids", [proposal["word_id"]])}
-    return {"suggestions": proposals, "failed_word_ids": sorted(failed), "uncertain_word_ids": sorted(allowed - proposed),
+    return {"suggestions": proposals, "kept": kept, "failed_word_ids": sorted(failed), "failed_reasons": why, "uncertain_word_ids": sorted(allowed - proposed),
             "reviewed_word_ids": sorted(allowed), "ignored_edits": ignored}

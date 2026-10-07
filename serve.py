@@ -465,7 +465,7 @@ STATIC_PREFIXES = ("/lib/fonts/", "/lib/mathjax/", "/audiobook/", "/books/",
                    # the translation engine and its models: read by the
                    # reader's own worker, never written through the server
                    "/mt/")
-STATIC_FILES = {"/lib/lmlikelihoodsettings.js", "/lib/llmsettings.js", "/youtube/lib/asrreview.js", "/lib/parseh.css", "/lib/parseh.js", "/lib/llm.js", "/lib/mt.js",
+STATIC_FILES = {"/lib/lmlikelihoodsettings.js", "/lib/llmsettings.js", "/youtube/lib/asrreview.js", "/youtube/lib/asrwalk.js", "/lib/parseh.css", "/lib/parseh.js", "/lib/llm.js", "/lib/mt.js",
                 # the form and navigation styles of the Settings pages that hold
                 # forms: speech to text, LLM Integration, LM likelihood, About
                 "/lib/settings-tools.css",
@@ -5921,12 +5921,12 @@ class Handler(SimpleHTTPRequestHandler):
                     raise sttjobs.Refusal('bad-review', 'Whisper rechecks accept only words from the original transcript.')
                 return sttjobs.review_whisper_second(token, body.get('source_sha256'), body.get('word_ids'))
             if what in ("external-start", "external-action"):
-                allowed = ({"job", "source_sha256", "task", "word_ids"} if what == "external-start" else
+                allowed = ({"job", "source_sha256", "task", "word_ids", "divide"} if what == "external-start" else
                            {"job", "source_sha256", "session", "action", "index", "answer"})
                 if set(body) - allowed:
                     raise sttjobs.Refusal("bad-review", "The external review request contains unknown settings.")
                 if what == "external-start":
-                    return sttjobs.external_start(token, body.get("source_sha256"), body.get("task"), body.get("word_ids"))
+                    return sttjobs.external_start(token, body.get("source_sha256"), body.get("task"), body.get("word_ids"), body.get("divide") is True)
                 return sttjobs.external_action(token, body.get("source_sha256"), body.get("session"), body.get("action"), body.get("index"), body.get("answer"))
             if what == "dictionary":
                 if set(body) - {"job", "source_sha256", "word_id"}:

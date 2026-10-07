@@ -931,9 +931,14 @@ await section('external', 'external review without an endpoint and explicit draf
     window.externalContract = ParsehAsrReview.mount(root, {job:() => 'fake-job', current:() => true,
       choose:() => {}, cancel:() => {}, use:decisions => { window.externalApplied = decisions; },
       external:(action, values) => {
-        if (action === 'start') res.review = {...res.review, choice:'external', result:{task:values.task, suggestions:[]},
-          external:{id:'session-' + values.task, task:values.task, index:0, batches:1, finished:false,
-            submitted:[], words_done:0, words_total:1, prompt:'A bounded prompt for ' + values.task}};
+        if (action === 'start') {
+          window.externalStartValues = values;
+          // what the server says: a reasoning workspace is one undivided prompt unless it was asked to divide
+          res.review = {...res.review, choice:'external', result:{task:values.task, suggestions:[]},
+            external:{id:'session-' + values.task, task:values.task, index:0, batches:1, finished:false,
+              divided:values.task !== 'workspace' || values.divide === true,
+              submitted:[], words_done:0, words_total:1, prompt:'A bounded prompt for ' + values.task}};
+        }
         if (action === 'cancel') res.review = {...res.review, choice:null, external:null, result:null};
         if (action === 'answer') {
           if (values.answer !== 'sentence0: 🙂 loro hanno detto ciao') return Promise.reject(new Error('Invalid pasted answer.'));
@@ -949,8 +954,21 @@ await section('external', 'external review without an endpoint and explicit draf
   for (const method of ['suspect', 'full', 'workspace']) {
     if (!(await panel.evaluate(node => node.open))) await panel.locator('summary').click();
     await panel.locator('#stt_external_task').selectOption(method);
+    // dividing a reasoning workspace into prompts is an option, off, and only that method has it
+    eq(await panel.locator('#stt_external_divide').isVisible(), method === 'workspace', `${method}: the option to divide is for the workspace alone`);
+    eq(await panel.locator('#stt_external_divide').isChecked(), false, `${method}: and it is off`);
     await panel.locator('#stt_external_start').click();
     await until(async () => (await panel.locator('#stt_external_prompt').inputValue()).includes(method), 'external prompt ready');
+    eq(await page.evaluate(() => window.externalStartValues.divide), false, `${method}: the request does not ask to divide`);
+    if (method === 'workspace') {
+      assert(/The whole transcript · /.test(await panel.textContent()), 'the undivided workspace says it is the whole transcript');
+      eq([await panel.getByRole('button', {name:'Previous prompt', exact:true}).count(), await panel.getByRole('button', {name:'Next prompt', exact:true}).count()], [0, 0],
+         'and has no previous or next prompt to go to');
+      assert(/whole transcript and its evidence/.test(await panel.textContent()), 'and says the ZIP is where the transcript is');
+    } else {
+      assert(/Prompt 1 of 1/.test(await panel.textContent()), `${method}: the divided methods count their prompts as before`);
+      eq(await panel.getByRole('button', {name:'Next prompt', exact:true}).count(), 1, `${method}: and keep their buttons`);
+    }
     assert(await page.locator('#external-contract #stt_use').isDisabled(), 'Use is disabled while waiting for a paste');
     assert(await panel.locator('#stt_external_copy').count() === 1, 'one shared copy control');
     assert(await panel.locator('#stt_external_files').count() === (method === 'workspace' ? 1 : 0), 'workspace download for the workspace method');
@@ -959,6 +977,19 @@ await section('external', 'external review without an endpoint and explicit draf
     await panel.getByRole('button', {name:'Cancel external review', exact:true}).click();
     await until(async () => await panel.locator('#stt_external_prompt').count() === 0, 'external review cancelled');
   }
+  // asked to divide, the workspace is a review in prompts like the others
+  if (!(await panel.evaluate(node => node.open))) await panel.locator('summary').click();
+  await panel.locator('#stt_external_task').selectOption('workspace');
+  await panel.locator('#stt_external_divide').check();
+  await panel.locator('#stt_external_start').click();
+  await until(async () => (await panel.locator('#stt_external_prompt').inputValue()).includes('workspace'), 'divided workspace prompt ready');
+  eq(await page.evaluate(() => window.externalStartValues.divide), true, 'the box asks the server to divide');
+  assert(/Prompt 1 of 1/.test(await panel.textContent()), 'a divided workspace counts its prompts');
+  eq(await panel.getByRole('button', {name:'Next prompt', exact:true}).count(), 1, 'and has its previous and next prompt');
+  await panel.getByRole('button', {name:'Cancel external review', exact:true}).click();
+  await until(async () => await panel.locator('#stt_external_prompt').count() === 0, 'divided review cancelled');
+  eq(await panel.locator('#stt_external_divide').isChecked(), true, 'the box keeps what was chosen for the next review');
+  await panel.locator('#stt_external_divide').uncheck();
   if (!(await panel.evaluate(node => node.open))) await panel.locator('summary').click();
   await panel.locator('#stt_external_task').selectOption('suspect');
   await panel.locator('#stt_external_start').click();
@@ -969,6 +1000,15 @@ await section('external', 'external review without an endpoint and explicit draf
   await panel.locator('#stt_external_answer').fill('sentence0: 🙂 loro hanno detto ciao');
   await panel.locator('#stt_external_import').click();
   await until(async () => !(await page.locator('#external-contract #stt_use').isDisabled()), 'import ready for review');
+  // what the page says now: the five steps, on the fourth; the answer's outcomes; and the walk, open on what came in
+  eq(await page.locator('#external-contract #stt_external_steps li.now').textContent(), 'Go through the answers', 'the steps say that the answers are to be gone through');
+  eq(await page.locator('#external-contract #stt_external_steps li.done').count(), 3, 'and that the three before it are done');
+  assert((await page.locator('#external-contract #stt_external_result').textContent()).includes('1 edits proposed'), 'the answer says what it came to');
+  assert(await page.locator('#external-contract .stt-walk-card').isVisible(), 'the walk opens by itself on the answer that came in');
+  assert((await page.locator('#external-contract .stt-walk-head').textContent()).includes('The model suggests a correction'), 'with its first proposal');
+  await page.locator('#external-contract .stt-walk-card').press('s');
+  assert((await page.locator('#external-contract .stt-walk-end').textContent()).includes('Nothing will change'), 'skipping it ends the walk, which says that nothing will change');
+  eq(await page.evaluate(() => externalContract.snapshot().walk.skipped), ['s0w2'], 'and the draft remembers the word as skipped');
   await page.locator('#external-contract [data-review-word="s0w2"]').click();
   await page.locator('#external-contract').getByRole('button', {name:'Accept this alternative', exact:true}).click();
   eq(await page.evaluate(() => window.externalApplied), null, 'import and accept change only the draft');

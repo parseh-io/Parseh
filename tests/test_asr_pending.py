@@ -119,6 +119,16 @@ class Pending(unittest.TestCase):
         for invalid in ({'scope':'wrong'},{'selected_word':[]},{'external_drafts':{'s': 'x'*131073}}):
             with self.assertRaises(sttjobs.Refusal): sttjobs.save_review_draft(self.token,self.evidence['source_sha256'],invalid)
 
+    def test_the_walk_through_the_answers_is_saved_with_the_draft_and_only_of_words_that_exist(self):
+        word = next(iter(self.evidence['segments'][0]['words']))['word_id']
+        draft = {'walk': {'kept': [word], 'skipped': [], 'include_agree': True}}
+        sttjobs.save_review_draft(self.token, self.evidence['source_sha256'], draft)
+        self.assertEqual(asrpending.load(self.token)['job']['review_draft'], draft)
+        for invalid in ({'walk': {'kept': ['nowhere']}}, {'walk': {'skipped': 'all'}}, {'walk': {'include_agree': 'yes'}},
+                        {'walk': {'unknown': []}}, {'walk': []}, {'walk': {'kept': [word, 7]}}):
+            with self.assertRaises(sttjobs.Refusal, msg=str(invalid)):
+                sttjobs.save_review_draft(self.token, self.evidence['source_sha256'], invalid)
+
     def test_traversal_rejected_and_missing_list_is_empty(self):
         self.assertEqual(asrpending.listing(),[])
         with self.assertRaises(ValueError):asrpending.load('../elsewhere')

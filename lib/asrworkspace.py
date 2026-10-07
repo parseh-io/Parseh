@@ -23,7 +23,8 @@ import asrcorrection as correction
 from llmconfig import LLMError
 
 SKILL_NAME = "parseh-asr-workspace"
-FIELDS = ["word_ids", "original", "replacement", "reason"]
+FIELDS = ["word_ids", "original", "replacement", "reason", "confidence"]
+OLD_FIELDS = FIELDS[:4]       # an answer written before the fifth column is read the same, as unrated
 WORD_FIELDS = ["word_id", "segment_id", "original", "slot", "char_start", "char_end", "source_index"]
 _STATUS = None
 _STATUS_LOCK = threading.Lock()
@@ -132,6 +133,7 @@ TOOLS = [{"type": "function", "function": {"name": "read_file", "description": "
 class Workspace:
     def __init__(self, root, cancel):
         self.root, self.cancel, self.ran = root, cancel, False
+        self.kept = []        # the rows of the last valid result.csv that keep Whisper's word (_proposals)
         self.output_bytes = 4000
 
     def python(self, code):
@@ -180,7 +182,10 @@ class Workspace:
         raise LLMError("invalid-tools", "Invalid workspace tool arguments.")
 
 
-def _proposals(root, request, allowed, targets=None, required=(), complete=False):
+def _proposals(root, request, allowed, targets=None, required=(), complete=False, kept=None):
+    """The edits of out/result.csv, and the IDs it answered.  A row that leaves Whisper's word as it is is
+    no edit but it is an answer: it goes into `kept`, where the caller gives one, with the model's reason and
+    how sure it said it was -- so that the review says "the model agrees with Whisper here" and not nothing."""
     path = root / "out/result.csv"
     if path.stat().st_size > 65536:
         raise LLMError("too-large", "The workspace CSV exceeds its size limit.")
@@ -201,7 +206,7 @@ def _proposals(root, request, allowed, targets=None, required=(), complete=False
             # or replacement text. Give the model enough detail to repair a row.
             raise LLMError("invalid-workspace-csv", "The workspace CSV needs correction: " + str(error)[:600]) from None
         for n, row in enumerate(rows):
-            if n > len(allowed) or set(row) != set(FIELDS) or any(not isinstance(v, str) for v in row.values()):
+            if n > len(allowed) or set(row) not in (set(FIELDS), set(OLD_FIELDS)) or any(not isinstance(v, str) for v in row.values()):
                 raise ValueError()
             ids = row["word_ids"].split()
             if (not ids or not set(ids) <= allowed or seen.intersection(ids)
@@ -230,13 +235,16 @@ def _proposals(root, request, allowed, targets=None, required=(), complete=False
                     or punct(original) != punct(replacement) or len(row["reason"]) > 500):
                 raise ValueError()
             seen.update(ids)
+            rating = row.get("confidence") or None
             if replacement == original:
+                if kept is not None:
+                    kept.append({"word_ids": ids, "original": original, "rating": rating, "reason": row["reason"]})
                 continue
             word = members[0]
             p.update({k: v for k, v in correction.public_word(word).items() if k != "text"})
             p.update(span_start=a, span_end=b, end=members[-1]["end"], asr_evidence=[correction.public_word(w) for w in members],
                      candidates=[{"text": replacement, "confidence": None, "reason": row["reason"]}],
-                     error_likelihood=None, reason=row["reason"], method="workspace-code")
+                     error_likelihood=None, reason=row["reason"], rating=rating, method="workspace-code")
             proposals.append(p)
     except LLMError as error:
         if error.code == "invalid-workspace-csv":
@@ -247,6 +255,12 @@ def _proposals(root, request, allowed, targets=None, required=(), complete=False
     return proposals, seen
 
 
+def _replace_kept(old, new, proposed):
+    """The rows that keep Whisper's word, with those of the words just answered replaced by the new ones."""
+    answered = set(proposed) | {w for k in new for w in k["word_ids"]}
+    return [k for k in old if not answered.intersection(k["word_ids"])] + list(new)
+
+
 def _phase(workspace, request, adapter, phase, allowed, context_tokens, diagnostic, key):
     targets = getattr(workspace, 'targets', allowed)
     initial = [{"role": "system", "content": instructions()}, {"role": "user", "content":
@@ -255,7 +269,7 @@ def _phase(workspace, request, adapter, phase, allowed, context_tokens, diagnost
                "Correct any structural errors or missing required entries; run review.check(require_complete=True) before finish_review. "
                "Phase target IDs: %s. Editable IDs: %s. Each edit must include a phase target; "
                "join adjacent editable words when Whisper split one word." % (request["language"], phase,
-               "Resolve every numbered entry; keep its original when unsure." if phase == "resolve" else "Skim unblanked words only; an empty edits list is valid.",
+               "Resolve every numbered entry: change it, or keep its original (confidence sure if Whisper's word is right, unsure if you cannot tell)." if phase == "resolve" else "Skim unblanked words only; an empty edits list is valid.",
                " ".join(sorted(targets)),
                " ".join(sorted(allowed)))}]
     history = []
@@ -301,8 +315,9 @@ def _phase(workspace, request, adapter, phase, allowed, context_tokens, diagnost
                     if name == "finish_review":
                         if args or not workspace.ran:
                             raise LLMError("code-required", "Run Python to create the result CSV before finishing.")
+                        workspace.kept = []
                         proposals, seen = _proposals(workspace.root, request, allowed, targets,
-                                                     required=targets if phase == "resolve" else (), complete=True)
+                                                     required=targets if phase == "resolve" else (), complete=True, kept=workspace.kept)
                         if phase == "resolve" and not targets <= seen:
                             raise LLMError("incomplete-entries", "Some numbered entries are missing. Add unchanged originals for uncertain words before finishing.")
                         finished = proposals, seen
@@ -352,6 +367,7 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
         windows.append(current)
     total = sum(len(u["targets"]) for u in units)
     suggestions, failed, uncertain, reviewed, done = [], [], [], [], 0
+    kept_rows, why = [], {}
     progress(0, total, "Preparing isolated workspace")
     with tempfile.TemporaryDirectory(prefix="parseh-asr-workspace-") as folder:
         root = Path(folder); (root / "input").mkdir(); (root / "out").mkdir()
@@ -404,6 +420,8 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
                     new_ids = {word for proposal in proposals for word in proposal['word_ids']}
                     suggestions = [proposal for proposal in suggestions if not new_ids.intersection(proposal['word_ids'])]
                     suggestions.extend(proposals)
+                    # (_phase left the rows that keep Whisper's word on the workspace)
+                    kept_rows = _replace_kept(kept_rows, workspace.kept, new_ids)
                     proposed = {w for s in proposals for w in s["word_ids"]}
                     uncertain.extend(sorted(targets - proposed))
                 except Exception as error:
@@ -412,16 +430,18 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
                         raise safe
                     # Preserve already validated entries even if a later tool/HTTP
                     # step failed. Unseen entries alone remain failed/retryable.
-                    proposals, seen = [], set()
+                    proposals, seen, workspace.kept = [], set(), []
                     if workspace.ran:
                         try:
-                            proposals, seen = _proposals(root, request, allowed, targets)
+                            proposals, seen = _proposals(root, request, allowed, targets, kept=workspace.kept)
                         except LLMError:
-                            pass
+                            workspace.kept = []
+                    kept_rows = _replace_kept(kept_rows, workspace.kept, {w for p in proposals for w in p["word_ids"]})
                     new_ids = {word for proposal in proposals for word in proposal['word_ids']}
                     suggestions = [proposal for proposal in suggestions if not new_ids.intersection(proposal['word_ids'])]
                     suggestions.extend(proposals)
                     failed.extend(sorted(targets - seen))
+                    why.update((ident, safe.say) for ident in targets - seen)
                     proposed = {word for proposal in proposals for word in proposal["word_ids"]}
                     uncertain.extend(sorted(targets - proposed))
                     if diagnostic:
@@ -433,6 +453,8 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
     uncertain = sorted(set(uncertain) - proposed_ids)
     failed = sorted(set(failed) - proposed_ids)
     return {"schema_version": 1, "suggestions": suggestions, "uncertain_word_ids": uncertain, "failed_word_ids": failed,
+            "kept": [k for k in kept_rows if not proposed_ids.intersection(k["word_ids"])],
+            "failed_reasons": {ident: say for ident, say in why.items() if ident in failed},
             "assessment": "partial" if failed else "suggestions" if suggestions else "kept_original",
             "method": "workspace-code", "task": "workspace", "reviewed_word_ids": reviewed,
             "words_reviewed": done, "words_total": total,

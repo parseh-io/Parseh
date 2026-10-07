@@ -281,8 +281,10 @@ method searches raw token probabilities for candidate words and ranks the
 original, all Whisper alternatives and those candidates using fixed surrounding
 text. It has separate installed-model settings and sends no chatbot prompt.
 Choose the method, **Prepare external prompt**, copy it to your chatbot, then
-paste the answer and **Import answer into review**. No saved connection is
-required. The workspace method also downloads its transcript and CSV files.
+paste the answer and **Import answer into review**; the review then goes through
+the answers with you, one word at a time ([Go through the model's
+answers](../lookup-and-languages/llm-integration.md#go-through-the-models-answers)).
+No saved connection is required. The workspace method also downloads its transcript and CSV files.
 Its Python helper checks edits during work and checks required entries before
 the model returns its answer. Parseh independently validates imported proposals;
 no checker applies changes without your approval.

@@ -97,8 +97,9 @@ so you can compare them before
 accepting an edit. Meanings use the installed dictionary's language, normally
 English, independently of the video's gloss language.
 
-**✎** marks a proposed LLM substitution. Focus, hover or tap any word to inspect
-evidence or edit it. Only suspect words' available alternatives are sent as
+**✎** marks a proposed substitution, **✔** a word the model checked and says is
+right, **?** one it kept without being sure and **✗** one it gave no answer for.
+Focus, hover or tap any word to inspect evidence or edit it. Only suspect words' available alternatives are sent as
 readable hints. The same faster-whisper backend now retains up to five native
 beam hypotheses and exposes substitutions that map unambiguously to a source
 word. Their **sequence log scores** rank complete recognition hypotheses;
@@ -122,6 +123,33 @@ untouched. Source, language, Whisper-model or box changes discard stale review.
 Caption boundaries and video clocks stay unchanged; edited word timings need
 review in the existing timing editor. Using the transcript deletes any
 privately held capture audio.
+
+## Go through the model's answers
+
+When a review method has answered, **The model's answers** appears above the
+transcript. It says how many words were checked and sorts them into four:
+**✎ edits proposed**, **✔ agree with Whisper**, **? not sure either way** and
+**✗ with no answer**. Press a count to see its words with the model's reason. A
+word the model left alone is not silent: its own panel says whether the model
+agrees with Whisper's word or could not tell, and why.
+
+**Go through the answers** (it opens by itself when an answer comes in) shows one
+word at a time, in the order of the transcript: the caption with the word
+marked, what Whisper heard and how sure it was, and what the model proposes and
+why. Choose **Accept**, **Keep Whisper's word**, **Write my own**, **Skip** or
+**← Back**; the keys are **A**, **K**, **W**, **S**, **←**, and **P** to listen.
+It stops at every proposal, every "not sure" and every "no answer"; tick **Also
+walk through the words the model agrees with** to see those too. At the end it
+lists exactly what will change, and **Use this transcript** puts it in the box.
+Words you skipped wait behind **Go back to the skipped**.
+
+To take edits together, **Accept the N sure edits, then look at the rest** takes
+what the model said it was sure of and walks you through the others, and
+**Accept all N edits the model proposed** takes every edit and ends with what
+will change. A chatbot's workspace answer says how sure it is of each word (a
+column called confidence, **sure** or **unsure**, which the prompt asks for), and
+for LM likelihood a clear winner counts as sure; the sentence methods do not
+rate their answers, so only the second button is there for them.
 
 ## Choose a section, keep checked words, or pause
 
@@ -192,12 +220,16 @@ Press **Copy review prompt** and paste it into the chatbot you choose. Bring
 its answer back to the labeled answer box and press **Import answer into
 review**. Sentence methods ask for complete sentences with the supplied labels;
 the workspace method asks for proposals CSV with exact source IDs and original
-spans. Parseh checks the answer before offering edits. A pasted answer is never
+spans, and for each row whether the chatbot is **sure** or **unsure**: a word it
+leaves as Whisper wrote it, marked sure, says that Whisper is right. The panel
+shows where you are in five steps (prepare, copy, paste and import, go through
+the answers, use), and a pasted answer takes you to **Go through the answers**
+at once. Parseh checks the answer before offering edits. A pasted answer is never
 executed as code. **LLM responses** also shows imported answers for inspection.
 
 For **Reasoning workspace**, **Download transcript & CSV workspace** supplies a
-ZIP containing the entire blanked transcript without timestamps, current-batch
-evidence, source IDs, the skill and Python helper. Attach it to a chatbot with
+ZIP containing the entire blanked transcript without timestamps, the evidence
+for every numbered entry, source IDs, the skill and Python helper. Attach it to a chatbot with
 file/code tools and use the copied prompt. Extract it with `parseh-review` as
 the working directory. Its `review.py` helper can check edits as work proceeds
 with `review.check()`. Before returning the CSV, run
@@ -205,17 +237,25 @@ with `review.check()`. Before returning the CSV, run
 edits, punctuation changes and missing required entries. These checks protect
 the transcript structure; you still review whether the proposed words are right.
 Paste the resulting proposals CSV back. A chatbot
-without file tools can use the current-region evidence included in the prompt.
+without file tools cannot use the ZIP: tick **Divide into several prompts**
+(under the method, off unless you tick it) before **Prepare external prompt**,
+and the evidence is in the prompts themselves, a part at a time.
 This external route does not require bubblewrap on the Parseh host: any code
 tools run in the external service's environment.
 
-Long transcripts use several bounded prompts. Progress counts source words
-in imported batches. **Previous prompt** and **Next prompt** let you revisit
-a batch; importing it again replaces that batch's proposals. A malformed
+**Suspect words** and **Whole text** use several bounded prompts for a long
+transcript. **Reasoning workspace** uses one, however long: its ZIP holds the
+whole transcript, which is what a workspace is for, and the prompt only says
+where everything is and what to answer; **Divide into several prompts** gives
+it parts like the others. Progress counts source words in imported batches.
+When a prompt's answer is imported the page says what it came to, shows the next
+prompt and offers **Go through these answers** at once; the decisions of every
+prompt end up in one draft. **Previous prompt** and **Next prompt** let you
+revisit a batch; importing it again replaces that batch's proposals. A malformed
 answer leaves previously imported batches and the answer box intact. Missing
-or invalid sentences remain unchanged and can be retried. **Review received
-suggestions** finishes with the answers received so far, marking unanswered
-words for retry or keyboard edits. **Cancel external review** returns to the
+or invalid sentences remain unchanged and can be retried. **Finish with the
+answers received so far** ends the review with what came in, showing the words
+with no answer as **✗** for retry or for your own edit. **Cancel external review** returns to the
 review choice with the Whisper result intact. Use **Save & pause** to retain the pending review on disk and reopen it from
 Videos, including after a server restart.
 

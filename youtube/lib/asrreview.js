@@ -4,6 +4,7 @@
   'use strict';
   function el(tag, text, cls) { var n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; }
   function btn(text, fn) { var b = el('button', text, 'wbtn small quiet'); b.type = 'button'; b.addEventListener('click', fn); return b; }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
   function time(n) { return typeof n === 'number' ? n.toFixed(2) + ' s' : 'unavailable'; }
   function estimate(n) { return typeof n === 'number' ? n.toFixed(2) : 'unavailable'; }
   function captionTime(n) {
@@ -18,8 +19,11 @@
     var choice, inspect, details, preview, status, use, responses, retry, useSkill = false, useBusy = false, disabledBefore = [];
     var wordButtons = {}, captions = {}, captionRows = [], filter = 'all', search = '', summary, activeCaption = null;
     var dictionaryCache = new Map(), editRanges = {};
+    // the model's answers, walked through one by one (asrwalk.js): which it kept as Whisper wrote them and which it skipped
+    var walkState = {kept: {}, skipped: {}, includeAgree: false}, walkCtl = null, walkHost = null;
     var locked = {}, selection = [], selecting = false, scope = 'all', phonetic = true, scopeNote, saveTimer, saveQueue = Promise.resolve(), hydrated = false;
-    function snapshot() { return {decisions: Object.assign({}, decisions), manual_edits: Object.assign({}, manualEdits), locked_word_ids: Object.keys(locked), selection: selection.length === 2 ? selection.slice() : [], scope: scope, selected_word: selected, phonetic_filter: phonetic, external_drafts: Object.assign({}, externalDrafts)}; }
+    function snapshot() { return {decisions: Object.assign({}, decisions), manual_edits: Object.assign({}, manualEdits), locked_word_ids: Object.keys(locked), selection: selection.length === 2 ? selection.slice() : [], scope: scope, selected_word: selected, phonetic_filter: phonetic, external_drafts: Object.assign({}, externalDrafts),
+      walk: {kept: Object.keys(walkState.kept), skipped: Object.keys(walkState.skipped), include_agree: !!walkState.includeAgree}}; }
     function saveNow() {
       if (saveTimer) clearTimeout(saveTimer);
       if (!opts.save || !result) return Promise.resolve();
@@ -79,7 +83,7 @@
       }); updateDraft(); if (selected) detail(words[selected]);
       if (status) status.textContent = 'First choices selected in the pending draft. Check them before using the transcript; locked words and incomplete or tied comparisons were kept.';
     }
-    var externalBusy = false, externalTask = 'suspect', externalDrafts = {}, externalRow = null, externalAttempt = 0, externalTimer = null;
+    var externalBusy = false, externalTask = 'suspect', externalDivide = false, externalDrafts = {}, externalRow = null, externalAttempt = 0, externalTimer = null;
     function keepExternal(ext) {
       if (externalTimer) clearInterval(externalTimer);
       externalTimer = null;
@@ -122,20 +126,47 @@
       var panel = el('details', null, 'stt-review-external'); panel.id = 'stt_external';
       panel.setAttribute('data-review-disclosure', 'external'); panel.open = !!(ext && !ext.finished);
       panel.appendChild(el('summary', 'Use an external chatbot · copy & paste'));
-      panel.appendChild(el('p', 'Choose any chatbot yourself. Copy the prompt, paste its answer below, then review the proposed edits. This sends text only when you paste or attach it to that service. No configured endpoint is needed.'));
+      panel.appendChild(el('p', 'Choose any chatbot yourself. Copy the prompt, paste its answer below, then go through what it says. This sends text only when you paste or attach it to that service. No configured endpoint is needed.'));
+      // WHERE YOU ARE, in five steps: what was one ritual spread over this panel
+      var steps = el('ol', null, 'stt-steps'); steps.id = 'stt_external_steps';
+      var stepNames = ['Choose the method and prepare the prompt', 'Copy the prompt into your chatbot', 'Paste its answer here and import it', 'Go through the answers', 'Use this transcript'];
+      var stepItems = stepNames.map(function (name) { var li = el('li', name); steps.appendChild(li); return li; });
+      function setStep(at) {
+        stepItems.forEach(function (li, i) { li.className = i < at ? 'done' : i === at ? 'now' : ''; if (i === at) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current'); });
+      }
+      setStep(!ext ? 0 : ext.finished ? 3 : 1);
+      panel.appendChild(steps);
       var label = el('label', 'Review method '), select = el('select'); select.id = 'stt_external_task';
       [['suspect', 'Suspect words · experimental'], ['full', 'Whole text · experimental'], ['workspace', 'Reasoning workspace · experimental']].forEach(function (option) { var node = el('option', option[1]); node.value = option[0]; select.appendChild(node); });
       select.value = ext ? ext.task : externalTask; select.disabled = phase === 'correcting';
-      select.addEventListener('change', function () { externalTask = select.value; }); label.appendChild(select); panel.appendChild(label);
+      label.appendChild(select); panel.appendChild(label);
+      // A reasoning workspace is handed over whole -- its ZIP holds the entire transcript, which is what a workspace is for --
+      // unless a person asks for it in pieces: for a chatbot that cannot open files, whose evidence has to be in the prompts
+      var divideLabel = el('label', 'Divide into several prompts '), divide = el('input'); divide.type = 'checkbox'; divide.id = 'stt_external_divide';
+      divide.checked = externalDivide; divide.disabled = phase === 'correcting'; divideLabel.appendChild(divide);
+      var divideNote = el('p', 'Off: one prompt, and the workspace ZIP holds the whole transcript, for a chatbot that can open files. On: the evidence is in the prompts themselves, a part at a time, for a chatbot that cannot. It applies to the next review you prepare.', 'fieldnote');
+      function showDivide() { divideLabel.hidden = divideNote.hidden = select.value !== 'workspace'; }
+      divide.addEventListener('change', function () { externalDivide = divide.checked; });
+      select.addEventListener('change', function () { externalTask = select.value; showDivide(); });
+      showDivide(); panel.appendChild(divideLabel); panel.appendChild(divideNote);
       var message = el('p', '', 'stt-review-status'); message.id = 'stt_external_status'; message.setAttribute('role', 'status'); message.setAttribute('aria-live', 'polite');
-      var start = btn(ext ? 'Start new external review' : 'Prepare external prompt', function () { externalRequest('start', {task: select.value, word_ids: targetIds(select.value)}, message); }); start.id = 'stt_external_start'; start.disabled = phase === 'correcting' || !opts.external || !result.review || !result.review.evidence; panel.appendChild(start);
-      if (ext) panel.appendChild(el('p', 'Starting a new review replaces LLM proposals. Your manual draft edits remain.', 'fieldnote'));
+      var start = btn(ext ? 'Start new external review' : 'Prepare external prompt', function () { externalRequest('start', {task: select.value, word_ids: targetIds(select.value), divide: select.value === 'workspace' && externalDivide}, message); }); start.id = 'stt_external_start'; start.disabled = phase === 'correcting' || !opts.external || !result.review || !result.review.evidence
+      panel.appendChild(start);
+      if (ext) panel.appendChild(el('p', 'Starting a new review replaces the model’s proposals. Your own edits in the draft stay.', 'fieldnote'));
       if (!result.review || !result.review.evidence) panel.appendChild(el('p', 'This older result has no mapped word evidence. Transcribe again to prepare external review prompts.'));
+      // what has come in so far, in the four outcomes (asrwalk.js)
+      function answersSoFar() {
+        if (!walkCtl) return null;
+        var n = walkCtl.counts(), line = el('p', null, 'stt-external-result'); line.id = 'stt_external_result';
+        line.appendChild(el('strong', ParsehAsrWalk.MARK.change + ' ' + n.change + ' edits proposed · ' + ParsehAsrWalk.MARK.agree + ' ' + n.agree + ' agree with Whisper · ' + ParsehAsrWalk.MARK.unsure + ' ' + n.unsure + ' not sure either way · ' + ParsehAsrWalk.MARK.none + ' ' + n.none + ' with no answer'));
+        return n.change + n.agree + n.unsure + n.none ? line : null;
+      }
       if (ext && !ext.finished && ext.batches) {
-        panel.appendChild(el('p', 'Prompt ' + (ext.index + 1) + ' of ' + ext.batches + ' · ' + ext.words_done + ' / ' + ext.words_total + ' ASR words processed' + (ext.submitted.indexOf(ext.index) >= 0 ? ' · Answer already imported; pasting again replaces this batch’s proposals.' : '.')));
+        var whole = ext.task === 'workspace' && ext.divided === false;
+        panel.appendChild(el('p', (whole ? 'The whole transcript' : 'Prompt ' + (ext.index + 1) + ' of ' + ext.batches) + ' · ' + ext.words_done + ' / ' + ext.words_total + ' ASR words processed' + (ext.submitted.indexOf(ext.index) >= 0 ? ' · Answer already imported; pasting again replaces ' + (whole ? 'its' : 'this batch’s') + ' proposals.' : '.')));
         var progress = el('progress'); progress.max = ext.words_total || 1; progress.value = ext.words_done;
         progress.setAttribute('aria-label', 'External review word progress'); panel.appendChild(progress);
-        var promptLabel = el('label', 'Prompt for this batch'), prompt = el('textarea'); prompt.id = 'stt_external_prompt'; prompt.readOnly = true; prompt.dir = 'auto'; prompt.value = ext.prompt; prompt.rows = 7; promptLabel.appendChild(prompt); panel.appendChild(promptLabel);
+        var promptLabel = el('label', whole ? 'Prompt for this review' : 'Prompt for this batch'), prompt = el('textarea'); prompt.id = 'stt_external_prompt'; prompt.readOnly = true; prompt.dir = 'auto'; prompt.value = ext.prompt; prompt.rows = 7; promptLabel.appendChild(prompt); panel.appendChild(promptLabel);
         var row = el('div'); panel.appendChild(row);
         if (window.ParsehLLMRow) {
           externalRow = ParsehLLMRow.mount(row, {surface: 'asr-' + ext.task, box: function () { return prompt; },
@@ -148,20 +179,40 @@
           var download = el('a', 'Download transcript & CSV workspace'); download.id = 'stt_external_files';
           download.href = '/youtube/api/transcribe/external-files?' + new URLSearchParams({job: opts.job(), source_sha256: result.review.evidence.source_sha256, session: ext.id, index: ext.index}).toString();
           download.download = 'parseh-review-workspace.zip'; download.addEventListener('click', function (event) { if (opts.current && !opts.current()) event.preventDefault(); }); panel.appendChild(download);
-          panel.appendChild(el('p', 'Attach the ZIP to a chatbot with file/code tools, or use the region and CSV evidence in the prompt. Paste the resulting proposals CSV below. Audio and host paths are excluded.'));
+          panel.appendChild(el('p', whole ? 'Attach the ZIP to a chatbot with file/code tools: it holds the whole transcript and its evidence, which the prompt does not repeat. A chatbot without file tools needs the review divided into several prompts: tick that box and prepare a new review. Paste the resulting proposals CSV below. Audio and host paths are excluded.'
+            : 'Attach the ZIP to a chatbot with file/code tools, or use the region and CSV evidence in the prompt. Paste the resulting proposals CSV below. Audio and host paths are excluded.'));
         }
         var answerLabel = el('label', ext.task === 'workspace' ? 'Paste proposals CSV' : 'Paste the labeled sentence answers');
         var answer = el('textarea'), key = ext.id + ':' + ext.index; answer.id = 'stt_external_answer'; answer.rows = 7; answer.dir = 'auto'; answer.maxLength = 131072; answer.value = externalDrafts[key] || '';
         answerLabel.appendChild(answer); panel.appendChild(answerLabel);
         var submit = btn('Import answer into review', function () { externalRequest('answer', {session: ext.id, index: ext.index, answer: answer.value}, message); }); submit.id = 'stt_external_import'; submit.disabled = !answer.value.trim();
-        answer.addEventListener('input', function () { externalDrafts[key] = answer.value; Object.keys(externalDrafts).slice(0, -4).forEach(function (old) { delete externalDrafts[old]; }); autosave(); submit.disabled = !answer.value.trim() || externalBusy; }); panel.appendChild(submit);
+        setStep(answer.value.trim() ? 2 : 1);
+        answer.addEventListener('input', function () { externalDrafts[key] = answer.value; Object.keys(externalDrafts).slice(0, -4).forEach(function (old) { delete externalDrafts[old]; }); autosave(); submit.disabled = !answer.value.trim() || externalBusy; setStep(answer.value.trim() ? 2 : 1); }); panel.appendChild(submit);
+        // an answer that came in: what it said, and the choice -- go through it now, or fetch the next prompt first
+        var got = ext.submitted.length ? answersSoFar() : null;
+        if (got) {
+          panel.appendChild(el('p', ext.submitted.length === 1 ? 'An answer is imported. It says:' : plural(ext.submitted.length, 'answer is', 'answers are') + ' imported. Together they say:', 'fieldnote')); panel.appendChild(got);
+          var after = el('div', null, 'stt-review-actions');
+          var through = btn('Go through these answers', function () { if (walkCtl) { walkCtl.open(); if (walkHost) walkHost.scrollIntoView({block: 'start'}); } }); through.id = 'stt_external_walk'; after.appendChild(through);
+          if (ext.batches > 1 && ext.submitted.indexOf(ext.index) < 0) after.appendChild(el('span', 'The prompt above is the next one, ready to copy.', 'fieldnote'));
+          panel.appendChild(after);
+        }
         var navigation = el('div', null, 'stt-review-actions');
-        var previous = btn('Previous prompt', function () { externalRequest('prompt', {session: ext.id, index: ext.index - 1}, message); }); previous.disabled = ext.index === 0; navigation.appendChild(previous);
-        var next = btn('Next prompt', function () { externalRequest('prompt', {session: ext.id, index: ext.index + 1}, message); }); next.disabled = ext.index + 1 >= ext.batches; navigation.appendChild(next);
-        panel.appendChild(el('p', 'You can finish with the answers received so far. Unanswered words keep their Whisper text and remain available for retry or manual edits.', 'fieldnote'));
-        navigation.appendChild(btn('Review received suggestions', function () { externalRequest('finish', {session: ext.id}, message); }));
+        var previous = btn('Previous prompt', function () { externalRequest('prompt', {session: ext.id, index: ext.index - 1}, message); }); previous.disabled = ext.index === 0; if (!whole) navigation.appendChild(previous);
+        var next = btn('Next prompt', function () { externalRequest('prompt', {session: ext.id, index: ext.index + 1}, message); }); next.disabled = ext.index + 1 >= ext.batches; if (!whole) navigation.appendChild(next);
+        panel.appendChild(el('p', 'You can stop here: the words with no answer stay as Whisper wrote them, and “Retry remaining suspect words” asks again for them later.', 'fieldnote'));
+        navigation.appendChild(btn('Finish with the answers received so far', function () { externalRequest('finish', {session: ext.id}, message); }));
         navigation.appendChild(btn('Cancel external review', function () { externalRequest('cancel', {session: ext.id}, message); })); panel.appendChild(navigation);
-      } else if (ext) panel.appendChild(el('p', ext.batches ? 'External import is finished. Accept or reject proposals below; only Use this transcript fills the transcript box.' : 'There are no mapped words to review with this method. Inspect the Whisper result below; only Use this transcript fills the transcript box.'));
+      } else if (ext) {
+        if (!ext.batches) panel.appendChild(el('p', 'There are no mapped words to review with this method. Inspect the Whisper result below; only Use this transcript fills the transcript box.'));
+        else {
+          var finished = answersSoFar();
+          panel.appendChild(el('p', 'All the answers are in. The model said:', 'fieldnote'));
+          if (finished) panel.appendChild(finished);
+          panel.appendChild(el('p', 'Go through them above, one by one, or look at any word in the transcript. Only Use this transcript fills the transcript box.'));
+          var again = btn('Go through the answers', function () { if (walkCtl) { walkCtl.open(); if (walkHost) walkHost.scrollIntoView({block: 'start'}); } }); again.id = 'stt_external_walk'; panel.appendChild(again);
+        }
+      }
       if (ext && ext.prompt_error) message.textContent = ext.prompt_error;
       panel.appendChild(message); root.appendChild(panel);
     }
@@ -330,8 +381,10 @@
         applied[id] = manual != null ? typeof manual === 'object' ? manual.text : manual : suggestions[id].candidates[decisions[id]].text;
         ids.slice(1).forEach(function (member) { suppressed[member] = true; });
       });
+      if (walkCtl) outcomeMap = walkCtl.marks();
       Object.keys(wordButtons).forEach(function (id) {
         var button = wordButtons[id], changed = applied[id] != null || suppressed[id];
+        button.classList.toggle('asr-agree', outcomeOf(id) === 'agree'); button.classList.toggle('asr-unsure', outcomeOf(id) === 'unsure'); button.classList.toggle('asr-noanswer', outcomeOf(id) === 'none');
         button.classList.toggle('asr-accepted', !!changed);
         button.classList.toggle('asr-locked', !!locked[id]);
         var ends = selection.map(function (member) { return words[member].span_start; }).sort(function (a,b) { return a-b; });
@@ -345,6 +398,7 @@
         if (locked[id]) button.setAttribute('aria-label', button.getAttribute('aria-label') + ', locked');
       });
       autosave();
+      if (walkCtl && walkHost && walkHost.isConnected) walkCtl.repaint();
       if (scopeNote) scopeNote.textContent = selection.length === 2 ? 'Selected section: ' + words[selection[0]].text + ' … ' + words[selection[1]].text : selecting ? 'Choose the first word, then the last word of the section.' : 'Methods review unlocked words. Select a section to limit their targets.';
       if (retry) { var remaining = retryWords(); retry.textContent = 'Retry remaining suspect words (' + remaining.length + ')'; retry.hidden = !result.review.result || result.review.last_method === 'whisper-second'; var configured = result.review.choice === 'likelihood' ? config && config.likelihood && config.likelihood.available : config && config.configured; retry.disabled = phase !== 'review' || !remaining.length || (result.review.choice !== 'external' && !configured); }
       var all = Object.keys(words), low = all.filter(function (id) { return words[id].low_asr_score; }).length;
@@ -353,6 +407,38 @@
         (Object.keys(decisions).length + Object.keys(manualEdits).length) + ' edits saved';
       applyFilter();
     }
+    // what the walk (asrwalk.js) needs of this review, and nothing else of it
+    var walkApi = {
+      data: function () { return {words: words, suggestions: suggestions, result: result.review.result, review: result.review, locked: locked, decisions: decisions, manualEdits: manualEdits, text: result.text}; },
+      walk: function () { return walkState; },
+      touched: function (ids) {
+        var took = Object.keys(decisions).some(function (key) { return (suggestions[key] && suggestions[key].word_ids || [key]).some(function (id) { return ids.indexOf(id) >= 0; }); });
+        if (took) return 'accepted';
+        return Object.keys(manualEdits).some(function (key) { return idsFor(key).some(function (id) { return ids.indexOf(id) >= 0; }); }) ? 'own' : null;
+      },
+      accept: function (item, index) {
+        clearOverlaps(item.ids);
+        if (item.proposal) decisions[item.key] = index; else manualEdits[item.anchor] = item.candidates[0].text;
+      },
+      keep: function (item) { clearOverlaps(item.ids); },
+      own: function (item, text) { clearOverlaps(item.ids); manualEdits[item.anchor] = item.ids.length > 1 ? {text: text, word_ids: item.ids.slice()} : text; },
+      undo: function (item) { clearOverlaps(item.ids); },
+      changed: function () { updateDraft(); },
+      caption: function (id) { return captions[id]; },
+      // the card's word: marked in the transcript, its evidence in the panel beside it, the player parked at it
+      show: function (w) {
+        var b = w && wordButtons[w.word_id];
+        if (b) { b.scrollIntoView({block: 'nearest'}); Object.keys(wordButtons).forEach(function (id) { wordButtons[id].classList.toggle('asr-walking', id === w.word_id); }); }
+        if (w) detail(w);
+      },
+      listen: function (w) { if (w && opts.select && captions[w.word_id]) opts.select(w, captions[w.word_id], true); },
+      use: function () { if (use && !use.disabled) use.click(); },
+      phase: function () { return phase; },
+      clock: function (w) { var seg = captions[w.word_id]; return seg ? captionTime(seg.start) : ''; }
+    };
+    // the mark each word wears for what the model said of it (asrwalk.js outcomes)
+    var outcomeMap = {};
+    function outcomeOf(id) { return outcomeMap[id] ? outcomeMap[id].kind : null; }
     function retryWords() { return Object.keys(words).filter(function (id) { return words[id].reviewable && !locked[id] && inScope(words[id]) && (suspect(words[id]) || result.review.result && (result.review.result.failed_word_ids || []).indexOf(id) >= 0) && !accepted(id); }); }
     function detail(w, hover) {
       if (!w || useBusy) return;
@@ -372,6 +458,13 @@
         var recheck = btn(w.second_pass && w.second_pass.state === 'complete' ? 'Whisper second pass · again' : 'Whisper second pass · this word', function () { runMethod('whisper-second', 'whisper-second', w.word_id); });
         recheck.id = 'stt_whisper_word'; recheck.disabled = !!locked[w.word_id] || !result.review.second_pass_available;
         wordActions.appendChild(recheck);
+      }
+      var said = outcomeMap[w.word_id];
+      if (said) {
+        var verdict = el('p', null, 'stt-walk-wordnote stt-walk-' + said.kind);
+        verdict.appendChild(el('strong', ParsehAsrWalk.MARK[said.kind] + ' ' + ParsehAsrWalk.HEAD[said.kind](said) + (said.rating ? ' · ' + (said.rating === 'sure' ? 'sure' : 'not sure') : '') + '. '));
+        if (said.reason) { var why = el('bdi', said.reason); why.dir = 'auto'; verdict.appendChild(why); }
+        details.appendChild(verdict);
       }
       var evidenceDetails = el('details'); evidenceDetails.appendChild(el('summary', 'Recognition details'));
       var usualDetails = details; details = evidenceDetails;
@@ -450,7 +543,7 @@
         details.appendChild(alternatives);
         var reject = btn('Reject this edit / keep Whisper word', function () { delete decisions[proposalId]; updateDraft(); detail(w); });
         reject.disabled = proposalIds.some(function (id) { return locked[id]; }); details.appendChild(reject);
-      } else if (suspect(w)) details.appendChild(el('p', 'No LLM edit is proposed for this word. It stays unchanged.'));
+      } else if (suspect(w) && !said) details.appendChild(el('p', 'No review method has said anything about this word yet. It stays as Whisper wrote it.'));
       dictionaryDetails(w, originalDictionary, candidateDictionaries, asrDictionaries, s);
       if (w.reviewable && phase === 'review') {
         var contextDetails = details; details = wordActions;
@@ -544,6 +637,8 @@
       var scroll = inspect ? inspect.scrollTop : 0, opened = {};
       Array.prototype.forEach.call(root.querySelectorAll('[data-review-disclosure]'), function (box) { opened[box.getAttribute('data-review-disclosure')] = box.open; });
       root.textContent = ''; root.hidden = false; wordButtons = {}; captions = {}; captionRows = []; activeCaption = null;
+      if (!walkCtl && window.ParsehAsrWalk) walkCtl = ParsehAsrWalk.create(walkApi);
+      outcomeMap = walkCtl ? walkCtl.marks() : {};
       var top = el('div', null, 'stt-review-head');
       top.appendChild(el('h3', 'Transcript workspace'));
       summary = el('p', '', 'fieldnote'); top.appendChild(summary); root.appendChild(top);
@@ -590,7 +685,7 @@
       var failedSecond = Object.keys(words).filter(function (id) { return words[id].second_pass && words[id].second_pass.state === 'failed'; });
       if (failedSecond.length) root.appendChild(el('p', 'Whisper could not safely recheck ' + failedSecond.length + ' words. Their original evidence is intact; retry them or edit directly.', 'warn'));
       var reviewed = result.review && result.review.result;
-      if (reviewed && reviewed.failed_word_ids && reviewed.failed_word_ids.length) root.appendChild(el('p', 'LLM review had problems with ' + reviewed.failed_word_ids.length + ' words. Their Whisper text is intact. Retry unresolved words or edit them yourself.', 'warn'));
+      if (reviewed && reviewed.failed_word_ids && reviewed.failed_word_ids.length) root.appendChild(el('p', 'No answer came back for ' + plural(reviewed.failed_word_ids.length, 'word', 'words') + '. Their Whisper text is intact. Retry the unresolved words or edit them yourself.', 'warn'));
       if (reviewed && !reviewed.suggestions.length) root.appendChild(el('p', reviewed.assessment === 'no_flagged_words' ? 'No reviewable words had a low ASR score or a dictionary miss. No text was sent to the LLM.' : reviewed.assessment === 'no_reviewable_words' ? 'No source words could be mapped for LLM edits. Review the Whisper text.' : reviewed.failed_word_ids && reviewed.failed_word_ids.length ? 'Some sentences could not be reviewed. Their words remain unchanged.' : reviewed.assessment === 'uncertain' ? 'The model could not determine a correction. No words have changed.' : 'The model kept the words unchanged. This does not establish that they are correct.'));
       var sectionControls = el('div', null, 'stt-review-tools');
       var scopeLabel = el('label', 'Review '), scopeSelect = el('select'); scopeSelect.id = 'stt_review_scope';
@@ -600,6 +695,8 @@
       sectionControls.appendChild(btn('Clear selection',function () {selection=[];selecting=false;scope='all';updateDraft();render();}));
       var soundLabel=el('label','Similar-sounding words '), sound=el('input');sound.type='checkbox';sound.id='stt_phonetic_filter';sound.checked=phonetic;soundLabel.title='LM likelihood: prefer similar-sounding candidates when pronunciation is available';soundLabel.hidden=!config || !config.likelihood || !config.likelihood.available;sound.addEventListener('change',function () {phonetic=sound.checked;autosave();});soundLabel.appendChild(sound);sectionControls.appendChild(soundLabel);
       scopeNote=el('p','','fieldnote');sectionControls.appendChild(scopeNote); root.insertBefore(sectionControls, toolbox);
+      walkHost = null;
+      if (walkCtl) { walkHost = el('section', null, 'stt-walk'); walkHost.id = 'stt_walk'; walkHost.setAttribute('aria-label', 'The model’s answers'); root.appendChild(walkHost); }
       var toolbar = el('div', null, 'stt-review-tools');
       var filterLabel = el('label', 'Show '), picker = el('select'); picker.id = 'stt_review_filter';
       [['all', 'All captions'], ['attention', 'Needs attention'], ['proposals', result.review.choice === 'likelihood' ? 'Reviewed words' : 'Suggested changes']].forEach(function (option) { var n = el('option', option[1]); n.value = option[0]; picker.appendChild(n); });
@@ -608,7 +705,7 @@
       searchBox.setAttribute('aria-label', 'Find text in captions'); searchBox.addEventListener('input', function () { search = searchBox.value; applyFilter(); });
       toolbar.appendChild(filterLabel); toolbar.appendChild(searchBox);
       toolbar.appendChild(btn('Previous issue', function () { navigateIssue(-1); })); toolbar.appendChild(btn('Next issue', function () { navigateIssue(1); })); root.appendChild(toolbar);
-      var legend = el('p', '⚠ Check · ◇ No definition · ✎ Suggested · ✓ Draft choice · 🔒 Locked', 'stt-review-legend'); root.appendChild(legend);
+      var legend = el('p', '⚠ Check · ◇ No definition · ✎ Model suggests · ✔ Model agrees · ? Model not sure · ✗ No answer · ✓ In your draft · 🔒 Locked', 'stt-review-legend'); root.appendChild(legend);
       if (result.review.evidence.dictionary && result.review.evidence.dictionary.failed) root.appendChild(el('p', 'Some dictionary lookups could not finish. Those failures do not flag words as incorrect.', 'fieldnote'));
       var body = el('div', null, 'stt-review-body');
       inspect = el('div', null, 'stt-review-text'); inspect.setAttribute('role', 'region'); inspect.setAttribute('aria-label', 'Timestamped transcript');
@@ -632,7 +729,9 @@
             var b = btn(w.text, function () {
               if (selecting) { selection.push(w.word_id); if (selection.length === 2) {selecting=false;scope='selection';} updateDraft(); if (!selecting) render(); return; }
               detail(w); if (opts.select) opts.select(w, seg, true); });
-            b.className = 'stt-review-word' + (w.low_asr_score ? ' asr-low' : '') + (w.dictionary_miss ? ' asr-dictionary' : '') + (s ? ' asr-proposal' : '') + (s && s.likelihood ? ' asr-likelihood' : '');
+            b.className = 'stt-review-word' + (w.low_asr_score ? ' asr-low' : '') + (w.dictionary_miss ? ' asr-dictionary' : '') +
+              (outcomeOf(w.word_id) === 'change' || s && !outcomeOf(w.word_id) ? ' asr-proposal' : '') + (outcomeOf(w.word_id) === 'agree' ? ' asr-agree' : '') +
+              (outcomeOf(w.word_id) === 'unsure' ? ' asr-unsure' : '') + (outcomeOf(w.word_id) === 'none' ? ' asr-noanswer' : '') + (s && s.likelihood ? ' asr-likelihood' : '');
             b.setAttribute('data-review-word', w.word_id); b.setAttribute('aria-controls', details.id);
             b.addEventListener('focus', function () { detail(w); });
             b.addEventListener('keydown', function (e) {
@@ -660,7 +759,7 @@
       var cancelled = btn(phase === 'correcting' ? 'Stop current tool' : 'Discard review', opts.cancel); cancelled.id = 'stt_review_cancel'; actions.appendChild(cancelled);
       retry = btn('Retry remaining suspect words', function () {
         var task = result.review.result && result.review.result.task || 'suspect';
-        if (result.review.choice === 'external') externalRequest('start', {task: task, word_ids: retryWords()}, root.querySelector('#stt_external_status'));
+        if (result.review.choice === 'external') externalRequest('start', {task: task, word_ids: retryWords(), divide: task === 'workspace' && !!(result.review.external && result.review.external.divided)}, root.querySelector('#stt_external_status'));
         else if (opts.retry) { var ids=retryWords();keepAccepted();saveNow().then(function () {opts.retry(ids,useSkill,task,{phonetic_filter:phonetic});},function(e){status.textContent=e.message;}); }
       }); retry.id = 'stt_review_retry'; actions.appendChild(retry);
       var best = btn('Select best for all', selectBest); best.id='stt_select_best'; best.disabled=phase!=='review' || (!Object.keys(suggestions).length && !(result.review.last_method === 'whisper-second' && (result.review.last_word_ids || []).some(function (id) { return words[id] && words[id].second_pass && words[id].second_pass.best_candidate; }))); actions.appendChild(best);
@@ -671,6 +770,7 @@
       preview = el('pre'); preview.dir = 'auto'; previewBox.appendChild(preview); root.appendChild(previewBox);
       responses = el('details', null, 'stt-llm-responses'); responses.id = 'stt_llm_responses'; responses.setAttribute('data-review-disclosure', 'responses'); root.appendChild(responses);
       showResponses(result.review && result.review.diagnostics || [], result.review && result.review.diagnostics_clipped);
+      if (walkCtl && walkHost) walkCtl.mount(walkHost, true);
       updateDraft();
       if (phase === 'review') status.textContent = 'Your draft is ready to edit. Use a tool if useful, or use the transcript directly.';
       if (phase === 'correcting') status.textContent = 'A review tool is running. You can listen and inspect the original evidence while it works.';
@@ -688,7 +788,7 @@
         var previousExternal = result && result.review && result.review.external;
         var nextExternal = res.review && res.review.external;
         if ((previousExternal && previousExternal.id) !== (nextExternal && nextExternal.id)) externalDrafts = {};
-        if (before !== after) { decisions = {}; manualEdits = {}; locked = {}; selection = []; selected = null; editRanges = {}; externalDrafts = {}; hydrated = false; }
+        if (before !== after) { decisions = {}; manualEdits = {}; locked = {}; selection = []; selected = null; editRanges = {}; externalDrafts = {}; hydrated = false; walkState = {kept: {}, skipped: {}, includeAgree: false}; }
         if (before !== after) { filter = 'all'; search = ''; }
         var previousSuggestions = suggestions; result = res; phase = res.review && res.review.external && !res.review.external.finished ? 'external' : state === 'choice' ? 'review' : state; config = connection; suggestions = {}; words = {};
         keepExternal(res.review && res.review.external);
@@ -702,6 +802,8 @@
           var defaultSound = config && config.likelihood && config.likelihood.phonetic_filter;
           phonetic = typeof saved.phonetic_filter === 'boolean' ? saved.phonetic_filter : typeof defaultSound === 'boolean' ? defaultSound : true;
           externalDrafts = saved.external_drafts || {}; selected = saved.selected_word || selected;
+          var savedWalk = saved.walk || {}; walkState = {kept: {}, skipped: {}, includeAgree: !!savedWalk.include_agree};
+          (savedWalk.kept || []).forEach(function (id) { walkState.kept[id] = true; }); (savedWalk.skipped || []).forEach(function (id) { walkState.skipped[id] = true; });
           (saved.locked_word_ids || []).forEach(function (id) { locked[id] = true; }); hydrated = true;
         }
         render();
@@ -718,7 +820,7 @@
       resetProposals: keepAccepted,
       snapshot: snapshot, flush: saveNow,
       disableUse: function (on) { useBusy = on; disableControls(on); },
-      clear: function () { if(saveTimer)clearTimeout(saveTimer);hydrated=false;locked={};selection=[];editRanges={};keepExternal(null); if (externalRow) externalRow.destroy(); externalRow = null; externalAttempt++; externalBusy = false; externalDrafts = {}; result = null; decisions = {}; manualEdits = {}; dictionaryCache.clear(); useBusy = false; disabledBefore = []; root.textContent = ''; root.hidden = true; }
+      clear: function () { if(saveTimer)clearTimeout(saveTimer);hydrated=false;locked={};selection=[];editRanges={};keepExternal(null); if (externalRow) externalRow.destroy(); externalRow = null; externalAttempt++; externalBusy = false; externalDrafts = {}; walkState = {kept: {}, skipped: {}, includeAgree: false}; result = null; decisions = {}; manualEdits = {}; dictionaryCache.clear(); useBusy = false; disabledBefore = []; root.textContent = ''; root.hidden = true; }
     };
     return handle;
   }
