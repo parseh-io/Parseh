@@ -1188,9 +1188,6 @@ def hub_page():
   <div id="hub-activity"></div>
   <div class="hub-browser" data-layout="browser">
   <div class="brand"><span class="fa" lang="fa" data-lang="fa">&#x67E;&#x627;&#x631;&#x633;&#x647;</span><span class="lat">%(name)s</span></div>
-  <p class="tagline">A Frank-method toolbox: reading
-  editions with their narration, glossed video transcripts, and typeset
-  answers from an LLM &mdash; with one Anki card store underneath.</p>
   %(row)s
   <div class="doors">
     <a class="door" href="/books/">
@@ -1279,7 +1276,6 @@ def hub_page():
   </div>
   <div class="hub-mobile" data-layout="mobile">
     <div class="m-brand"><span class="fa" lang="fa" data-lang="fa">&#x67E;&#x627;&#x631;&#x633;&#x647;</span><span class="lat">%(name)s</span></div>
-    <p class="m-tagline">A Frank-method toolbox: read, watch, study.</p>
     %(mrow)s
     <nav class="m-doors" aria-label="the toolbox">
       <a class="m-door" href="/books/">

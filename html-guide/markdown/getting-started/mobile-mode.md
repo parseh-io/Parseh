@@ -38,7 +38,7 @@ exercise decks have theirs too ([below](#the-books)). In the mobile
 interface the hub has:
 
 - a slim top bar: **پ Parseh**, the switch and **◐** — nothing else;
-- the name, and one line: *A Frank-method toolbox: read, watch, study.*;
+- the name;
 - the language chips in a single row that scrolls sideways, which always
   brings the picked chip into view (with a mouse, where nothing can be
   swiped, they wrap into rows instead);

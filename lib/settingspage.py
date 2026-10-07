@@ -913,7 +913,6 @@ def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_ta
     net = DOORS[1][3]
     main = """<main class="settings">
 <h1 class="idx">settings</h1>
-<p class="sub">What this %(name)s is set to, and what this computer has fetched to help you read.</p>
 <p class="ver" data-version>This is %(name)s <b>%(version)s</b>.</p>
 <div class="doors">
   <a class="door" href="/settings/reading-help/">

@@ -15,6 +15,18 @@ change. A new version comes in from **Settings → Updating Parseh**
 ([Updating Parseh](../getting-started/updating.md)), which compiles this
 guide and rebuilds the readers by itself.
 
+## a0.5.1 — not yet released
+
+### The doors' pages say less
+
+The page of each door of the [hub](../getting-started/the-hub.md) — the hub
+itself, **Books**, **Videos**, **Exercises**, **Review later** and
+**Settings**, on a computer and on a phone — no longer has a line of
+description under its title: the doors' cards on the hub say what each one is,
+and the page is what you came for. The books' page and the videos' page are
+titled **Books** and **Videos**, and no longer *Ilya Frank reading editions* and
+*Frank-method videos*.
+
 ## a0.5.0 — 7 October 2026
 
 ### One panel of settings on every page: ⚙ page

@@ -329,9 +329,11 @@ def page_head(title_text, h1_html, sub_html, where_html, body_class="index",
         '<script src="/lib/parseh.js"></script>\n'
         '%s'
         '</head><body class="%s">\n%s<main>\n  <h1 class="idx">%s</h1>\n'
-        '  <p class="sub">%s</p>\n'
+        '%s'
         % (esc(title_text), APP_NAME, BASE, also, esc(body_class),
-           bar(where_html), h1_html, sub_html))
+           bar(where_html), h1_html,
+           # a page with nothing to say under its title draws no line there
+           '  <p class="sub">%s</p>\n' % sub_html if sub_html else ""))
 
 
 PAGE_FOOT = """  <footer class="idx">
@@ -476,10 +478,7 @@ def index_page():
             parts.extend(channel_card(c) for c in mine)
         body = "\n".join(parts)
     head = page_head(
-        "Videos", "Frank-method videos",
-        "A YouTube video with its transcript underneath, glossed the way "
-        "the reading editions are. Pick a channel, then a video.",
-        "videos")
+        "Videos", "Videos", "", "videos")
     pending = ''
     import asrpending
     for row in asrpending.listing():

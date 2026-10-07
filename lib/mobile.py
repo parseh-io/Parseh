@@ -1379,15 +1379,14 @@ def _videos_frame(title, tagline, body, where, browser_page, chips="", elsewhere
 <main class="m-main">
   <p class="m-elsewhere">%(elsewhere)s</p>
   <h1 class="m-h1">%(title)s</h1>
-  <p class="m-tagline">%(tagline)s</p>
-%(chips)s
+%(tagline)s%(chips)s
 <div class="m-shelf" data-shell-block>
 %(body)s</div>
 </main>
 %(js)s
 </body></html>
 """ % {"app": APP_NAME, "head": app_head(), "bar": bar(where), "title": esc(title),
-       "tagline": tagline, "chips": chips, "body": body, "browser": esc(browser_page),
+       "tagline": ('  <p class="m-tagline">%s</p>\n' % tagline) if tagline else "", "chips": chips, "body": body, "browser": esc(browser_page),
        "js": js,
        "elsewhere": elsewhere or ('This page belongs to the mobile interface, and the browser '
                                   'interface is on: switching to it goes to '
@@ -1417,9 +1416,7 @@ def videos_page():
         out.append('<div class="m-empty"><p>No video is here yet.</p>'
                    '<p>Videos are added in the browser interface &mdash; the switch is at '
                    'the top of this page.</p></div>')
-    return _videos_frame("Videos", "A video with its transcript: every phrase glossed, "
-                         "the caption being said kept in view. Pick a channel, then a video.",
-                         "\n".join(out), "Videos", "/youtube/", chips, js=CHANNELS_JS)
+    return _videos_frame("Videos", "", "\n".join(out), "Videos", "/youtube/", chips, js=CHANNELS_JS)
 
 
 def channel_page(slug):
@@ -1482,8 +1479,6 @@ def books_page():
   <p class="m-elsewhere">This is the book shelf of the mobile interface, and the
   browser interface is on: <a href="/books/">the library</a> is its page.</p>
   <h1 class="m-h1">Books</h1>
-  <p class="m-tagline">Reading editions: the text in chunks, each with its gloss, the
-  narration in step.</p>
 %(chips)s
 <div class="m-shelf" data-shell-block>
 %(groups)s</div>%(empty)s

@@ -572,8 +572,7 @@ def main():
   <button type="button" class="stop" data-parseh-stop title="stop the server">&#9211; stop</button>
 </div>
 <main>
-  <h1 class="idx">Ilya Frank reading editions</h1>
-  <p class="sub">The text in chunks, each glossed in line; the narration playing in step. Pick a text.</p>
+  <h1 class="idx">Books</h1>
 %(chips)s
 %(cards)s
 <a class="book sync add" href="add/">

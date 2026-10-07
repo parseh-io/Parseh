@@ -1075,7 +1075,6 @@ body[data-page="edit"] figure.img:hover img { outline: none; }
   margin: 0; font-family: var(--serif); font-size: 1.6rem; line-height: 1.25;
   color: var(--chrome-fg); overflow-wrap: anywhere;
 }
-.dk-lede { margin: .35rem 0 0; max-width: 46rem; color: var(--chrome-mut); }
 .dk-empty p { max-width: 38rem; margin-left: auto; margin-right: auto; }
 .dk-sr {
   position: absolute; width: 1px; height: 1px; overflow: hidden;

@@ -1,3 +1,7 @@
+## [a0.5.1] - unreleased
+### Changed
+- The doors' pages lose their one-line subtitles, and the books' and videos' pages are titled Books and Videos
+
 ## [a0.5.0] - 2026-10-07
 ### Added
 - ⚙ page: one panel of settings on a book, a video, a document and its editor and an exercise deck, on a computer and on a phone

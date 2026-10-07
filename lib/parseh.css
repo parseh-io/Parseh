@@ -308,7 +308,7 @@ footer.idx a{color:var(--dim)}
    Books, videos, the studio and the exercise decks: one row of four on a
    desktop, two by two on a narrow window, one above another on a phone. */
 .hub{max-width:980px;margin:0 auto;padding:6vh 20px 12vh}
-.hub .brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+.hub .brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:34px}
 /* the brand (پارسه) and the door glyphs are written in the hub with
    data-lang="fa": the toolbox's name is Persian whatever is being learned */
 .hub .brand .fa{font-family:var(--tl-alt,'Noto Nastaliq Urdu',Vazirmatn,serif);font-size:44px;
@@ -320,8 +320,7 @@ footer.idx a{color:var(--dim)}
    has not moved */
 .hub .brand .lat{font-family:'TeX Gyre Chorus','Apple Chancery',cursive;
   font-size:38px;font-weight:400;line-height:1.33;letter-spacing:.01em}
-.hub .tagline{color:var(--dim);font-size:15px;margin:0 0 34px}
-.hub .tagline+.parseh-langs{margin:-16px 0 30px}
+.hub .brand+.parseh-langs{margin:-16px 0 30px}
 .hub .doors{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 @media (max-width:900px){.hub .doors{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:540px){.hub .doors{grid-template-columns:1fr}}

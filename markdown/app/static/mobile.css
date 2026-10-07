@@ -114,7 +114,6 @@ html[data-mode=mobile] body.barhidden .m-topbar{transform:translateY(-100%)}
 /* ---------------- the column ---------------- */
 html[data-mode=mobile] :is(.dk-container,.dk-study-page){max-width:var(--m-col);padding:12px 16px 12vh}
 html[data-mode=mobile] .dk-title{font-size:1.45rem;line-height:1.25}
-html[data-mode=mobile] .dk-lede{font-size:.95rem;line-height:1.45}
 
 /* ---------------- the decks ---------------- */
 /* the language chips in one row that scrolls sideways, as the mobile hub's:

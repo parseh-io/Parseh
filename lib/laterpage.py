@@ -72,8 +72,6 @@ def page():
 </div>
 <main class="lp-main" data-later-page data-langs="%(langs)s">
   <h1 class="idx">review later</h1>
-  <p class="sub">The chunks you flagged while reading or watching, in every book and video.
-  Open one to go back to it where it is.</p>
   <div id="lp-root"></div>
   <noscript><p class="sub">This list is drawn by a script, and this browser is not running it.</p></noscript>
 </main>
