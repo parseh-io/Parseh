@@ -880,10 +880,11 @@ await section('review', 'pending LLM draft, accessible details and Unicode-safe 
       correction:{state:'complete',complete:true}, result:{schema_version:1, assessment:'suggestions', suggestions:[{
         segment_id:'s0',word_id:'s0w2',original:'anno',error_likelihood:.8,reason:'ASR alternative and context.',
         candidates:[{text:'hanno',confidence:.7,reason:'Matches the sentence.'}]}]}}};
-    window.contractReview = ParsehAsrReview.mount(root, {choose: function(){}, cancel: function(){},
+    window.contractReview = ParsehAsrReview.mount(root, {choose: function(mode, skill, task, ids, options){ window.reviewChosen = {mode, task, ids, options}; }, cancel: function(){},
       use: function(decisions,manual){ window.reviewApplied = decisions; window.reviewManual = manual; },
       retry: function(ids){ window.reviewRetried = ids; }});
-    contractReview.show(res, 'review', {configured:true,base_url:'http://saved/v1',selected_model:'served'});
+    window.contractRes = res;
+    contractReview.show(res, 'review', {configured:true,base_url:'http://saved/v1',selected_model:'served',workspace:{available:true}});
   });
   const marked = '#review-contract [data-review-word="s0w2"]';
   await page.hover(marked);
@@ -891,6 +892,15 @@ await section('review', 'pending LLM draft, accessible details and Unicode-safe 
   await page.focus(marked);
   assert(/model estimate/.test(await text(page, '#review-contract .stt-review-details')), 'keyboard focus exposes model estimates');
   await page.click(marked);
+  // what is being typed survives a redraw: the connection's status arrives a moment after the result and draws the review again
+  await page.locator('#review-contract #stt_manual_word').fill('avevano');
+  await page.locator('#review-contract #stt_manual_word').focus();
+  await page.evaluate(() => contractReview.show(JSON.parse(JSON.stringify(window.contractRes)), 'review', {configured:true,base_url:'http://saved/v1',selected_model:'served',workspace:{available:true}}));
+  eq(await page.locator('#review-contract #stt_manual_word').inputValue(), 'avevano', 'a correction typed and not yet saved is still there after the review is drawn again');
+  assert(await page.evaluate(() => document.activeElement === document.querySelector('#review-contract #stt_manual_word')), 'and the cursor is still in it');
+  await page.locator('#review-contract #stt_manual_word').fill('anno');
+  await page.evaluate(() => contractReview.show(JSON.parse(JSON.stringify(window.contractRes)), 'review', {configured:true,base_url:'http://saved/v1',selected_model:'served',workspace:{available:true}}));
+  eq(await page.locator('#review-contract #stt_manual_word').inputValue(), 'anno', 'and a word typed back to its own text stays so');
   await page.getByRole('button', {name:'Accept this alternative',exact:true}).click();
   eq(await page.evaluate(() => window.reviewApplied), null, 'accept changes only the pending draft');
   eq(await text(page, '#review-contract pre'), '0:00\n🙂 loro hanno detto ciao\n', 'Unicode offsets preserve the emoji and change only the selected span');
@@ -911,6 +921,20 @@ await section('review', 'pending LLM draft, accessible details and Unicode-safe 
   eq(await page.evaluate(() => window.reviewRetried), ['s0w2'], 'one retry action selects the remaining suspicious words');
   assert(await page.locator('#review-contract a[download]').count() === 3, 'review offers separate correction, whole-text and workspace skill downloads');
   assert(await page.locator('#review-contract #stt_review_full').count() === 1, 'whole-text review is an explicit choice');
+  // the connected reasoning workspace gets the whole transcript unless the box is ticked; the box is for that method alone
+  const cut = page.locator('#review-contract #stt_review_workspace_divide');
+  assert(await cut.isVisible() && !(await cut.isChecked()), 'the connected reasoning workspace is not divided into regions unless asked: the box is off');
+  await page.locator('#review-contract #stt_review_workspace').click();
+  await until(async () => await page.evaluate(() => !!window.reviewChosen), 'the review was chosen');
+  eq(await page.evaluate(() => [window.reviewChosen.task, window.reviewChosen.options.divide]), ['workspace', false], 'and the request does not ask to divide');
+  await cut.check();
+  await page.evaluate(() => { window.reviewChosen = null; });
+  await page.locator('#review-contract #stt_review_workspace').click();
+  await until(async () => await page.evaluate(() => !!window.reviewChosen), 'the review was chosen again');
+  eq(await page.evaluate(() => window.reviewChosen.options.divide), true, 'with the box ticked, it asks for regions');
+  await page.locator('#review-contract #stt_review_full').click();
+  await until(async () => await page.evaluate(() => window.reviewChosen.task === 'full'), 'another method chosen');
+  eq(await page.evaluate(() => window.reviewChosen.options.divide), true, 'the choice travels with the options (the server only divides a workspace)');
   eq(await inBox(page), '', 'review component never writes to the existing transcript box');
   await context.close();
 });

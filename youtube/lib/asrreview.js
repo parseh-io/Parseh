@@ -56,12 +56,14 @@
         }
       }); decisions = {};
     }
+    // the connected reasoning workspace gets the whole transcript unless asked for small regions (off, like the chatbot's "divide")
+    var workspaceDivide = false;
     function runMethod(mode, task, one) {
       var ids = targetIds(task, one);
       if (mode === 'whisper-second' && !one) ids = ids.filter(function (id) { return !words[id].second_pass || words[id].second_pass.state !== 'complete'; });
       if (ids && !ids.length) { status.textContent = 'No unlocked words to review in this section.'; return; }
       keepAccepted();
-      saveNow().then(function () { if (opts.choose) opts.choose(mode, task === 'workspace' ? false : useSkill, task, ids, {phonetic_filter:phonetic}); }, function (e) { status.textContent = e.message || 'Save the draft before starting another method.'; });
+      saveNow().then(function () { if (opts.choose) opts.choose(mode, task === 'workspace' ? false : useSkill, task, ids, {phonetic_filter:phonetic, divide:workspaceDivide}); }, function (e) { status.textContent = e.message || 'Save the draft before starting another method.'; });
     }
     function selectBest() {
       if (result.review.last_method === 'whisper-second') {
@@ -467,7 +469,7 @@
       if (result.review.choice === 'external') {
         var panel = root.querySelector('#stt_external'); if (panel) panel.open = true;
         externalRequest('start', {task: task, word_ids: ids, divide: task === 'workspace' && !!(result.review.external && result.review.external.divided)}, root.querySelector('#stt_external_status'));
-      } else if (opts.retry) { keepAccepted(); saveNow().then(function () { opts.retry(ids, useSkill, task, {phonetic_filter: phonetic}); }, function (e) { status.textContent = e.message; }); }
+      } else if (opts.retry) { keepAccepted(); saveNow().then(function () { opts.retry(ids, useSkill, task, {phonetic_filter: phonetic, divide: workspaceDivide}); }, function (e) { status.textContent = e.message; }); }
     }
     function retryWords() { return Object.keys(words).filter(function (id) { return words[id].reviewable && !locked[id] && inScope(words[id]) && (suspect(words[id]) || result.review.result && (result.review.result.failed_word_ids || []).indexOf(id) >= 0) && !accepted(id); }); }
     function detail(w, hover) {
@@ -672,6 +674,10 @@
     function render() {
       if (externalRow) { externalRow.destroy(); externalRow = null; }
       var scroll = inspect ? inspect.scrollTop : 0, opened = {};
+      // WHAT IS BEING TYPED SURVIVES A REDRAW.  The review is drawn again whenever its news changes -- the connection's status
+      // arriving a moment after the result did, a tool finishing -- and drew its word editor again with it, from the word's own
+      // text: a correction half typed, or typed and not yet saved, was gone.
+      var typing = root.querySelector('#stt_manual_word'), typed = typing && {word: selected, value: typing.value, focus: document.activeElement === typing, from: typing.selectionStart, to: typing.selectionEnd};
       Array.prototype.forEach.call(root.querySelectorAll('[data-review-disclosure]'), function (box) { opened[box.getAttribute('data-review-disclosure')] = box.open; });
       root.textContent = ''; root.hidden = false; wordButtons = {}; captions = {}; captionRows = []; activeCaption = null;
       if (!walkCtl && window.ParsehAsrWalk) walkCtl = ParsehAsrWalk.create(walkApi);
@@ -696,6 +702,10 @@
       second.disabled = phase === 'correcting' || !result.review.second_pass_available || !remainingSecond.length;
       second.title = remainingSecond.length ? 'Recheck remaining suspect words in the chosen section. Locked words stay unchanged.' : 'Suspect words in this section have already been checked. Select a word to run it again.';
       [second, llm, audit, workspace, likelihood].forEach(function (button) { choice.appendChild(button); });
+      // the connected reasoning workspace is one region unless asked to be cut up (the chatbot route has the same box, in its own panel)
+      var cutLabel = el('label', 'Divide the reasoning workspace into regions '), cut = el('input'); cut.type = 'checkbox'; cut.id = 'stt_review_workspace_divide';
+      cut.checked = workspaceDivide; cut.disabled = phase === 'correcting'; cut.addEventListener('change', function () { workspaceDivide = cut.checked; }); cutLabel.appendChild(cut); choice.appendChild(cutLabel);
+      choice.appendChild(el('p', 'Off: the model gets the whole transcript in one workspace, which is what a workspace is for. On: small regions of a few dozen words, one after the other, for a model that cannot hold so much. It applies to the next review you start.', 'fieldnote'));
       var destination = el('p', config && config.configured ? 'LLM destination: ' + config.base_url + ' · Audio is never sent.' : 'Connected LLM tools are not configured. You can edit, use Whisper rechecks, or copy prompts to an external chatbot.', 'stt-review-destination');
       var settings = el('a', 'LLM settings'); settings.href = '/settings/llm/'; settings.target = '_blank'; settings.rel = 'noopener';
       destination.appendChild(document.createTextNode(' ')); destination.appendChild(settings);
@@ -797,7 +807,7 @@
       retry = btn('Retry remaining suspect words', function () {
         var task = result.review.result && result.review.result.task || 'suspect';
         if (result.review.choice === 'external') externalRequest('start', {task: task, word_ids: retryWords(), divide: task === 'workspace' && !!(result.review.external && result.review.external.divided)}, root.querySelector('#stt_external_status'));
-        else if (opts.retry) { var ids=retryWords();keepAccepted();saveNow().then(function () {opts.retry(ids,useSkill,task,{phonetic_filter:phonetic});},function(e){status.textContent=e.message;}); }
+        else if (opts.retry) { var ids=retryWords();keepAccepted();saveNow().then(function () {opts.retry(ids,useSkill,task,{phonetic_filter:phonetic,divide:workspaceDivide});},function(e){status.textContent=e.message;}); }
       }); retry.id = 'stt_review_retry'; actions.appendChild(retry);
       var best = btn('Select best for all', selectBest); best.id='stt_select_best'; best.disabled=!editable() || (!Object.keys(suggestions).length && !(result.review.last_method === 'whisper-second' && (result.review.last_word_ids || []).some(function (id) { return words[id] && words[id].second_pass && words[id].second_pass.best_candidate; }))); actions.appendChild(best);
       if (opts.pause) { var pause=btn('Save & pause',function () {saveNow().then(opts.pause).catch(function (e) {status.textContent=e.message || 'The review could not be paused. Keep this page open and try again.';});});pause.id='stt_pause';pause.disabled=false;actions.appendChild(pause); }
@@ -816,6 +826,11 @@
       Array.prototype.forEach.call(root.querySelectorAll('[data-review-disclosure]'), function (box) { if (box.getAttribute('data-review-disclosure') === 'external' && result.review.external && !result.review.external.finished) box.open = true; else box.open = !!opened[box.getAttribute('data-review-disclosure')]; });
       inspect.scrollTop = scroll;
       if (selected && words[selected]) detail(words[selected]);
+      var again = typed && typed.word === selected && root.querySelector('#stt_manual_word');
+      if (again && again.value !== typed.value) {
+        again.value = typed.value;
+        if (typed.focus) { again.focus(); try { again.setSelectionRange(typed.from, typed.to); } catch (e) {} }
+      }
       if (useBusy) disableControls(true);
     }
     var handle = {

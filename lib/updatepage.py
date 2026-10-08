@@ -474,8 +474,6 @@ def page(p, s, st, where, fetching=None):
     main = """<main class="settings upd">
 %(doors)s
 <h1 class="idx">updating %(lname)s</h1>
-<p class="sub">Put another version of %(name)s in place of this one &mdash; newer, older, or the
-same one again &mdash; keeping everything that is yours.</p>
 <p class="ver" data-version>%(inst)s</p>
 %(notice)s
 %(body)s

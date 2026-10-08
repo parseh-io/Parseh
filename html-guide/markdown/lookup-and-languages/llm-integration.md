@@ -228,9 +228,13 @@ A CSV pairs each number with the original guess, unchanged Whisper confidence
 Additional CSV files supply stable source IDs and exact caption spacing.
 
 The model first skims unblanked text for missed errors, then processes numbered
-entries. Both passes use bounded regions, with access to the full transcript
-through real files. Tentative first-pass proposals provide context to the second
-pass. The bundled skill supplies a small CSV helper so the model can inspect evidence
+entries. By default the whole transcript is one region, as a workspace is for,
+in real files the model reads with Python; it is given as many tool calls and as
+much time as the small regions below would have had together. Under the review
+tools, **Divide the reasoning workspace into regions** (off) cuts it into
+regions of a few dozen words, one after the other, for a model that cannot hold
+so much; it applies to the next review you start. Tentative first-pass proposals
+provide context to the second pass. The bundled skill supplies a small CSV helper so the model can inspect evidence
 and save proposals with short Python calls. It still has real file/code tools.
 The model runs Python to read files and produce a small proposals CSV;
 Parseh checks IDs, exact original spans, duplicates and local substitutions.
@@ -244,8 +248,8 @@ review method. The endpoint still owns LLM hardware and inference. Temporary
 files are removed on completion or cancellation.
 
 Progress counts each mapped source word once across the two passes. A failed
-region leaves unseen words unchanged, preserves validated entries and continues
-with later regions. Retry remaining suspect/failed words or edit them manually.
+region (or the whole, when it is not divided) leaves unseen words unchanged,
+preserves validated entries and continues with later regions. Retry remaining suspect/failed words or edit them manually.
 **LLM responses** also shows the actual code/tool calls, bounded tool output and
 reasoning supplied by the endpoint. Reasoning support is requested through
 Unsloth's API; other compatible endpoints use their model's default reasoning.

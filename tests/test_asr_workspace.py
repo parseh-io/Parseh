@@ -277,6 +277,56 @@ class WorkspaceContracts(unittest.TestCase):
         self.assertEqual(panel, "They hanno detto ciao.")
         self.assertTrue(changed)
 
+    def test_the_workspace_is_one_region_unless_asked_to_be_divided(self):
+        # THE WHOLE TRANSCRIPT IS ONE REGION (as a workspace is for); small regions are the option, and are what this always did
+        text = "Thay anno detto ciao."
+        captions = [{"text": text, "start": n * 5, "end": n * 5 + 4, "words": [
+            {"text": t, "start": n * 5 + i, "end": n * 5 + i + .5, "score": .2 if t == "anno" else .9} for i, t in enumerate(text.split())]}
+            for n in range(60)]
+        request = asrcorrection.evidence(captions, "\n".join(text for _ in captions), "it")
+        for divide in (False, True):
+            seen = []
+            def phase(workspace, request, adapter, name, allowed, context, diagnostic, key):
+                seen.append((name, key, len(allowed), workspace.divided, workspace.seconds, workspace.turns,
+                             len((workspace.root / "input/targets.txt").read_text().split())))
+                return [], set()
+            with mock.patch("asrworkspace.sandbox_status", return_value={"available": True}), mock.patch("asrworkspace._phase", side_effect=phase):
+                asrworkspace.correct(request, object(), llmadapter.Cancellation(), lambda *p: None, divide=divide)
+            keys = {key for _, key, *_ in seen}
+            if divide:
+                self.assertGreater(len(keys), 1, "divided: several regions, as before")
+                self.assertTrue(all(row[3] is True and row[4] == 300 and row[5] == 12 for row in seen), "each with the budget it always had")
+            else:
+                self.assertEqual(keys, {"region0"}, "undivided: one region")
+                self.assertEqual([row[0] for row in seen], ["skim", "resolve"], "for each of the two phases, once")
+                self.assertTrue(all(row[3] is False for row in seen))
+                self.assertEqual(seen[1][6], 60, "and its targets are every flagged word of the transcript")
+                many = len({k for _, k, *_ in self._regions(request)})
+                self.assertEqual((seen[0][4], seen[0][5]), (min(3600, 300 * many), min(60, 12 * many)), "with the time and tool calls of the regions it replaces")
+        # the message of the whole does not name hundreds of IDs: they are in the files; a region's message names them, as ever
+        _, one = evidence()
+        for divided, expect in ((True, "Phase target IDs: s0w1."), (False, "input/targets.txt")):
+            with tempfile.TemporaryDirectory() as folder:
+                root = Path(folder); (root / "out").mkdir()
+                workspace = asrworkspace.Workspace(root, llmadapter.Cancellation()); workspace.targets = {"s0w1"}; workspace.divided = divided
+                adapter = mock.Mock(); adapter.agent_turn.side_effect = llmconfig.LLMError("stop", "stop")
+                with self.assertRaises(llmconfig.LLMError):
+                    asrworkspace._phase(workspace, one, adapter, "skim", {"s0w1"}, 8192, None, "region0")
+                sent = json.dumps(adapter.agent_turn.call_args.args[0])
+                self.assertIn(expect, sent)
+                self.assertEqual("Editable IDs" in sent, divided)
+        self.assertEqual(asrworkspace._some([f"s{n}" for n in range(100)], False).split(" and ")[1], "60 more (all in input/required.txt)")
+        self.assertEqual(len(asrworkspace._some([f"s{n}" for n in range(100)], True).split()), 100)
+
+    def _regions(self, request):
+        """The regions the divided route would make, counted the way test_the_workspace_is_one_region… does, by running it."""
+        seen = []
+        def phase(workspace, request, adapter, name, allowed, context, diagnostic, key):
+            seen.append((name, key)); return [], set()
+        with mock.patch("asrworkspace.sandbox_status", return_value={"available": True}), mock.patch("asrworkspace._phase", side_effect=phase):
+            asrworkspace.correct(request, object(), llmadapter.Cancellation(), lambda *p: None, divide=True)
+        return seen
+
     def test_cancellation_cleans_workspace_and_preserves_source(self):
         _, request = evidence()
         folders = []

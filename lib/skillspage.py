@@ -123,8 +123,6 @@ def page(where=""):
     main = """<main class="settings sk-page">
 %(doors)s
 <h1 class="idx">skills for your chatbot</h1>
-<p class="sub">The prompts %(name)s hands you, kept by a chatbot that has skills: install one once, and from then on a
-short request is enough, in place of pasting the whole prompt.</p>
 <p class="whomay">%(gate)s <span>Any device that has been let in may read this page and download a skill. Installing
 one is always your own step, in the chatbot: there is no install button.</span></p>
 %(cards)s

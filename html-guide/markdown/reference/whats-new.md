@@ -25,7 +25,13 @@ itself, **Books**, **Videos**, **Exercises**, **Review later** and
 description under its title: the doors' cards on the hub say what each one is,
 and the page is what you came for. The books' page and the videos' page are
 titled **Books** and **Videos**, and no longer *Ilya Frank reading editions* and
-*Frank-method videos*.
+*Frank-method videos*. The pages inside Settings (network, updating, LLM
+integration, LM likelihood, speech to text, reading help, LaTeX drawings, your
+prompts, skills, pictograms and About) have lost theirs too; where a line said
+something the page did not (that transcription runs on this computer and the
+audio stays there, that nothing is fetched from ARASAAC until you press a
+button, that Parseh's own prompts are not listed), it is now in the page's own
+note.
 
 ### The transcript is never held back
 
@@ -79,6 +85,13 @@ into several prompts**, under the method and off by default, gives it parts
 again, for a chatbot that cannot open files
 ([Use an external chatbot](../lookup-and-languages/llm-integration.md#use-an-external-chatbot)).
 **Suspect words** and **Whole text** are divided as before.
+
+The same goes for the connected model: its reasoning workspace used to be handed
+the transcript in small regions, one tool conversation each. It now gets the
+whole transcript as one region, with the tool calls and the time its regions
+would have had together, and **Divide the reasoning workspace into regions**
+(off, among the review tools) brings the regions back for a model that cannot
+hold so much.
 
 ## a0.5.0 — 7 October 2026
 

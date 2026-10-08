@@ -414,8 +414,7 @@ def page(state=None, jobs=None, queues=None):
     # the bar of Settings' doors first and the page's own name under it, as on
     # every page of Settings (the owner, 2026-09-25)
     main = ('<main class="settings rh">\n%s\n<h1 class="idx">reading help</h1>\n'
-            '<p class="sub">What this computer has fetched to help you read what nobody '
-            'has glossed.</p>\n<div id="rh-band" class="band"></div>\n'
+            '<div id="rh-band" class="band"></div>\n'
             '<div id="rh"><p class="rh-wait">Reading what is here&hellip;</p></div>\n'
             '<p class="foot pointer">Turning a video\'s sound into a transcript is not here: '
             '<a href="/settings/speech/">speech to text</a> has a page of its own.</p>\n'

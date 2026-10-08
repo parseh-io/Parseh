@@ -19,6 +19,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "lib"), str(ROOT / "youtube/lib")]
 import asrcorrection as correction
+import asrworkspace
 import llmadapter
 import llmconfig
 import llmprofiles
@@ -681,6 +682,31 @@ class Jobs(unittest.TestCase):
         self.assertIsNone(self.job["correction_result"])
         self.assertEqual(self.job["llm_generation"], 2)
         self.assertFalse(sttjobs.busy())
+
+    def test_a_connected_workspace_review_is_whole_unless_the_request_says_to_divide(self):
+        c = config(); seen = llmconfig.revision(c); evidence_hash = self.job["review_evidence"]["source_sha256"]
+        for divide, want in ((False, False), (True, True)):
+            self.job.update(state=sttjobs.REVIEW_CHOICE, correction={}, review_choice=None)
+            with mock.patch("llmconfig.load", return_value=c), mock.patch("llmconfig.for_review", side_effect=lambda cfg, task: cfg), \
+                 mock.patch("asrworkspace.sandbox_status", return_value={"available": True}), mock.patch("sttjobs.threading.Thread") as thread, \
+                 mock.patch("sttjobs._save_pending"):
+                sttjobs.review(self.token, "llm", evidence_hash, seen, task="workspace", divide=divide)
+                self.assertEqual(self.job["correction"]["divided"], want)
+                run = thread.call_args.kwargs["args"]
+            with mock.patch("asrworkspace.correct", return_value={"suggestions": [], "failed_word_ids": [], "uncertain_word_ids": [], "assessment": "kept_original",
+                                                                   "reviewed_word_ids": []}) as correct, mock.patch("llmadapter.adapter"), \
+                 mock.patch("llmconfig.load", return_value=c), mock.patch("llmconfig.for_review", side_effect=lambda cfg, task: cfg), mock.patch("sttjobs._save_pending"):
+                sttjobs._correct(*run)
+            self.assertEqual(correct.call_args.args[-1], want, "the choice reaches the workspace")
+        # only true or false, and only a workspace can be divided
+        self.job.update(state=sttjobs.REVIEW_CHOICE, correction={})
+        with self.assertRaises(sttjobs.Refusal) as e:
+            sttjobs.review(self.token, "llm", evidence_hash, seen, task="workspace", divide="yes")
+        self.assertEqual(e.exception.code, "bad-review")
+        with mock.patch("llmconfig.load", return_value=c), mock.patch("llmconfig.for_review", side_effect=lambda cfg, task: cfg), \
+             mock.patch("sttjobs.threading.Thread"), mock.patch("sttjobs._save_pending"):
+            sttjobs.review(self.token, "llm", evidence_hash, seen, task="full", divide=True)
+        self.assertFalse(self.job["correction"]["divided"], "another method is not divided by it")
 
     def test_changed_source_hash_is_refused(self):
         with self.assertRaises(sttjobs.Refusal) as e:

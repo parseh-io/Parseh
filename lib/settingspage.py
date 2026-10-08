@@ -690,7 +690,6 @@ def network_page(state):
     main = """<main class="settings net">
 %(doors)s
 <h1 class="idx">network</h1>
-<p class="sub">Who may reach this %(name)s, on which port, with which certificate.</p>
 %(notice)s
 
 <section>

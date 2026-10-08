@@ -12,7 +12,6 @@ def page(where):
     main = '''<main class="settings tools" data-layout="browser">
 %s
 <h1 class="idx">LLM Integration</h1>
-<p class="sub">Connect to your running model service, then choose the model Parseh will use.</p>
 %s
 <form id="llm_form" data-configure="%s">
 <details class="options" id="llm_connection_setup"><summary>Connection setup</summary><fieldset %s>

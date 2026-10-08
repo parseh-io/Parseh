@@ -1045,8 +1045,9 @@ def _review_source_current(job):
         return False
 
 
-def review(token, mode, source_sha256, connection_id=None, word_ids=None, instruction_mode="prompt", task="suspect"):
-    """Explicit browser choice. Destination and model come only from host config."""
+def review(token, mode, source_sha256, connection_id=None, word_ids=None, instruction_mode="prompt", task="suspect", divide=False):
+    """Explicit browser choice. Destination and model come only from host config.  `divide`: a reasoning workspace is handed to the
+    model whole unless asked to be cut into small regions (the connected model's counterpart of the chatbot's "divide into several prompts")."""
     import llmconfig
     import llmadapter
     job = _job(token)
@@ -1063,6 +1064,8 @@ def review(token, mode, source_sha256, connection_id=None, word_ids=None, instru
             raise Refusal("bad-review", "Choose the short prompt or installed correction skill.")
         if task not in ("suspect", "full", "workspace"):
             raise Refusal("bad-review", "Choose a saved transcript review method.")
+        if type(divide) is not bool:
+            raise Refusal("bad-review", "Say whether to divide the workspace into regions with true or false.")
         previous = job.get("correction_result")
         if word_ids is not None:
             import asrcorrection
@@ -1119,7 +1122,7 @@ def review(token, mode, source_sha256, connection_id=None, word_ids=None, instru
         job["correction"] = {"state": "running", "complete": False, "done": 0, "total": 0,
                              "unit": "words", "response_count": len(job.get("llm_diagnostics") or []),
                              "instruction_mode": instruction_mode,
-                             "task": task,
+                             "task": task, "divided": task == "workspace" and divide,
                              "destination": config["base_url"], "model": llmconfig.for_review(config, task)["selected_model"],
                              "started": _now()}
         job["state"] = CORRECTING
@@ -1196,7 +1199,7 @@ def _correct(job, config, cancel, generation, word_ids=None, previous=None):
         if task == "workspace":
             import asrworkspace
             out = asrworkspace.correct(job["review_evidence"], SavedAdapter(), cancel, progress,
-                                       config.get("context_tokens", 8192), diagnostic, word_ids)
+                                       config.get("context_tokens", 8192), diagnostic, word_ids, bool(job["correction"].get("divided")))
         else:
             out = asrcorrection.correct(job["review_evidence"], SavedAdapter(), cancel, progress,
                                         config.get("context_tokens", 8192), diagnostic, word_ids,

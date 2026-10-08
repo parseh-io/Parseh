@@ -1137,6 +1137,8 @@
         task: task,
         instruction_mode: skill ? 'skill' : 'prompt',
         connection_id: mode === 'llm' && LLM ? LLM.connection_id : null};
+      // a reasoning workspace is handed to the model whole unless the person asked for small regions
+      if (task === 'workspace' && options && options.divide === true) body.divide = true;
       if (wordIds) body.word_ids = wordIds; else body.mode = mode;
       if (numerical) {
         body = {job: S.job, source_sha256: evidence.source_sha256, revision: LLM && LLM.likelihood && LLM.likelihood.revision};

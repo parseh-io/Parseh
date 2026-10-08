@@ -99,12 +99,10 @@ def page(where):
     main = """<main class="settings lx">
 %(doors)s
 <h1 class="idx">latex drawings</h1>
-<p class="sub">The themes a latex block is drawn with, the TeX this computer has, and the
-drawings kept. A formula written <code>:::math</code> is not touched by anything here.</p>
 <div id="lx"><p>Reading what is here&hellip;</p></div>
 <p class="foot">The themes are kept in <code>config/latex.json</code>, the packages Parseh got
 in <code>texmf/</code>, and the drawings in <code>markdown/latex/</code>, made again whenever
-they are needed. <a href="%(guide)s">LaTeX drawings</a>, in the guide.</p>
+they are needed. A formula written <code>:::math</code> is not touched by anything here. <a href="%(guide)s">LaTeX drawings</a>, in the guide.</p>
 </main>""" % {"doors": settingspage.settings_doors(PAGE), "guide": GUIDE}
     script = ('<script id="lx-state" type="application/json">%s</script>\n<script>%s</script>'
               % (settingspage._in_script(v), SCRIPT))

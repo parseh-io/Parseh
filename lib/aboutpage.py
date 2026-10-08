@@ -49,7 +49,6 @@ def page(where):
             ('Settings folder', str(root / 'config'))]
     table = ''.join('<dt>%s</dt><dd><code>%s</code></dd>' % (esc(k), esc(v)) for k, v in rows)
     main = '''<main class="settings tools">%s<h1 class="idx">About Parseh</h1>
-<p class="sub">Read, watch and study in another language, with dictionaries, transcripts and reading help.</p>
 <dl>%s</dl><p>Use serve.sh on Linux and macOS, or serve.bat on Windows. These paths belong to the computer running Parseh.</p>
 %s
 <p class="foot">Free software under the GNU GPL, version 3 or later.

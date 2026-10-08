@@ -5933,15 +5933,15 @@ class Handler(SimpleHTTPRequestHandler):
                     raise sttjobs.Refusal("bad-review", "The dictionary request contains unknown settings.")
                 return sttjobs.review_dictionary(token, body.get("source_sha256"), body.get("word_id"))
             if what in ("review", "retry-review", "cancel-review", "use"):
-                allowed = ({"job", "source_sha256", "mode", "connection_id", "instruction_mode", "task"} if what == "review" else
-                           {"job", "source_sha256", "connection_id", "word_ids", "instruction_mode", "task"} if what == "retry-review" else
+                allowed = ({"job", "source_sha256", "mode", "connection_id", "instruction_mode", "task", "divide"} if what == "review" else
+                           {"job", "source_sha256", "connection_id", "word_ids", "instruction_mode", "task", "divide"} if what == "retry-review" else
                            {"job", "source_sha256", "decisions", "manual_edits"} if what == "use" else {"job"})
                 if set(body) - allowed:
                     raise sttjobs.Refusal("bad-review", "The review request contains unknown settings.")
                 if what == "review":
-                    return sttjobs.review(token, body.get("mode"), body.get("source_sha256"), body.get("connection_id"), instruction_mode=body.get("instruction_mode", "prompt"), task=body.get("task", "suspect"))
+                    return sttjobs.review(token, body.get("mode"), body.get("source_sha256"), body.get("connection_id"), instruction_mode=body.get("instruction_mode", "prompt"), task=body.get("task", "suspect"), divide=body.get("divide", False))
                 if what == "retry-review":
-                    return sttjobs.review(token, "llm", body.get("source_sha256"), body.get("connection_id"), body.get("word_ids", []), body.get("instruction_mode", "prompt"), body.get("task", "suspect"))
+                    return sttjobs.review(token, "llm", body.get("source_sha256"), body.get("connection_id"), body.get("word_ids", []), body.get("instruction_mode", "prompt"), body.get("task", "suspect"), body.get("divide", False))
                 if what == "cancel-review":
                     return sttjobs.cancel_review(token)
                 return sttjobs.use_review(token, body.get("source_sha256"), body.get("decisions", {}), body.get("manual_edits", {}))

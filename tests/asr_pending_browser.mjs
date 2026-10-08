@@ -37,7 +37,10 @@ try{
  assert.equal(await new Promise(r=>audio.on('exit',r)),0);
  await start();browser=await chromium.launch({executablePath:process.env.CHROME_BIN || '/usr/bin/google-chrome',headless:true,args:['--no-sandbox']});
  let {page,context}=await newPage('/youtube/add/?src=film&by=empty');
- await page.selectOption('#lang','fa');await page.fill('#path',film);await page.click('#stt_go');await phase(page,'review');
+ // A result is drawn at once and drawn AGAIN when the connection's status arrives a moment later (youtube/lib/addstt.js deliver): a word's
+ // editor opened and typed in before that second drawing is drawn afresh under the typing.  Typing is kept now, but a click that lands in
+ // the middle of the redraw is not delivered, so what a test types waits for the review to have settled.
+ await page.selectOption('#lang','fa');await page.fill('#path',film);const status=page.waitForResponse(r=>r.url().includes('/settings/api/llm/status'));await page.click('#stt_go');await phase(page,'review');await status;await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,0)))));
  ok(await page.inputValue('#transcript')==='','Whisper never inserts a transcript automatically');
  await page.locator('[data-review-word="s0w0"]').click();await page.fill('#stt_manual_word','درود');
  await page.getByRole('button',{name:'Save word in draft',exact:true}).click();await page.click('#stt_lock_word');

@@ -73,8 +73,7 @@ def page(jobs=None, where="", device=""):
     main = """<main class="settings rh sp tools">
 %(doors)s
 <h1 class="idx">speech to text</h1>
-<p class="sub">Choose a Whisper model for each language. Transcription runs on this computer; your audio stays here.</p>
-<p class="whomay">%(gate)s <span>Install only what you need. Downloads are checked before use.</span></p>
+<p class="whomay">%(gate)s <span>Transcription runs on this computer; your audio stays here. Install only what you need. Downloads are checked before use.</span></p>
 <div id="sp-band" class="band"></div>
 <section class="shared about" id="sp-second" hidden><label><input type="checkbox" id="sp_second_pass"%(second_checked)s>
 Automatically run a second Whisper pass</label>

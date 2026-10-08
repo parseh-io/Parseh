@@ -300,20 +300,32 @@ def _replace_kept(old, new, proposed):
     return [k for k in old if not answered.intersection(k["word_ids"])] + list(new)
 
 
+def _some(ids, divided):
+    """The IDs a message names: all of a region's; for the whole transcript the first few, the rest being in input/required.txt."""
+    if divided or len(ids) <= 40:
+        return " ".join(ids)
+    return "%s and %d more (all in input/required.txt)" % (" ".join(ids[:40]), len(ids) - 40)
+
+
 def _phase(workspace, request, adapter, phase, allowed, context_tokens, diagnostic, key):
     targets = getattr(workspace, 'targets', allowed)
+    divided = getattr(workspace, 'divided', True)
+    # A region of a few dozen words puts its IDs in the message.  The WHOLE transcript is one region and its IDs would fill the
+    # model's context before it has read anything: they are in the files, where review.show() and review.check() read them.
+    ids = ("Phase target IDs: %s. Editable IDs: %s." % (" ".join(sorted(targets)), " ".join(sorted(allowed))) if divided else
+           "The whole transcript is one region: the phase target IDs are in input/targets.txt and the editable IDs in input/allowed.txt.")
     initial = [{"role": "system", "content": instructions()}, {"role": "user", "content":
                "Language: %s. Phase: %s. Start with python: import review; review.show(). %s "
                "Next call python: import review; review.save(rows); review.check(). "
                "Correct any structural errors or missing required entries; run review.check(require_complete=True) before finish_review. "
-               "Phase target IDs: %s. Editable IDs: %s. Each edit must include a phase target; "
+               "%s Each edit must include a phase target; "
                "join adjacent editable words when Whisper split one word." % (request["language"], phase,
                "Resolve every numbered entry: change it, or keep its original (confidence sure if Whisper's word is right, unsure if you cannot tell)." if phase == "resolve" else "Skim unblanked words only; an empty edits list is valid.",
-               " ".join(sorted(targets)),
-               " ".join(sorted(allowed)))}]
+               ids)}]
     history = []
-    deadline = time.monotonic() + 300
-    for turn in range(12):
+    # one region had 300 seconds and 12 tool calls; a whole transcript is as many regions' worth of work and has as many (correct() sets them)
+    deadline = time.monotonic() + getattr(workspace, 'seconds', 300)
+    for turn in range(getattr(workspace, 'turns', 12)):
         workspace.cancel.check()
         if time.monotonic() > deadline:
             raise LLMError("workspace-timeout", "This workspace phase reached its time limit; other words can still be reviewed.")
@@ -323,7 +335,7 @@ def _phase(workspace, request, adapter, phase, allowed, context_tokens, diagnost
                 _, seen = _proposals(workspace.root, request, allowed, targets)
                 state = [{"role": "user", "content": "Python succeeded. The current result.csv contains %d valid entries. %s" %
                           (len(seen), "Call finish_review now if your skim is complete." if phase == "skim" else
-                           "Resolve still needs these IDs: " + " ".join(sorted(targets - seen)) + ". If none remain, call finish_review now.")}]
+                           "Resolve still needs these IDs: " + _some(sorted(targets - seen), divided) + ". If none remain, call finish_review now.")}]
             except LLMError as error:
                 state = [{"role": "user", "content": error.say + " Correct result.csv with Python before finishing."}]
         prompt = initial + history + state
@@ -383,7 +395,11 @@ def _phase(workspace, request, adapter, phase, allowed, context_tokens, diagnost
     raise LLMError("tool-limit", "The model did not finish this phase within its tool-call limit. Retry its remaining words.")
 
 
-def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=None, target_word_ids=None):
+def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=None, target_word_ids=None, divide=False):
+    """Review a transcript with a connected model that has the workspace to itself.  The whole transcript is ONE region, as a
+    workspace is for; `divide` cuts it into small regions of a few dozen words, one tool conversation each (what this used to do
+    always), for a model that cannot hold so much.  The whole is given as many tool calls and as much time as its regions would
+    have had together."""
     if not sandbox_status()["available"]:
         raise LLMError("workspace-unavailable", sandbox_status()["say"])
     if context_tokens < 8192:
@@ -404,6 +420,9 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
         current.append(unit); size += cost
     if current:
         windows.append(current)
+    regions = len(windows)
+    if not divide and windows:
+        windows = [[unit for window in windows for unit in window]]
     total = sum(len(u["targets"]) for u in units)
     suggestions, failed, uncertain, reviewed, done = [], [], [], [], 0
     kept_rows, why, loose = [], {}, {}
@@ -453,6 +472,9 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
                 (root / "out/result.csv").write_text(_csv([], FIELDS), encoding="utf-8")
                 workspace = Workspace(root, cancel)
                 workspace.targets = targets
+                workspace.divided = divide
+                # (a region kept its 300 s and 12 tool calls; the whole has those of every region it replaces, up to an hour and 60 calls)
+                workspace.seconds, workspace.turns = (300, 12) if divide else (min(3600, 300 * regions), min(60, 12 * regions))
                 workspace.output_bytes = max(1200, min(4000, (context_tokens - 4000) // 2))
                 try:
                     proposals, _ = _phase(workspace, request, adapter, phase, allowed, context_tokens, diagnostic, "region%d" % i)

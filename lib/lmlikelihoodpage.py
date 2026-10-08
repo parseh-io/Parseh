@@ -9,7 +9,6 @@ def page(where):
     can = settingspage.may('likelihood.worker', where)
     main = '''<main class="settings tools" data-layout="browser">%s
 <h1 class="idx">LM likelihood · experimental</h1>
-<p class="sub">Compare possible words with a model installed on the Parseh computer. Start a review from your transcript.</p>
 %s
 <section><h2>Model</h2><p class="help">You can change this selection from any admitted device.</p>
 <label class="field">Installed model <select id="lm_models"><option value="">Refresh to find installed models</option></select></label>

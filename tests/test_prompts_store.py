@@ -1071,7 +1071,7 @@ class TheRoutes(unittest.TestCase):
                     self.assertIn('href="/settings/prompts/" aria-current="page"', page, "one of Settings' doors")
                     self.assertIn('data-mobile-page', page)
                     self.assertNotIn('class="lockline"', page, "no lock line and no dead button on this door")
-                    self.assertIn('<span class="gate open">', page.split('<h1 class="idx">', 1)[1].split("</p>", 2)[1],
+                    self.assertIn('<span class="gate open">', page.split('<h1 class="idx">', 1)[1].split("</p>", 1)[0],
                                   "its own pill says any device let in")
                     status, hub, _ = self.ask("GET", "/settings/")
                     self.assertIn('<a class="door" href="/settings/prompts/">', hub)

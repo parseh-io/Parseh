@@ -49,9 +49,7 @@ def page(where=""):
     main = """<main class="settings pr">
 %(doors)s
 <h1 class="idx">your prompts</h1>
-<p class="sub">The prompts you wrote for a chatbot, kept on this computer and offered wherever %(name)s
-hands a prompt out. %(name)s&rsquo;s own are not here: they cannot be changed or deleted.</p>
-<p class="whomay">%(gate)s <span>Any device that has been let in may keep, import or delete one of
+<p class="whomay">%(gate)s <span>%(name)s&rsquo;s own prompts are not listed here: they cannot be changed or deleted. Any device that has been let in may keep, import or delete one of
 these: what a prompt says is text you copy into a chatbot, and decides nothing %(name)s runs.</span></p>
 <div id="pr"><p>Reading what is here&hellip;</p></div>
 <p class="foot">Your prompts are kept in <code>config/prompts.json</code>, and an update keeps them. A
