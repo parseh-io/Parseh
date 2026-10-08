@@ -439,6 +439,7 @@
     // the mark each word wears for what the model said of it (asrwalk.js outcomes)
     var outcomeMap = {};
     function outcomeOf(id) { return outcomeMap[id] ? outcomeMap[id].kind : null; }
+    function editable() { return phase !== 'correcting'; }
     function retryWords() { return Object.keys(words).filter(function (id) { return words[id].reviewable && !locked[id] && inScope(words[id]) && (suspect(words[id]) || result.review.result && (result.review.result.failed_word_ids || []).indexOf(id) >= 0) && !accepted(id); }); }
     function detail(w, hover) {
       if (!w || useBusy) return;
@@ -454,7 +455,7 @@
       var original = el('bdi', w.text); original.dir = 'auto'; details.appendChild(original);
       if (opts.select && captions[w.word_id]) details.appendChild(btn('Listen to this word', function () { detail(w); opts.select(w, captions[w.word_id], true); }));
       var wordActions = el('div', null, 'stt-word-actions'); details.appendChild(wordActions);
-      if (w.reviewable && phase === 'review') {
+      if (w.reviewable && editable()) {
         var recheck = btn(w.second_pass && w.second_pass.state === 'complete' ? 'Whisper second pass · again' : 'Whisper second pass · this word', function () { runMethod('whisper-second', 'whisper-second', w.word_id); });
         recheck.id = 'stt_whisper_word'; recheck.disabled = !!locked[w.word_id] || !result.review.second_pass_available;
         wordActions.appendChild(recheck);
@@ -487,7 +488,7 @@
         w.asr_alternatives.forEach(function (a) {
           var item = el('li'), surface = el('bdi', a.text); surface.dir = 'auto'; item.appendChild(surface);
           if ((a.origins || []).some(function (origin) { return origin.kind === 'whisper-second-pass'; })) item.appendChild(el('span', ' · Whisper second pass', 'fieldnote'));
-          if (w.reviewable && phase === 'review') {
+          if (w.reviewable && editable()) {
             var choose = btn('Use this Whisper alternative', function () { clearOverlaps([w.word_id]); manualEdits[w.word_id] = a.text; updateDraft(); detail(w); });
             choose.disabled = !!locked[w.word_id]; item.appendChild(choose);
           }
@@ -504,7 +505,7 @@
       var editIds = (editRanges[w.word_id] || (manualKey ? idsFor(manualKey) : proposalIds)).slice(), editId = editIds[0];
       if (!locked[w.word_id] && editIds.some(function (id) { return locked[id]; })) { editIds = [w.word_id]; editId = w.word_id; }
       var sourceSpan = Array.from(result.text).slice(words[editIds[0]].span_start, words[editIds[editIds.length - 1]].span_end).join('');
-      if (s && phase === 'review') {
+      if (s && editable()) {
         if (s.likelihood && s.likelihood.coverage.state !== 'complete') details.appendChild(el('p', 'Comparison incomplete: some alternatives could not be checked. You can retry or choose a word yourself.', 'warn'));
         if (proposalIds.length > 1) { details.appendChild(el('p', 'Proposed source span: ' + s.original)); (s.asr_evidence || []).forEach(function (piece) { details.appendChild(el('p', piece.text + ' · Whisper ASR score: ' + estimate(piece.asr_confidence) + ' · ' + time(piece.start) + ' – ' + time(piece.end))); }); }
         details.appendChild(el('p', s.likelihood ? 'Suggested words' : 'Suggested correction' + (s.error_likelihood == null ? '' : ' · Error likelihood (model estimate): ' + estimate(s.error_likelihood))));
@@ -545,7 +546,7 @@
         reject.disabled = proposalIds.some(function (id) { return locked[id]; }); details.appendChild(reject);
       } else if (suspect(w) && !said) details.appendChild(el('p', 'No review method has said anything about this word yet. It stays as Whisper wrote it.'));
       dictionaryDetails(w, originalDictionary, candidateDictionaries, asrDictionaries, s);
-      if (w.reviewable && phase === 'review') {
+      if (w.reviewable && editable()) {
         var contextDetails = details; details = wordActions;
         var lock = btn(locked[w.word_id] ? 'Unlock word' : 'I’m sure · lock word', function () {
           keepAccepted();
@@ -606,7 +607,7 @@
         updateRange(false);
         details = contextDetails;
       }
-      if (phase !== 'review') details.appendChild(el('p', 'You can listen and inspect the evidence while this tool works. Stop it or wait for it to finish before editing.'));
+      if (!editable()) details.appendChild(el('p', 'You can listen and inspect the evidence while this tool works. Stop it or wait for it to finish before editing.'));
     }
     function applyFilter() {
       var query = search.trim().toLocaleLowerCase(), visible = 0;
@@ -762,9 +763,9 @@
         if (result.review.choice === 'external') externalRequest('start', {task: task, word_ids: retryWords(), divide: task === 'workspace' && !!(result.review.external && result.review.external.divided)}, root.querySelector('#stt_external_status'));
         else if (opts.retry) { var ids=retryWords();keepAccepted();saveNow().then(function () {opts.retry(ids,useSkill,task,{phonetic_filter:phonetic});},function(e){status.textContent=e.message;}); }
       }); retry.id = 'stt_review_retry'; actions.appendChild(retry);
-      var best = btn('Select best for all', selectBest); best.id='stt_select_best'; best.disabled=phase!=='review' || (!Object.keys(suggestions).length && !(result.review.last_method === 'whisper-second' && (result.review.last_word_ids || []).some(function (id) { return words[id] && words[id].second_pass && words[id].second_pass.best_candidate; }))); actions.appendChild(best);
+      var best = btn('Select best for all', selectBest); best.id='stt_select_best'; best.disabled=!editable() || (!Object.keys(suggestions).length && !(result.review.last_method === 'whisper-second' && (result.review.last_word_ids || []).some(function (id) { return words[id] && words[id].second_pass && words[id].second_pass.best_candidate; }))); actions.appendChild(best);
       if (opts.pause) { var pause=btn('Save & pause',function () {saveNow().then(opts.pause).catch(function (e) {status.textContent=e.message || 'The review could not be paused. Keep this page open and try again.';});});pause.id='stt_pause';pause.disabled=false;actions.appendChild(pause); }
-      use = btn('Use this transcript', function () { opts.use(Object.assign({}, decisions), Object.assign({}, manualEdits)); }); use.id = 'stt_use'; use.classList.add('go'); use.disabled = phase !== 'review'; actions.appendChild(use);
+      use = btn('Use this transcript', function () { opts.use(Object.assign({}, decisions), Object.assign({}, manualEdits)); }); use.id = 'stt_use'; use.classList.add('go'); use.disabled = !editable(); use.title = editable() ? 'Put the transcript as it stands in the box: the words nothing was chosen for stay as Whisper wrote them' : 'A tool is running: stop it, or wait for it to finish'; actions.appendChild(use);
       footer.appendChild(actions); root.appendChild(footer);
       var previewBox = el('details', null, 'stt-review-options'); previewBox.setAttribute('data-review-disclosure', 'draft'); previewBox.appendChild(el('summary', 'Preview the complete pending transcript'));
       preview = el('pre'); preview.dir = 'auto'; previewBox.appendChild(preview); root.appendChild(previewBox);
@@ -775,7 +776,7 @@
       if (phase === 'review') status.textContent = 'Your draft is ready to edit. Use a tool if useful, or use the transcript directly.';
       if (phase === 'correcting') status.textContent = 'A review tool is running. You can listen and inspect the original evidence while it works.';
       if (phase === 'review' && result.review.choice === 'likelihood') status.textContent = result.review.correction && result.review.correction.state === 'partial' ? 'Some words could not be reviewed. Retry them, edit them yourself, or keep the originals.' : 'Review finished. Choose suggested words or keep the originals, then use the transcript.';
-      if (phase === 'external') status.textContent = 'Copy a prompt and paste the answer above. Finish importing to accept the draft; the transcript box has not changed.';
+      if (phase === 'external') status.textContent = 'Copy a prompt and paste the answer above. You can use the transcript as it stands at any time: the words with no answer stay as Whisper wrote them. The transcript box has not changed yet.';
       Array.prototype.forEach.call(root.querySelectorAll('[data-review-disclosure]'), function (box) { if (box.getAttribute('data-review-disclosure') === 'external' && result.review.external && !result.review.external.finished) box.open = true; else box.open = !!opened[box.getAttribute('data-review-disclosure')]; });
       inspect.scrollTop = scroll;
       if (selected && words[selected]) detail(words[selected]);

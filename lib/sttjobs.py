@@ -1769,44 +1769,46 @@ def use_review(token, source_sha256, decisions, manual_edits=None):
     with LOCK:
         if job["state"] not in (DONE, REVIEW_CHOICE):
             raise Refusal("review-first", "Wait for the current tool or stop it before using the transcript.", 409)
-        if job.get("review_choice") == "external" and not job.get("external_review", {}).get("finished"):
-            raise Refusal("review-first", "Finish importing answers or choose Review received suggestions first.", 409)
         if not _review_source_current(job):
             raise Refusal("source-changed", "The local film changed. Transcribe it again.", 409)
-        if (job["review_choice"] == "llm" and
-                job.get("llm_config_fingerprint") != llmconfig.fingerprint(llmconfig.load())):
-            job["correction_result"] = None
-            job["correction"].update(state="failed", complete=False,
-                error="The LLM settings changed. Choose review again; the old suggestions were discarded.")
-            job["state"], job["finished"] = REVIEW_CHOICE, _now()
-            raise Refusal("stale-review", "The LLM settings changed. Choose review again.", 409)
-        if job["review_choice"] == "likelihood":
-            import lmlikelihoodconfig as lc
-            from lmgguf import ScoringError, revalidate
-            cfg = lc.load()
-            try:
-                if job.get("likelihood_revision") != lc.revision(cfg) or not cfg["model"]:
-                    raise ScoringError("settings-changed", "The likelihood model or worker settings changed. Choose review again.")
-                revalidate(cfg["model"])
-            except ScoringError as e:
-                job["correction_result"] = None
-                job["correction"].update(state="failed", complete=False, code=e.code, error=e.say)
-                job["state"], job["finished"] = REVIEW_CHOICE, _now()
-                raise Refusal("stale-review", e.say, 409)
+        # THE TRANSCRIPT IS OBTAINABLE AT ANY TIME a tool is not running.  It used to be refused while an external review
+        # still waited for answers, and after the LLM's or the likelihood model's settings had changed (the suggestions were
+        # thrown away with the refusal); neither is a reason to keep a person from the text they have in front of them.  What
+        # was accepted or typed is checked edit by edit below, and an edit that does not fit is left out and said, not a refusal.
         evidence = job["review_evidence"]
         if source_sha256 != evidence["source_sha256"]:
             raise Refusal("stale-review", "That review no longer matches the Whisper result.", 409)
+        skipped = []
         try:
             panel, changed = asrcorrection.apply(job["text"], evidence,
-                job.get("correction_result") or {"suggestions": []}, decisions, manual_edits)
+                job.get("correction_result") or {"suggestions": []}, decisions, manual_edits, skipped)
         except llmconfig.LLMError as e:
             raise Refusal(e.code, e.say)
         original = ytpages.parse_transcript_text(job["text"], job["lang"])
         caps = ytpages.parse_transcript_text(panel, job["lang"])
         if [c["start"] for c in caps] != [c["start"] for c in original]:
-            raise Refusal("invalid-suggestions", "That edit would change the caption boundaries; it was not applied.")
+            # an edit that moves a caption's clock: find which, leave it out and keep the rest
+            suggestions = job.get("correction_result") or {"suggestions": []}
+            words = asrcorrection.index(evidence)
+            def starts(text):
+                return [c["start"] for c in ytpages.parse_transcript_text(text, job["lang"])]
+            wanted, safe = starts(job["text"]), ({}, {})
+            for which, mine in enumerate((decisions or {}, manual_edits or {})):
+                for key, value in mine.items():
+                    trial = []
+                    one, _ = asrcorrection.apply(job["text"], evidence, suggestions, *({key: value}, {}) if which == 0 else ({}, {key: value}), trial)
+                    if trial:
+                        continue          # it did not apply at all, and was said above
+                    if starts(one) != wanted:
+                        skipped.append({"what": words.get(key, {}).get("text", key), "why": "it would change the caption boundaries"})
+                    else:
+                        safe[which][key] = value
+            panel, changed = asrcorrection.apply(job["text"], evidence, suggestions, safe[0], safe[1], [])
+            if starts(panel) != wanted:
+                raise Refusal("invalid-suggestions", "The edits together would change the caption boundaries. Use the transcript without them.")
         out = result(token)
         out["text"] = panel
+        out["skipped"] = skipped
         # Rebuild from the immutable capture tape so a retried Use with a
         # different decision set does not inherit an earlier pending edit.
         doc = wordtimes.load(token)
@@ -1821,6 +1823,9 @@ def use_review(token, source_sha256, decisions, manual_edits=None):
         if changed:
             # Audio has been deleted, so no exact re-alignment can be claimed.
             out["notes"].append("Caption timings are unchanged. Changed word timings need review in Edit the transcript.")
+        if skipped:
+            out["notes"].append("%d of your choices could not be applied and were left as Whisper wrote them: %s." % (
+                len(skipped), "; ".join("%s (%s)" % (x["what"], x["why"]) for x in skipped[:6]) + ("; …" if len(skipped) > 6 else "")))
         job["review_used"] = True
         import asrpending
         asrpending.remove(token)

@@ -2,6 +2,7 @@
 ### Changed
 - The doors' pages lose their one-line subtitles, and the books' and videos' pages are titled Books and Videos
 - The reasoning workspace of an external chatbot review is one prompt by default, and dividing it into several is an option
+- Use this transcript is never held back by a review that is unfinished, by settings that changed, or by one edit that does not fit: that edit alone is left out and said; a pasted answer is read row by row
 - A chatbot's or model's review says what it decided for every word it was asked about, changed, agrees, not sure or no answer, and a walk through its answers asks for each whether to take it; the sure edits can be taken together
 
 ## [a0.5.0] - 2026-10-07

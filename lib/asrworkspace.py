@@ -182,10 +182,34 @@ class Workspace:
         raise LLMError("invalid-tools", "Invalid workspace tool arguments.")
 
 
-def _proposals(root, request, allowed, targets=None, required=(), complete=False, kept=None):
+def _readable_rows(rows, words, captions, allowed, targets, problems):
+    """The rows of a pasted answer that stand on their own, each checked alone: one that does not is told in `problems`
+    ({"word_ids", "why"}) and left out, and the others are kept.  A person who pastes 200 rows should not lose them for one."""
+    good, taken = [], set()
+    for n, row in enumerate(rows):
+        ids = str(row.get("word_ids", "")).split() if isinstance(row, dict) else []
+        try:
+            if n >= len(allowed):
+                raise ValueError("Too many result rows for these editable words.")
+            one, _ = checker().validate_rows([row], words, captions, allowed, targets)
+            if taken.intersection(one[0]["word_ids"].split()):
+                raise ValueError("Source IDs cannot repeat or overlap another result row.")
+        except (ValueError, KeyError, TypeError) as error:
+            problems.append({"word_ids": ids[:8], "why": str(error)[:300]})
+            continue
+        taken.update(one[0]["word_ids"].split())
+        good.append(one[0])
+    return good
+
+
+def _proposals(root, request, allowed, targets=None, required=(), complete=False, kept=None, problems=None):
     """The edits of out/result.csv, and the IDs it answered.  A row that leaves Whisper's word as it is is
     no edit but it is an answer: it goes into `kept`, where the caller gives one, with the model's reason and
-    how sure it said it was -- so that the review says "the model agrees with Whisper here" and not nothing."""
+    how sure it said it was -- so that the review says "the model agrees with Whisper here" and not nothing.
+
+    With a list for `problems` the rows are read ONE BY ONE, as a person's pasted answer is: a row that does not fit is told there
+    and the rest are used.  Without one the first that does not fit refuses the whole file (the tool loop of the connected
+    model needs that, to send the model back to mend its rows)."""
     path = root / "out/result.csv"
     if path.stat().st_size > 65536:
         raise LLMError("too-large", "The workspace CSV exceeds its size limit.")
@@ -197,55 +221,63 @@ def _proposals(root, request, allowed, targets=None, required=(), complete=False
         # model-edited evidence files are never trusted by the server.
         _, _, words, captions, _ = _files(request)
         try:
-            rows, _ = checker().validate_rows(checker().parse_csv(path.read_text(encoding="utf-8")),
-                     {word["word_id"]: word for word in words},
-                     {caption["segment_id"]: caption["text"] for caption in captions},
-                     allowed, targets, required=required, complete=complete)
+            parsed = checker().parse_csv(path.read_text(encoding="utf-8"))
+            by_word, by_caption = {word["word_id"]: word for word in words}, {caption["segment_id"]: caption["text"] for caption in captions}
+            if problems is None:
+                rows, _ = checker().validate_rows(parsed, by_word, by_caption, allowed, targets, required=required, complete=complete)
+            else:
+                rows = _readable_rows(parsed, by_word, by_caption, allowed, targets, problems)
         except ValueError as error:
             # The trusted helper uses bounded structural errors, never source
             # or replacement text. Give the model enough detail to repair a row.
             raise LLMError("invalid-workspace-csv", "The workspace CSV needs correction: " + str(error)[:600]) from None
         for n, row in enumerate(rows):
-            if n > len(allowed) or set(row) not in (set(FIELDS), set(OLD_FIELDS)) or any(not isinstance(v, str) for v in row.values()):
-                raise ValueError()
-            ids = row["word_ids"].split()
-            if (not ids or not set(ids) <= allowed or seen.intersection(ids)
-                    or targets is not None and not set(ids).intersection(targets)):
-                raise ValueError()
-            p = {"word_id": ids[0], "word_ids": ids, "original": row["original"]}
-            a, b, original = correction.proposal_span(p, sources)
-            members = [sources[i] for i in ids]
-            segment = next(s for s in request["segments"] if s["segment_id"] == members[0]["segment_id"])
-            # Source panel offsets are absolute; reconstruct only the caption's
-            # exact mapped span, preserving inter-word spacing and CJK pieces.
-            cursor = 0
-            for source_word in segment["words"]:
-                position = segment["text"].find(source_word["text"], cursor) if source_word["text"] else -1
-                if position >= 0:
-                    cursor = position + len(source_word["text"])
-                if source_word["reviewable"]:
-                    base = source_word["span_start"] - position
-                    break
-            if segment["text"][a - base:b - base] != original:
-                raise ValueError()
-            replacement = row["replacement"]
-            punct = lambda t: "".join(c for c in t if unicodedata.category(c).startswith("P"))
-            if (not replacement.strip() or len(replacement) > min(200, max(24, 3 * len(original)))
-                    or any(ord(c) < 32 or 0xD800 <= ord(c) <= 0xDFFF for c in replacement)
-                    or punct(original) != punct(replacement) or len(row["reason"]) > 500):
-                raise ValueError()
-            seen.update(ids)
-            rating = row.get("confidence") or None
-            if replacement == original:
-                if kept is not None:
-                    kept.append({"word_ids": ids, "original": original, "rating": rating, "reason": row["reason"]})
-                continue
-            word = members[0]
-            p.update({k: v for k, v in correction.public_word(word).items() if k != "text"})
-            p.update(span_start=a, span_end=b, end=members[-1]["end"], asr_evidence=[correction.public_word(w) for w in members],
-                     candidates=[{"text": replacement, "confidence": None, "reason": row["reason"]}],
-                     error_likelihood=None, reason=row["reason"], rating=rating, method="workspace-code")
-            proposals.append(p)
+            try:
+                if n > len(allowed) or set(row) not in (set(FIELDS), set(OLD_FIELDS)) or any(not isinstance(v, str) for v in row.values()):
+                    raise ValueError("the row has too many or too few columns")
+                ids = row["word_ids"].split()
+                if (not ids or not set(ids) <= allowed or seen.intersection(ids)
+                        or targets is not None and not set(ids).intersection(targets)):
+                    raise ValueError("its word IDs are not editable words of this prompt, or repeat another row's")
+                p = {"word_id": ids[0], "word_ids": ids, "original": row["original"]}
+                a, b, original = correction.proposal_span(p, sources)
+                members = [sources[i] for i in ids]
+                segment = next(s for s in request["segments"] if s["segment_id"] == members[0]["segment_id"])
+                # Source panel offsets are absolute; reconstruct only the caption's
+                # exact mapped span, preserving inter-word spacing and CJK pieces.
+                cursor = 0
+                for source_word in segment["words"]:
+                    position = segment["text"].find(source_word["text"], cursor) if source_word["text"] else -1
+                    if position >= 0:
+                        cursor = position + len(source_word["text"])
+                    if source_word["reviewable"]:
+                        base = source_word["span_start"] - position
+                        break
+                if segment["text"][a - base:b - base] != original:
+                    raise ValueError("its original text is not the transcript's text at those words")
+                replacement = row["replacement"]
+                punct = lambda t: "".join(c for c in t if unicodedata.category(c).startswith("P"))
+                if (not replacement.strip() or len(replacement) > min(200, max(24, 3 * len(original)))
+                        or any(ord(c) < 32 or 0xD800 <= ord(c) <= 0xDFFF for c in replacement)
+                        or punct(original) != punct(replacement) or len(row["reason"]) > 500):
+                    raise ValueError("its replacement is empty, too long, has a control character, or changes the punctuation")
+                seen.update(ids)
+                rating = row.get("confidence") or None
+                if replacement == original:
+                    if kept is not None:
+                        kept.append({"word_ids": ids, "original": original, "rating": rating, "reason": row["reason"]})
+                    continue
+                word = members[0]
+                p.update({k: v for k, v in correction.public_word(word).items() if k != "text"})
+                p.update(span_start=a, span_end=b, end=members[-1]["end"], asr_evidence=[correction.public_word(w) for w in members],
+                         candidates=[{"text": replacement, "confidence": None, "reason": row["reason"]}],
+                         error_likelihood=None, reason=row["reason"], rating=rating, method="workspace-code")
+                proposals.append(p)
+            except (ValueError, StopIteration, KeyError) as error:
+                if problems is None:
+                    raise
+                problems.append({"word_ids": str(row.get("word_ids", "")).split()[:8],
+                                 "why": str(error) or "the row does not match the words or spans of the transcript"})
     except LLMError as error:
         if error.code == "invalid-workspace-csv":
             raise

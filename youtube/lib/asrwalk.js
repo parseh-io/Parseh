@@ -284,7 +284,7 @@
         box.appendChild(ul);
       } else box.appendChild(el('p', 'Nothing will change in the transcript.'));
       var actions = el('div', null, 'stt-walk-actions');
-      var use = btn('Use this transcript', function () { api.use(); }, 'go'); use.id = 'stt_walk_use'; use.disabled = api.phase() !== 'review'; actions.appendChild(use);
+      var use = btn('Use this transcript', function () { api.use(); }, 'go'); use.id = 'stt_walk_use'; use.disabled = api.phase() === 'correcting'; actions.appendChild(use);
       if (n.skipped) actions.appendChild(btn('Go back to the ' + n.skipped + ' skipped', function () { start(true); }));
       if (!api.walk().includeAgree && list.some(function (i) { return i.kind === 'agree' && !status(i); })) actions.appendChild(btn('Look at the words the model agrees with', function () { api.walk().includeAgree = true; api.changed(); start(false); }));
       actions.appendChild(btn('Close', function () { st.open = false; paint(); }));

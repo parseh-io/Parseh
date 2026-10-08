@@ -969,7 +969,7 @@ await section('external', 'external review without an endpoint and explicit draf
       assert(/Prompt 1 of 1/.test(await panel.textContent()), `${method}: the divided methods count their prompts as before`);
       eq(await panel.getByRole('button', {name:'Next prompt', exact:true}).count(), 1, `${method}: and keep their buttons`);
     }
-    assert(await page.locator('#external-contract #stt_use').isDisabled(), 'Use is disabled while waiting for a paste');
+    assert(!(await page.locator('#external-contract #stt_use').isDisabled()), 'Use is not refused while waiting for a paste: the transcript is obtainable at any time');
     assert(await panel.locator('#stt_external_copy').count() === 1, 'one shared copy control');
     assert(await panel.locator('#stt_external_files').count() === (method === 'workspace' ? 1 : 0), 'workspace download for the workspace method');
     if (method === 'workspace') assert(/session=session-workspace/.test(await panel.locator('#stt_external_files').getAttribute('href')), 'download belongs to this session');

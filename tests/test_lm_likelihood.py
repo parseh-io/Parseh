@@ -689,10 +689,13 @@ class ReviewJobs(unittest.TestCase):
             sttjobs._likelihood_correct(self.job, self.cfg, cancel, 1, None, None)
         self.assertEqual(self.job['state'], sttjobs.DONE, 'cancelling a tool preserves the open review workspace')
         self.assertIsNone(self.job['correction_result'])
+        # the transcript is obtainable even when the model's settings changed since the review: what was accepted is checked
+        # edit by edit, never refused for what the settings are now (and with nothing accepted it is the Whisper text itself)
         self.job.update(state=sttjobs.DONE, review_choice='likelihood', likelihood_revision='old-revision')
-        with mock.patch('lmlikelihoodconfig.load', return_value=self.cfg), self.assertRaises(sttjobs.Refusal):
-            sttjobs.use_review(self.token, self.source, {})
-        self.assertEqual(self.job['text'], self.fixture.panel)
+        with mock.patch('lmlikelihoodconfig.load', return_value=self.cfg):
+            used = sttjobs.use_review(self.token, self.source, {})
+        self.assertEqual(used['text'], self.fixture.panel)
+        self.assertEqual(used['skipped'], [])
 
 
 if __name__ == '__main__':

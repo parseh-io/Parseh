@@ -190,20 +190,35 @@ def parse(request, task, units, answer):
         with tempfile.TemporaryDirectory(prefix="parseh-pasted-csv-") as folder:
             root = Path(folder); (root / "out").mkdir()
             (root / "out/result.csv").write_text(answer, encoding="utf-8")
-            proposals, seen = asrworkspace._proposals(root, request, allowed, kept=kept)
+            problems = []
+            proposals, seen = asrworkspace._proposals(root, request, allowed, kept=kept, problems=problems)
         sources = correction.index(request)
         failed = {ident for ident in allowed - seen if correction.suspect(sources[ident])}
         why = {ident: "the answer has no row for this word" for ident in failed}
+        # a row that did not fit is left out and said, with the reason, on its words; the other rows are used
+        for problem in problems:
+            ignored.append({"original": " ".join(problem["word_ids"]), "replacement": "", "reason": "Row refused: " + problem["why"]})
+            for ident in problem["word_ids"]:
+                if ident in failed:
+                    why[ident] = "its row was refused: " + problem["why"]
     else:
         expected = {unit["sentence_id"]: unit for unit in units}
         lines = {}
         for line in answer.splitlines():
             if not line.strip():
                 continue
-            match = re.fullmatch(r"(sentence[0-9]+):\s*(.*)", line)
-            if not match or match[1] not in expected or match[1] in lines:
-                raise LLMError("bad-external-answer", "Use each supplied sentence label once, followed by its complete sentence. Remove explanations and unknown labels.")
-            lines[match[1]] = match[2]
+            # a chatbot says things around the lines that matter: a greeting, a note, the label in bold, a capital letter
+            match = re.fullmatch(r"[\s*_`>\-]*(sentence[0-9]+)\s*[:\uff1a]\s*(.*)", line, re.I)
+            if not match:
+                ignored.append({"original": line[:200], "replacement": "", "reason": "A line without a sentence label was left out."})
+                continue
+            label = match[1].lower()
+            if label not in expected or label in lines:
+                ignored.append({"original": line[:200], "replacement": "", "reason": "A line with an unknown or repeated label was left out."})
+                continue
+            lines[label] = match[2].lstrip("*_` ").rstrip("*_` ") if match[2].startswith(("*", "_", "`")) else match[2]
+        if not lines:
+            raise LLMError("bad-external-answer", "No line of the answer starts with one of the sentence labels (sentence0:, sentence1:, and so on). Paste the chatbot's answer as it gave it, with the labels.")
         for ident, unit in expected.items():
             if ident not in lines:
                 failed.update(word["word_id"] for word in unit["targets"])

@@ -35,7 +35,7 @@ async function open(viewport, withWalk = true) {
 }
 
 // three captions, five flagged words (s0w1 and s0w5 are "anno", s1w1 "mare", s1w3 "blu", s2w0 "Ciao")
-const SETUP = ({scenario, draft}) => {
+const SETUP = ({scenario, draft, phase}) => {
   const captions = ['Loro anno detto ciao e anno poi.', 'Il mare e blu oggi.', 'Ciao a tutti.'];
   const flagged = {s0w1: .2, s0w5: .3, s1w1: .25, s1w3: .4, s2w0: .3};
   let text = '';
@@ -69,10 +69,10 @@ const SETUP = ({scenario, draft}) => {
   window.walkReview = ParsehAsrReview.mount(root, {cancel: () => {}, choose: () => {}, select: (w, seg, play) => { if (play) window.listened.push(w.word_id); },
     use: (decisions, manual) => { window.applied = {decisions, manual}; }, save: d => { window.saved = JSON.parse(JSON.stringify(d)); return Promise.resolve(); }});
   window.walkReview.show({text, model: 'large-v3-turbo', review: {draft, evidence: {source_sha256: 'src', language: 'it', low_score_threshold: .5, segments}, result: results[scenario]}},
-    'review', {configured: false});
+    phase || 'review', {configured: false});
 };
 // (the mouse is put out of the way: a word that appears under a resting pointer shows its evidence for a moment, as a hover does)
-const setup = async (page, scenario = 'workspace', draft = undefined) => { await page.mouse.move(1, 1); await page.evaluate(SETUP, {scenario, draft}); };
+const setup = async (page, scenario = 'workspace', draft = undefined, phase = undefined) => { await page.mouse.move(1, 1); await page.evaluate(SETUP, {scenario, draft, phase}); };
 const head = page => page.locator('.stt-walk-card .stt-walk-head').textContent();
 const mark = page => page.locator('.stt-walk-card mark').allTextContents();
 const count = page => page.locator('.stt-walk-card .stt-walk-count').textContent();
@@ -193,6 +193,19 @@ try {
       .map(i => [i.anchor, i.kind, i.sure, i.candidates[0].text]);
   });
   eq(kinds, [['a', 'change', true, 'hanno'], ['b', 'agree', true, 'mare'], ['c', 'unsure', false, 'blu'], ['d', 'change', false, 'puoi']].map(r => r), 'clear winner: a sure change; its own word winning: an agreement; a tie: not sure; unfinished: a change that is not sure');
+
+  console.log('h) the transcript is obtainable at any time no tool is running');
+  await setup(page, 'workspace', undefined, 'external');
+  ok(!(await page.locator('#stt_use').isDisabled()), 'while a chatbot review still waits for answers, Use this transcript is there to press');
+  await page.locator('#stt_walk_start').click();     // (it opens by itself only once a review is finished)
+  await page.keyboard.press('a');
+  eq(await page.evaluate(() => window.walkReview.snapshot().decisions), {s0w1: 0}, 'and the walk takes edits in that state too');
+  await page.locator('[data-review-word=s1w3]').click();
+  ok(await page.locator('#stt_manual_word').isVisible(), 'as does a word\'s own editor');
+  await page.locator('#stt_use').click();
+  eq(await page.evaluate(() => window.applied), {decisions: {s0w1: 0}, manual: {}}, 'and it hands over what stands, the rest being Whisper\'s');
+  await setup(page, 'workspace', undefined, 'correcting');
+  ok(await page.locator('#stt_use').isDisabled() && (await page.locator('#stt_use').getAttribute('title')).includes('running'), 'only while a tool is running it waits, and says why');
 
   /* ============================================================================================== g */
   console.log('g) a phone, and without the walk');

@@ -113,6 +113,14 @@ propose a short contiguous span covering several ASR pieces. The two reviews
 have separate prompts and skills. Nearby captions provide bounded read-only
 context and are never included in the replaceable target.
 
+**The transcript is yours at any time.** **Use this transcript** is there whenever no
+tool is running: while a chatbot review still waits for answers, with half of the
+words unanswered, with every proposal skipped. Whatever you accepted or typed goes in; every
+other word stays as Whisper wrote it, and nothing has to be gone through first. If a choice
+cannot be applied (an edit of your own with a space in a single word, a suggestion that no
+longer fits, two edits over the same words), only that choice is left out, and the page
+says which and why after the transcript is in the box.
+
 Accept or reject individual proposals. Even when no proposal or ASR alternative
 exists, **Enter the correct word** and **Save word in draft** lets you type the
 correction yourself. Any reviewable word can be edited, including words without
@@ -220,7 +228,10 @@ Press **Copy review prompt** and paste it into the chatbot you choose. Bring
 its answer back to the labeled answer box and press **Import answer into
 review**. Sentence methods ask for complete sentences with the supplied labels;
 the workspace method asks for proposals CSV with exact source IDs and original
-spans, and for each row whether the chatbot is **sure** or **unsure**: a word it
+spans, and for each row whether the chatbot is **sure** or **unsure**. A pasted answer is
+read row by row (or, for the sentence methods, line by line, finding the labelled lines
+among greetings and notes): a row that does not fit is left out, with its reason on its
+words, and the other rows are used. A word it
 leaves as Whisper wrote it, marked sure, says that Whisper is right. The panel
 shows where you are in five steps (prepare, copy, paste and import, go through
 the answers, use), and a pasted answer takes you to **Go through the answers**

@@ -78,10 +78,16 @@ class ExternalAnswers(unittest.TestCase):
         result = asrexternal.parse(request, "suspect", units, invalid)
         self.assertEqual(len(result["suggestions"]), 1)
         self.assertEqual(result["failed_word_ids"], ["s1w1"])
-        for answer in ("sentence99: Wrong label.", "sentence0: Loro anno detto ciao.\nsentence0: Duplicate.",
-                       "Here are the corrections:\nsentence0: Loro hanno detto ciao.", "", "x" * (asrexternal.MAX_ANSWER + 1), "\ud800"):
+        # an answer with nothing of ours in it is refused; one with something of ours among other things is read
+        for answer in ("sentence99: Wrong label.", "Here are the corrections, with no labels at all.", "", "x" * (asrexternal.MAX_ANSWER + 1), "\ud800"):
             with self.subTest(answer=answer[:40]), self.assertRaises(llmconfig.LLMError):
                 asrexternal.parse(request, "suspect", units, answer)
+        chatty = asrexternal.parse(request, "suspect", units, "Here are the corrections:\n\n**Sentence0:** Loro hanno detto ciao.\n\nI changed the verb.\nsentence9: not ours")
+        self.assertEqual([s["candidates"][0]["text"] for s in chatty["suggestions"]], ["hanno"], "a greeting, a bold label in capitals and a note do not stop it")
+        self.assertEqual(chatty["failed_word_ids"], ["s1w1"])
+        self.assertEqual(sum("left out" in x["reason"] for x in chatty["ignored_edits"]), 3, "and what was left out is said")
+        twice = asrexternal.parse(request, "suspect", units, "sentence0: Loro hanno detto ciao.\nsentence0: Duplicate.")
+        self.assertEqual([s["candidates"][0]["text"] for s in twice["suggestions"]], ["hanno"], "of a label said twice the first is used")
 
     def test_unicode_and_missing_scores_in_whole_text_review(self):
         _, request = source("او به مدرسه رفت.", language="fa")
@@ -101,9 +107,18 @@ class ExternalAnswers(unittest.TestCase):
             result = asrexternal.parse(request, "workspace", units, asrworkspace._csv([row], asrworkspace.FIELDS))
         self.assertEqual(result["suggestions"][0]["candidates"][0]["text"], "hanno")
         self.assertEqual(result["failed_word_ids"], [])
-        for rows in ([row, row], [dict(row, word_ids="unknown")], [dict(row, original="different")]):
-            with self.assertRaises(llmconfig.LLMError):
-                asrexternal.parse(request, "workspace", units, asrworkspace._csv(rows, asrworkspace.FIELDS))
+        # a row that does not fit is left out and said; it no longer takes the whole answer with it
+        again = asrexternal.parse(request, "workspace", units, asrworkspace._csv([row, row], asrworkspace.FIELDS))
+        self.assertEqual((len(again["suggestions"]), again["failed_word_ids"]), (1, []))
+        self.assertTrue(any("Row refused" in x["reason"] for x in again["ignored_edits"]))
+        for bad, why in ((dict(row, word_ids="unknown"), "word_ids"), (dict(row, original="different"), "original")):
+            one = asrexternal.parse(request, "workspace", units, asrworkspace._csv([bad], asrworkspace.FIELDS))
+            self.assertEqual((one["suggestions"], one["failed_word_ids"]), ([], ["s0w1"]), why)
+            self.assertTrue(any("Row refused" in x["reason"] for x in one["ignored_edits"]), why)
+        # (a row of an ID that is nobody's cannot say whose word it was: that word is just without its row)
+        self.assertIn("its row was refused", asrexternal.parse(request, "workspace", units, asrworkspace._csv([dict(row, original="different")], asrworkspace.FIELDS))["failed_reasons"]["s0w1"])
+        with self.assertRaises(llmconfig.LLMError):          # what cannot be read as rows at all is still refused
+            asrexternal.parse(request, "workspace", units, "word_ids,original\n\"s0w1,anno\n")
         missing = asrexternal.parse(request, "workspace", units, "word_ids,original,replacement,reason\n")
         self.assertEqual(missing["failed_word_ids"], ["s0w1"])
 
@@ -129,8 +144,9 @@ class ExternalAnswers(unittest.TestCase):
         # a word with no row at all is still no answer, and a rating that is neither word is refused
         silent = asrexternal.parse(request, "workspace", units, csv_of([agree]))
         self.assertEqual((silent["failed_word_ids"], [k["word_ids"] for k in silent["kept"]]), (["s0w1"], [["s0w5"]]))
-        with self.assertRaises(llmconfig.LLMError):
-            asrexternal.parse(request, "workspace", units, csv_of([dict(change, confidence="maybe")]))
+        maybe = asrexternal.parse(request, "workspace", units, csv_of([dict(change, confidence="maybe"), agree]))
+        self.assertEqual(([s["word_id"] for s in maybe["suggestions"]], [k["word_ids"] for k in maybe["kept"]]), ([], [["s0w5"]]), "the row with a rating that is neither word is left out, the other is used")
+        self.assertIn("Confidence must be sure or unsure", maybe["failed_reasons"]["s0w1"])
         # the sentence methods have no rows to keep
         self.assertEqual(asrexternal.parse(request, "suspect", asrexternal.batches(request, "suspect")[0], "sentence0: Loro hanno detto ciao e anno poi.")["kept"], [])
 
@@ -188,14 +204,16 @@ class ExternalAnswers(unittest.TestCase):
             unsafe = dict(row, word_ids='s0w2', original='detto', replacement='detto!')
             (root / 'out/result.csv').write_text(asrworkspace._csv([row, unsafe], asrworkspace.FIELDS), encoding='utf-8')
             self.assertNotEqual(check('--complete').returncode, 0)
-            with self.assertRaises(llmconfig.LLMError):
-                asrexternal.parse(request, 'workspace', units, (root / 'out/result.csv').read_text())
+            # (the checker holds the model to every row; the person who pastes the answer gets the rows that are right)
+            partly = asrexternal.parse(request, 'workspace', units, (root / 'out/result.csv').read_text())
+            self.assertEqual([s['candidates'][0]['text'] for s in partly['suggestions']], ['hanno'])
+            self.assertTrue(any('punctuation' in x['reason'] for x in partly['ignored_edits']))
             # Uploaded evidence files cannot authorize additional edits. Server
             # revalidates the immutable request, not the mutable extracted ZIP.
             tampered = dict(row, original='other')
             (root / 'input/words.csv').write_text('tampered evidence', encoding='utf-8')
-            with self.assertRaises(llmconfig.LLMError):
-                asrexternal.parse(request, 'workspace', units, asrworkspace._csv([tampered], asrworkspace.FIELDS))
+            refused = asrexternal.parse(request, 'workspace', units, asrworkspace._csv([tampered], asrworkspace.FIELDS))
+            self.assertEqual((refused['suggestions'], refused['failed_word_ids']), ([], ['s0w1']))
 
     def test_workspace_join_and_selected_span_are_validated(self):
         panel, request = source('A note book arrived.', language='en')
@@ -206,8 +224,9 @@ class ExternalAnswers(unittest.TestCase):
         edited, _ = correction.apply(panel, request, result, {'s0w1': 0})
         self.assertEqual(edited, panel.replace('note book', 'notebook'))
         selected = asrexternal.batches(request, 'workspace', ['s0w1'])[0]
-        with self.assertRaises(llmconfig.LLMError):
-            asrexternal.parse(request, 'workspace', selected, answer)
+        outside = asrexternal.parse(request, 'workspace', selected, answer)       # the joined word reaches one that was not asked about
+        self.assertEqual(outside['suggestions'], [])
+        self.assertTrue(any('Row refused' in x['reason'] for x in outside['ignored_edits']))
 
     def test_hint_heavy_batches_cover_source_words_once(self):
         _, request = source(" ".join("anno" for _ in range(48)))
@@ -305,8 +324,6 @@ class ExternalJobs(unittest.TestCase):
         ext = view["review"]["external"]
         self.assertEqual(ext["batches"], 2)
         self.assertNotIn(self.job["state"], sttjobs.ACTIVE)
-        with self.assertRaises(sttjobs.Refusal):
-            sttjobs.use_review(self.token, self.hash, {})
         view = sttjobs.external_action(self.token, self.hash, ext["id"], "answer", 0, "sentence0: Loro hanno detto ciao.")
         self.assertEqual(self.job["text"], self.panel)
         self.assertEqual(len(view["review"]["result"]["suggestions"]), 1)
@@ -320,6 +337,27 @@ class ExternalJobs(unittest.TestCase):
         self.assertEqual(self.job["text"], self.panel)
         retry = sttjobs.external_start(self.token, self.hash, "suspect", ["s12w1"])
         self.assertEqual(len(retry["review"]["result"]["suggestions"]), 1)
+
+    def test_the_transcript_is_obtainable_while_the_review_waits_and_a_choice_that_does_not_fit_is_left_out(self):
+        sttjobs.external_start(self.token, self.hash, "suspect")        # two prompts, none answered: the review is not finished
+        used = sttjobs.use_review(self.token, self.hash, {})
+        self.assertEqual((used["text"], used["skipped"]), (self.panel, []), "it was refused until every answer was in")
+        self.job.update(state=sttjobs.DONE, review_choice="external", review_used=False)
+        view = sttjobs.external_start(self.token, self.hash, "workspace")["review"]["external"]
+        sttjobs.external_action(self.token, self.hash, view["id"], "answer", 0,
+            "word_ids,original,replacement,reason,confidence\ns0w1,anno,hanno,verb,sure\ns2w1,anno,hanno,verb,unsure\n")
+        used = sttjobs.use_review(self.token, self.hash, {"s0w1": 0, "nowhere": 0, "s2w1": 7}, {"s1w1": "two words", "s3w1": "hanno"})
+        lines = used["text"].splitlines()          # a clock and a caption, for each caption
+        self.assertEqual([lines[2 * i + 1] for i in (0, 1, 2, 3)],
+                         ["Loro hanno detto ciao.", "Loro anno detto ciao.", "Loro anno detto ciao.", "Loro hanno detto ciao."],
+                         "the accepted edit and the one of your own that fit are in, the three that do not fit are not")
+        self.assertEqual([(x["what"], x["why"]) for x in used["skipped"]], [
+            ("nowhere", "an accepted suggestion is not one of the current review's"),
+            ("anno", "an accepted suggestion is not one of the current review's"),
+            ("anno \u2192 two words", "an edit of your own is empty, too long, has a line break, or has a space in a single word")])
+        said = " ".join(used["notes"])
+        self.assertIn("3 of your choices could not be applied and were left as Whisper wrote them", said)
+        self.assertIn("anno \u2192 two words (an edit of your own is empty", said)
 
     def test_a_workspace_review_is_one_prompt_unless_divided_and_the_choice_stays_with_its_session(self):
         whole = sttjobs.external_start(self.token, self.hash, "workspace")["review"]["external"]

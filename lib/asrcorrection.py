@@ -214,10 +214,13 @@ def invalid(why="", reply=True):
     in the choices being applied -- and so told nobody what to mend.  `reply`: it is the model's reply that was refused
     (its words are in LLM responses); otherwise it is a choice that could not be applied to the transcript."""
     if not why:
-        raise LLMError("invalid-suggestions", "The model's sentence could not be tied to the original words. Inspect LLM responses; the Whisper result is intact.")
-    if reply:
-        raise LLMError("invalid-suggestions", "The model's reply was refused: %s. Inspect LLM responses; the Whisper result is intact." % why)
-    raise LLMError("invalid-suggestions", "These choices could not be applied to the transcript: %s. The transcript is unchanged." % why)
+        error = LLMError("invalid-suggestions", "The model's sentence could not be tied to the original words. Inspect LLM responses; the Whisper result is intact.")
+    elif reply:
+        error = LLMError("invalid-suggestions", "The model's reply was refused: %s. Inspect LLM responses; the Whisper result is intact." % why)
+    else:
+        error = LLMError("invalid-suggestions", "These choices could not be applied to the transcript: %s. The transcript is unchanged." % why)
+    error.why = why
+    raise error
 
 
 def _punctuation(surface):
@@ -478,59 +481,101 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
             "words_reviewed": completed, "words_total": total}
 
 
-def apply(panel, request, result, decisions, manual_edits=None):
+def apply(panel, request, result, decisions, manual_edits=None, skipped=None):
+    """The transcript with the chosen edits in it.
+
+    THE TRANSCRIPT MUST ALWAYS BE OBTAINABLE.  A choice that cannot be applied -- a suggestion that no longer fits, an edit of
+    your own with a space in a single word, two edits over the same words -- is no reason to refuse the others: give `skipped` a
+    list and each such choice is left out and recorded there, {"what": ..., "why": ...}, the word staying as Whisper wrote it.
+    Without one, the first that cannot be applied refuses the lot (what a caller that wants exactly its list applied needs).
+    What is refused either way is the text itself not being the one that was reviewed."""
     if hashlib.sha256(panel.encode("utf-8")).hexdigest() != request["source_sha256"]:
         invalid("the transcript is not the text that was reviewed", False)
     if not isinstance(decisions, dict) or len(decisions) > MAX_SUGGESTIONS:
         invalid("the list of accepted suggestions is not valid", False)
     sources, edits = index(request), []
     manual_edits = {} if manual_edits is None else manual_edits
-    if not isinstance(manual_edits, dict) or len(manual_edits) > MAX_SUGGESTIONS or set(manual_edits) & set(decisions):
+    if not isinstance(manual_edits, dict) or len(manual_edits) > MAX_SUGGESTIONS:
+        invalid("the list of edits of your own is not valid", False)
+    lenient = skipped is not None
+
+    def left_out(what, to, error):
+        if not lenient:
+            raise error
+        skipped.append({"what": "%s \u2192 %s" % (what, to) if to else what, "why": getattr(error, "why", "") or error.say})
+    both = set(manual_edits) & set(decisions)
+    if both and not lenient:
         invalid("a word has both an accepted suggestion and an edit of your own", False)
     proposals = {s["word_id"]: s for s in result.get("suggestions", [])}
     for ident, choice in decisions.items():
-        if ident not in proposals or type(choice) is not int or not 0 <= choice < len(proposals[ident]["candidates"]):
-            invalid("an accepted suggestion is not one of the current review's", False)
-        a, b, original = proposal_span(proposals[ident], sources)
-        if panel[a:b] != original:
-            invalid("the transcript text under an accepted suggestion is not what was reviewed", False)
-        candidate = proposals[ident]["candidates"][choice]
-        replacement = candidate["text"]
-        if result.get("task") == "likelihood":
-            from lmlikelihoodcore import replacement as checked_replacement
-            from lmgguf import ScoringError
+        if ident in both:
+            # the edit of your own is the later wish, and wins
+            skipped.append({"what": (proposals.get(ident) or {}).get("original", ident), "why": "you also wrote a word of your own for it"})
+            continue
+        shown, to = (proposals.get(ident) or {}).get("original", ident), ""
+        try:
             try:
-                if not candidate.get("applicable") or checked_replacement(original, replacement) != replacement:
+                to = proposals[ident]["candidates"][choice]["text"]
+            except (IndexError, KeyError, TypeError):
+                pass          # said below, as the suggestion that is not one of the review's
+            if ident not in proposals or type(choice) is not int or not 0 <= choice < len(proposals[ident]["candidates"]):
+                invalid("an accepted suggestion is not one of the current review's", False)
+            a, b, original = proposal_span(proposals[ident], sources)
+            if panel[a:b] != original:
+                invalid("the transcript text under an accepted suggestion is not what was reviewed", False)
+            candidate = proposals[ident]["candidates"][choice]
+            replacement = candidate["text"]
+            if result.get("task") == "likelihood":
+                from lmlikelihoodcore import replacement as checked_replacement
+                from lmgguf import ScoringError
+                try:
+                    if not candidate.get("applicable") or checked_replacement(original, replacement) != replacement:
+                        invalid("a chosen likelihood candidate cannot be applied as it stands", False)
+                except ScoringError:
                     invalid("a chosen likelihood candidate cannot be applied as it stands", False)
-            except ScoringError:
-                invalid("a chosen likelihood candidate cannot be applied as it stands", False)
-        if replacement != panel[a:b]:
-            edits.append((a, b, replacement))
+            if replacement != panel[a:b]:
+                edits.append((a, b, replacement, shown))
+        except (LLMError, KeyError, TypeError, IndexError) as error:
+            left_out(shown, to, error if isinstance(error, LLMError) else _bad("an accepted suggestion is malformed"))
     for ident, replacement in manual_edits.items():
         w = sources.get(ident)
-        ids = [ident]
-        if isinstance(replacement, dict):
-            if set(replacement) != {"text", "word_ids"} or not isinstance(replacement["word_ids"], list):
-                invalid("an edit of your own over several words is not valid", False)
-            ids, replacement = replacement["word_ids"], replacement["text"]
-        if (not w or not w["reviewable"] or not isinstance(replacement, str)
-                or not replacement.strip() or len(replacement) > 200
-                or any(ord(c) < 32 or 0xD800 <= ord(c) <= 0xDFFF for c in replacement)
-                or (len(ids) == 1 and any(c.isspace() for c in replacement))):
-            invalid("an edit of your own is empty, too long, has a line break, or has a space in a single word", False)
-        a, b, _ = proposal_span({"word_id": ident, "word_ids": ids, "original": ""}, sources)
-        if len(ids) == 1 and panel[a:b] != w["text"]:
-            invalid("the transcript text under an edit of your own is not what was reviewed", False)
-        if replacement != panel[a:b]:
-            edits.append((a, b, replacement))
+        shown = w["text"] if w else ident
+        to = replacement["text"] if isinstance(replacement, dict) and isinstance(replacement.get("text"), str) else replacement if isinstance(replacement, str) else ""
+        try:
+            ids = [ident]
+            if isinstance(replacement, dict):
+                if set(replacement) != {"text", "word_ids"} or not isinstance(replacement["word_ids"], list):
+                    invalid("an edit of your own over several words is not valid", False)
+                ids, replacement = replacement["word_ids"], replacement["text"]
+            if (not w or not w["reviewable"] or not isinstance(replacement, str)
+                    or not replacement.strip() or len(replacement) > 200
+                    or any(ord(c) < 32 or 0xD800 <= ord(c) <= 0xDFFF for c in replacement)
+                    or (len(ids) == 1 and any(c.isspace() for c in replacement))):
+                invalid("an edit of your own is empty, too long, has a line break, or has a space in a single word", False)
+            a, b, _ = proposal_span({"word_id": ident, "word_ids": ids, "original": ""}, sources)
+            if len(ids) == 1 and panel[a:b] != w["text"]:
+                invalid("the transcript text under an edit of your own is not what was reviewed", False)
+            if replacement != panel[a:b]:
+                edits.append((a, b, replacement, shown))
+        except (LLMError, KeyError, TypeError, IndexError) as error:
+            left_out(shown, to, error if isinstance(error, LLMError) else _bad("an edit of your own is malformed"))
     edits.sort(reverse=True)
-    last = len(panel)
-    for a, b, replacement in edits:
+    last, changed = len(panel), False
+    for a, b, replacement, shown in edits:
         if b > last:
-            invalid("two of the edits overlap", False)
+            left_out(shown, replacement, _bad("it overlaps another edit"))
+            continue
         panel = panel[:a] + replacement + panel[b:]
-        last = a
-    return panel, bool(edits)
+        last, changed = a, True
+    return panel, changed
+
+
+def _bad(why):
+    """The error invalid() would raise, to be recorded instead (apply() with a list to leave choices out in)."""
+    try:
+        invalid(why, False)
+    except LLMError as error:
+        return error
 
 
 def proposal_span(proposal, sources):

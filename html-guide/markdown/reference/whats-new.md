@@ -27,6 +27,15 @@ and the page is what you came for. The books' page and the videos' page are
 titled **Books** and **Videos**, and no longer *Ilya Frank reading editions* and
 *Frank-method videos*.
 
+### The transcript is never held back
+
+**Use this transcript** used to be refused while a chatbot review still waited for
+answers, after the model's settings had changed, and, with one message for every cause,
+when a single choice did not fit. It is now there whenever no tool is running, and what
+does not fit is left out alone and said: the word stays as Whisper wrote it. A pasted
+answer is read the same way: a row that does not fit, or a line without a label, no longer
+takes the whole answer with it.
+
 ### The model's answers, one by one
 
 A review used to leave you with a transcript full of ✎ words to open one by one,
