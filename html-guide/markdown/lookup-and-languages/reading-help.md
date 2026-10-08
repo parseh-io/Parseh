@@ -11,7 +11,7 @@ in the meantime. It is the same page for books and for videos, and it is
 laid out by language: a card for each language on your shelf, saying what
 it has and what it could have.
 
-![The top of the reading-help page: Settings' three doors — Reading help, Network and Updating Parseh — the space kept and the space free, and the cards of two languages on the shelf — Persian with everything installed, Japanese with a dictionary built by an older Parseh, its character components installed, and two rows not yet installed, each beside an example of what it adds](shots/reading-help.png)
+![The top of the reading-help page: the doors of Settings, the space kept and the space free, and the cards of two languages on the shelf — Persian with everything installed, Japanese with a dictionary built by an older Parseh, its character components installed, and two rows not yet installed, each beside an example of what it adds](shots/reading-help.png)
 
 ## Getting there
 

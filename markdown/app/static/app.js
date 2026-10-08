@@ -4668,9 +4668,10 @@ function initDoc() {
     // download/toggle availability follows the last GOOD build, not the
     // last attempt.
     btnPdf.disabled = !built;
-    const dlPdf = $("#dl-pdf"), dlTex = $("#dl-tex");
+    const dlPdf = $("#dl-pdf"), dlTex = $("#dl-tex"), dlTexZip = $("#dl-texzip");
     if (dlPdf) dlPdf.classList.toggle("disabled", !built);
     if (dlTex) dlTex.classList.toggle("disabled", !built);
+    if (dlTexZip) dlTexZip.classList.toggle("disabled", !built);
 
     // The badge says what LaTeX said, not that something went wrong: the
     // first line of it fits a badge, the whole message is the hover, and
@@ -4804,7 +4805,7 @@ function initDoc() {
   // A .disabled download link is inert to the mouse via pointer-events,
   // but stays in the tab order — block keyboard/programmatic activation
   // too, so Enter on an unbuilt-PDF link can't navigate away.
-  ["#dl-pdf", "#dl-tex"].forEach(sel => {
+  ["#dl-pdf", "#dl-tex", "#dl-texzip"].forEach(sel => {
     const a = $(sel);
     if (a) a.addEventListener("click", e => {
       if (a.classList.contains("disabled")) { e.preventDefault(); e.stopPropagation(); }

@@ -87,6 +87,11 @@ try {
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(`${B}/doc/${id}`);
   await page.waitForSelector('#sheet');
+  // the LaTeX with what it needs to compile elsewhere is greyed out, like the .tex and the PDF, until a PDF has been built
+  const texZip = page.locator('#dl-texzip');
+  assert(await texZip.textContent() === 'LaTeX + media (.zip)', 'Download ▾ offers "LaTeX + media (.zip)" beside the .tex');
+  assert((await texZip.getAttribute('class') || '').includes('disabled'), 'and it is greyed out while no PDF has been built');
+  assert((await (await fetch(`${B}/download/${id}/texzip`)).json()).error.includes('build the PDF first'), 'and the route says why it has nothing to give');
   const summary = page.locator('#pdf-options > summary');
   assert(await summary.textContent() === 'PDF options ▾', 'the topbar has "PDF options ▾"');
   assert(onScreen(await placed(summary)), 'it is on the screen and a click reaches it');
@@ -120,6 +125,13 @@ try {
   assert(tex.includes('\\definecolor{accent}{HTML}{000000}') && !tex.includes('\\textcolor[HTML]{8E2B34}'),
          'and in black and white: the colours black, the hex mark not written');
   assert(tex.includes('\\expaperbool{'), 'its true/false statements are in their own column');
+  assert(!((await texZip.getAttribute('class')) || '').includes('disabled'), 'once built, the LaTeX zip is there to press');
+  const zip = await fetch(`${B}/download/${id}/texzip`);
+  const zipBytes = new Uint8Array(await zip.arrayBuffer());
+  const zipText = new TextDecoder('latin1').decode(zipBytes);
+  assert(zip.ok && zip.headers.get('content-type') === 'application/zip' && /-latex\.zip"/.test(zip.headers.get('content-disposition')) &&
+         zipBytes[0] === 0x50 && zipBytes[1] === 0x4b, 'the real route gives a zip named after the document');
+  assert(zipText.includes('main.tex') && zipText.includes('README.txt') && zipText.includes('fonts/'), 'with its main.tex, its README and the fonts it sets its text in');
   const pdf = await fetch(`${B}/pdf/${id}`);
   assert(pdf.ok && (await pdf.arrayBuffer()).byteLength > 1000, 'the PDF is served');
 

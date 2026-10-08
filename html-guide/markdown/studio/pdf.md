@@ -43,6 +43,28 @@ What a build uses:
 (.tex)** take the PDF and the `.tex` it was made from away. All three are
 greyed out until a PDF has been built.
 
+### Taking the LaTeX away {#taking-the-latex-away}
+
+The `.tex` alone cannot be compiled elsewhere: it includes your pictures, the
+LaTeX drawings of the document and the fonts it is set in. **Download ▾ →
+LaTeX + media (.zip)** brings them with it, laid out as the build had them:
+
+- `main.tex`, the document, and a `README.txt` that says how to compile it
+  (XeLaTeX; in Overleaf, **Menu → Compiler → XeLaTeX** after uploading the zip
+  as a project).
+- `images/`, the pictures the document shows.
+- `latex/`, the document's [LaTeX drawings](../dialect/latex-drawings.md), each
+  twice: the compiled `<key>.pdf` that `main.tex` includes, so that it compiles
+  anywhere, and the `<key>.tex` it was compiled from, so that a drawing can be
+  changed. Change the `.tex`, compile it with the compiler the README names
+  and put the PDF it makes in place of the old one.
+- `fonts/`, the fonts `main.tex` asks for, with their licence.
+
+It is what the last build made, as the plain `.tex` is: change the document
+afterwards and the zip does not follow until the PDF is built again. If a
+drawing was changed after that build, its PDF is there but its `.tex` cannot be
+found, and the README says so.
+
 ### When a build fails {#when-a-build-fails}
 
 A build that fails says so, but not why: a red message, *Build failed:

@@ -130,14 +130,20 @@ of the typography bar says the first of it: *click the target text to copy
 - **Markdown + media (.zip)** — the Markdown with the pictures and
   recordings it shows, and its tags, in one zip. The library's
   **Upload .md / .zip** takes it back, pictures and all.
-- **LaTeX (.tex)** — the `.tex` the last PDF was built from.
+- **LaTeX (.tex)** — the `.tex` the last PDF was built from, by itself.
+- **LaTeX + media (.zip)** — that `.tex` with everything it includes, so that
+  it compiles somewhere else, in Overleaf for one: the pictures it shows, the
+  fonts it asks for, and, for each LaTeX drawing of the document, the
+  compiled PDF it includes and the `.tex` that PDF was made from, to change if
+  you want. A `README.txt` in it says how to compile. See
+  [the PDF](pdf.md#taking-the-latex-away).
 - **PDF** — the last PDF built.
 - **HTML page, for a website (.html)** — the document as one file that
   works anywhere, for students who have no Parseh: its exercises working,
   its pictures and recordings inside it, and none of its Markdown. See
   [A page for a website](web-page.md).
 
-**LaTeX** and **PDF** are greyed out until a PDF has been built; the HTML
+**LaTeX**, **LaTeX + media** and **PDF** are greyed out until a PDF has been built; the HTML
 page needs no build. For many documents at once, the library has
 **Download N shown**.
 

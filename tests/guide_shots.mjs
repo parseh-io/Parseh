@@ -63,6 +63,11 @@ const FILES = {
   // the hub
   'editor':            'studio/shots/editor.png',
   'study-gif':         'exercises/shots/study.gif',                      // a card turned over, rated, and the next
+  // Settings -> Reading help, with a shelf of dictionaries, sentences and models (a hub of its own, see READING_HELP)
+  'reading-help':      'lookup-and-languages/shots/reading-help.png',    // the top: the space, a Persian card with everything, a Japanese one with less
+  // the pages of the doors
+  'library':           'books/shots/library.png',                        // the Books page: the chips and a card per book
+  'decks':             'exercises/shots/decks.png',                      // the Exercises page, the first deck's ⋯ menu open
   // the hub
   'hub':               'getting-started/shots/hub.png',
   'hub-later':         'getting-started/shots/hub-later.png',            // the Review later door
@@ -75,6 +80,9 @@ const FILES = {
   'later-panel':       'books/shots/later-panel.png',                    // the list beside the book, on a computer
   'later-phone':       'books/shots/later-phone.png',                    // the list as a sheet, on a phone
   'later-player':      'videos/shots/later-player.png',                  // a video: two phrases flagged, the list on the right
+  // the Working… panel, over the hub, while a bundle is being uploaded (these two go last: the upload is aborted after them)
+  'working-hub':       'getting-started/shots/working-hub.png',          // on a computer
+  'mobile-hub-working': 'reference/shots/mobile-hub-working.png',        // on a phone, in Mobile mode
 };
 const wanted = name => !ONLY.length || ONLY.includes(name);
 if (Deno.env.get('GUIDE_SHOTS_LIST')) { console.log(Object.keys(FILES).join('\n')); Deno.exit(0); }
@@ -119,11 +127,17 @@ from pathlib import Path
 tmp, port = Path(sys.argv[1]), int(sys.argv[2])
 repo = Path.cwd()
 sys.path[:0] = [str(repo / p) for p in ('markdown/exlex', 'markdown/app', 'youtube/lib', 'lib', 'tests', '.')]
-import lookup, corpus, getmt
-lookup.DICT_DIR = str(tmp / 'dict')
-corpus.CORPUS_DIR = str(tmp / 'nocorpus')
-getmt.MT_DIR = str(tmp / 'nomt')
-getmt.ENGINE_DIR = str(tmp / 'nomt' / 'engine')
+import lookup, corpus, getmt, decomposition
+# WHAT THE READING-HELP PAGE FINDS: by default nothing but a small Persian dictionary; with the second argument (the page's own
+# picture, 'reading-help') a shelf of installed things in a folder of their own, so that no other picture meets them --
+# {"tag": the folder suffix, "dict": {code: {meta, older}}, "corpus": [...], "mt": [...], "packs": {source: manifest}, "engine": true}
+extra = json.loads(sys.argv[4]) if len(sys.argv) > 4 else {}
+tag = extra.get('tag', '')
+lookup.DICT_DIR = str(tmp / ('dict' + tag))
+corpus.CORPUS_DIR = str(tmp / ('corpus' + tag if tag else 'nocorpus'))
+getmt.MT_DIR = str(tmp / ('mt' + tag if tag else 'nomt'))
+getmt.ENGINE_DIR = str(tmp / ('mt' + tag if tag else 'nomt') / 'engine')
+decomposition.DATA_DIR = tmp / ('components' + tag)
 os.makedirs(lookup.DICT_DIR, exist_ok=True)
 for code, rows in json.loads(sys.argv[3]).items():
     c = lookup.create(lookup.path_for(code))
@@ -131,9 +145,37 @@ for code, rows in json.loads(sys.argv[3]).items():
         cur = c.execute("INSERT INTO entry (headword, translit, pos, sense) VALUES (?,?,?,?)", (head, translit, pos, sense))
         for form in [head] + forms:
             c.execute("INSERT INTO form (form, entry_id, note) VALUES (?,?,?)", (form, cur.lastrowid, ''))
-    c.executemany("INSERT INTO meta (key, value) VALUES (?,?)", [('lang', code), ('source', 'a test dictionary'), ('licence', 'none')])
+    about = (extra.get('dict') or {}).get(code, {})
+    meta = {'lang': code, 'source': 'a test dictionary', 'licence': 'none'}
+    meta.update(about.get('meta') or {})
+    c.executemany("INSERT INTO meta (key, value) VALUES (?,?)", list(meta.items()))
+    if about.get('older'):
+        c.execute("DROP INDEX IF EXISTS form_entry_ix")        # what a dictionary of an older Parseh lacks (lookuppage.older)
     c.commit()
     c.close()
+for row in extra.get('corpus') or []:
+    c = corpus.create(corpus.path_for(row['code'], row['gloss']))
+    c.executemany("INSERT INTO meta (key, value) VALUES (?,?)", list(row['meta'].items()))
+    c.commit()
+    c.close()
+for row in extra.get('mt') or []:
+    d = Path(getmt.path_for(row['code'], row['gloss']))
+    d.mkdir(parents=True, exist_ok=True)
+    (d / 'meta.json').write_text(json.dumps(row['meta']))
+    with open(d / 'model.bin', 'wb') as f:
+        f.truncate(row['bytes'])                              # a sparse file: it weighs what the page says and takes no room
+if extra.get('engine'):
+    Path(getmt.ENGINE_DIR).mkdir(parents=True, exist_ok=True)
+    for name in getmt.ENGINE_FILES:
+        (Path(getmt.ENGINE_DIR) / name).write_text('//')
+for source, manifest in (extra.get('packs') or {}).items():
+    import sqlite3
+    Path(decomposition.DATA_DIR).mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(decomposition.path_for(source))
+    con.execute('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)')
+    con.execute('INSERT INTO meta VALUES (?, ?)', ('manifest', json.dumps(manifest)))
+    con.commit()
+    con.close()
 import mobile_harness
 mobile_harness.serve_it(tmp, port)
 `;
@@ -250,6 +292,33 @@ async function resetLater() {
 
 const browser = await chromium.launch({executablePath: Deno.env.get('CHROME_BIN'), headless: true});
 const DESK = w => ({viewport: {width: w, height: 800}});
+
+// A BUNDLE BEING UPLOADED, held where the Working… panel shows it: a request to the books page's own door (/books/__upload) that
+// has said it brings 8.7 MB and has brought 12% of it, and then waits -- a real request, held by the one thing a picture needs
+// to stand still.  The bytes are not a bundle and are never read: the line is cut before they end.
+async function uploading() {
+  const total = 8_700_000, sent = 1_050_000, port = new URL(B).port;
+  const conn = await Deno.connect({hostname: '127.0.0.1', port: +port});
+  const head = `POST /books/__upload?name=mini-en-full.zip HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nContent-Type: application/zip\r\n` +
+               `Content-Length: ${total}\r\nReferer: ${B}/books/\r\nConnection: close\r\n\r\n`;
+  await conn.write(new TextEncoder().encode(head));
+  await conn.write(new Uint8Array(sent));
+  for (const t = Date.now();;) {
+    const j = await (await fetch(B + '/__activity')).json();
+    const e = (j.running || [])[0];
+    if (e && e.total === total && e.done >= sent * .9) break;
+    if (Date.now() - t > 20000) throw Error('the upload never showed: ' + JSON.stringify(j.running));
+    await sleep(200);
+  }
+  return {end: async () => {
+    try { conn.close(); } catch (_) {}                           // the line is cut: the server drops what it had
+    for (const t = Date.now(); Date.now() - t < 20000;) {
+      const j = await (await fetch(B + '/__activity')).json();
+      if (!(j.running || []).length) break;
+      await sleep(300);
+    }
+  }};
+}
 const PHONE = {viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true, deviceScaleFactor: 1};
 async function context(opts, seed = {}) {
   const ctx = await browser.newContext(opts);
@@ -531,6 +600,62 @@ const PICS = {
     await save(page, 'later-player');
     await ctx.close();
   },
+  async 'reading-help'() {
+    // a hub of its own over the same toolbox, whose dictionaries, sentences, models and kanji pack are the ones the page is about
+    const free = (() => { const l = Deno.listen({hostname: '127.0.0.1', port: 0}); const p = l.addr.port; l.close(); return p; })();
+    const WIKT = 'Wiktionary, extracted by kaikki.org (wiktextract)';
+    const rows = {...DICTS, ja: [['猫', 'neko', 'noun', 'cat'], ['犬', 'inu', 'noun', 'dog']]};
+    const shelf = {tag: '-rh', engine: true,
+      dict: {fa: {meta: {entries: '16942', source: WIKT, licence: 'CC BY-SA 4.0', built: '2026-09-02'}},
+             ja: {older: true, meta: {entries: '43000', source: WIKT, licence: 'CC BY-SA 4.0', built: '2026-06-11'}}},
+      corpus: [{code: 'fa', gloss: 'en', meta: {pairs: '8454', source: 'Tatoeba (tatoeba.org)', licence: 'CC BY 2.0 FR', built: '2026-09-02'}}],
+      mt: [{code: 'fa', gloss: 'en', bytes: 22_000_000, meta: {source: 'Mozilla Firefox Translations models', licence: 'CC BY-SA 4.0', built: '2026-09-02'}}],
+      packs: {kanjivg: {entries: 6700, built: '2026-08-03', source: 'KanjiVG', licence: 'CC BY-SA 3.0'}}};
+    // ... over a copy of the toolbox whose shelf has Persian and Japanese on it and nothing else, so that the two cards come one under the other
+    const COPY = WORK + '-rh';
+    await run(['cp', '-a', WORK, COPY]);
+    for (const lang of ['arabic', 'chinese', 'english', 'hindi', 'italian']) await Deno.remove(`${COPY}/root/books/${lang}`, {recursive: true});
+    await Deno.remove(`${COPY}/root/youtube/videos/english`, {recursive: true}).catch(() => {});
+    const proc = new Deno.Command(PY, {args: ['-c', SERVE, COPY, String(free), JSON.stringify(rows), JSON.stringify(shelf)], stdout: 'null', stderr: 'null'}).spawn();
+    try {
+      const at = `http://127.0.0.1:${free}`;
+      for (const t = Date.now();;) {
+        try { const r = await fetch(at + '/'); await r.body?.cancel(); if (r.ok) break; } catch (_) {}
+        if (Date.now() - t > 60000) throw Error('the second hub did not start');
+        await sleep(250);
+      }
+      const ctx = await context(DESK(960));
+      const page = await newPage(ctx, {width: 960, height: 1900});
+      await page.goto(at + '/settings/reading-help/', {waitUntil: 'load'});
+      await page.waitForSelector('.rh .card, .rh section', {timeout: 15000});
+      await page.evaluate(() => document.fonts.ready);
+      await sleep(1200);
+      await save(page, 'reading-help', {x: 0, y: 0, width: 960, height: 1722});         // down to the end of the Japanese card
+      await ctx.close();
+    } finally { try { proc.kill('SIGTERM'); } catch (_) {} await proc.status.catch(() => {}); await Deno.remove(COPY, {recursive: true}).catch(() => {}); }
+  },
+  async library() {
+    const ctx = await context(DESK(720));
+    const page = await newPage(ctx, {width: 720, height: 1040});
+    await page.goto(B + '/books/', {waitUntil: 'load'});
+    await page.evaluate(() => document.fonts.ready);
+    await sleep(600);
+    await save(page, 'library');
+    await ctx.close();
+  },
+  async decks() {
+    const ctx = await context(DESK(960));
+    const page = await newPage(ctx, {width: 960, height: 480});
+    await page.goto(B + '/exercises/', {waitUntil: 'load'});
+    await page.waitForSelector('.dk-card', {timeout: 15000});
+    await page.evaluate(() => document.fonts.ready);
+    await sleep(500);
+    await page.locator('.dk-card').first().locator('summary').click();      // the ⋯ of the first deck
+    await sleep(500);
+    await page.mouse.move(2, 2);
+    await save(page, 'decks');
+    await ctx.close();
+  },
   async hub() {
     const ctx = await context(DESK(1000));
     const page = await newPage(ctx, {width: 1000, height: 484});
@@ -605,6 +730,32 @@ const PICS = {
     saved.push(FILES['modes-gif']);
     console.log('  saved', FILES['modes-gif']);
     await ctx.close();
+  },
+  async 'working-hub'() {
+    const upload = await uploading();
+    try {
+      const ctx = await context(DESK(800));
+      const page = await newPage(ctx, {width: 800, height: 330});
+      await page.goto(B + '/', {waitUntil: 'load'});
+      await page.waitForSelector('#parseh-working:not([hidden]) .pa-open', {timeout: 15000});
+      await page.evaluate(() => document.fonts.ready);
+      await sleep(600);
+      await save(page, 'working-hub');
+      await ctx.close();
+    } finally { await upload.end(); }
+  },
+  async 'mobile-hub-working'() {
+    const upload = await uploading();
+    try {
+      const ctx = await context({viewport: {width: 390, height: 560}, isMobile: true, hasTouch: true, deviceScaleFactor: 1}, {parseh_mode: 'mobile'});
+      const page = await newPage(ctx);
+      await page.goto(B + '/', {waitUntil: 'load'});
+      await page.waitForSelector('#parseh-working:not([hidden]) .pa-open', {timeout: 15000});
+      await page.evaluate(() => document.fonts.ready);
+      await sleep(600);
+      await save(page, 'mobile-hub-working');
+      await ctx.close();
+    } finally { await upload.end(); }
   },
   async 'dictionary-sheet'() {
     // a phone, the dictionary switched on, a chunk tapped: over a book, and over a video under its pinned picture

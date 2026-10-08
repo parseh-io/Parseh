@@ -17,6 +17,15 @@ guide and rebuilds the readers by itself.
 
 ## a0.5.1 — not yet released
 
+### The LaTeX, with what it needs to compile elsewhere
+
+**Download ▾** of a studio document has a new line, **LaTeX + media (.zip)**,
+beside **LaTeX (.tex)**: the `.tex` of the last build with its pictures, its
+fonts and its LaTeX drawings, so that it compiles in Overleaf or anywhere. Each
+drawing is there as the compiled PDF `main.tex` includes and as the `.tex` it
+was made from, for whoever wants to change it, and a `README.txt` says how to
+compile ([Taking the LaTeX away](../studio/pdf.md#taking-the-latex-away)).
+
 ### The doors' pages say less
 
 The page of each door of the [hub](../getting-started/the-hub.md) — the hub

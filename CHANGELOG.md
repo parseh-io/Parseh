@@ -1,4 +1,7 @@
 ## [a0.5.1] - unreleased
+### Added
+- Download ▾ of a studio document: LaTeX + media (.zip), the .tex with its pictures, fonts and LaTeX drawings (as compiled PDFs and as the .tex they came from), ready for Overleaf
+
 ### Changed
 - The doors' pages, and the pages inside Settings, lose their one-line subtitles, and the books' and videos' pages are titled Books and Videos
 - The reasoning workspace of an external chatbot review is one prompt by default, and dividing it into several is an option; the connected model's workspace is one region by default, with small regions as an option

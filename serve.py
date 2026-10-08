@@ -2358,11 +2358,11 @@ def _studio_work(method, sub, whose, length, file):
     if method == "POST" and sub == "/api/download":
         return "download", ("Packing notes on %s to download" % whose() if whose
                             else "Packing documents to download"), None
-    m = re.match(r"^/download/([a-z0-9\-]+)/(zip|pdf|html)$", sub)
+    m = re.match(r"^/download/([a-z0-9\-]+)/(zip|texzip|pdf|html)$", sub)
     if method == "GET" and m:
         doc = named(m.group(1)) if whose else _doc_named(m.group(1))
-        return ("download", {"zip": "Packing %s to download", "pdf": "Sending the PDF of %s",
-                             "html": "Making the HTML page of %s"}[m.group(2)] % doc, None)
+        return ("download", {"zip": "Packing %s to download", "texzip": "Packing the LaTeX of %s to download",
+                             "pdf": "Sending the PDF of %s", "html": "Making the HTML page of %s"}[m.group(2)] % doc, None)
     if method == "POST" and sub == "/api/docs/zip":
         return "upload", "Importing %s into %s" % (file, of()), "importing"
     if method == "POST" and sub == "/api/library/zip":

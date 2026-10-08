@@ -485,11 +485,17 @@ def _inline_depth(tex, resolved, info, work, limit):
         return None
 
 
+def source(tex, resolved):
+    """The whole LaTeX file a block is compiled from: its theme's preamble, then the block.  One place makes it, so that the file
+    a person is given to compile or change (the studio's LaTeX zip) is the one the drawing really came from."""
+    return resolved["preamble"] + "\\begin{document}\n" + tex + "\n\\end{document}\n"
+
+
 def _compile(tex, resolved, info, key, limit, inline=False, preview=False):
     work = tempfile.mkdtemp(prefix="parseh-latex-")
     try:
         pre = resolved["preamble"]
-        doc = pre + "\\begin{document}\n" + tex + "\n\\end{document}\n"
+        doc = source(tex, resolved)
         first_body = pre.count("\n") + 2           # the line the block's first line is on
         with open(os.path.join(work, "d.tex"), "w", encoding="utf-8") as fh:
             fh.write(doc)

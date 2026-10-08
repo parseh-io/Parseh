@@ -63,6 +63,7 @@ import anki_store     # noqa: E402
 import decks          # noqa: E402  the exercise decks (serve.py's hub reads it)
 import deckroutes     # noqa: E402  and their routes, mounted at /exercises
 import webexport      # noqa: E402  a document as one HTML page for a website (§8.38)
+import texzip         # noqa: E402  a document's LaTeX with what it needs to compile elsewhere
 import version        # noqa: E402  which Parseh this is, for the Server header
 import crosssite      # noqa: E402  only Parseh's own pages may write (TO-DO §3.1)
 import latexdraw      # noqa: E402  a latex block, compiled on its own and kept (§8.39)
@@ -1165,10 +1166,20 @@ NEVER_BUILT = ("a note beside a book or a video is read on its page and "
 
 
 def serve_download(h, doc_id, kind):
-    if kind in ("tex", "pdf") and html_only():
+    if kind in ("tex", "texzip", "pdf") and html_only():
         return h.send_json({"error": NEVER_BUILT}, 404)
     meta, _ = store.get(doc_id)
     slug = re.sub(r"-[0-9a-f]{6}$", "", doc_id) or "documento"
+    if kind == "texzip":
+        # the .tex of the last build with what it includes -- its pictures, its latex drawings as compiled PDFs AND as the
+        # LaTeX they came from, its fonts -- so that it compiles in Overleaf or anywhere, and a drawing can be changed
+        _meta, markdown = store.get(doc_id)
+        try:
+            data = texzip.tex_zip(doc_id, meta.get("title") or slug, markdown)
+        except texzip.NotBuilt:
+            return h.send_json({"error": "There is no LaTeX yet: build the PDF first, and the LaTeX it was built from comes away."}, 404)
+        return h.send_bytes(data, "application/zip", 200,
+                            {"Content-Disposition": 'attachment; filename="%s-latex.zip"' % slug})
     if kind == "zip":
         # the markdown and the pictures and recordings it shows, laid out as
         # they are kept here (<slug>.md beside images/ and audio/): what the
@@ -2552,7 +2563,7 @@ ROUTES = [
     ("GET",    r"^/doc/([a-z0-9\-]+)/__offline$",         api_doc_offline),
     ("GET",    r"^/doc/([a-z0-9\-]+)/edit$",              page_edit),
     ("GET",    r"^/pdf/([a-z0-9\-]+)$",                   serve_pdf),
-    ("GET",    r"^/download/([a-z0-9\-]+)/(md|tex|pdf|zip|html)$", serve_download),
+    ("GET",    r"^/download/([a-z0-9\-]+)/(md|tex|texzip|pdf|zip|html)$", serve_download),
     ("GET",    r"^/static/langs\.css$",                   serve_langs_css),
     # the sheet and the chrome, put back together under the name every page
     # already links (serve_app_css); static/sheet.css is served as it is, by

@@ -16,6 +16,7 @@ import unittest
 import urllib.parse
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 for folder in (ROOT / "markdown" / "exlex", ROOT / "markdown" / "app",
@@ -216,6 +217,110 @@ class ZipTests(LibraryCase):
             with self.assertRaises(store.StoreError) as caught:
                 store.import_zip(data)
             self.assertIn(why, str(caught.exception))
+
+
+KEY = "ab" * 32            # a drawing's key, as latexdraw makes them: 64 hex digits
+OTHER = "cd" * 32
+DRAWING = "::::latex\n\\begin{tikzpicture}\\draw (0,0) -- (1,1);\\end{tikzpicture}\n::::\n"
+RESOLVED = {"name": "drawing", "compiler": "xelatex", "preamble": "\\documentclass{standalone}\n\\usepackage{tikz}\n"}
+
+
+class LatexZipTests(LibraryCase):
+    """A document's LaTeX as a zip (markdown/app/texzip.py): what the last build made, with everything main.tex includes."""
+
+    def built(self, extra_tex="", with_drawing=True):
+        meta = store.create(FULL + "\n![a cat](images/cat.png){width=40}\n\n" + (DRAWING if with_drawing else ""))
+        store.save_image(meta["id"], "cat.png", PNG)
+        build = store.doc_dir(meta["id"]) / "build"
+        for folder in ("images", "latex", "fonts"):
+            (build / folder).mkdir(parents=True)
+        (build / "images" / "cat.png").write_bytes(PNG)
+        (build / "images" / "unused.png").write_bytes(PNG_B)                  # staged by every build, shown by nobody
+        (build / "latex" / (KEY + ".pdf")).write_bytes(b"%PDF drawing")
+        (build / "latex" / (OTHER + ".pdf")).write_bytes(b"%PDF a drawing the document no longer has")
+        for font in ("Vazirmatn-Regular.ttf", "NotoNaskhArabic-Regular.ttf"):
+            (build / "fonts" / font).write_bytes(b"font " + font.encode())
+        (build / "main.tex").write_text(
+            "\\documentclass{extarticle}\n\\newfontfamily\\fa[Path=./fonts/,UprightFont=Vazirmatn-Regular.ttf]{Vazirmatn}\n"
+            "\\begin{document}\n\\includegraphics{images/cat.png}\n\\includegraphics[width=3cm]{latex/%s.pdf}\n%s\\end{document}\n" % (KEY, extra_tex),
+            encoding="utf-8")
+        return meta
+
+    def get(self, meta, kind="texzip"):
+        h = Fake()
+        server.serve_download(h, meta["id"], kind)
+        return h.sent
+
+    def plan(self):
+        return mock.patch("latexdraw.plan", return_value={"ok": True, "key": KEY, "resolved": RESOLVED})
+
+    def test_the_zip_holds_main_tex_with_what_it_includes_and_nothing_else(self):
+        meta = self.built()
+        with self.plan():
+            status, data, ctype, headers = self.get(meta)
+        self.assertEqual((status, ctype), (200, "application/zip"))
+        self.assertIn('filename="cats-latex.zip"', headers["Content-Disposition"])
+        z = zipfile.ZipFile(io.BytesIO(data))
+        self.assertEqual(sorted(z.namelist()), ["README.txt", "fonts/OFL.txt", "fonts/Vazirmatn-Regular.ttf", "images/cat.png",
+                                                "latex/%s.pdf" % KEY, "latex/%s.tex" % KEY, "main.tex"],
+                         "the picture it shows, the drawing as PDF and as LaTeX, the font it names with its licence: not the picture "
+                         "nobody shows, not the drawing it does not include, not the font it does not ask for")
+        self.assertEqual(z.read("main.tex"), (store.doc_dir(meta["id"]) / "build" / "main.tex").read_bytes())
+        self.assertEqual(z.read("images/cat.png"), PNG)
+        self.assertEqual(z.read("latex/%s.pdf" % KEY), b"%PDF drawing")
+        self.assertEqual(z.read("fonts/Vazirmatn-Regular.ttf"), b"font Vazirmatn-Regular.ttf")
+
+    def test_a_drawings_tex_is_the_file_it_was_compiled_from(self):
+        import latexdraw
+        meta = self.built()
+        with self.plan():
+            z = zipfile.ZipFile(io.BytesIO(self.get(meta)[1]))
+        block = DRAWING.split("\n", 1)[1].rsplit("\n::::", 1)[0]
+        self.assertEqual(z.read("latex/%s.tex" % KEY).decode("utf-8"), latexdraw.source(block, RESOLVED))
+        self.assertEqual(z.read("latex/%s.tex" % KEY).decode("utf-8").splitlines()[:2], ["\\documentclass{standalone}", "\\usepackage{tikz}"],
+                         "its theme's preamble first: a file that compiles by itself")
+        note = z.read("README.txt").decode("utf-8")
+        self.assertIn("XeLaTeX", note)
+        self.assertIn('latex/%s.tex   theme "drawing", compiled with xelatex' % KEY, note, "the README says how to remake each drawing")
+
+    def test_a_drawing_whose_latex_cannot_be_found_is_said_not_left_out(self):
+        meta = self.built()
+        with mock.patch("latexdraw.plan", return_value={"ok": True, "key": OTHER, "resolved": RESOLVED}):     # the document changed since
+            z = zipfile.ZipFile(io.BytesIO(self.get(meta)[1]))
+        self.assertIn("latex/%s.pdf" % KEY, z.namelist(), "its PDF is still there, main.tex includes it")
+        self.assertNotIn("latex/%s.tex" % KEY, z.namelist())
+        self.assertIn("WITHOUT THEIR LaTeX", z.read("README.txt").decode("utf-8"))
+        self.assertIn("latex/%s.pdf" % KEY, z.read("README.txt").decode("utf-8").split("WITHOUT THEIR LaTeX", 1)[1])
+
+    def test_a_document_without_drawings_or_fonts_has_just_its_pictures(self):
+        meta = store.create(FULL + "\n![a cat](images/cat.png)\n")
+        store.save_image(meta["id"], "cat.png", PNG)
+        build = store.doc_dir(meta["id"]) / "build"
+        (build / "images").mkdir(parents=True); (build / "fonts").mkdir()
+        (build / "images" / "cat.png").write_bytes(PNG)
+        (build / "fonts" / "Vazirmatn-Regular.ttf").write_bytes(b"font")
+        (build / "main.tex").write_text("\\documentclass{article}\n\\begin{document}\\includegraphics{images/cat.png}\\end{document}\n")
+        z = zipfile.ZipFile(io.BytesIO(self.get(meta)[1]))
+        self.assertEqual(sorted(z.namelist()), ["README.txt", "images/cat.png", "main.tex"], "no font it does not ask for, no empty folders")
+        self.assertNotIn("THE DRAWINGS", z.read("README.txt").decode("utf-8"))
+
+    def test_nothing_is_taken_from_outside_the_build_and_an_unbuilt_document_has_no_zip(self):
+        meta = self.built(extra_tex="\\includegraphics{images/../../source.md}\\includegraphics{latex/../main.tex}\n")
+        with self.plan():
+            z = zipfile.ZipFile(io.BytesIO(self.get(meta)[1]))
+        self.assertNotIn("images/../../source.md", z.namelist())
+        self.assertEqual([n for n in z.namelist() if n.endswith("source.md")], [], "a path that climbs out of the build is not followed")
+        fresh = store.create(FULL.replace("Cats", "Dogs"))
+        status, answer = self.get(fresh)
+        self.assertEqual(status, 404)
+        self.assertIn("build the PDF first", answer["error"])
+
+    def test_a_note_beside_a_book_never_comes_away_as_latex_either(self):
+        meta = self.built()
+        server._MOUNT.html_only = True
+        self.addCleanup(setattr, server._MOUNT, "html_only", False)
+        self.assertEqual(self.get(meta)[0], 404)
+        self.assertEqual(self.get(meta, "tex")[0], 404)
 
 
 class BackupTests(LibraryCase):
