@@ -11,6 +11,12 @@
    A word the model kept used to vanish: the importer dropped every row that left the word as it was,
    with its reason, and the review showed no mark.  Now each one is listed, marked and explained.
 
+   READ LOOSELY is not a fifth outcome but a note on any of them.  A pasted answer is read generously
+   -- a line picked out of a reply of several, a row without its "sure", a change reaching past the word
+   -- and wherever that generosity was used the word says so (`result.allowances`, {word id: [say]}),
+   wears a ≈, and can be asked again by itself.  A person who skims such a word sees that the answer
+   was not a clean one; a word whose answer was clean carries nothing.
+
    THE WALK is a card at a time, in the order of the transcript: the caption with the word marked, what
    Whisper heard and how sure it was, what the model says and why, and the choices -- Accept, Keep
    Whisper's, Write my own, Skip, Back.  By default it stops at what needs a decision or a doubt (every
@@ -28,6 +34,39 @@
   function btn(text, fn, cls) { var b = el('button', text, 'wbtn small quiet' + (cls ? ' ' + cls : '')); b.type = 'button'; b.addEventListener('click', fn); return b; }
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
   function score(w) { return typeof w.asr_confidence === 'number' ? w.asr_confidence.toFixed(2) : 'no score'; }
+  var LOOSE = '≈';
+  // why Whisper's second look could not be made (lib/whispersecond.py REASONS)
+  var SECOND = {
+    'missing-timestamps': 'The first pass did not give this word a usable time.',
+    'no-word-result': 'The second look did not return any word.',
+    'ambiguous-alignment': 'What the second look heard could not be safely matched to this word.',
+    'transcription-failed': 'Whisper could not transcribe this stretch of the sound.',
+    'worker-stopped': 'The second-pass worker stopped before it reached this word.'
+  };
+  function quoted(t) { return '“' + t + '”'; }
+
+  /* THE WORDS WHOSE ANSWER WAS READ LOOSELY: {word id: [say]}.  From the importers (`result.allowances`), and from a comparison
+     by LM likelihood that could not be finished, whose winner is then one among the candidates that could be scored. */
+  function loose(m) {
+    var res = m.result || null, out = {};
+    if (!res) return out;
+    var scope = res.latest_word_ids || res.reviewed_word_ids, latest = null;
+    if (scope) { latest = {}; scope.forEach(function (id) { latest[id] = true; }); }
+    function add(id, say) {
+      if (!m.words[id] || m.locked[id] || latest && !latest[id]) return;
+      var list = out[id] = out[id] || [];
+      if (list.indexOf(say) < 0) list.push(say);
+    }
+    Object.keys(res.allowances || {}).forEach(function (id) { (res.allowances[id] || []).forEach(function (say) { add(id, say); }); });
+    Object.keys(m.suggestions || {}).forEach(function (key) {
+      var s = m.suggestions[key], c = s.likelihood && s.likelihood.coverage;
+      if (!c || c.state === 'complete') return;
+      var omitted = c.omitted || [], texts = omitted.map(function (o) { return quoted(o.text); }).join(', ');
+      var say = 'the comparison was not finished' + (omitted.length ? ': ' + texts + ' could not be scored, so the winner is only the best of the others' + (omitted[0].reason ? ' (' + omitted[0].reason + ')' : '') : '');
+      (s.word_ids || [s.word_id]).forEach(function (id) { add(id, say); });
+    });
+    return out;
+  }
 
   /* WHAT BECAME OF EACH WORD.  m = {words: {id: word}, suggestions: {id: proposal}, result, review, locked}
      -> [item] in the order of the transcript.  An item is {kind, anchor, ids, word, candidates, rating,
@@ -47,7 +86,7 @@
         var w = words[id], p = w && w.second_pass;
         if (!w || !p || m.locked[id] || covered[id]) return;
         take([id]);
-        if (p.state === 'failed') { out.push({kind: 'none', anchor: id, ids: [id], word: w, candidates: [], rating: null, reason: '', sure: null, key: id}); return; }
+        if (p.state === 'failed') { out.push({kind: 'none', anchor: id, ids: [id], word: w, candidates: [], rating: null, reason: SECOND[p.reason] || '', sure: null, key: id}); return; }
         if (p.state !== 'complete') return;
         var best = p.best_candidate;
         out.push(!best || best === w.text
@@ -104,6 +143,12 @@
         });
       }
     }
+    // what each answer was read loosely for
+    var notes = loose(m);
+    out.forEach(function (i) {
+      i.notes = [];
+      i.ids.forEach(function (id) { (notes[id] || []).forEach(function (say) { if (i.notes.indexOf(say) < 0) i.notes.push(say); }); });
+    });
     return out.sort(function (a, b) { return at(a.anchor) - at(b.anchor); });
   }
 
@@ -113,7 +158,7 @@
     unsure: function (i) { return i.proposal ? 'The model could not decide between the candidates' : 'The model kept Whisper’s word but is not sure of it'; },
     none: function () { return 'The model gave no answer for this word'; }
   };
-  var MARK = {change: '✎', agree: '✔', unsure: '?', none: '✗'};
+  var MARK = {change: '✎', agree: '✔', unsure: '?', none: '✗', loose: LOOSE};
 
   /* THE WALK.  api = {
        data()                 -> {words, suggestions, result, review, locked, decisions, manualEdits}, fresh each time
@@ -123,6 +168,7 @@
        changed()              the draft moved: repaint the words, save it
        caption(wordId)        the caption {text, start, end, words} the word is in
        show(word), listen(word)   put the word in view; play it
+       ask(ids)               ask the model again for these words only (the page chooses how: the pasted-answer prompt, the endpoint...)
        use()                  press "Use this transcript"
        phase()                'review', 'external', 'correcting'...
      } */
@@ -130,8 +176,9 @@
     var st = {open: false, ending: false, history: [], revisit: false, chip: null, writing: false, error: '', note: '', signature: '', host: null};
 
     function all() { return outcomes(api.data()); }
+    function looseWords() { return loose(api.data()); }
     function counts(list) {
-      var n = {change: 0, agree: 0, unsure: 0, none: 0, sure: 0, notsure: 0, rated: 0};
+      var n = {change: 0, agree: 0, unsure: 0, none: 0, sure: 0, notsure: 0, rated: 0, loose: Object.keys(looseWords()).length};
       list.forEach(function (i) {
         n[i.kind]++;
         if (i.kind !== 'agree' && i.kind !== 'none') { if (i.sure === true) n.sure++; else n.notsure++; }
@@ -176,7 +223,8 @@
     function bulk(onlySure) {
       var list = all(), n = 0;
       list.forEach(function (i) {
-        if (i.kind !== 'change' || status(i) || (onlySure && i.sure !== true)) return;
+        // a "sure" whose answer was read loosely is not taken for the person: it stays to be looked at
+        if (i.kind !== 'change' || status(i) || (onlySure && (i.sure !== true || i.notes.length))) return;
         api.accept(i, proposalIndex(i)); n++;
       });
       api.changed(); st.history = []; st.chip = null; st.note = n ? 'Accepted ' + plural(n, 'edit', 'edits') + ' into the draft. ' + (onlySure ? 'The rest are for you to look at.' : '') : 'Nothing to accept.';
@@ -184,6 +232,7 @@
       // ones: the walk goes on with the rest
       st.open = true; st.ending = !onlySure || !pending(all()).length; paint(); focusCard();
     }
+    function ask(ids) { st.open = false; st.ending = false; st.note = ''; paint(); api.ask(ids); }
     function start(revisit) { st.revisit = !!revisit; st.open = true; st.ending = false; st.chip = null; st.history = []; st.note = ''; paint(); focusCard(); }
     function focusCard() { var c = st.host && st.host.querySelector('.stt-walk-card'); if (c) c.focus({preventScroll: false}); }
 
@@ -202,6 +251,16 @@
       });
       line.appendChild(document.createTextNode(seg.text.slice(cursor)));
       return line;
+    }
+    // what a reply had to be forgiven for, in the words of the importer: shown wherever the word is looked at
+    function looseBlock(says, lead) {
+      var box = el('div', null, 'stt-loosenote');
+      box.appendChild(el('p', LOOSE + ' ' + lead + ':', 'stt-loosenote-head'));
+      var ul = el('ul');
+      says.forEach(function (say) { var li = el('li'), b = el('bdi', say.charAt(0).toUpperCase() + say.slice(1) + (/[.!?]$/.test(say) ? '' : '.')); b.dir = 'auto'; li.appendChild(b); ul.appendChild(li); });
+      box.appendChild(ul);
+      box.appendChild(el('p', 'If the word matters, ask again for it by itself.', 'fieldnote'));
+      return box;
     }
     function card(list, todo) {
       var item = todo[0], w = item.word, box = el('div', null, 'stt-walk-card'), d = api.data();
@@ -236,7 +295,8 @@
       } else if (item.rating) box.appendChild(el('p', 'The model is ' + (item.rating === 'sure' ? 'sure' : 'not sure') + ' of this.', 'stt-walk-rating stt-walk-' + item.rating));
       else if (item.noRating) box.appendChild(el('p', 'The model gave no confidence for this word, so it counts as not sure.', 'fieldnote'));
       if (item.reason) { var why = el('p', null, 'stt-walk-reason'); why.appendChild(el('span', item.kind === 'none' ? 'Why there is no answer: ' : 'Why: ', 'fieldnote')); var r = el('bdi', item.reason); r.dir = 'auto'; why.appendChild(r); box.appendChild(why); }
-      if (item.kind === 'none') box.appendChild(el('p', 'Whisper’s word stays unless you change it here. “Retry remaining words” asks the model for these again.', 'fieldnote'));
+      if (item.notes.length) box.appendChild(looseBlock(item.notes, 'The model’s answer for this word was read loosely'));
+      if (item.kind === 'none') box.appendChild(el('p', 'Whisper’s word stays unless you change it here. “Ask again for this word” asks the model for it alone.', 'fieldnote'));
       var actions = el('div', null, 'stt-walk-actions');
       var listen = btn('▶ Listen (P)', function () { api.listen(w); }); listen.setAttribute('aria-keyshortcuts', 'P'); actions.appendChild(listen);
       if (item.kind === 'change' && item.candidates.length) {
@@ -246,6 +306,9 @@
       var write = btn('Write my own (W)', function () { st.writing = !st.writing; st.error = ''; paint(); var input = st.host.querySelector('.stt-walk-own input'); if (input) input.focus(); });
       write.setAttribute('aria-keyshortcuts', 'W'); actions.appendChild(write);
       var skip = btn('Skip (S)', function () { done(item, 'skip'); }); skip.setAttribute('aria-keyshortcuts', 'S'); actions.appendChild(skip);
+      if (item.notes.length || item.kind === 'none') {
+        var again = btn('Ask again for this word (R)', function () { ask(item.ids); }); again.id = 'stt_walk_ask'; again.setAttribute('aria-keyshortcuts', 'R'); actions.appendChild(again);
+      }
       var undo = btn('← Back', back); undo.disabled = !st.history.length; undo.setAttribute('aria-keyshortcuts', 'ArrowLeft'); actions.appendChild(undo);
       box.appendChild(actions);
       if (st.writing) {
@@ -283,9 +346,12 @@
         });
         box.appendChild(ul);
       } else box.appendChild(el('p', 'Nothing will change in the transcript.'));
+      var wobbly = Object.keys(looseWords());
+      if (wobbly.length) box.appendChild(el('p', LOOSE + ' ' + plural(wobbly.length, 'word', 'words') + ' had an answer that was read loosely (marked ' + LOOSE + ' in the transcript). You can use the transcript as it is, or ask again for ' + (wobbly.length === 1 ? 'it' : 'them') + '.', 'fieldnote'));
       var actions = el('div', null, 'stt-walk-actions');
       var use = btn('Use this transcript', function () { api.use(); }, 'go'); use.id = 'stt_walk_use'; use.disabled = api.phase() === 'correcting'; actions.appendChild(use);
       if (n.skipped) actions.appendChild(btn('Go back to the ' + n.skipped + ' skipped', function () { start(true); }));
+      if (wobbly.length) { var askLoose = btn('Ask again for the ' + plural(wobbly.length, 'word', 'words') + ' read loosely', function () { ask(wobbly); }); askLoose.id = 'stt_walk_ask_ending'; actions.appendChild(askLoose); }
       if (!api.walk().includeAgree && list.some(function (i) { return i.kind === 'agree' && !status(i); })) actions.appendChild(btn('Look at the words the model agrees with', function () { api.walk().includeAgree = true; api.changed(); start(false); }));
       actions.appendChild(btn('Close', function () { st.open = false; paint(); }));
       box.appendChild(actions);
@@ -306,7 +372,25 @@
       });
       return res.sort(function (a, b) { return a.at - b.at; });
     }
+    // the words whose answer was read loosely, each with what it was forgiven for and its own "ask again"
+    function looseList() {
+      var map = looseWords(), words = api.data().words, ids = Object.keys(map).sort(function (a, b) { return words[a].span_start - words[b].span_start; });
+      var box = el('div', null, 'stt-walk-list stt-walk-loose-list');
+      if (!ids.length) { box.appendChild(el('p', 'None.', 'fieldnote')); return box; }
+      var every = btn('Ask again for these ' + plural(ids.length, 'word', 'words'), function () { ask(ids); }, 'go'); every.id = 'stt_walk_ask_all'; box.appendChild(every);
+      var ul = el('ul');
+      ids.forEach(function (id) {
+        var li = el('li'), open = btn(LOOSE + ' ' + words[id].text, function () { api.show(words[id]); api.listen(words[id]); }, 'stt-walk-word');
+        li.appendChild(open);
+        var r = el('bdi', ' — ' + map[id].join('; ')); r.dir = 'auto'; li.appendChild(r);
+        li.appendChild(btn('Ask again', function () { ask([id]); }));
+        ul.appendChild(li);
+      });
+      box.appendChild(ul);
+      return box;
+    }
     function chipList(list, kind) {
+      if (kind === 'loose') return looseList();
       var box = el('div', null, 'stt-walk-list'), rows = list.filter(function (i) { return kind === 'notsure' ? (i.kind !== 'agree' && i.kind !== 'none' && i.sure !== true) : kind === 'sure' ? (i.kind === 'change' && i.sure === true) : i.kind === kind; });
       if (!rows.length) { box.appendChild(el('p', 'None.', 'fieldnote')); return box; }
       var ul = el('ul');
@@ -328,14 +412,14 @@
       var onCard = host.contains(document.activeElement) && document.activeElement.classList.contains('stt-walk-card');
       host.textContent = '';
       var list = all();
-      host.hidden = !list.length;
-      if (!list.length) return;
+      host.hidden = !list.length && !Object.keys(looseWords()).length;
+      if (host.hidden) return;
       var n = counts(list), todo = pending(list);
       host.appendChild(el('h4', 'The model’s answers'));
       var sum = el('p', null, 'stt-walk-summary');
       sum.appendChild(document.createTextNode(plural(list.length, 'word', 'words') + ' checked: '));
       [['change', plural(n.change, 'edit', 'edits') + ' proposed' + (n.rated ? ' (' + n.sure + ' sure, ' + (n.change - n.sure) + ' not sure)' : '')], ['agree', n.agree + ' agree with Whisper'],
-       ['unsure', n.unsure + ' not sure either way'], ['none', n.none + ' with no answer']].forEach(function (c, at) {
+       ['unsure', n.unsure + ' not sure either way'], ['none', n.none + ' with no answer']].concat(n.loose ? [['loose', n.loose + ' read loosely']] : []).forEach(function (c, at) {
         var chip = btn(MARK[c[0]] + ' ' + c[1], function () { st.chip = st.chip === c[0] ? null : c[0]; paint(); }, 'stt-walk-chip stt-walk-' + c[0]);
         chip.setAttribute('aria-pressed', st.chip === c[0] ? 'true' : 'false'); chip.disabled = !n[c[0]]; sum.appendChild(chip);
       });
@@ -344,7 +428,7 @@
       var bar = el('div', null, 'stt-walk-bulk'), editable = api.phase() !== 'correcting', open = list.filter(function (i) { return i.kind === 'change' && !status(i); });
       var walking = st.open && !st.ending && todo.length;
       var go = btn(todo.length ? 'Go through the answers (' + todo.length + ')' : 'Go through the answers', function () { start(false); }, 'go'); go.id = 'stt_walk_start'; go.disabled = !editable || !todo.length && !list.some(function (i) { return status(i) === 'skipped'; }); go.hidden = !!walking; bar.appendChild(go);
-      var sure = open.filter(function (i) { return i.sure === true; });
+      var sure = open.filter(function (i) { return i.sure === true && !i.notes.length; });
       // each button is there while it has something to do
       if (n.rated && sure.length) { var some = btn('Accept the ' + sure.length + ' sure ' + (sure.length === 1 ? 'edit' : 'edits') + ', then look at the rest', function () { bulk(true); }); some.id = 'stt_walk_sure'; some.disabled = !editable; bar.appendChild(some); }
       if (open.length) { var every = btn('Accept all ' + open.length + ' ' + (open.length === 1 ? 'edit' : 'edits') + ' the model proposed', function () { bulk(false); }); every.id = 'stt_walk_all'; every.disabled = !editable; bar.appendChild(every); }
@@ -373,6 +457,7 @@
           else if (key === 'k') done(item, 'keep');
           else if (key === 's') done(item, 'skip');
           else if (key === 'w') { st.writing = true; paint(); var input = host.querySelector('.stt-walk-own input'); if (input) input.focus(); }
+          else if (key === 'r' && (item.notes.length || item.kind === 'none')) ask(item.ids);
           else if (key === 'p') api.listen(item.word);
           else if (key === 'ArrowLeft') back();
           else return;
@@ -387,8 +472,12 @@
       repaint: paint, outcomes: all, counts: function () { return counts(all()); },
       // {word id: item} for the words the model said something about, made once for a repaint of the transcript
       marks: function () { var m = {}; all().forEach(function (i) { i.ids.forEach(function (id) { m[id] = i; }); }); return m; },
-      open: function () { start(false); }
+      // {word id: [say]} for the words whose answer was read loosely, whether or not the model's outcome for them is a card
+      loose: looseWords,
+      open: function () { start(false); },
+      // the list of one kind of word (a chip of the summary), shown without walking
+      show: function (kind) { st.chip = kind; paint(); }
     };
   }
-  window.ParsehAsrWalk = {create: create, outcomes: outcomes, MARK: MARK, HEAD: HEAD};
+  window.ParsehAsrWalk = {create: create, outcomes: outcomes, loose: loose, MARK: MARK, HEAD: HEAD, LOOSE: LOOSE};
 })();

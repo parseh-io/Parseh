@@ -236,16 +236,47 @@ def _punctuation(surface):
 def _the_sentence_of(answer, original):
     """A chatbot often says something around the sentence -- "Here is the corrected sentence:", a note under it -- on lines of its
     own.  The sentence is the line that most resembles the one that was asked about, among the lines that do not explain a
-    change with an arrow; a reply of one line is that line.  (A caption that itself has line breaks is answered as it is.)"""
+    change with an arrow; a reply of one line is that line.  (A caption that itself has line breaks is answered as it is.)
+    Returns (the sentence, the line count when one line was picked out of several, else 0): picking is a LENIENCY, and the
+    words of the sentence are told so (see _note)."""
     lines = [line.strip() for line in answer.splitlines() if line.strip()]
     if len(lines) < 2 or "\n" in original:
-        return answer
+        return answer, 0
     candidates = [line for line in lines if not any(mark in line for mark in ("→", "->"))]
     best = max(candidates, key=lambda line: difflib.SequenceMatcher(None, original, line, autojunk=False).ratio(), default="")
-    return best if best and difflib.SequenceMatcher(None, original, best, autojunk=False).ratio() >= .5 else answer
+    return (best, len(lines)) if best and difflib.SequenceMatcher(None, original, best, autojunk=False).ratio() >= .5 else (answer, 0)
 
 
-def _sentence_answer(answer, unit):
+def _note(words, reason, outcome, original="", replacement=""):
+    """One thing an answer was read loosely for, or had left out, told on the words it touches (an entry of `ignored`).
+    outcome 'allowance': the words keep what the model said of them, and carry the note, so that a person can ask again for them;
+    'refused': what the model said of them could not be used, so they have NO ANSWER, and `reason` says why -- a word the model
+    changed, where the change could not be used, must not look like a word it agreed with."""
+    return {"original": original[:200], "replacement": replacement[:200], "reason": reason, "outcome": outcome,
+            "word_ids": [w["word_id"] if isinstance(w, dict) else w for w in words]}
+
+
+def reading_notes(ignored):
+    """The entries of `ignored` that name words -> ({word_id: why} for the words whose answer could not be used,
+    {word_id: [say]} for the words whose answer was used but read loosely).  An entry that names no word is only for the
+    record of the answer (LLM responses)."""
+    refused, loose = {}, {}
+    for entry in ignored:
+        for ident in entry.get("word_ids", ()):
+            if entry.get("outcome") == "refused":
+                refused.setdefault(ident, entry["reason"])
+            elif entry.get("outcome") == "allowance" and entry["reason"] not in loose.setdefault(ident, []):
+                loose[ident].append(entry["reason"])
+    return refused, {ident: says for ident, says in loose.items() if says}
+
+
+def _quoted(text, limit=80):
+    text = " ".join(text.split())
+    return "\u201c" + (text if len(text) <= limit else text[:limit - 1] + "\u2026") + "\u201d"
+
+
+def _sentence_answer(answer, unit, notes=None):
+    """The sentence the model answered with.  What had to be let pass to find it is told in `notes`, a list, when one is given."""
     if not isinstance(answer, str):
         invalid("it is not text")
     if not answer.strip():
@@ -255,7 +286,9 @@ def _sentence_answer(answer, unit):
     answer = answer.strip()
     if answer.startswith("```") and answer.endswith("```"):
         answer = "\n".join(answer.splitlines()[1:-1]).strip()
-    answer = _the_sentence_of(answer, unit["text"])
+    answer, several = _the_sentence_of(answer, unit["text"])
+    if several and notes is not None:
+        notes.append("the reply had %d lines and the one closest to the sentence was taken as the answer; the other lines were left out" % several)
     if len(answer) >= 2 and answer[0] == answer[-1] and answer[0] in ('"', "'", "“", "”"):
         answer = answer[1:-1].strip()
     if not answer:
@@ -277,8 +310,11 @@ def sentence_result(answer, unit):
     Character alignment works for RTL and scripts without inter-word spaces.
     Edits outside the flagged words or across ambiguous boundaries are ignored
     and disclosed in the diagnostic record, rather than rewriting the panel.
+    NOTHING IS LEFT OUT SILENTLY: what touched a flagged word is told on the word (see _note) -- a change that could not be
+    used leaves the word with no answer and says why, so that it does not look like a word the model agreed with.
     """
-    answer = _sentence_answer(answer, unit)
+    notes = []
+    answer = _sentence_answer(answer, unit, notes)
     original, targets = unit["text"], unit["targets"]
     matcher = difflib.SequenceMatcher(a=original, b=answer, autojunk=False)
     unchanged = sum(sum(c.isalnum() for c in original[a:b]) for tag, a, b, _, _ in matcher.get_opcodes() if tag == "equal")
@@ -286,7 +322,9 @@ def sentence_result(answer, unit):
                     if not any(w["region_start"] <= i < w["region_end"] for w in targets))
     if untouched and unchanged < untouched * .5:
         invalid("it keeps less than half of the sentence's other letters (a fragment, a translation or a rewrite?)")
-    edits, ignored, replacements = {}, [], {}
+    edits, ignored, replacements, crossing = {}, [], {}, {}
+    if notes:
+        ignored.append(_note(targets, notes[0], "allowance"))
     source_tokens = list(re.finditer(r"\S+", original))
     reply_tokens = list(re.finditer(r"\S+", answer))
     whole = {w["word_id"]: next((i for i, t in enumerate(source_tokens)
@@ -308,9 +346,18 @@ def sentence_result(answer, unit):
             replacements[by_token[i]["word_id"]] = " ".join(t.group() for t in reply_tokens[x:y])
             changed.add(i)
         if len(changed) < b - a or tag == "insert":
-            ignored.append({"original": " ".join(t.group() for t in source_tokens[a:b])[:200],
-                            "replacement": " ".join(t.group() for t in reply_tokens[x:y])[:200],
+            was = " ".join(t.group() for t in source_tokens[a:b])[:200]
+            now = " ".join(t.group() for t in reply_tokens[x:y])[:200]
+            ignored.append({"original": was, "replacement": now,
                             "reason": "Changes outside flagged words or ambiguous boundaries were ignored."})
+            stuck = [by_token[i] for i in flagged if i not in changed]
+            taken = [by_token[i] for i in flagged if i in changed]
+            if stuck:
+                ignored.append(_note(stuck, "the model changed %s to %s in a way that could not be tied to this word alone, so the change was not used"
+                                     % (_quoted(was), _quoted(now) if now else "nothing"), "refused", was, now))
+            if taken:
+                ignored.append(_note(taken, "the model changed the words around this one too (%s to %s); only this word's change was taken"
+                                     % (_quoted(was), _quoted(now) if now else "nothing"), "allowance", was, now))
     # For ASR words inside unspaced text, align characters to source spans.
     subwords = [w for w in targets if whole[w["word_id"]] is None]
     for tag, a, b, x, y in matcher.get_opcodes() if subwords else []:
@@ -323,6 +370,11 @@ def sentence_result(answer, unit):
         if len(owners) == 1:
             w = owners[0]
             edits.setdefault(w["word_id"], []).append((a - w["region_start"], b - w["region_start"], answer[x:y]))
+        else:
+            # a change over more than one word, or over the edge of one: not used, and the words it touched are told
+            for w in subwords:
+                if w["region_start"] < max(b, a + 1) and a < w["region_end"]:
+                    crossing[w["word_id"]] = (original[a:b], answer[x:y])
     proposals = []
     for w in targets:
         patches = edits.get(w["word_id"], [])
@@ -340,12 +392,21 @@ def sentence_result(answer, unit):
                 or len(pieces) > max(2, len(original_pieces) + 1) or "\n" in replacement):
             ignored.append({"original": w["text"], "replacement": replacement[:200],
                             "reason": "Empty, oversized or invalid word substitution."})
+            ignored.append(_note([w], "the model wrote %s for it, which is empty, far too long or has more words than the original, so it was not used"
+                                 % _quoted(replacement), "refused", w["text"], replacement))
+            crossing.pop(w["word_id"], None)
             continue
         proposal = dict(public_word(w), original=w["text"], error_likelihood=None,
                         candidates=[{"text": replacement, "confidence": None, "reason": ""}], reason="",
                         method="sentence-text", sentence_id=unit["sentence_id"])
         proposal.pop("text")
         proposals.append(proposal)
+    proposed = {p["word_id"] for p in proposals}
+    for ident, (was, now) in crossing.items():
+        ignored.append(_note([ident], "the model's change %s to %s reached over the edge of this word, so %s" % (
+            _quoted(was) if was else "an insertion", _quoted(now) if now else "nothing",
+            "only the part inside it was taken" if ident in proposed else "it was not used"),
+            "allowance" if ident in proposed else "refused", was, now))
     return proposals, ignored
 
 
@@ -355,8 +416,10 @@ def full_sentence_result(answer, unit):
     Include confident word pieces, but refuse unmapped spans, broad rewrites,
     punctuation changes, and edits crossing caption boundaries.
     """
-    answer = _sentence_answer(answer, unit)
+    notes = []
+    answer = _sentence_answer(answer, unit, notes)
     original, words = unit["text"], unit["words"]
+    ignored = [_note(unit["targets"], notes[0], "allowance")] if notes else []
     ops = difflib.SequenceMatcher(a=original, b=answer, autojunk=False).get_opcodes()
     unchanged = sum(b - a for tag, a, b, _, _ in ops if tag == "equal")
     if len(original) > 24 and unchanged < len(original) * .5:
@@ -394,6 +457,14 @@ def full_sentence_result(answer, unit):
     for left, right in groups:
         members = words[left:right + 1]
         if not {w["word_id"] for w in members} <= {w["word_id"] for w in unit["targets"]}:
+            # a change that reaches words this question did not ask about: not used, and the words it did ask about are told
+            was = original[members[0]["region_start"]:members[-1]["region_end"]]
+            now = answer[project(members[0]["region_start"], False):project(members[-1]["region_end"], True)]
+            ignored.append({"original": was[:200], "replacement": now[:200], "reason": "A change reaching words this question did not ask about was left out."})
+            inside = [m for m in members if m["word_id"] in {w["word_id"] for w in unit["targets"]}]
+            if inside:
+                ignored.append(_note(inside, "the model changed %s to %s together with words that were not part of this question, so the change was not used"
+                                     % (_quoted(was), _quoted(now) if now else "nothing"), "refused", was, now))
             continue
         if len(members) > 8 or any(not w["reviewable"] for w in members):
             invalid("a change spans more than eight words, or a word that cannot be edited")
@@ -417,7 +488,7 @@ def full_sentence_result(answer, unit):
                         method="span-text", sentence_id=unit["sentence_id"])
         proposal.pop("text")
         proposals.append(proposal)
-    return proposals, []
+    return proposals, ignored
 
 
 def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=None, target_word_ids=None, use_skill=False, task="suspect"):
@@ -432,7 +503,7 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
         units = [u for u in units if u["targets"]]
     total = sum(len(u["targets"]) for u in units)
     progress(0, total)
-    completed, all_suggestions, failed, unresolved, why = 0, [], [], [], {}
+    completed, all_suggestions, failed, unresolved, why, loose = 0, [], [], [], {}, {}
     for unit in units:
         cancel.check()
         prompt = messages(request, unit, use_skill, task, min(600, max(64, limit // 3)))
@@ -454,6 +525,15 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
                 all_suggestions.extend(proposals)
                 proposed = {w for s in proposals for w in s.get("word_ids", [s["word_id"]])}
                 unresolved.extend(w["word_id"] for w in unit["targets"] if w["word_id"] not in proposed)
+                # what was left out of the reply is told on the words it touched: a change that could not be used is no
+                # "answer", and a reply read loosely is marked so that the word can be asked again
+                refused, notes = reading_notes(ignored)
+                for ident, say in refused.items():
+                    if ident not in proposed:
+                        failed.append(ident)
+                        why[ident] = say
+                for ident, says in notes.items():
+                    loose.setdefault(ident, []).extend(says)
                 break
             except Exception as error:
                 e = error if isinstance(error, LLMError) else LLMError(
@@ -474,7 +554,7 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
         progress(completed, total)
     cancel.check()
     return {"schema_version": 1, "suggestions": all_suggestions, "uncertain_word_ids": unresolved,
-            "failed_word_ids": failed, "failed_reasons": why,
+            "failed_word_ids": failed, "failed_reasons": why, "allowances": loose,
             "assessment": "partial" if failed else "suggestions" if all_suggestions else "kept_original" if units else "no_flagged_words",
             "method": "span-text" if task == "full" else "sentence-text", "task": task,
             "reviewed_word_ids": [w["word_id"] for u in units for w in u["targets"]],

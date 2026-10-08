@@ -36,6 +36,21 @@ does not fit is left out alone and said: the word stays as Whisper wrote it. A p
 answer is read the same way: a row that does not fit, or a line without a label, no longer
 takes the whole answer with it.
 
+### An answer read loosely says so
+
+Parseh reads a chatbot's answer generously, and used to say nothing of where
+that generosity was needed: a line picked out of a reply of several, a label
+given twice, a row without its **sure** or **unsure**, a change that reached past
+the word. Now such a word wears a **≈**, its card and panel say in a sentence
+what was forgiven, and **Ask again for this word** asks the model for it alone;
+**≈ N read loosely** lists them all and one button asks again for every one.
+A sure edit whose answer was read loosely is not taken by **Accept the sure
+edits**. A change the model made that could not be used no longer passes for
+"the model agrees": the word has **✗ no answer** and the model's own words as the
+reason. It holds for every method, including the connected model, the
+likelihood comparison and Whisper's second look, which says why when it failed
+([When an answer had to be read loosely](../lookup-and-languages/llm-integration.md#when-an-answer-had-to-be-read-loosely)).
+
 ### The model's answers, one by one
 
 A review used to leave you with a transcript full of ✎ words to open one by one,

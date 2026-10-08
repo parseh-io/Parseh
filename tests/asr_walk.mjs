@@ -10,6 +10,8 @@
 //   e) the walk is saved with the draft (which words were kept, which skipped) and comes back with it
 //   f) the sentence methods have no rows of their own and still say something of each flagged word
 //   g) without the walk's file the review is what it was; a phone's width has no sideways scroll
+//   i) an answer that had to be read loosely says so on its words (≈), on the card, in the word's panel and beside the counts,
+//      is kept out of "accept the sure ones", and each such word can be asked again by itself
 //   ASR_WALK_SHOTS=<dir> saves pictures of the screen, in the page's own stylesheets, to be looked at
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
@@ -35,7 +37,7 @@ async function open(viewport, withWalk = true) {
 }
 
 // three captions, five flagged words (s0w1 and s0w5 are "anno", s1w1 "mare", s1w3 "blu", s2w0 "Ciao")
-const SETUP = ({scenario, draft, phase}) => {
+const SETUP = ({scenario, draft, phase, choice}) => {
   const captions = ['Loro anno detto ciao e anno poi.', 'Il mare e blu oggi.', 'Ciao a tutti.'];
   const flagged = {s0w1: .2, s0w5: .3, s1w1: .25, s1w3: .4, s2w0: .3};
   let text = '';
@@ -59,20 +61,28 @@ const SETUP = ({scenario, draft, phase}) => {
     workspace: {task: 'workspace', method: 'external-workspace', suggestions: [suggestion('s0w1', 'hanno', 'sure', 'the sentence needs the verb'), suggestion('s1w1', 'mari', 'unsure', 'maybe a plural')],
       kept: [{word_ids: ['s0w5'], original: 'anno', rating: 'sure', reason: 'a year, as it should be'}, {word_ids: ['s1w3'], original: 'blu', rating: 'unsure', reason: 'cannot tell'}],
       failed_word_ids: ['s2w0'], failed_reasons: {s2w0: 'the answer has no row for this word'}, uncertain_word_ids: ['s0w5', 's1w3', 's2w0'], reviewed_word_ids: everything, latest_word_ids: everything},
+    // a workspace answer that was read loosely: s0w1's reply was one of several lines, and s1w3 (no row of its own) had a line left out
+    loose: {task: 'workspace', method: 'external-workspace', suggestions: [suggestion('s0w1', 'hanno', 'sure', 'the sentence needs the verb'), suggestion('s1w1', 'mari', 'sure', 'a plural')],
+      kept: [{word_ids: ['s0w5'], original: 'anno', rating: 'sure', reason: 'a year, as it should be'}],
+      failed_word_ids: [], failed_reasons: {}, uncertain_word_ids: ['s0w5', 's1w3', 's2w0'], reviewed_word_ids: everything, latest_word_ids: everything,
+      allowances: {s0w1: ['the reply had 3 lines and the one closest to the sentence was taken as the answer; the other lines were left out'],
+                   s1w3: ['a line under its sentence, without a label, looked like more of it and was left out: “e blu oggi”']}},
     // a sentence method: it returns sentences, so the flagged words it gave back unchanged carry no row and no rating
     sentence: {task: 'suspect', method: 'external-suspect', suggestions: [{...suggestion('s0w1', 'hanno', null, ''), reason: ''}], failed_word_ids: ['s2w0'],
       uncertain_word_ids: ['s0w5', 's1w1', 's1w3', 's2w0'], reviewed_word_ids: everything, latest_word_ids: everything}
   };
-  window.applied = null; window.saved = null; window.listened = [];
+  window.applied = null; window.saved = null; window.listened = []; window.asked = null; window.externalCalls = [];
   const root = document.querySelector('#review');
   if (window.walkReview) window.walkReview.clear();
   window.walkReview = ParsehAsrReview.mount(root, {cancel: () => {}, choose: () => {}, select: (w, seg, play) => { if (play) window.listened.push(w.word_id); },
-    use: (decisions, manual) => { window.applied = {decisions, manual}; }, save: d => { window.saved = JSON.parse(JSON.stringify(d)); return Promise.resolve(); }});
-  window.walkReview.show({text, model: 'large-v3-turbo', review: {draft, evidence: {source_sha256: 'src', language: 'it', low_score_threshold: .5, segments}, result: results[scenario]}},
-    phase || 'review', {configured: false});
+    use: (decisions, manual) => { window.applied = {decisions, manual}; }, save: d => { window.saved = JSON.parse(JSON.stringify(d)); return Promise.resolve(); },
+    retry: (ids, skill, task) => { window.asked = {ids, task}; }, external: (action, values) => { window.externalCalls.push([action, values]); return new Promise(() => {}); }});
+  const external = choice === 'external' ? {id: 'x1', task: 'workspace', finished: true, batches: 1, submitted: [0], index: 0, words_done: 5, words_total: 5, prompt: '', divided: false} : undefined;
+  window.walkReview.show({text, model: 'large-v3-turbo', review: {draft, choice, external, evidence: {source_sha256: 'src', language: 'it', low_score_threshold: .5, segments}, result: results[scenario]}},
+    phase || 'review', {configured: scenario === 'loose'});
 };
 // (the mouse is put out of the way: a word that appears under a resting pointer shows its evidence for a moment, as a hover does)
-const setup = async (page, scenario = 'workspace', draft = undefined, phase = undefined) => { await page.mouse.move(1, 1); await page.evaluate(SETUP, {scenario, draft, phase}); };
+const setup = async (page, scenario = 'workspace', draft = undefined, phase = undefined, choice = undefined) => { await page.mouse.move(1, 1); await page.evaluate(SETUP, {scenario, draft, phase, choice}); };
 const head = page => page.locator('.stt-walk-card .stt-walk-head').textContent();
 const mark = page => page.locator('.stt-walk-card mark').allTextContents();
 const count = page => page.locator('.stt-walk-card .stt-walk-count').textContent();
@@ -193,6 +203,85 @@ try {
       .map(i => [i.anchor, i.kind, i.sure, i.candidates[0].text]);
   });
   eq(kinds, [['a', 'change', true, 'hanno'], ['b', 'agree', true, 'mare'], ['c', 'unsure', false, 'blu'], ['d', 'change', false, 'puoi']].map(r => r), 'clear winner: a sure change; its own word winning: an agreement; a tie: not sure; unfinished: a change that is not sure');
+
+  /* ============================================================================================== i */
+  console.log('f3) a comparison that could not be finished, and a second look that failed, say what happened');
+  const told = await page.evaluate(() => {
+    const w = (id, text, at, extra = {}) => ({word_id: id, text, span_start: at, span_end: at + text.length, reviewable: true, low_asr_score: true, ...extra});
+    const words = {a: w('a', 'anno', 0), b: w('b', 'poi', 10, {second_pass: {state: 'failed', reason: 'ambiguous-alignment'}})};
+    const cand = (text, rank) => ({text, rank, applicable: true});
+    const like = {coverage: {state: 'partial', omitted: [{text: 'puoi', reason: 'the model could not score it'}]}, tied_best: ['poi']};
+    const suggestions = {a: {word_id: 'a', word_ids: ['a'], candidates: [cand('anno', 1), cand('hanno', 2)], likelihood: like}};
+    const m = {words, suggestions, result: {task: 'likelihood', latest_word_ids: ['a']}, review: {}, locked: {}};
+    const second = ParsehAsrWalk.outcomes({words, suggestions: {}, result: null, review: {last_method: 'whisper-second', last_word_ids: ['b']}, locked: {}});
+    return {loose: ParsehAsrWalk.loose(m), notes: ParsehAsrWalk.outcomes(m)[0].notes, second: second.map(i => [i.kind, i.reason])};
+  });
+  ok(told.loose.a[0].includes('“puoi” could not be scored') && told.loose.a[0].includes('the model could not score it'), 'an unfinished likelihood comparison says which candidates could not be scored, and why');
+  eq(told.notes, told.loose.a, 'and its card carries that note');
+  eq(told.second, [['none', 'What the second look heard could not be safely matched to this word.']], 'a failed second look by Whisper says why, instead of nothing');
+
+  console.log('i) an answer read loosely says so, and the word can be asked again');
+  await setup(page);
+  eq(await page.evaluate(() => document.querySelectorAll('.asr-loose').length), 0, 'a clean answer marks no word');
+  ok(!(await page.locator('.stt-walk-chip.stt-walk-loose').count()), 'and there is no "read loosely" count: nothing to say');
+  ok(!(await page.locator('.stt-walk-card .stt-loosenote').count()), 'no card carries a note');
+  await setup(page, 'loose');
+  eq(await page.locator('.stt-walk-chip').allTextContents(), ['✎ 2 edits proposed (2 sure, 0 not sure)', '✔ 1 agree with Whisper', '? 0 not sure either way', '✗ 0 with no answer', '≈ 2 read loosely'],
+     'a fifth count: the words whose answer was read loosely');
+  eq(await page.evaluate(() => [...document.querySelectorAll('.asr-loose')].map(b => b.dataset.reviewWord)), ['s0w1', 's1w3'],
+     'the words wear a mark of their own -- including one the model said nothing else about');
+  eq(await page.evaluate(() => getComputedStyle(document.querySelector('[data-review-word=s0w1]'), '::before').content), '"≈"', 'and the mark is really drawn by the stylesheet');
+  ok((await page.locator('.stt-review-legend').textContent()).includes('≈ Answer read loosely'), 'the legend names it');
+  // the sure ones are taken without looking -- except the one whose reply was read loosely
+  eq((await page.locator('#stt_walk_sure').textContent()), 'Accept the 1 sure edit, then look at the rest', 'the button for the sure ones counts only the clean one');
+  await page.locator('#stt_walk_sure').click();
+  eq(await page.evaluate(() => window.walkReview.snapshot().decisions), {s1w1: 0}, 'and takes only that');
+  eq(await head(page), '✎ The model corrects this word, and is sure', 'the loosely read one is left for the walk');
+  const note = await page.locator('.stt-walk-card .stt-loosenote').textContent();
+  ok(note.includes('The model’s answer for this word was read loosely') && note.includes('The reply had 3 lines') && note.includes('ask again for it by itself'), 'its card says what the reader had to forgive');
+  await shot(page, 'walk-loose-card');
+  ok(await page.locator('#stt_walk_ask').isVisible(), 'and offers to ask again for that word');
+  await page.keyboard.press('r');
+  eq(await page.evaluate(() => window.asked), {ids: ['s0w1'], task: 'workspace'}, 'R (or the button) asks for that word alone');
+  // a chatbot review that is still open is not thrown away by it; a tool that is running is waited for
+  await setup(page, 'loose', undefined, 'external');
+  await page.locator('[data-review-word=s1w3]').click();
+  await page.locator('#stt_word_ask').click();
+  ok((await page.locator('.stt-review-footer .stt-review-status').textContent()).includes('still open') && await page.evaluate(() => window.asked === null && !window.externalCalls.length), 'while a chatbot review is still open it says so and asks nothing');
+  await setup(page, 'loose', undefined, 'correcting');
+  await page.locator('[data-review-word=s1w3]').click();
+  ok(await page.locator('#stt_word_ask').isDisabled(), 'and while a tool runs the word\'s button waits');
+  // the words, listed
+  await setup(page, 'loose');
+  await page.locator('.stt-walk-chip.stt-walk-loose').click();
+  const listed = (await page.locator('.stt-walk-loose-list li').allTextContents()).map(t => t.replace(/\s+/g, ' ').trim());
+  eq(listed.length, 2, 'the chip lists both words');
+  ok(listed[0].startsWith('≈ anno') && listed[0].includes('3 lines') && listed[1].startsWith('≈ blu') && listed[1].includes('looked like more of it'), 'each with what it was forgiven for');
+  await page.locator('#stt_walk_ask_all').click();
+  eq(await page.evaluate(() => window.asked), {ids: ['s0w1', 's1w3'], task: 'workspace'}, 'one button asks again for them all, in the order of the transcript');
+  await setup(page, 'loose');
+  await page.locator('.stt-walk-chip.stt-walk-loose').click();
+  await page.locator('.stt-walk-loose-list li >> text=Ask again').nth(1).click();
+  eq(await page.evaluate(() => window.asked), {ids: ['s1w3'], task: 'workspace'}, 'and each word has its own');
+  // a word's own panel
+  await setup(page, 'loose');
+  await page.locator('[data-review-word=s1w3]').click();
+  ok((await page.locator('.stt-review-details .stt-loosenote').textContent()).includes('looked like more of it'), 'a word\'s own panel tells it as well, even where the model said nothing else of it');
+  await page.locator('#stt_word_ask').click();
+  eq(await page.evaluate(() => window.asked), {ids: ['s1w3'], task: 'workspace'}, 'with the same button');
+  await page.locator('[data-review-word=s0w5]').click();
+  ok(!(await page.locator('.stt-review-details .stt-loosenote').count()), 'a word read cleanly has none');
+  // the end of the walk says it too
+  await setup(page, 'loose');
+  for (let n = 0; n < 4; n++) await page.keyboard.press('s');
+  ok((await page.locator('.stt-walk-end').textContent()).includes('2 words had an answer that was read loosely') && await page.locator('#stt_walk_ask_ending').isVisible(), 'the end of the walk says how many words were read loosely, and offers to ask again for them');
+  // beside the counts of the chatbot panel, where the answer is imported
+  await setup(page, 'loose', undefined, 'review', 'external');
+  await page.locator('#stt_external summary').click();     // (a finished review's panel is shut)
+  ok((await page.locator('#stt_external_loose').textContent()).includes('2 words read loosely'), 'the panel of the pasted answer says it beside the counts');
+  await page.locator('#stt_external_ask_loose').click();
+  eq(await page.evaluate(() => window.externalCalls), [['start', {task: 'workspace', word_ids: ['s0w1', 's1w3'], divide: false}]], 'and asks the chatbot for those words only (a new prompt for them)');
+  ok(!page.errors.length, 'no page error: ' + page.errors.join(' | '));
 
   console.log('h) the transcript is obtainable at any time no tool is running');
   await setup(page, 'workspace', undefined, 'external');

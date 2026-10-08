@@ -164,6 +164,44 @@ class ExternalAnswers(unittest.TestCase):
         silent = asrexternal.parse(request, "workspace", asrexternal.batches(request, "workspace")[0], "word_ids,original,replacement,reason,confidence\n")
         self.assertEqual(silent["failed_reasons"], {w: "the answer has no row for this word" for w in words})
 
+    def test_an_answer_read_loosely_says_so_on_the_words_it_was_forgiven_for(self):
+        # THE LENIENCY IS NEVER SILENT: where the reader had to be generous it tells the words, so that they can be asked again;
+        # a clean answer carries nothing, and a change it could not use leaves the word with no answer instead of "agreeing"
+        _, request = source("Loro anno detto ciao e anno poi.", "Una frase anno pulita.")
+        units = asrexternal.batches(request, "suspect")[0]
+        clean = asrexternal.parse(request, "suspect", units, "sentence0: Loro hanno detto ciao e anno poi.\nsentence1: Una frase hanno pulita.")
+        self.assertEqual((clean["allowances"], clean["failed_word_ids"]), ({}, []))
+        # a note after the last sentence is a note, not more of it
+        chat = asrexternal.parse(request, "suspect", units, "sentence0: Loro hanno detto ciao e anno poi.\nsentence1: Una frase hanno pulita.\nLet me know if you want anything else!")
+        self.assertEqual(chat["allowances"], {})
+        # a label given twice: the first line is used, and the sentence's words are told
+        twice = asrexternal.parse(request, "suspect", units, "sentence0: Loro hanno detto ciao e anno poi.\nsentence0: Loro anno detto ciao.\nsentence1: Una frase hanno pulita.")
+        self.assertEqual(sorted(twice["allowances"]), ["s0w1", "s0w5"])
+        self.assertIn("2 times", twice["allowances"]["s0w1"][0])
+        self.assertEqual([s["word_id"] for s in twice["suggestions"]], ["s0w1", "s1w2"])
+        # a line under a sentence that looks like more of it: the sentence's words are told that it was left out
+        wrapped = asrexternal.parse(request, "suspect", units, "sentence0: Loro hanno detto ciao e anno poi.\nLoro hanno detto ciao e anno poi!\nsentence1: Una frase hanno pulita.")
+        self.assertEqual(sorted(wrapped["allowances"]), ["s0w1", "s0w5"])
+        self.assertIn("looked like more of it", wrapped["allowances"]["s0w5"][0])
+        # a change that cannot be tied to the flagged word: no answer, with the model's own words as the reason
+        _, two = source("Loro anno anno detto.")
+        both = asrexternal.parse(two, "suspect", asrexternal.batches(two, "suspect")[0], "sentence0: Loro hanno detto.")
+        self.assertEqual((both["suggestions"], both["failed_word_ids"]), ([], ["s0w1", "s0w2"]))
+        self.assertIn("could not be tied to this word alone", both["failed_reasons"]["s0w1"])
+        self.assertEqual(both["allowances"], {}, "a word with no answer carries its reason, not a second note")
+        # a pasted workspace row that does not say how sure the model is: used, and told; a whole answer in the older four columns is
+        # a different matter (no row has the column), told once with the answer and not on every word
+        _, request = source("Loro anno detto ciao e anno poi.")
+        units = asrexternal.batches(request, "workspace")[0]
+        csv = lambda rows: asrworkspace._csv(rows, asrworkspace.FIELDS)
+        change = {"word_ids": "s0w1", "original": "anno", "replacement": "hanno", "reason": "the verb", "confidence": "sure"}
+        agree = {"word_ids": "s0w5", "original": "anno", "replacement": "anno", "reason": "a year", "confidence": ""}
+        done = asrexternal.parse(request, "workspace", units, csv([change, agree]))
+        self.assertEqual(done["allowances"], {"s0w5": ["the row did not say how sure the model is (sure or unsure), and was used anyway"]})
+        self.assertEqual(asrexternal.parse(request, "workspace", units, csv([change, dict(agree, confidence="sure")]))["allowances"], {})
+        old = asrexternal.parse(request, "workspace", units, "word_ids,original,replacement,reason\ns0w1,anno,hanno,x\ns0w5,anno,anno,y\n")
+        self.assertEqual(old["allowances"], {})
+
     def test_workspace_zip_is_text_only_with_fixed_names(self):
         _, request = source()
         units = asrexternal.batches(request, "workspace")[0]
@@ -398,6 +436,15 @@ class ExternalJobs(unittest.TestCase):
                                         "word_ids,original,replacement,reason,confidence\ns0w1,anno,hanno,changed my mind,sure\ns1w1,anno,anno,fine,sure\n")["review"]["result"]
         self.assertEqual(again["kept"], [{"word_ids": ["s1w1"], "original": "anno", "rating": "sure", "reason": "fine"}])
         self.assertEqual([(s["word_id"], s["rating"]) for s in again["suggestions"]], [("s0w1", "sure")])
+
+    def test_the_loose_readings_of_each_prompt_are_merged_and_cleared_when_the_word_is_asked_again(self):
+        whole = sttjobs.external_start(self.token, self.hash, "workspace", None, True)["review"]["external"]
+        loose = "word_ids,original,replacement,reason,confidence\ns0w1,anno,hanno,verb,\n"
+        out = sttjobs.external_action(self.token, self.hash, whole["id"], "answer", 0, loose)["review"]["result"]
+        self.assertEqual(sorted(out["allowances"]), ["s0w1"])
+        # the same prompt answered again, now with the confidence: the word is clean
+        out = sttjobs.external_action(self.token, self.hash, whole["id"], "answer", 0, "word_ids,original,replacement,reason,confidence\ns0w1,anno,hanno,verb,sure\n")["review"]["result"]
+        self.assertEqual(out["allowances"], {})
 
     def test_three_methods_work_without_config_and_bad_prepare_is_atomic(self):
         for task in asrexternal.TASKS:

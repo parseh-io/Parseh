@@ -159,7 +159,17 @@
         if (!walkCtl) return null;
         var n = walkCtl.counts(), line = el('p', null, 'stt-external-result'); line.id = 'stt_external_result';
         line.appendChild(el('strong', ParsehAsrWalk.MARK.change + ' ' + n.change + ' edits proposed · ' + ParsehAsrWalk.MARK.agree + ' ' + n.agree + ' agree with Whisper · ' + ParsehAsrWalk.MARK.unsure + ' ' + n.unsure + ' not sure either way · ' + ParsehAsrWalk.MARK.none + ' ' + n.none + ' with no answer'));
-        return n.change + n.agree + n.unsure + n.none ? line : null;
+        if (!(n.change + n.agree + n.unsure + n.none)) return null;
+        if (!n.loose) return line;
+        // the answer was not a clean one for some words: say so beside the counts, with the way to ask for those words again
+        var box = el('div', null, 'stt-external-answers'), note = el('p', null, 'stt-external-loose'); note.id = 'stt_external_loose';
+        note.appendChild(el('strong', ParsehAsrWalk.LOOSE + ' ' + plural(n.loose, 'word', 'words') + ' read loosely. '));
+        note.appendChild(document.createTextNode('Parseh had to be lenient to read ' + (n.loose === 1 ? 'its answer' : 'their answers') + ' (a row without “sure”, a line picked out of several, a change that reached past the word…). Each says what for.'));
+        var fix = el('div', null, 'stt-review-actions');
+        var ask = btn('Ask again for the ' + plural(n.loose, 'word', 'words') + ' read loosely', function () { askAgain(Object.keys(walkCtl.loose())); }); ask.id = 'stt_external_ask_loose'; fix.appendChild(ask);
+        fix.appendChild(btn('See which', function () { if (walkCtl) { walkCtl.show('loose'); if (walkHost) walkHost.scrollIntoView({block: 'start'}); } }));
+        box.appendChild(line); box.appendChild(note); box.appendChild(fix);
+        return box;
       }
       if (ext && !ext.finished && ext.batches) {
         var whole = ext.task === 'workspace' && ext.divided === false;
@@ -332,8 +342,8 @@
         (trace.prompt || []).forEach(function (message) { prompt.appendChild(el('h4', message.role)); var text = el('pre', message.content || (message.tool_calls ? JSON.stringify(message.tool_calls) : '')); text.dir = 'auto'; prompt.appendChild(text); });
         entry.appendChild(prompt);
         if (trace.ignored_edits && trace.ignored_edits.length) {
-          entry.appendChild(el('p', trace.ignored_edits.length + ' changes outside flagged words or across ambiguous spans were ignored. Caption text is only changed by accepted word edits.'));
-          trace.ignored_edits.forEach(function (edit) { entry.appendChild(el('p', edit.original + ' → ' + edit.replacement + ' · ' + edit.reason)); });
+          entry.appendChild(el('p', plural(trace.ignored_edits.length, 'thing', 'things') + ' in the answer ' + (trace.ignored_edits.length === 1 ? 'was' : 'were') + ' left out or read loosely. Caption text is only changed by accepted word edits.'));
+          trace.ignored_edits.forEach(function (edit) { entry.appendChild(el('p', (edit.original || edit.replacement ? edit.original + ' → ' + edit.replacement + ' · ' : '') + edit.reason + (edit.word_ids && edit.word_ids.length ? ' (told on ' + plural(edit.word_ids.length, 'word', 'words') + ')' : ''))); });
         }
         if (trace.response_clipped) entry.appendChild(el('p', 'Long raw output was clipped for display.'));
         responses.appendChild(entry);
@@ -381,10 +391,11 @@
         applied[id] = manual != null ? typeof manual === 'object' ? manual.text : manual : suggestions[id].candidates[decisions[id]].text;
         ids.slice(1).forEach(function (member) { suppressed[member] = true; });
       });
-      if (walkCtl) outcomeMap = walkCtl.marks();
+      if (walkCtl) { outcomeMap = walkCtl.marks(); looseMap = walkCtl.loose(); }
       Object.keys(wordButtons).forEach(function (id) {
         var button = wordButtons[id], changed = applied[id] != null || suppressed[id];
         button.classList.toggle('asr-agree', outcomeOf(id) === 'agree'); button.classList.toggle('asr-unsure', outcomeOf(id) === 'unsure'); button.classList.toggle('asr-noanswer', outcomeOf(id) === 'none');
+        button.classList.toggle('asr-loose', !!looseMap[id]);
         button.classList.toggle('asr-accepted', !!changed);
         button.classList.toggle('asr-locked', !!locked[id]);
         var ends = selection.map(function (member) { return words[member].span_start; }).sort(function (a,b) { return a-b; });
@@ -395,6 +406,7 @@
         button.setAttribute('aria-label', words[id].text + (applied[id] != null ? applied[id] === words[id].text ? ', original retained in draft' : ', changed in draft to ' + applied[id] : '') +
           (words[id].low_asr_score ? ', low Whisper ASR score' : '') + (suggestions[id] ? suggestions[id].likelihood ? ', LM likelihood evaluation available' : ', LLM edit proposed' : ''));
         if (words[id].dictionary_miss) button.setAttribute('aria-label', button.getAttribute('aria-label') + ', no dictionary meaning found');
+        if (looseMap[id]) button.setAttribute('aria-label', button.getAttribute('aria-label') + ', the model\u2019s answer was read loosely');
         if (locked[id]) button.setAttribute('aria-label', button.getAttribute('aria-label') + ', locked');
       });
       autosave();
@@ -433,13 +445,30 @@
       },
       listen: function (w) { if (w && opts.select && captions[w.word_id]) opts.select(w, captions[w.word_id], true); },
       use: function () { if (use && !use.disabled) use.click(); },
+      ask: function (ids) { askAgain(ids); },
       phase: function () { return phase; },
       clock: function (w) { var seg = captions[w.word_id]; return seg ? captionTime(seg.start) : ''; }
     };
     // the mark each word wears for what the model said of it (asrwalk.js outcomes)
-    var outcomeMap = {};
+    var outcomeMap = {}, looseMap = {};
     function outcomeOf(id) { return outcomeMap[id] ? outcomeMap[id].kind : null; }
     function editable() { return phase !== 'correcting'; }
+    // ASK AGAIN for some words by themselves -- the card of a word whose answer was read loosely, or had none: the same road
+    // as "Retry remaining suspect words" (the pasted answer's prompt, the connected model, the likelihood), with the words chosen
+    function askAgain(ids) {
+      ids = ids.filter(function (id) { return words[id] && words[id].reviewable && !locked[id]; });
+      if (!ids.length) { if (status) status.textContent = 'These words are locked, so they cannot be asked again.'; return; }
+      var task = result.review.result && result.review.result.task || 'suspect';
+      var configured = result.review.choice === 'likelihood' ? config && config.likelihood && config.likelihood.available : config && config.configured;
+      if (phase === 'correcting') { if (status) status.textContent = 'A review tool is running. Ask again when it has finished.'; return; }
+      // a new review of those words replaces the open one: say so rather than throw its remaining prompts away
+      if (phase === 'external') { if (status) status.textContent = 'This chatbot review is still open. Import its remaining prompts, or finish with the answers received so far, and then ask again for these words.'; return; }
+      if (result.review.choice !== 'external' && !configured) { if (status) status.textContent = 'The model is not connected, so it cannot be asked again. Connect it in Settings, or use a chatbot by copy and paste.'; return; }
+      if (result.review.choice === 'external') {
+        var panel = root.querySelector('#stt_external'); if (panel) panel.open = true;
+        externalRequest('start', {task: task, word_ids: ids, divide: task === 'workspace' && !!(result.review.external && result.review.external.divided)}, root.querySelector('#stt_external_status'));
+      } else if (opts.retry) { keepAccepted(); saveNow().then(function () { opts.retry(ids, useSkill, task, {phonetic_filter: phonetic}); }, function (e) { status.textContent = e.message; }); }
+    }
     function retryWords() { return Object.keys(words).filter(function (id) { return words[id].reviewable && !locked[id] && inScope(words[id]) && (suspect(words[id]) || result.review.result && (result.review.result.failed_word_ids || []).indexOf(id) >= 0) && !accepted(id); }); }
     function detail(w, hover) {
       if (!w || useBusy) return;
@@ -466,6 +495,13 @@
         verdict.appendChild(el('strong', ParsehAsrWalk.MARK[said.kind] + ' ' + ParsehAsrWalk.HEAD[said.kind](said) + (said.rating ? ' · ' + (said.rating === 'sure' ? 'sure' : 'not sure') : '') + '. '));
         if (said.reason) { var why = el('bdi', said.reason); why.dir = 'auto'; verdict.appendChild(why); }
         details.appendChild(verdict);
+      }
+      if (looseMap[w.word_id] && window.ParsehAsrWalk) {
+        var wobbly = el('div', null, 'stt-loosenote'); wobbly.appendChild(el('p', ParsehAsrWalk.LOOSE + ' The model’s answer for this word was read loosely:', 'stt-loosenote-head'));
+        var says = el('ul'); looseMap[w.word_id].forEach(function (say) { var li = el('li'), b = el('bdi', say.charAt(0).toUpperCase() + say.slice(1) + (/[.!?]$/.test(say) ? '' : '.')); b.dir = 'auto'; li.appendChild(b); says.appendChild(li); });
+        wobbly.appendChild(says);
+        var more = btn('Ask again for this word', function () { askAgain([w.word_id]); }); more.id = 'stt_word_ask'; more.disabled = !editable() || !!locked[w.word_id]; wobbly.appendChild(more);
+        details.appendChild(wobbly);
       }
       var evidenceDetails = el('details'); evidenceDetails.appendChild(el('summary', 'Recognition details'));
       var usualDetails = details; details = evidenceDetails;
@@ -706,7 +742,7 @@
       searchBox.setAttribute('aria-label', 'Find text in captions'); searchBox.addEventListener('input', function () { search = searchBox.value; applyFilter(); });
       toolbar.appendChild(filterLabel); toolbar.appendChild(searchBox);
       toolbar.appendChild(btn('Previous issue', function () { navigateIssue(-1); })); toolbar.appendChild(btn('Next issue', function () { navigateIssue(1); })); root.appendChild(toolbar);
-      var legend = el('p', '⚠ Check · ◇ No definition · ✎ Model suggests · ✔ Model agrees · ? Model not sure · ✗ No answer · ✓ In your draft · 🔒 Locked', 'stt-review-legend'); root.appendChild(legend);
+      var legend = el('p', '⚠ Check · ◇ No definition · ✎ Model suggests · ✔ Model agrees · ? Model not sure · ✗ No answer · ≈ Answer read loosely · ✓ In your draft · 🔒 Locked', 'stt-review-legend'); root.appendChild(legend);
       if (result.review.evidence.dictionary && result.review.evidence.dictionary.failed) root.appendChild(el('p', 'Some dictionary lookups could not finish. Those failures do not flag words as incorrect.', 'fieldnote'));
       var body = el('div', null, 'stt-review-body');
       inspect = el('div', null, 'stt-review-text'); inspect.setAttribute('role', 'region'); inspect.setAttribute('aria-label', 'Timestamped transcript');
@@ -732,7 +768,7 @@
               detail(w); if (opts.select) opts.select(w, seg, true); });
             b.className = 'stt-review-word' + (w.low_asr_score ? ' asr-low' : '') + (w.dictionary_miss ? ' asr-dictionary' : '') +
               (outcomeOf(w.word_id) === 'change' || s && !outcomeOf(w.word_id) ? ' asr-proposal' : '') + (outcomeOf(w.word_id) === 'agree' ? ' asr-agree' : '') +
-              (outcomeOf(w.word_id) === 'unsure' ? ' asr-unsure' : '') + (outcomeOf(w.word_id) === 'none' ? ' asr-noanswer' : '') + (s && s.likelihood ? ' asr-likelihood' : '');
+              (outcomeOf(w.word_id) === 'unsure' ? ' asr-unsure' : '') + (outcomeOf(w.word_id) === 'none' ? ' asr-noanswer' : '') + (looseMap[w.word_id] ? ' asr-loose' : '') + (s && s.likelihood ? ' asr-likelihood' : '');
             b.setAttribute('data-review-word', w.word_id); b.setAttribute('aria-controls', details.id);
             b.addEventListener('focus', function () { detail(w); });
             b.addEventListener('keydown', function (e) {

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Copy/paste review for all three ASR tasks. No endpoint or code execution."""
+import difflib
 import io
 import re
 import tempfile
@@ -184,14 +185,14 @@ def clean(answer):
 def parse(request, task, units, answer):
     answer = clean(answer)
     allowed = ids(units)
-    proposals, failed, ignored, kept, why = [], set(), [], [], {}
+    proposals, failed, ignored, kept, why, loose = [], set(), [], [], {}, {}
     if task == "workspace":
         # Only parse the pasted CSV. Never execute a pasted response or its code.
         with tempfile.TemporaryDirectory(prefix="parseh-pasted-csv-") as folder:
             root = Path(folder); (root / "out").mkdir()
             (root / "out/result.csv").write_text(answer, encoding="utf-8")
             problems = []
-            proposals, seen = asrworkspace._proposals(root, request, allowed, kept=kept, problems=problems)
+            proposals, seen = asrworkspace._proposals(root, request, allowed, kept=kept, problems=problems, loose=loose)
         sources = correction.index(request)
         failed = {ident for ident in allowed - seen if correction.suspect(sources[ident])}
         why = {ident: "the answer has no row for this word" for ident in failed}
@@ -203,7 +204,8 @@ def parse(request, task, units, answer):
                     why[ident] = "its row was refused: " + problem["why"]
     else:
         expected = {unit["sentence_id"]: unit for unit in units}
-        lines = {}
+        lines, repeated, under = {}, {}, {}
+        last = None     # the sentence whose line was read last: a line right under it may belong to it
         for line in answer.splitlines():
             if not line.strip():
                 continue
@@ -211,10 +213,17 @@ def parse(request, task, units, answer):
             match = re.fullmatch(r"[\s*_`>\-]*(sentence[0-9]+)\s*[:\uff1a]\s*(.*)", line, re.I)
             if not match:
                 ignored.append({"original": line[:200], "replacement": "", "reason": "A line without a sentence label was left out."})
+                if last:
+                    under.setdefault(last, []).append(line.strip())
                 continue
             label = match[1].lower()
-            if label not in expected or label in lines:
-                ignored.append({"original": line[:200], "replacement": "", "reason": "A line with an unknown or repeated label was left out."})
+            last = label if label in expected else None
+            if label not in expected:
+                ignored.append({"original": line[:200], "replacement": "", "reason": "A line with an unknown label was left out."})
+                continue
+            if label in lines:
+                ignored.append({"original": line[:200], "replacement": "", "reason": "A second line with a label that already had its line was left out; the first was used."})
+                repeated[label] = repeated.get(label, 0) + 1
                 continue
             lines[label] = match[2].lstrip("*_` ").rstrip("*_` ") if match[2].startswith(("*", "_", "`")) else match[2]
         if not lines:
@@ -226,7 +235,21 @@ def parse(request, task, units, answer):
                 continue
             try:
                 edits, extra = (correction.full_sentence_result if task == "full" else correction.sentence_result)(lines[ident], unit)
+                if ident in repeated:
+                    extra.append(correction._note(unit["targets"], "the answer gave this sentence's label %d times; the first line was used and the others were left out" % (repeated[ident] + 1), "allowance"))
+                # a line under the sentence with no label that looks like more of it (a sentence wrapped over lines) was left out
+                for line in under.get(ident, []):
+                    if difflib.SequenceMatcher(None, unit["text"], line, autojunk=False).ratio() >= .4:
+                        extra.append(correction._note(unit["targets"], "a line under its sentence, without a label, looked like more of it and was left out: " + correction._quoted(line), "allowance", line))
                 ignored.extend(extra)
+                refused, notes = correction.reading_notes(extra)
+                proposed_here = {i for edit in edits for i in edit.get("word_ids", [edit["word_id"]])}
+                for ident_word, say in refused.items():
+                    if ident_word not in proposed_here:
+                        failed.add(ident_word)
+                        why[ident_word] = say
+                for ident_word, says in notes.items():
+                    loose.setdefault(ident_word, []).extend(says)
                 for edit in edits:
                     if set(edit.get("word_ids", [edit["word_id"]])) <= allowed:
                         proposals.append(edit)
@@ -237,4 +260,5 @@ def parse(request, task, units, answer):
                 why.update((word["word_id"], error.say) for word in unit["targets"])
     proposed = {ident for proposal in proposals for ident in proposal.get("word_ids", [proposal["word_id"]])}
     return {"suggestions": proposals, "kept": kept, "failed_word_ids": sorted(failed), "failed_reasons": why, "uncertain_word_ids": sorted(allowed - proposed),
+            "allowances": {ident: says for ident, says in loose.items() if ident in allowed and ident not in failed},
             "reviewed_word_ids": sorted(allowed), "ignored_edits": ignored}

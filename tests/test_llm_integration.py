@@ -409,6 +409,54 @@ class Schema(unittest.TestCase):
         self.assertEqual(result["failed_word_ids"], ["s0w1"])
         self.assertIn("arrow", result["failed_reasons"]["s0w1"])
 
+    def test_what_the_reader_let_pass_or_left_out_is_told_on_the_words_it_touched(self):
+        # THE LENIENCY IS NEVER SILENT.  A reply read generously says so on its words, so that a person can ask again for them;
+        # a change that could not be used leaves the word with no answer -- it must not look like a word the model agreed with.
+        _, req = evidence("loro anno detto ciao e anno poi.")
+        unit = correction.sentence_units(req)[0]
+        # a clean reply carries nothing
+        proposals, ignored = correction.sentence_result("loro hanno detto ciao e anno poi.", unit)
+        self.assertEqual((len(proposals), correction.reading_notes(ignored)), (1, ({}, {})))
+        # one line picked out of several: both words of the sentence are told, whatever the model said of them
+        proposals, ignored = correction.sentence_result("Here is the corrected sentence:\nloro hanno detto ciao e anno poi.\nHope it helps", unit)
+        refused, loose = correction.reading_notes(ignored)
+        self.assertEqual((refused, sorted(loose)), ({}, ["s0w1", "s0w5"]))
+        self.assertIn("3 lines", loose["s0w1"][0])
+        self.assertEqual([p["word_id"] for p in proposals], ["s0w1"], "the word it changed is still proposed")
+        # two flagged words changed into one: it cannot be tied to either, so neither has an answer, and the reason is the model's own words
+        flagged = [dict(unit["words"][1], region_start=5, region_end=9), dict(unit["words"][1], word_id="s0w2", region_start=10, region_end=14)]
+        one = {"sentence_id": "sentence0", "text": "loro anno anno detto", "words": flagged, "targets": flagged}
+        proposals, ignored = correction.sentence_result("loro hanno detto", one)
+        refused, loose = correction.reading_notes(ignored)
+        self.assertEqual((proposals, sorted(refused)), ([], ["s0w1", "s0w2"]))
+        self.assertIn("\u201canno anno\u201d", refused["s0w1"])
+        # the same through the endpoint: those words are failed words with their reason, not silent "gave it back unchanged"
+        adapter = mock.Mock()
+        adapter.generate_text.return_value = "Here you go:\nloro hanno detto ciao e anno poi."
+        result = correction.correct(req, adapter, llmadapter.Cancellation(), lambda a, b: None)
+        self.assertEqual(sorted(result["allowances"]), ["s0w1", "s0w5"])
+        self.assertEqual(result["failed_word_ids"], [])
+        # a neighbour changed with it: only the flagged word is taken, and it says the neighbour was left
+        proposals, ignored = correction.sentence_result("loro hanno ditto ciao e anno poi.", unit)
+        loose = correction.reading_notes(ignored)[1]
+        self.assertEqual(sorted(loose), ["s0w1"])
+        self.assertIn("around this one", loose["s0w1"][0])
+        # a whole-text answer that reaches words the question did not ask about
+        _, full_req = evidence("loro anno detto ciao e anno poi.")
+        full_unit = correction.sentence_units(full_req, task="full")[0]
+        only = dict(full_unit, targets=[w for w in full_unit["targets"] if w["word_id"] == "s0w1"])
+        proposals, ignored = correction.full_sentence_result("loro hanno detto ciao e anno poi.", only)
+        self.assertEqual(len(proposals), 1, "inside what was asked: used")
+        proposals, ignored = correction.full_sentence_result("loro anno detto cena e anno poi.", only)
+        self.assertEqual(proposals, [], "outside what was asked: left out")
+        self.assertTrue(any(not e.get("word_ids") for e in ignored), "and said, for the record of the answer")
+        self.assertEqual(correction.reading_notes(ignored), ({}, {}), "it touched none of the words that were asked about")
+        # ... and a change that reaches over a word that was asked about AND one that was not leaves the first with no answer, and why
+        proposals, ignored = correction.full_sentence_result("loro hanno ciao e anno poi.", only)
+        refused = correction.reading_notes(ignored)[0]
+        self.assertEqual((proposals, sorted(refused)), ([], ["s0w1"]))
+        self.assertIn("not part of this question", refused["s0w1"])
+
     def test_failure_is_local_progress_counts_words_and_retry_filters(self):
         _, req = evidence("loro anno detto ciao")
         second = copy.deepcopy(req["segments"][0]); second["start"] = 10; second["end"] = 12

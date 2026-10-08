@@ -1212,6 +1212,8 @@ def _correct(job, config, cancel, generation, word_ids=None, previous=None):
                 out["suggestions"] = [s for s in previous["suggestions"] if not selected.intersection(s.get("word_ids", [s["word_id"]]))] + out["suggestions"]
                 if "failed_reasons" in out or previous.get("failed_reasons"):
                     out["failed_reasons"] = dict({w: say for w, say in previous.get("failed_reasons", {}).items() if w not in selected}, **out.get("failed_reasons", {}))
+                if "allowances" in out or previous.get("allowances"):
+                    out["allowances"] = dict({w: says for w, says in previous.get("allowances", {}).items() if w not in selected}, **out.get("allowances", {}))
                 if "kept" in out or previous.get("kept"):
                     out["kept"] = [k for k in previous.get("kept", []) if not selected.intersection(k["word_ids"])] + out.get("kept", [])
                 for key in ("failed_word_ids", "uncertain_word_ids"):
@@ -1630,13 +1632,15 @@ def _external_merge(job):
     out = {"schema_version": 1, "task": ext["task"], "method": "external-" + ext["task"],
            "suggestions": [s for s in base.get("suggestions", []) if not selected.intersection(s.get("word_ids", [s["word_id"]]))],
            "kept": [k for k in base.get("kept", []) if not selected.intersection(k["word_ids"])],
-           "failed_reasons": {w: say for w, say in base.get("failed_reasons", {}).items() if w not in selected}}
+           "failed_reasons": {w: say for w, say in base.get("failed_reasons", {}).items() if w not in selected},
+           "allowances": {w: says for w, says in base.get("allowances", {}).items() if w not in selected}}
     for field in ("failed_word_ids", "uncertain_word_ids", "reviewed_word_ids"):
         out[field] = [ident for ident in base.get(field, []) if ident not in selected]
     for answer in ext["answers"].values():
         out["suggestions"].extend(answer["suggestions"])
         out["kept"].extend(answer.get("kept", []))
         out["failed_reasons"].update(answer.get("failed_reasons", {}))
+        out["allowances"].update(answer.get("allowances", {}))
         for field in ("failed_word_ids", "uncertain_word_ids", "reviewed_word_ids"):
             out[field].extend(answer[field])
     if ext["finished"]:

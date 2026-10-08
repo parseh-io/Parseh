@@ -134,6 +134,7 @@ class Workspace:
     def __init__(self, root, cancel):
         self.root, self.cancel, self.ran = root, cancel, False
         self.kept = []        # the rows of the last valid result.csv that keep Whisper's word (_proposals)
+        self.loose = {}       # the words whose row was used but left out how sure the model is (_proposals)
         self.output_bytes = 4000
 
     def python(self, code):
@@ -202,14 +203,17 @@ def _readable_rows(rows, words, captions, allowed, targets, problems):
     return good
 
 
-def _proposals(root, request, allowed, targets=None, required=(), complete=False, kept=None, problems=None):
+def _proposals(root, request, allowed, targets=None, required=(), complete=False, kept=None, problems=None, loose=None):
     """The edits of out/result.csv, and the IDs it answered.  A row that leaves Whisper's word as it is is
     no edit but it is an answer: it goes into `kept`, where the caller gives one, with the model's reason and
     how sure it said it was -- so that the review says "the model agrees with Whisper here" and not nothing.
 
     With a list for `problems` the rows are read ONE BY ONE, as a person's pasted answer is: a row that does not fit is told there
     and the rest are used.  Without one the first that does not fit refuses the whole file (the tool loop of the connected
-    model needs that, to send the model back to mend its rows)."""
+    model needs that, to send the model back to mend its rows).
+
+    With a dict for `loose` a row that was used but left something out that was asked -- how sure the model is -- is told there,
+    {word_id: [say]}: a leniency, and the words it touches are marked so that they can be asked again."""
     path = root / "out/result.csv"
     if path.stat().st_size > 65536:
         raise LLMError("too-large", "The workspace CSV exceeds its size limit.")
@@ -263,6 +267,9 @@ def _proposals(root, request, allowed, targets=None, required=(), complete=False
                     raise ValueError("its replacement is empty, too long, has a control character, or changes the punctuation")
                 seen.update(ids)
                 rating = row.get("confidence") or None
+                if loose is not None and "confidence" in row and rating is None:
+                    for i in ids:
+                        loose.setdefault(i, []).append("the row did not say how sure the model is (sure or unsure), and was used anyway")
                 if replacement == original:
                     if kept is not None:
                         kept.append({"word_ids": ids, "original": original, "rating": rating, "reason": row["reason"]})
@@ -347,9 +354,9 @@ def _phase(workspace, request, adapter, phase, allowed, context_tokens, diagnost
                     if name == "finish_review":
                         if args or not workspace.ran:
                             raise LLMError("code-required", "Run Python to create the result CSV before finishing.")
-                        workspace.kept = []
+                        workspace.kept, workspace.loose = [], {}
                         proposals, seen = _proposals(workspace.root, request, allowed, targets,
-                                                     required=targets if phase == "resolve" else (), complete=True, kept=workspace.kept)
+                                                     required=targets if phase == "resolve" else (), complete=True, kept=workspace.kept, loose=workspace.loose)
                         if phase == "resolve" and not targets <= seen:
                             raise LLMError("incomplete-entries", "Some numbered entries are missing. Add unchanged originals for uncertain words before finishing.")
                         finished = proposals, seen
@@ -399,7 +406,7 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
         windows.append(current)
     total = sum(len(u["targets"]) for u in units)
     suggestions, failed, uncertain, reviewed, done = [], [], [], [], 0
-    kept_rows, why = [], {}
+    kept_rows, why, loose = [], {}, {}
     progress(0, total, "Preparing isolated workspace")
     with tempfile.TemporaryDirectory(prefix="parseh-asr-workspace-") as folder:
         root = Path(folder); (root / "input").mkdir(); (root / "out").mkdir()
@@ -454,6 +461,10 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
                     suggestions.extend(proposals)
                     # (_phase left the rows that keep Whisper's word on the workspace)
                     kept_rows = _replace_kept(kept_rows, workspace.kept, new_ids)
+                    for ident in new_ids | {w for k in workspace.kept for w in k["word_ids"]}:
+                        loose.pop(ident, None)
+                    for ident, says in workspace.loose.items():
+                        loose.setdefault(ident, []).extend(says)
                     proposed = {w for s in proposals for w in s["word_ids"]}
                     uncertain.extend(sorted(targets - proposed))
                 except Exception as error:
@@ -462,13 +473,17 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
                         raise safe
                     # Preserve already validated entries even if a later tool/HTTP
                     # step failed. Unseen entries alone remain failed/retryable.
-                    proposals, seen, workspace.kept = [], set(), []
+                    proposals, seen, workspace.kept, workspace.loose = [], set(), [], {}
                     if workspace.ran:
                         try:
-                            proposals, seen = _proposals(root, request, allowed, targets, kept=workspace.kept)
+                            proposals, seen = _proposals(root, request, allowed, targets, kept=workspace.kept, loose=workspace.loose)
                         except LLMError:
-                            workspace.kept = []
+                            workspace.kept, workspace.loose = [], {}
                     kept_rows = _replace_kept(kept_rows, workspace.kept, {w for p in proposals for w in p["word_ids"]})
+                    # the rows that were written before the run broke are used as they stood: a leniency, told on their words
+                    for ident in seen:
+                        loose.setdefault(ident, []).extend(workspace.loose.get(ident, []))
+                        loose[ident].append("the run ended with an error (%s) after this row was written; the row was used as it stood" % safe.say.rstrip("."))
                     new_ids = {word for proposal in proposals for word in proposal['word_ids']}
                     suggestions = [proposal for proposal in suggestions if not new_ids.intersection(proposal['word_ids'])]
                     suggestions.extend(proposals)
@@ -487,6 +502,7 @@ def correct(request, adapter, cancel, progress, context_tokens=8192, diagnostic=
     return {"schema_version": 1, "suggestions": suggestions, "uncertain_word_ids": uncertain, "failed_word_ids": failed,
             "kept": [k for k in kept_rows if not proposed_ids.intersection(k["word_ids"])],
             "failed_reasons": {ident: say for ident, say in why.items() if ident in failed},
+            "allowances": {ident: says for ident, says in loose.items() if ident in proposed_ids | {w for k in kept_rows for w in k["word_ids"]}},
             "assessment": "partial" if failed else "suggestions" if suggestions else "kept_original",
             "method": "workspace-code", "task": "workspace", "reviewed_word_ids": reviewed,
             "words_reviewed": done, "words_total": total,

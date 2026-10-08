@@ -4,6 +4,7 @@
 - The reasoning workspace of an external chatbot review is one prompt by default, and dividing it into several is an option
 - Use this transcript is never held back by a review that is unfinished, by settings that changed, or by one edit that does not fit: that edit alone is left out and said; a pasted answer is read row by row
 - A chatbot's or model's review says what it decided for every word it was asked about, changed, agrees, not sure or no answer, and a walk through its answers asks for each whether to take it; the sure edits can be taken together
+- An answer read loosely, in any review method, says so on its words (≈), says what was forgiven, and the word can be asked again by itself; a change that could not be used is no longer shown as agreement
 
 ## [a0.5.0] - 2026-10-07
 ### Added

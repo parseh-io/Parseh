@@ -227,6 +227,12 @@
 .stt-walk-error{flex-basis:100%;margin:0;color:var(--danger)}
 .stt-walk-changes{margin:6px 0;padding-inline-start:18px}
 .stt-walk-changes li{margin-block:4px}
+.stt-loosenote{margin:8px 0;padding:6px 10px;border-inline-start:3px dotted var(--warn,currentColor);background:var(--boxbg);font-size:13px}
+.stt-loosenote p{margin:0 0 4px}
+.stt-loosenote-head{font-weight:600}
+.stt-loosenote ul{margin:0 0 4px;padding-inline-start:18px}
+.stt-walk-loose-list>button{margin-bottom:6px}
+.stt-external-loose{margin:6px 0}
 .stt-walk-wordnote{margin:8px 0;padding:6px 10px;border-inline-start:3px solid var(--accent);background:var(--boxbg)}
 .stt-walk-wordnote.stt-walk-agree{border-inline-start-color:var(--ok)}
 .stt-walk-wordnote.stt-walk-unsure,.stt-walk-wordnote.stt-walk-none{border-inline-start-color:var(--warn)}
@@ -235,6 +241,8 @@
 .stt-review-word.asr-unsure::after{content:'?';font-size:11px;margin-inline-start:3px}
 .stt-review-word.asr-noanswer{border:1px dotted var(--danger,currentColor)}
 .stt-review-word.asr-noanswer::after{content:'✗';font-size:11px;margin-inline-start:3px}
+/* the model's answer for the word was read loosely (asrwalk.js loose()): a mark of its own, in front, so that it sits beside any outcome mark */
+.stt-review-word.asr-loose::before{content:'≈';font-size:11px;margin-inline-end:3px;color:var(--warn,currentColor)}
 .stt-review-word.asr-accepted::after{content:'✓'}
 .stt-review-word.asr-walking{background:var(--hl)}
 /* where you are in the external chatbot review: five steps, the ones done ticked, the one you are on marked */

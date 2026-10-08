@@ -159,6 +159,40 @@ column called confidence, **sure** or **unsure**, which the prompt asks for), an
 for LM likelihood a clear winner counts as sure; the sentence methods do not
 rate their answers, so only the second button is there for them.
 
+### When an answer had to be read loosely
+
+Parseh reads a chatbot's answer generously, because chatbots are not exact: it
+takes the labelled lines out of a reply with a greeting around them, uses the
+rows that fit when one does not, and so on. **It tells you where it had to be
+generous.** Such a word wears a **≈** in the transcript, the legend names it, and
+its card and its own panel say what was forgiven in plain words: *a line was
+picked out of a reply of several; the label was given twice and the first line
+was used; a line under the sentence that looked like more of it was left out; a
+row did not say how sure the model is; a change reached past the word; the
+connected model's run ended with an error after the row was written; a
+likelihood comparison could not score some of the candidates.* A word whose
+answer was clean carries nothing.
+
+A word read loosely may still be right; it is a reason to look, not a verdict.
+When it matters, **Ask again for this word** (key **R** on its card) asks the
+model for that word by itself, by the same road you used: a new prompt for the
+chatbot with only that word, or the connected model again. **≈ N read loosely**
+in the summary lists them all, each with its own **Ask again**, and one button
+asks again for all of them. The panel of the pasted answer says the same
+beside its counts. **Accept the N sure edits** leaves out a sure edit whose
+answer was read loosely: you see it on a card first.
+
+A change the model made that Parseh could not use is no longer shown as "the
+model agrees". If the model changed a flagged word in a way that could not be
+tied to it (two flagged words turned into one, a replacement that is empty or
+far too long), the word has **✗ no answer**, with the model's own words as the
+reason. What was left out and touched no flagged word (a change to a word you
+did not ask about) is listed in **LLM responses** with the answer.
+
+This applies to every method: suspect words, whole text, the reasoning workspace
+(pasted or connected), the likelihood comparison and Whisper's second look,
+which now says why when it could not make one.
+
 ## Choose a section, keep checked words, or pause
 
 Use **Select a section**, then click its first and last word. Select **Selected
