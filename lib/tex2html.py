@@ -4821,9 +4821,20 @@ function dictLine(w, at) {
     wrap.appendChild(none);
     return wrap;
   }
-  for (const h of w.hits) {
+  // WHAT THE SPOKEN PASS READ (lib/spoken.py): a hit that was read as another word is drawn by lib/parseh.js, the same in the
+  // player's panel -- a pill, the word it was read as, why, its pieces, its sound -- and a word with several readings numbers
+  // them.  A page without parseh.js draws the hit as it always did, and the hit's note says the reason.
+  const SP = window.Parseh && Parseh.spoken;
+  const many = SP ? SP.header(w) : null;
+  if (many) wrap.appendChild(many);
+  for (const [k, h] of w.hits.entries()) {
     const row = document.createElement('div');
-    row.className = 'dhit';
+    row.className = 'dhit' + (SP ? SP.row(h) : '');
+    if (many) {
+      const num = document.createElement('span');
+      num.className = 'dsnum'; num.textContent = (k + 1) + '.';
+      row.appendChild(num);
+    }
     const hd = document.createElement('span');
     hd.className = 'dhead2';
     // as the book spells it, like the editor's row (sideHit): 帮忙 in a
@@ -4834,8 +4845,13 @@ function dictLine(w, at) {
     row.appendChild(hd);
     if (h.pos) { const p = document.createElement('span');
       p.className = 'dpos'; p.textContent = ' ' + h.pos; row.appendChild(p); }
-    if (h.note) { const n = document.createElement('span');
-      n.className = 'dnote'; n.textContent = ' — ' + h.note; row.appendChild(n); }
+    const said = SP ? SP.note(h) : h.note;
+    if (said) { const n = document.createElement('span');
+      n.className = 'dnote'; n.textContent = ' — ' + said; row.appendChild(n); }
+    if (SP && h.spoken) {
+      const b = SP.block(h, {written: w.word, lang: LANG.code, dir: LANG.dir});
+      if (b) row.appendChild(b);
+    }
     // A VERB CARRIES ITS PRINCIPAL PARTS, under the headword and before the
     // senses: "to burn" is what the infinitive means, and the stem the
     // sentence is actually built on is what a reader was left to guess.
@@ -4864,7 +4880,8 @@ function dictLine(w, at) {
     }
     wrap.appendChild(row);
   }
-  if (w.via && w.via !== 'as written') {
+  // (a word the spoken pass read says how in each of its cards: the line that says it again is left out)
+  if (w.via && w.via !== 'as written' && !(SP && w.kind === 'spoken')) {
     const v = document.createElement('div');
     v.className = 'dnone'; v.textContent = 'found ' + w.via;
     wrap.appendChild(v);
@@ -9082,6 +9099,12 @@ function sideHit(into, h) {
       m.appendChild(l); m.appendChild(list);
       more.appendChild(m);
     }
+  }
+  // A WORD THE SPOKEN PASS READ says so under its row, as the reading panel's card does (lib/parseh.js): the editor is told
+  // that what it is about to put in the vocabulary is the formal word the chunk's word was read as
+  if (window.Parseh && Parseh.spoken && h.spoken) {
+    const b = Parseh.spoken.block(h, {lang: LANG.code, dir: LANG.dir});
+    if (b) { if (!more) more = document.createElement('div'); more.appendChild(b); }
   }
   let line = head + (said ? ' \u00b7 ' + said : '');
   if (vb && vb.lemma && wordKey(vb.lemma) !== wordKey(head)) line += ' \u2192 ' + vb.lemma;

@@ -881,6 +881,7 @@ def backlinks_html(doc_id):
 
 def page_doc(h, doc_id):
     meta, markdown = store.get(doc_id)
+    live = getattr(h, "query", {}).get("live", [""])[0] == "1"
     linked_n, linked = backlinks_html(doc_id)
     # A note beside a book or a video offers "+ Deck" as a studio document
     # does, when the deck routes know which notes its prefix stands for
@@ -906,6 +907,11 @@ def page_doc(h, doc_id):
         "BACKLINKS_N": str(linked_n),
         "META_JSON": json_for_script(meta),
         "GLOSSES_JSON": json_for_script(htmlgen.glosses(markdown)),
+        # ?live=1: this page is the preview of an editor open in another tab
+        # (static/live.js); the page is the same one, drawn from the editor's
+        # text as it is typed
+        "LIVE": "1" if live else "",
+        "LIVE_SCRIPT": ('<script src="%s/static/live.js"></script>' % BASE) if live else "",
     })
     h.send_html(render_template("doc.html", m))
 
@@ -1865,10 +1871,22 @@ def api_preview(h):
     except KeyError:
         doc_id = None
     try:
-        doc = htmlgen.render_document(body.get("markdown", ""),
-                                      asset_base=_preview_assets(doc_id),
-                                      docs=store.doc_index(),
-                                      editor_preview=True)
+        if body.get("page"):
+            # THE PREVIEW IN ITS OWN TAB (static/live.js): the buffer drawn as the
+            # reading page draws a saved document -- its hover tools off, its
+            # exercises answerable, the contents beside it -- but with the
+            # drawings made now, as the editor's own preview makes them, since
+            # an unsaved text has none kept.  Nothing is written.
+            doc = htmlgen.render_document(body.get("markdown", ""),
+                                          asset_base=_preview_assets(doc_id),
+                                          docs=store.doc_index(),
+                                          latex_preview=True)
+            doc["glosses"] = htmlgen.glosses(body.get("markdown", ""))
+        else:
+            doc = htmlgen.render_document(body.get("markdown", ""),
+                                          asset_base=_preview_assets(doc_id),
+                                          docs=store.doc_index(),
+                                          editor_preview=True)
         doc["prose"] = prose_record(doc.get("lang"))
         h.send_json({"ok": True, "doc": doc})
     except Exception as e:

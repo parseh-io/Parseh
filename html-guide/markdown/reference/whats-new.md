@@ -17,6 +17,26 @@ guide and rebuilds the readers by itself.
 
 ## a0.5.1 — not yet released
 
+### Spoken Persian in the dictionary
+
+The dictionary panel reads a Persian word written as it is said (خونه, میگم, اینجوری, دوس دارم,
+خاهر) as the formal word it stands for, and says so: a tinted card with a pill, the word as
+written and the word it was read as, the reason in words, its pieces and its sound; two readings
+of one word are numbered, the likelier first. It is in the book's panel, the player's, the
+phone's sheet and the review of a transcript, and needs nothing to install or switch on
+([Spoken Persian](../lookup-and-languages/dictionaries.md#spoken-persian)).
+
+### Double-click lands on the text, and the preview in its own tab
+
+In the editor, a double-click on a word of the preview selects that word in the
+source and scrolls the source to it, as in Overleaf
+([Double-click to land on the text](../studio/editor.md#double-click)).
+**Preview in its own tab**, in the gear's **Editor** group or with **Own tab ↗**
+over the preview, gives the whole window to the source and draws the finished page
+in another tab of the browser, from what you type, unsaved changes included; a
+double-click there lands the editor on the text too
+([The preview in its own tab](../studio/editor.md#own-tab)).
+
 ### The LaTeX, with what it needs to compile elsewhere
 
 **Download ▾** of a studio document has a new line, **LaTeX + media (.zip)**,

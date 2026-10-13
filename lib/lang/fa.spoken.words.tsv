@@ -1,0 +1,542 @@
+# fa.spoken.words.tsv -- the whole-word table of the Persian colloquial normaliser (lib/spoken.py).
+#
+# One row per spoken word or phrase.  Tab-separated, UTF-8, `#` starts a comment, the first row is the header.
+#   spoken   the word as speech writes it (a phrase has its words apart, one space between)
+#   formal   the formal word it stands for; for a `standalone` row, the word itself
+#   kind     word | phrase | formula | cv | standalone | policy
+#              word        one spoken word for a formal word (or for two: `هیچ جا`, read word by word)
+#              phrase      several spoken words for a formal word or phrase
+#              formula     a fixed expression, read word by word, with its meaning as a whole
+#              cv          the spoken first part of a compound verb (نیگا کن = نگاه کردن)
+#              standalone  a colloquial word the dictionary has no formal twin for: its gloss is the answer
+#              policy      a word the dictionary knows that speech also reads another way (رفتن: they went): no formal word of
+#                          its own, only `show`: what the endings of the rule file find for it is shown beside the
+#                          dictionary's own answer when the row says so
+#   flags    comma-separated: certain (only speech writes it: counts as spoken evidence for its neighbours),
+#            show=always|spoken|never (when the spoken reading stands beside a direct dictionary hit of the
+#            same word; default never), likelier=spoken (first, not second, where it is shown),
+#            pos=<part of speech of a standalone word>, with=<infinitive of a cv's light verb>,
+#            needs=spoken (the row applies only where the chunk says it is speech -- the page's hint, or a word beside it that only
+#            speech writes: a one-letter word like ب for به, or a word that is speech's only by its neighbours, بسم)
+#   gloss    what the word or formula means, in English: required for `standalone` and `formula`
+#   note     the reason in words, where "spoken for X" is not enough
+#   src      hazm (reviewed pairs of Hazm's iwords.dat, MIT: see fa.spoken.HAZM-LICENSE.txt) | note | own
+#
+# A row counts only where the dictionary has the formal word (standalone rows excepted): the table adds
+# lookup routes and never a word the dictionary does not stand behind.
+#
+spoken	formal	kind	flags	gloss	note	src
+یه	یک	word	certain			note
+دیگه	دیگر	word	certain			note
+همدیگه	همدیگر	word	certain			note
+اون	آن	word	certain,glue			note
+اگه	اگر	word	certain			hazm
+اقای	آقای	word	certain			hazm
+اینا	این‌ها	word	certain,glue			note
+واسه	برای	word	certain			note
+مگه	مگر	word	certain			hazm
+خودشون	خودشان	word	certain			note
+همون	همان	word	certain,glue			note
+ایشون	ایشان	word	certain,glue			note
+اونم	آن هم	word	certain			hazm
+وایساده	ایستاده	word	certain			hazm
+اوس	استاد	word	certain			hazm
+اوسا	استاد	word	certain			note
+باهاس	باید	word	certain			note
+اینقد	این‌قدر	word	certain			note
+برا	برای	word	certain			note
+اروا	ارواح	word	certain			hazm
+امبر	انبر	word	certain			hazm
+پمبه	پنبه	word	certain			hazm
+پوس	پوست	word	certain			hazm
+جاهاد	جهاد	word	certain			hazm
+جمبه	جنبه	word	certain			hazm
+چن	چند	word	certain			note
+چکار	چیکار	word	certain			hazm
+دس	دست	word	certain			hazm
+دیقه	دقیقه	word	certain			note
+دقه	دقیقه	word	certain			note
+دمبه	دنبه	word	certain			hazm
+دورود	درود	word	certain			hazm
+دوس	دوست	cv				note
+سورود	سرود	word	certain			hazm
+سیبیل	سبیل	word	certain			hazm
+شمبه	شنبه	word	certain			hazm
+شیش	شش	word	certain			note
+صاحاب	صاحب	word	certain			hazm
+صب	صبر	cv				note
+صب	صبح	word	certain			hazm
+کوجا	کجا	word	certain			hazm
+کیلید	کلید	word	certain			hazm
+وخ	وقت	word	certain			hazm
+وخت	وقت	word	certain			hazm
+نگا	نگاه	cv				note
+نیگا	نگاه	cv				note
+آخه	آخر	word	certain			hazm
+اونا	آن‌ها	word	certain,glue			note
+اونجا	آنجا	word	certain,glue			note
+اونها	آن‌ها	word	certain,glue			note
+آتیش	آتش	word	certain			hazm
+آروم	آرام	word	certain			hazm
+ابرام	ابراهیم	word	certain			hazm
+بادوم	بادام	word	certain			hazm
+باهار	بهار	word	certain			hazm
+البت	البته	word	certain			note
+پیرن	پیراهن	word	certain			hazm
+تموم	تمام	word	certain			hazm
+تیکه	تکه	word	certain			hazm
+جیگر	جگر	word	certain			hazm
+زیگیل	زگیل	word	certain			hazm
+سیا	سیاه	word	certain			hazm
+چار	چهار	word	certain			note
+چاهار	چهار	word	certain			hazm
+چل	چهل	word	certain			note
+چیه	چیست	word	certain			hazm
+حروم	حرام	word	certain			hazm
+خانوم	خانم	word	certain			hazm
+دفه	دفعه	word	certain			hazm
+سیریش	سریش	word	certain			hazm
+کدوم	کدام	word	certain			hazm
+هرکدوم	هرکدام	word	certain			note
+کوچیک	کوچک	word	certain			hazm
+مث	مثل	word	certain			note
+مرتیکه	مردکه	word	certain			note
+ناخون	ناخن	word	certain			hazm
+ناهار	نهار	word	certain			hazm
+مش	مشهدی	word	certain			hazm
+مشد	مشهدی	word	certain			hazm
+مشتی	مشهدی	word	certain			hazm
+مشدی	مشهدی	word	certain			hazm
+خونه	خانه	word	certain			hazm
+چیزا	چیزها	word	certain			hazm
+کسایی	کسانی	word	certain			hazm
+شبا	شب‌ها	word	certain			hazm
+توی	در	word	certain			hazm
+گوله	گلوله	word	certain			hazm
+رودخونه	رودخانه	word	certain			hazm
+حیوون	حیوان	word	certain			hazm
+حیوونا	حیوان‌ها	word	certain			hazm
+شهرا	شهرها	word	certain			hazm
+بهونه	بهانه	word	certain			hazm
+سوغاتیا	سوغاتی‌ها	word	certain			hazm
+کتابا	کتاب‌ها	word	certain			hazm
+مونده	مانده	word	certain			hazm
+تونست	توانست	word	certain			hazm
+همینجا	همین جا	word	certain			hazm
+براتون	برایتان	word	certain			hazm
+آشپزخونه	آشپزخانه	word	certain			hazm
+اونقدر	آنقدر	word	certain			note
+رفتارا	رفتارها	word	certain			hazm
+همش	همه‌اش	word	certain			hazm
+یبار	یکبار	word	certain			hazm
+براش	برایش	word	certain			hazm
+پیشونی	پیشانی	word	certain			hazm
+تمرینا	تمرین‌ها	word	certain			hazm
+اونقدرها	آنقدرها	word	certain			hazm
+اخه	آخر	word	certain			hazm
+بازم	باز هم	word	certain			hazm
+زمونه	زمانه	word	certain			hazm
+واقعن	واقعاً	word	certain			hazm
+ایا	آیا	word	certain			hazm
+نشون	نشان	word	certain			hazm
+اموزشگاه	آموزشگاه	word	certain			hazm
+ازاد	آزاد	word	certain			hazm
+هواس	حواس	word	certain			hazm
+اینکار	این کار	word	certain			hazm
+انقدر	آنقدر	word	certain			note
+کاملن	کاملاً	word	certain			hazm
+حتمن	حتماً	word	certain			hazm
+اصولن	اصولاً	word	certain			hazm
+ابدن	ابداً	word	certain			hazm
+اتفاقن	اتفاقاً	word	certain			hazm
+کلن	کلاً	word	certain			hazm
+ذاتن	ذاتاً	word	certain			hazm
+قطعن	قطعاً	word	certain			hazm
+دائمن	دائماً	word	certain			hazm
+شدیدن	شدیداً	word	certain			hazm
+اولن	اولاً	word	certain			hazm
+بعدن	بعداً	word	certain			hazm
+خواهشن	خواهشاً	word	certain			hazm
+مستقیمن	مستقیماً	word	certain			hazm
+مطمئنن	مطمئناً	word	certain			hazm
+نهایتن	نهایتاً	word	certain			hazm
+ضمنن	ضمناً	word	certain			hazm
+دهن	دهان	word	certain			hazm
+تقریبن	تقریباً	word	certain			hazm
+شخصن	شخصاً	word	certain			hazm
+خوندن	خواندن	word	certain			hazm
+شون	شان	word	certain			hazm
+انرا	آن را	word	certain			hazm
+آنرا	آن را	word	certain			hazm
+مثه	مثل	word	certain			note
+ادم	آدم	word	certain			hazm
+جوون	جوان	word	certain			hazm
+مثلن	مثلاً	word	certain			hazm
+عملن	عملاً	word	certain			hazm
+ازمون	آزمون	word	certain			hazm
+دقیقن	دقیقاً	word	certain			hazm
+صرفن	صرفاً	word	certain			hazm
+لطفن	لطفاً	word	certain			hazm
+یقینن	یقیناً	word	certain			hazm
+فعلن	فعلاً	word	certain			hazm
+اکثرن	اکثراً	word	certain			hazm
+اقلن	اقلاً	word	certain			hazm
+قبلن	قبلاً	word	certain			hazm
+مخصوصن	مخصوصاً	word	certain			hazm
+شرعن	شرعاً	word	certain			hazm
+حقیقتن	حقیقتاً	word	certain			hazm
+رسمن	رسماً	word	certain			hazm
+احتمالن	احتمالاً	word	certain			hazm
+قاعدتن	قاعدتاً	word	certain			hazm
+خصوصن	خصوصاً	word	certain			hazm
+نسبتن	نسبتاً	word	certain			hazm
+اجبارن	اجباراً	word	certain			hazm
+حدودن	حدوداً	word	certain			hazm
+ظاهرن	ظاهراً	word	certain			hazm
+معمولن	معمولاً	word	certain			hazm
+لزومن	لزوماً	word	certain			hazm
+اصلن	اصلاً	word	certain			hazm
+مجددن	مجدداً	word	certain			hazm
+صریحن	صریحاً	word	certain			hazm
+صراحتن	صراحتاً	word	certain			hazm
+اومد	آمد	word	certain			hazm
+جون	جان	word	certain			hazm
+جونور	جانور	word	certain			hazm
+اسلا	اصلاً	word	certain			hazm
+اسلن	اصلاً	word	certain			hazm
+پشیمون	پشیمان	word	certain			hazm
+چسپ	چسب	word	certain			hazm
+آرومی	آرام	word	certain			hazm
+آسمون	آسمان	word	certain			hazm
+آسون	آسان	word	certain			hazm
+آسون‌تر	آسان‌تر	word	certain			hazm
+ابی	آبی	word	certain			hazm
+اخر	آخر	word	certain			hazm
+ادمیزاد	آدمیزاد	word	certain			hazm
+ارزون	ارزان	word	certain			hazm
+اصن	اصلاً	word	certain			note
+افتاب	آفتاب	word	certain			hazm
+امار	آمار	word	certain			hazm
+انقد	آنقدر	word	certain			note
+انقدری	آنقدری	word	certain			hazm
+اومده	آمده	word	certain			hazm
+اونقد	آنقدر	word	certain			note
+اونقدری	آنقدر	word	certain			hazm
+اینه	آینه	word	certain,show=always		اینه for آینه (a mirror), as well as این + است	note
+بارون	باران	word	certain			hazm
+بارونی	بارانی	word	certain			hazm
+باقی‌مونده	باقی‌مانده	word	certain			hazm
+بچا	بچه‌ها	word	certain			hazm
+بی‌صاحاب	بی‌صاحب	word	certain			hazm
+تابستون	تابستان	word	certain			hazm
+تابستونی	تابستان	word	certain			hazm
+تابستونی	تابستانی	word	certain			hazm
+تهرونی	تهرانی	word	certain			hazm
+تو	داخل	word	certain			hazm
+تو	در	word	certain			hazm
+تومن	تومان	word	certain			hazm
+تومنی	تومانی	word	certain			hazm
+توی	داخل	word	certain			hazm
+تکون	تکان	word	certain			hazm
+جزو	جزء	word	certain			hazm
+حموم	حمام	word	certain			hazm
+خانوما	خانم‌ها	word	certain			hazm
+خب	خوب	word	certain			hazm
+خوابالو	خواب‌آلود	word	certain			hazm
+خوندنی	خواندنی	word	certain			hazm
+خیابون	خیابان	word	certain			hazm
+داغون	داغان	word	certain			hazm
+دخترونه	دخترانه	word	certain			hazm
+درست‌درمون	درست‌درمان	word	certain			hazm
+درمون	درمان	word	certain			hazm
+دونه	دانه	word	certain,glue			note
+دونه‌ای	دانه‌ای	word	certain			hazm
+دووم	دوام	word	certain			hazm
+رمضون	رمضان	word	certain			hazm
+رو	را	word	certain,show=always,likelier=direct		spoken -ro for the object marker را	note
+زبون	زبان	word	certain			hazm
+زمستون	زمستان	word	certain			hazm
+شونزده	شانزده	word	certain			note
+شونصد	ششصد	word	certain			hazm
+شونه	شانه	word	certain			hazm
+عاخه	آخر	word	certain			hazm
+عقب‌مونده	عقب‌مانده	word	certain			hazm
+قایل	قائل	word	certain			hazm
+قربون	قربان	word	certain			hazm
+قلبن	قلباً	word	certain			hazm
+ماکروفر	مایکروفر	word	certain			hazm
+مهربون	مهربان	word	certain			hazm
+مهربونی	مهربانی	word	certain			hazm
+مهمون	مهمان	word	certain			hazm
+مهمونا	مهمان‌ها	word	certain			hazm
+مهمونی	مهمانی	word	certain			hazm
+میدون	میدان	word	certain			hazm
+میون	میان	word	certain			hazm
+نشونه	نشانه	word	certain			hazm
+نشونی	نشانی	word	certain			hazm
+نون	نان	word	certain			hazm
+هیش	هیچ	word	certain			hazm
+واقعن	واقعا	word	certain			hazm
+والا	والله	word	certain			note
+وقتایی	وقت‌هایی	word	certain			hazm
+پسرونه	پسرانه	word	certain			hazm
+چشا	چشم‌ها	word	certain			hazm
+چمدون	چمدان	word	certain			hazm
+چونه	چانه	word	certain			hazm
+چی	چه	word	certain			hazm
+کارخونه	کارخانه	word	certain			hazm
+کتابخون	کتابخوان	word	certain			hazm
+کتابخونه	کتابخانه	word	certain			hazm
+کتاب‌خونی	کتاب‌خوانی	word	certain			hazm
+کوجیک	کوچک	word	certain			hazm
+گرون	گران	word	certain			hazm
+گشنه	گرسنه	word	certain			hazm
+گلدون	گلدان	word	certain			hazm
+گمون	گمان	word	certain			hazm
+ینی	یعنی	word	certain			hazm
+یهو	یکهو	word	certain			hazm
+یهویی	یکهو	word	certain			hazm
+یه‌بار	یک‌بار	word	certain			hazm
+یه‌نواخت	یکنواخت	word	certain			hazm
+یوتوب	یوتیوب	word	certain			note
+دندون	دندان	word	certain			hazm
+شیطون	شیطان	word	certain			hazm
+آقایون	آقایان	word	certain			hazm
+روندن	راندن	word	certain			hazm
+همونا	همان‌ها	word	certain			note
+خودمون	خودمان	word	certain			note
+خودتون	خودتان	word	certain			note
+هیجا	هیچ جا	word	certain			note
+ایجا	اینجا	word	certain			note
+اوجا	آنجا	word	certain			note
+همونجا	همان‌جا	word	certain,glue			note
+اینور	این طرف	word	certain			note
+اونور	آن طرف	word	certain,glue			note
+اونوقت	آن وقت	word	certain			note
+اونموقع	آن موقع	word	certain			note
+هیشوقت	هیچ‌وقت	word	certain			note
+اینقده	این‌قدر	word	certain			note
+چقد	چقدر	word	certain			note
+چقده	چقدر	word	certain			note
+هرچقد	هرچقدر	word	certain			note
+همچین	هم‌چنین	word	certain			note
+همچی	هم‌چنین	word	certain			note
+هیچی	هیچ	word	certain			note
+هیچکی	هیچ‌کس	word	certain			note
+هیشکی	هیچ‌کس	word	certain			note
+هیشکس	هیچ‌کس	word	certain			note
+همه‌چی	همه چیز	word	certain			note
+همه چی	همه چیز	word	certain			note
+هرچی	هرچه	word	certain			note
+هرکی	هرکس	word	certain			note
+هیچکدوم	هیچ‌کدام	word	certain			note
+چیکار	چه کار	word	certain			note
+چیکارا	چه کارها	word	certain			note
+چیچی	چه چیز	word	certain			note
+کیه	کیست	word	certain			note
+چیا	چه چیزها	word	certain			note
+جوری	جور	word	certain,glue			note
+اینطرف	این طرف	word				note
+اونطرف	آن طرف	word				note
+چکار	چه کار	word				note
+واسه چی	چرا	phrase	certain			note
+برا چی	چرا	phrase	certain			note
+واسم	برایم	word	certain			note
+واست	برایت	word	certain			note
+راجب	راجع به	word	certain			note
+راجبه	راجع به	word	certain			note
+آره	آری	word	certain			note
+اره	آری	word	certain			note
+دگه	دیگر	word	certain			note
+انگاری	انگار	word	certain			note
+کاشکی	کاش	word	certain			note
+بلکم	بلکه	word	certain			note
+آها	آهان	word	certain			note
+اها	آهان	word	certain			note
+ننه	مادر	word	certain			note
+آبجی	خواهر	word	certain			note
+ابجی	خواهر	word	certain			note
+دویم	دوم	word	certain			note
+سیوم	سوم	word	certain			note
+بلاخره	بالاخره	word	certain			note
+ایول	ایول	standalone	pos=intj	great! well done! (slang)		note
+خفن	خفن	standalone	pos=adj	awesome; fierce (slang)		note
+باحال	باحال	standalone	pos=adj	cool; fun (slang)		note
+چرت	چرت	standalone	pos=noun	nonsense; rubbish (slang)		note
+چرت و پرت	چرت و پرت	standalone	pos=noun	nonsense; rubbish (slang)		note
+پلیز	پلیز	standalone	pos=intj	please (English, in Persian letters)		note
+تنکس	تنکس	standalone	pos=intj	thanks (English, in Persian letters)		note
+سوری	سوری	standalone	pos=intj	sorry (English, in Persian letters)		note
+بای	بای	standalone	pos=intj	bye (English, in Persian letters)		note
+لول	لول	standalone	pos=intj	lol (English, in Persian letters)		note
+خدافظ	خداحافظ	word	certain			note
+مچکرم	متشکرم	word	certain			note
+مچکر	متشکر	word	certain			note
+ببخشین	ببخشید	word	certain			note
+بفرمایین	بفرمایید	word	certain			note
+قربونت	قربانت	word	certain			note
+قربونتون	قربانتان	word	certain			note
+نوکرتم	نوکر	word	certain	at your service (said as thanks or politeness; lit. I am your servant)		note
+نوکرتون	نوکر	word	certain	at your service (said as thanks or politeness; lit. I am your servant)		note
+خسته نباشی	خسته نباشید	formula	certain	thank you for your effort (said to someone who has been working)		note
+خسته نباشین	خسته نباشید	formula	certain	thank you for your effort (said to someone who has been working)		note
+دمت گرم	دمت گرم	formula	certain	well done! thank you! (lit. may your breath be warm)		note
+دمتون گرم	دمتان گرم	formula	certain	well done! thank you! (lit. may your breath be warm)		note
+فدات شم	فدایت شوم	formula	certain	I would give my life for you (an endearment)		note
+قابل نداره	قابل ندارد	formula	certain	it is nothing; do not mention it (lit. it is not worthy)		note
+نوش جون	نوش جان	formula	certain	enjoy your meal (lit. may it be life to you)		note
+صب بخیر	صبح بخیر	formula	certain	good morning		note
+فک	فکر	cv				note
+جم	جمع	cv				note
+درس	درست	cv				note
+وا	باز	cv				note
+ور	بر	cv				note
+پا	پا	cv				note
+لایک	لایک	cv				note
+فالو	فالو	cv				note
+بلاک	بلاک	cv				note
+ریپلای	ریپلای	cv				note
+سرچ	سرچ	cv				note
+چک	چک	cv				note
+کنسل	کنسل	cv				note
+سیو	سیو	cv				note
+دیلیت	دیلیت	cv				note
+حال	حال	cv	with=کردن	to enjoy oneself; have fun (slang)		note
+هف	هفت	word	certain			note
+هش	هشت	word	certain			note
+هیفده	هفده	word	certain			note
+هیوده	هفده	word	certain			note
+هیجده	هجده	word	certain			note
+هیژده	هجده	word	certain			note
+پونزده	پانزده	word	certain			note
+بیس	بیست	word	certain			note
+پنجا	پنجاه	word	certain			note
+شص	شصت	word	certain			note
+پونصد	پانصد	word	certain			note
+شیشصد	ششصد	word	certain			note
+ملیون	میلیون	word	certain			note
+هزاری	هزار	word	certain	a thousand-toman note	spoken for هزار (a note of a thousand tomans)	note
+چنده	چند	word	certain		spoken for چند + است (how much is it?)	note
+چندمه	چندم	word	certain		spoken for چندم + است (which one is it?)	note
+تلوزیون	تلویزیون	word	certain			note
+کامپوتر	کامپیوتر	word	certain			note
+کمپیوتر	کامپیوتر	word	certain			note
+اکی	اوکی	word	certain			note
+اوکیه	اوکی	word	certain			note
+تیلیفون	تلفن	word	certain			note
+اینستا	اینستاگرام	word	certain			note
+ایشالا	ان‌شاءالله	word	certain			note
+انشالا	ان‌شاءالله	word	certain			note
+انشاالله	ان‌شاءالله	word	certain			note
+ماشالا	ماشاءالله	word	certain			note
+ماشالله	ماشاءالله	word	certain			note
+تروخدا	تو را به خدا	word	certain			note
+تورخدا	تو را به خدا	word	certain			note
+بخدا	به خدا	word	certain			note
+یالا	یا الله	word	certain			note
+فوقلاده	فوق‌العاده	word	certain			note
+لاقل	لااقل	word	certain			note
+حدقل	حداقل	word	certain			note
+باس	باید	word	certain			note
+بایس	باید	word	certain			note
+مثلا	مثل	word	certain,show=spoken,likelier=direct		plural -ā: proverbs (مثل‌ها)	note
+اولا	اول	word	certain,show=spoken,likelier=direct		plural -ā: the first ones (اول‌ها)	note
+واقن	واقعاً	word	certain			note
+مثن	مثلاً	word	certain			note
+نکنه	نکند	word	certain			note
+همو	همدیگر	word	certain			note
+همدیگرو	همدیگر	word	certain			note
+یکم	یک کم	word	certain			note
+یه کم	یک کم	phrase	certain			note
+یه ذره	یک ذره	phrase	certain			note
+یه خورده	یک خورده	phrase	certain			note
+یه بار	یک بار	phrase	certain			note
+یه جا	یک جا	phrase	certain			note
+یه وقت	یک وقت	phrase	certain			note
+یه چیز	یک چیز	phrase	certain			note
+رفتن	رفتن	policy	show=always			note
+گفتن	گفتن	policy	show=always			note
+بودن	بودن	policy	show=always			note
+دیدن	دیدن	policy	show=always			note
+بده	بده	policy	show=always			note
+گردن	گردن	policy	show=spoken			note
+بدن	بدن	policy	show=spoken			note
+منو	منو	policy	show=always			note
+باهم	باهم	policy	show=always			note
+اینه	اینه	policy	show=always			note
+باش	باش	policy	show=always			note
+بچه‌ام	بچه‌ام	policy	show=always			note
+رو	روی	word	certain,show=spoken,likelier=direct		spoken -ro for the preposition روی (on)	note
+بزن بریم	بزن بریم	formula	certain	let's go (lit. hit and let us go)		note
+بدین	به این	word	certain,show=spoken		بدین is also به این (to this)	note
+بدم	بدم	policy	show=always			note
+میان	میان	policy	show=spoken,likelier=spoken			note
+خون	خون	policy	show=spoken			note
+خونش	خونش	policy	show=always			note
+خونها	خونها	policy	show=always			note
+نون	نون	policy	show=spoken			note
+جون	جون	policy	show=spoken			note
+دون	دون	policy	show=spoken			note
+بوم	بوم	policy	show=spoken			note
+درس	درس	policy	show=spoken			note
+راس	راس	policy	show=spoken			note
+هش	هش	policy	show=spoken			note
+چو	چو	policy	show=spoken			note
+قوه	قوه	policy	show=spoken			note
+شر	شر	policy	show=spoken			note
+ما	ما	policy	show=spoken			note
+کو	کو	policy	show=spoken			note
+را	را	policy	show=spoken			note
+شن	شن	policy	show=spoken			note
+دس	دس	policy	show=spoken			note
+بدین	بدین	policy	show=spoken			note
+هس	هست	word	certain		the spoken ـست of the copula, without its t	note
+هسم	هستم	word	certain		the spoken ـست of the copula, without its t	note
+هسی	هستی	word	certain		the spoken ـست of the copula, without its t	note
+هسیم	هستیم	word	certain		the spoken ـست of the copula, without its t	note
+هسین	هستید	word	certain		the spoken ـست of the copula, without its t	note
+هسن	هستند	word	certain		the spoken ـست of the copula, without its t	note
+نیس	نیست	word	certain		the spoken ـست of the copula, without its t	note
+نیسم	نیستم	word	certain		the spoken ـست of the copula, without its t	note
+نیسی	نیستی	word	certain		the spoken ـست of the copula, without its t	note
+نیسیم	نیستیم	word	certain		the spoken ـست of the copula, without its t	note
+نیسین	نیستید	word	certain		the spoken ـست of the copula, without its t	note
+نیسن	نیستند	word	certain		the spoken ـست of the copula, without its t	note
+چش	چشم	word	certain			note
+دزا	دزدها	word	certain			note
+وگنه	وگرنه	word	certain			note
+بتر	بدتر	word	certain			note
+زوتر	زودتر	word	certain			note
+هشتا	هشت تا	word	certain			note
+هفتا	هفت تا	word	certain			note
+بیستا	بیست تا	word	certain			note
+چنتا	چند تا	word	certain			note
+اوستا	استاد	word	certain			note
+آق	آقا	word	certain			note
+داش	داداش	word	certain			note
+صابخونه	صاحب‌خانه	word	certain			note
+ممد	محمد	word	certain			note
+بلخره	بالاخره	word	certain			note
+پدسوخته	پدرسوخته	word	certain			note
+همونجا	همان جا	word	certain			note
+همونجایی	همان جایی	word	certain			note
+یشنبه	یکشنبه	word	certain			note
+دوشمبه	دوشنبه	word	certain			note
+سشنبه	سه‌شنبه	word	certain			note
+چارشنبه	چهارشنبه	word	certain			note
+چارشمبه	چهارشنبه	word	certain			note
+پنشنبه	پنج‌شنبه	word	certain			note
+پنجشمبه	پنج‌شنبه	word	certain			note
+جمه	جمعه	word	certain			note
+اون	او	word	certain		اون is also او (he, she)	note
+وختی	وقتی	word	certain			note
+چشه	چه	word	certain		چشه is چه + ش + است: what is wrong with it?	note
+ب	به	word	needs=spoken,show=spoken		a one-letter word of chats: به	note
+ک	که	word	needs=spoken,show=spoken		a one-letter word of chats: که	note
+ن	نه	word	needs=spoken,show=spoken		a one-letter word of chats: نه	note
+ی	یک	word	needs=spoken,show=spoken		a one-letter word of chats: یک	note
+ت	تو	word	needs=spoken,show=spoken		a one-letter word of chats: تو	note
+د	دو	word	needs=spoken,show=spoken		a one-letter word of chats: دو	note
+م	من	word	needs=spoken,show=spoken		a one-letter word of chats: من	note
+س	سلام	word	needs=spoken,show=spoken		a one-letter word of chats: سلام	note
+بسم	بس	word	needs=spoken		بسم is بس + م: it is enough for me (بس است برایم)	note

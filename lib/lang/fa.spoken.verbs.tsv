@@ -1,0 +1,104 @@
+# fa.spoken.verbs.tsv -- the stems of the verbs the spoken pass (lib/spokenverb.py) can take apart.
+#
+# One row per verb.  Tab-separated, UTF-8, `#` starts a comment, the first row is the header.
+#   infinitive   the formal infinitive
+#   past         the formal past stem (the infinitive without its nun)
+#   present      the formal present stem
+#   spoken_present   the spoken present stems that differ from it, `|` between them (گ for گوی, ر for رو, ا and یا for آی)
+#   spoken_past      the spoken past stems that differ (اومد for آمد, خوند for خواند)
+#   formal       what the formal tables do their own way, `;` between: subj= the subjunctive's stem with its ب-, neg= the negative
+#                present's, neg_past= the negative past's, imp= the imperative singular, negimp= the negative imperative singular
+#   flags        bare (a present with no می-: داره), pre=<a preverb the stems stand behind: بر>, spoken_imp=<a spoken imperative
+#                singular that is a word of its own: وایسا, for the formal بایست>, mi_stem=<a present stem with its می- written in: وایمیس>
+#   src          note | hazm (iverbs.dat of Hazm, MIT: see fa.spoken.HAZM-LICENSE.txt) | note+hazm
+#
+# What is NOT here is made by rule from these (spokenverb.py): the spoken endings -e -in -an for -ad -id -and, the prefixes می- نمی- ب- ن-
+# and the glide a prefix takes before a vowel, a bare imperative without ب, the ā → u of a stem that ends in -ān or -ānd (the causatives:
+# رسون رسوند), and the loss of the t of -st before an ending (خواسم).  A form counts only if the formal form it makes is in the dictionary.
+#
+infinitive	past	present	spoken_present	spoken_past	formal	flags	src
+کردن	کرد	کن					note+hazm
+رفتن	رفت	رو	ر				note+hazm
+گفتن	گفت	گوی	گ|گو		imp=بگو;negimp=نگو		note+hazm
+شدن	شد	شو	ش				note+hazm
+دادن	داد	ده	د				note+hazm
+آمدن	آمد	آی	ا|یا|آ	اومد	subj=بیای;neg=نیای;neg_past=نیامد;imp=بیا;negimp=نیا		note+hazm
+خواستن	خواست	خواه	خوا|خا|خاه				note+hazm
+توانستن	توانست	توان	تون	تونست			note+hazm
+دانستن	دانست	دان	دون	دونست			note+hazm
+خواندن	خواند	خوان	خون	خوند			note+hazm
+ماندن	ماند	مان	مون	موند			note+hazm
+نشستن	نشست	نشین	شین|نشین	نشست			note
+گذاشتن	گذاشت	گذار	ذار|زار|گذار	ذاشت|زاشت|گذاشت			note+hazm
+آوردن	آورد	آور	ار|آر|اور	اورد|آورد	subj=بیاور;neg=نیاور;neg_past=نیاورد		note+hazm
+افتادن	افتاد	افت	فت|وفت|افت	فتاد|وفتاد|افتاد	subj=بیفت;neg=نیفت;neg_past=نیفتاد		note
+ایستادن	ایستاد	ایست	وایس|ایست	وایساد|ایستاد	subj=بایست;neg=نایست;neg_past=نایستاد;imp=بایست	spoken_imp=وایسا,mi_stem=وایمیس	note
+انداختن	انداخت	انداز	نداز|انداز	نداخت|انداخت	subj=بینداز;neg=نینداز;neg_past=نینداخت;imp=بینداز		note
+شنیدن	شنید	شنو	شنف|شنو	شنفت|شنید			note
+دیدن	دید	بین			subj=ببین		note
+زدن	زد	زن					note
+خوردن	خورد	خور					note
+داشتن	داشت	دار				bare	note+hazm
+بودن	بود	باش					note+hazm
+شستن	شست	شوی	شور|شوی				note
+فهمیدن	فهمید	فهم					note
+خریدن	خرید	خر					note+hazm
+کشیدن	کشید	کش					note+hazm
+پرسیدن	پرسید	پرس					note+hazm
+خوابیدن	خوابید	خواب	خاب	خاب			note+hazm
+گرفتن	گرفت	گیر					note
+پوشیدن	پوشید	پوش					note
+نوشتن	نوشت	نویس					note
+بردن	برد	بر					note
+ساختن	ساخت	ساز					note
+رسیدن	رسید	رس					note
+پختن	پخت	پز					note
+بخشیدن	بخشید	بخش					note
+گردیدن	گردید	گرد					note
+برداشتن	داشت	دار				pre=بر	note
+برگشتن	گشت	گرد				pre=بر	note
+گزاردن	گزارد	گزار	زار				hazm
+جویدن	جوید	جو					hazm
+نشاندن	نشاند	نشان	نشون				hazm
+گذراندن	گذراند	گذران	گذرون				hazm
+رساندن	رساند	رسان	رسون				hazm
+فهماندن	فهماند	فهمان	فهمون				hazm
+ترکاندن	ترکاند	ترکان	ترکون				hazm
+شکاندن	شکاند	شکان	شکون				hazm
+ترساندن	ترساند	ترسان	ترسون				hazm
+خشکاندن	خشکاند	خشکان	خشکون				hazm
+خوراندن	خوراند	خوران	خورون				hazm
+دواندن	دواند	دوان	دوون				hazm
+رقصاندن	رقصاند	رقصان	رقصون				hazm
+لرزاندن	لرزاند	لرزان	لرزون				hazm
+لغزاندن	لغزاند	لغزان	لغزون				hazm
+نوشاندن	نوشاند	نوشان	نوشون				hazm
+پزاندن	پزاند	پزان	پزون				hazm
+پوشاندن	پوشاند	پوشان	پوشون				hazm
+پیچاندن	پیچاند	پیچان	پیچون				hazm
+چشاندن	چشاند	چشان	چشون				hazm
+کشاندن	کشاند	کشان	کشون				hazm
+گرداندن	گرداند	گردان	گردون				hazm
+مالاندن	مالاند	مالان	مالون				hazm
+ستاندن	ستاند	ستان	ستون				hazm
+پاشاندن	پاشاند	پاشان	پاشون				hazm
+پروراندن	پروراند	پروران	پرورون				hazm
+چرخاندن	چرخاند	چرخان	چرخون				hazm
+چسباندن	چسباند	چسبان	چسبون				hazm
+کوباندن	کوباند	کوبان	کوبون				hazm
+گریاندن	گریاند	گریان	گریون				hazm
+باوراندن	باوراند	باوران	باورون				hazm
+پذیراندن	پذیراند	پذیران	پذیرون				hazm
+پوکاندن	پوکاند	پوکان	پوکون				hazm
+پیونداندن	پیونداند	پیوندان	پیوندون				hazm
+تاراندن	تاراند	تااران	تارون				hazm
+تکاندن	تکاند	تکان	تکون				hazm
+چزاندن	چزاند	چزان	چزون				hazm
+خنداندن	خنداند	خندان	خندون				hazm
+قبولاندن	قبولاند	قبولان	قبولون				hazm
+گستراندن	گستراند	گستران	گسترون				hazm
+گسیلاندن	گسیلاند	گسیلان	گسیلون				hazm
+براندن	براند	بران	برون				hazm
+جوشاندن	جوشاند	جوشان	جوشون				hazm
+خواباندن	خواباند	خوابان	خوابون				hazm
+دوزاندن	دوزاند	دوزان	دوزون				hazm

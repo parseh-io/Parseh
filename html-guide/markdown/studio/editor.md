@@ -254,6 +254,58 @@ scrolls the other to the matching place — measured anew on every redraw
 and whenever the window changes size. You scroll the source, and the
 preview shows what you are looking at.
 
+## Double-click to land on the text {#double-click}
+
+Double-click a word of the preview and the source box takes the cursor there: the
+word is selected in your Markdown, the box scrolls to it, and the keyboard is in
+it, as it is in a LaTeX editor with a preview beside it. It finds *that* word,
+not the first like it: a word that stands three times in a paragraph is
+found at the place you clicked.
+
+Some of what the page shows is not in your text — a section's number, an
+exercise's heading. A word the block does not hold lands on the block's first
+line; a word of the title takes you to the front matter; a word that is
+nowhere in your text is told so (*That part of the page is not made from your
+text*). A double-click on a button or a link is still a click on it, and nothing
+more.
+
+## The preview in its own tab {#own-tab}
+
+The half-page preview shows the document in half the window's width, and the
+source has the other half. Turn **Preview in its own tab** on — in the gear's
+**Editor** group, or with **Own tab ↗** over the preview — and the source takes
+the whole window while the preview is drawn in **another tab of the browser**, as
+the finished page: the same page as the document's, at its own width, with its
+contents and its exercises you can answer.
+
+![The preview in its own tab: the finished page of the document, and above it a strip that says it is drawn from the editor tab](shots/own-tab.png)
+
+- **It follows what you type.** The other tab is drawn from the text in the
+  editor, unsaved changes included, a third of a second after you stop typing,
+  and stays at the place you were reading. A line at its top says when it was last
+  drawn. **Follow the editor** there moves it to the block your cursor is in;
+  turn it off to read on while you type elsewhere.
+- **Double-click lands on the text there too.** A double-click in the other tab
+  selects the word in the editor's tab and says where it landed; a browser does
+  not let one tab bring another to the front, so the editor's tab title reads
+  *↩ line 24 · …* for a few seconds and **Editor ↗** over the page takes you there where the browser allows it, and
+  says where to look where it does not.
+- **Nothing there acts on the saved text.** Build, the PDF's options, **Edit**
+  and the rest of the document page's buttons are away: the tab is for reading
+  the draft.
+- **It says when it is alone.** With the editor closed it says so and shows the
+  text as it was left; opened by itself it shows the saved document and offers
+  **Open the editor ↗**.
+- **It is remembered on this device**, not in the document. **Show the preview
+  here again** puts the half page back; the gear's **Open the preview tab** opens
+  the tab again, or brings it forward if it is open, when you closed it.
+
+A document that has not been saved yet has no page of its own to draw in another
+tab: **Save** it first, and the switch is there.
+
+If the browser does not open the tab, it has blocked the pop-up: allow pop-ups
+for Parseh's address and press the button again.
+
 ## The rest of the bar
 
 **Image**, **Images…**, **Audio**, **Recordings…** and **Video** are for

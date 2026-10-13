@@ -18,6 +18,25 @@ def form(text):
                    if unicodedata.category(c)[0] in "LNM")
 
 
+def spoken_of(s):
+    """What the review's card needs of a hit the spoken pass made (lib/spoken.py), cut to size: the word it was read as and why,
+    its pieces and its other readings, its sound."""
+    def text(v, n=200):
+        return str(v or "")[:n]
+    out = {"kind": text(s.get("kind"), 20), "as": text(s.get("as")), "why": text(s.get("why"), 300),
+           "sound": text(s.get("sound"), 80), "sound_kind": text(s.get("sound_kind"), 20)}
+    if s.get("same"):
+        out["same"] = True
+    if s.get("parts"):
+        out["parts"] = [text(p, 80) for p in s["parts"][:6]]
+    if s.get("pieces"):
+        out["pieces"] = [{"text": text(p.get("text"), 40), "role": text(p.get("role"), 40), "note": text(p.get("note"), 300)}
+                         for p in s["pieces"][:4] if isinstance(p, dict)]
+    if s.get("readings"):
+        out["readings"] = [{"as": text(r.get("as")), "why": text(r.get("why"), 300)} for r in s["readings"][:4] if isinstance(r, dict)]
+    return out
+
+
 class Resolver:
     def __init__(self, language):
         self.language = language
@@ -32,16 +51,18 @@ class Resolver:
                 self.cache.move_to_end(text)
                 return self.cache[text]
         try:
-            raw = lookup.look_up(self.language, text)
+            # a transcript is speech: the dictionary reads a word that way where it can (lib/spoken.py), and says so on the hit
+            raw = lookup.look_up(self.language, text, register="spoken")
             if raw is None:
                 result = {"state": "unavailable", "words": []}
             else:
                 rows = []
                 for row in raw["words"][:24]:
-                    hits = [{"headword": str(h.get("headword", ""))[:200],
-                             "pos": str(h.get("pos", ""))[:80],
-                             "note": str(h.get("note", ""))[:200],
-                             "senses": [str(s)[:300] for s in h.get("senses", [])[:3] if str(s).strip()]}
+                    hits = [dict({"headword": str(h.get("headword", ""))[:200],
+                                  "pos": str(h.get("pos", ""))[:80],
+                                  "note": str(h.get("note", ""))[:200],
+                                  "senses": [str(s)[:300] for s in h.get("senses", [])[:3] if str(s).strip()]},
+                                 **({"spoken": spoken_of(h["spoken"])} if h.get("spoken") else {}))
                             for h in row.get("hits", [])[:4]]
                     rows.append({"word": row["word"][:400], "hits": hits,
                                  "tried": [str(t)[:200] for t in row.get("tried", [])[:6]]})

@@ -128,8 +128,12 @@ class PersianCopulaLookUpTests(unittest.TestCase):
                 row = self.row(word)
                 self.assertEqual([h["headword"] for h in row["hits"]], ["کوچیک"])
                 self.assertEqual(row["word"], word)
-                self.assertEqual(row["kind"], "affix")
-                self.assertIn("colloquial copula -e", row["via"])
+                # the spoken pass (lib/spokenpeel.py) now says what the old rule only did: it is spoken, and the ending is named
+                self.assertEqual(row["kind"], "spoken")
+                self.assertIn("copula", row["via"])
+                spoken = row["hits"][0]["spoken"]
+                self.assertEqual(spoken["as"], "کوچیک است")
+                self.assertEqual([p["role"] for p in spoken["pieces"]], ["copula"])
         self.assertEqual(self.row("کتابه")["hits"][0]["headword"], "کتاب")
 
     def test_direct_entry_still_wins(self):
@@ -181,11 +185,16 @@ class PersianCopulaLookUpTests(unittest.TestCase):
 
     def test_nominal_guards_and_order_are_not_bypassed(self):
         for word in ("دیده", "دیدین", "دیدن", "نامه", "درن", "نکوچیکین", "نکوچیکن",
-                     "کوچیکهتر", "کوچیکهه", "کتابمونهاه", "کتابا", "زززززین"):
+                     "کوچیکهتر", "کوچیکهه", "کتابمونهاه", "زززززین"):
             with self.subTest(word=word):
                 self.assertEqual(self.row(word)["hits"], [])
         for word in ("دیده", "درن", "کتابا"):
             self.assertFalse(lookup._is_word(lookup._conn("fa"), word, languages.get("fa")))
+        # a bare -ā is no rule's guess (the routes above still find nothing).  The spoken table (lib/spoken.py) holds
+        # کتابا as a pair of its own, and then says so: the hit is marked as spoken, never taken for an entry
+        hits = self.row("کتابا")["hits"]
+        self.assertEqual([h["headword"] for h in hits], ["کتاب"])
+        self.assertTrue(all(h.get("spoken") for h in hits))
 
     def test_spoken_verbs_require_an_attested_full_verb_form(self):
         for word in ("میپره", "میپرن", "میپرین", "نمیپره", "نمیپرن", "نمیپرین"):

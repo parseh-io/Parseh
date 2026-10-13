@@ -93,6 +93,13 @@
     </span>
   </div>
 </header>
+<!-- THE PREVIEW IN ITS OWN TAB (static/live.js, editor.js): shown only while the half page is given to the text -->
+<div class="livebar editor-livebar" id="editor-livebar" hidden>
+  <span class="live-pill">preview in its own tab</span>
+  <span class="live-say" id="editor-live-say" role="status" aria-live="polite"></span>
+  <button class="btn" id="editor-live-open" type="button" title="Open the preview in its own tab, or bring it forward if it is open">Open the preview tab ↗</button>
+  <button class="btn ghost" id="editor-live-here" type="button" title="Put the preview back beside the text">Show the preview here again</button>
+</div>
 <div class="split">
   <div class="editor-pane">
     <textarea id="src" spellcheck="false" wrap="soft">{{MARKDOWN}}</textarea>
@@ -101,6 +108,7 @@
     <div class="preview-head">
       <span>Live preview</span>
       <span id="pv-status" class="pv-status"></span>
+      <button class="btn ghost pv-own-tab" id="pv-own-tab" type="button" hidden title="Put the preview in its own tab of the browser, drawn as the finished page, and give this whole window to the text. Double-click anything in the preview to land on its text.">Own tab ↗</button>
     </div>
     <div class="preview-scroll">
       <!-- the prose language until the first preview answers with the
@@ -128,6 +136,8 @@
 <!-- THE EDITOR (TO-DO §4.8): the exercise form, and the edit page itself,
      which only this page carries.  After app.js: they read its top-level names. -->
 <script src="{{STUDIO}}/static/exform.js"></script>
+<!-- the double-click that lands on the text, and the preview in its own tab: before the editor, which uses it -->
+<script src="{{STUDIO}}/static/live.js"></script>
 <script src="{{STUDIO}}/static/editor.js"></script>
 <!-- the gear's rows, after the scripts that hold what they move -->
 <script src="{{STUDIO}}/static/gear.js"></script>

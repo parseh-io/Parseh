@@ -62,6 +62,7 @@ const FILES = {
   'gear-deck':         'getting-started/shots/gear-deck.png',
   // the hub
   'editor':            'studio/shots/editor.png',
+  'own-tab':           'studio/shots/own-tab.png',                       // the preview in a tab of its own: the finished page and its strip
   'study-gif':         'exercises/shots/study.gif',                      // a card turned over, rated, and the next
   // Settings -> Reading help, with a shelf of dictionaries, sentences and models (a hub of its own, see READING_HELP)
   'reading-help':      'lookup-and-languages/shots/reading-help.png',    // the top: the space, a Persian card with everything, a Japanese one with less
@@ -489,6 +490,22 @@ const PICS = {
     await page.evaluate(() => document.fonts.ready);
     await sleep(700);
     await save(page, 'editor');
+    await ctx.close();
+  },
+  async 'own-tab'() {
+    const ctx = await context(DESK(1280));
+    const page = await newPage(ctx, {width: 1280, height: 640});
+    await page.goto(`${B}/studio/doc/${lessonId}/edit`, {waitUntil: 'load'});
+    await page.waitForSelector('#sheet .exercise, #sheet h1', {timeout: 15000});
+    const opened = ctx.waitForEvent('page');
+    await page.click('#pv-own-tab');
+    const live = await opened;
+    await live.waitForURL(/live=1/, {timeout: 15000});
+    await live.setViewportSize({width: 1280, height: 640});
+    await live.waitForFunction(() => /From the editor/.test(document.querySelector('#live-say').textContent), null, {timeout: 15000});
+    await live.evaluate(() => document.fonts.ready);
+    await sleep(700);
+    await save(live, 'own-tab');
     await ctx.close();
   },
   async 'gear-deck'() {

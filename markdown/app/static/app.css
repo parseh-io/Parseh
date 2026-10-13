@@ -495,7 +495,43 @@ body.links-open .linkspane { transform: none; visibility: visible; }
 }
 .pv-status { font-size: .78rem; color: var(--chrome-mut); }
 .pv-status.err { color: var(--danger); }
+.preview-head { gap: .6rem; }
+.preview-head .pv-status { margin-inline-start: auto; }
+.pv-own-tab { font-size: .72rem; padding: .12rem .5rem; }
 .preview-scroll { overflow-y: auto; flex: 1; }
+
+/* THE PREVIEW IN ITS OWN TAB (static/live.js, static/editor.js).  A strip saying so, on the editor
+   and on the page that is its preview; the editor's gives the half page to the text. */
+.livebar {
+  display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
+  padding: .35rem .9rem; font-size: .82rem; color: var(--chrome-mut);
+  background: var(--chrome-panel); border-bottom: 1px solid var(--chrome-line);
+}
+.livebar[hidden] { display: none; }
+.live-pill {
+  white-space: nowrap; font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; border-radius: 99px;
+  padding: .08rem .55rem; background: var(--accent); color: var(--accent-fg);
+}
+.live-say { flex: 1; min-width: 12rem; }
+.live-follow { display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; white-space: nowrap; }
+.editor-livebar { height: 2.4rem; box-sizing: border-box; flex-wrap: nowrap; overflow: hidden; }
+.editor-livebar .live-say { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editor-livebar:not([hidden]) + .split { height: calc(100vh - 3.05rem - 2.4rem); }
+.split.own-tab { grid-template-columns: minmax(0, 1fr); }
+.split.own-tab .preview-pane { display: none; }
+.split.own-tab .editor-pane { border-right: 0; }
+/* narrow: the strip wraps instead of cutting its buttons off, and the text takes the one row there is */
+@media (max-width: 900px) {
+  .editor-livebar { height: auto; flex-wrap: wrap; overflow: visible; }
+  .editor-livebar .live-say { white-space: normal; min-width: 10rem; }
+  .editor-livebar:not([hidden]) + .split { height: calc(100vh - 3.05rem); }
+  .split.own-tab { grid-template-rows: minmax(0, 1fr); }
+}
+/* the page that is a preview: what acts on the SAVED document is not here, since what is on the page is not that */
+body[data-live="1"] #btn-build, body[data-live="1"] #pdf-options, body[data-live="1"] #btn-pdf-toggle,
+body[data-live="1"] #btn-add-all, body[data-live="1"] .metabar, body[data-live="1"] .topbar-actions > .dropdown,
+body[data-live="1"] .topbar-actions > a.btn[href$="/edit"], body[data-live="1"] #btn-backlinks,
+body[data-live="1"] #btn-stop { display: none; }
 .preview-scroll .sheet { margin: 1rem auto 3rem; }
 /* A group of insert buttons wraps among themselves at every width.  The bar's
    buttons sit in .topbar-actions, which a flex row cannot narrow below its

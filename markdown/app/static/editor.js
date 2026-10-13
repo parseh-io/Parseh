@@ -331,6 +331,7 @@ function initEdit() {
   }
 
   async function preview() {
+    liveSend();           // the preview in its own tab, if there is one (below)
     try {
       const data = await api("/api/preview",
                              {method: "POST",
@@ -614,6 +615,139 @@ function initEdit() {
     subscribe: fn => { dirSubs.add(fn); return () => dirSubs.delete(fn); },
   };
   applyEditorDir();
+
+  /* ---- the double-click, and the preview in its own tab (a0.5.1) ---------
+     static/live.js says what both are and what the two tabs say to each other; this is the
+     editor's half, the half that has the textarea.
+
+     DOUBLE-CLICK THE PREVIEW (the half page here, or the page in the other tab) and the
+     source selects the word that drew what was clicked, and scrolls to it.  A tab cannot
+     bring another to the front, so the page says where it landed (and the preview tab tries,
+     by this window's name, to switch to this one).
+
+     THE PREVIEW IN ITS OWN TAB is optional and off.  On, this page gives the half to the text and
+     the reading page of the document (`/doc/<id>?live=1`) is drawn in another tab from the buffer
+     as it is typed.  The switch is the gear's ("Preview in its own tab") or the button over the
+     preview, and is remembered on this device. */
+  const LIVE = window.StudioLive;
+  const liveOk = !!(LIVE && LIVE.supported && DOC_ID);
+  const OWN_KEY = "parseh_editor_preview_tab";
+  const split = $(".split"), liveBar = $("#editor-livebar"), liveSay = $("#editor-live-say");
+  const liveSubs = new Set();
+  const titleWas = document.title;
+  let ownTab = false, lastPreview = 0, seq = 0, lastCaret = -1, titleTimer = null;
+  try { ownTab = liveOk && localStorage.getItem(OWN_KEY) === "1"; } catch (e) { /* private mode */ }
+  const channel = liveOk ? new BroadcastChannel(LIVE.CHANNEL) : null;
+  // who sent it is in every message (see live.js): another editor of the document, or a preview tab, is not this one's preview
+  const post = m => channel.postMessage(Object.assign({from: "editor"}, m));
+  const previewIsOpen = () => Date.now() - lastPreview < 10000;
+  const caretLine = () => src.value.slice(0, src.selectionStart).split("\n").length - 1;
+
+  function liveSend() {
+    if (channel && previewIsOpen())
+      post({t: "text", seq: ++seq, markdown: src.value, line: caretLine()});
+  }
+  function paintLive() {
+    if (split) split.classList.toggle("own-tab", ownTab);
+    if (liveBar) liveBar.hidden = !ownTab;
+    if (liveSay) {
+      liveSay.textContent = previewIsOpen()
+        ? "The preview tab is open and follows what you type. Double-click its text to land here."
+        : "The preview tab is not open.";
+      liveSay.title = previewIsOpen() ? "It is drawn from what is in this box, unsaved changes included." : "";
+    }
+    const here = $("#pv-own-tab");
+    if (here) here.hidden = !liveOk;
+    setTimeout(alignPanes, 0);
+    liveSubs.forEach(fn => { try { fn(); } catch (e) { /* the listener's own fault */ } });
+  }
+  function openPreviewTab() {
+    if (!liveOk) return;
+    let w = null;
+    try { w = window.open("", LIVE.PREVIEW_WINDOW); } catch (e) { /* blocked */ }
+    if (!w) { toast("The browser did not open the preview tab. Allow pop-ups for this page, then press the button again.", true); return; }
+    let fresh = false;
+    try { fresh = w.location.href === "about:blank"; } catch (e) { /* another origin: not ours */ }
+    if (fresh) w.location.href = BASE + "/doc/" + DOC_ID + "?live=1";
+    else { try { w.focus(); } catch (e) { /* the browser will not */ } }
+  }
+  function setOwnTab(on, open) {
+    ownTab = !!on && liveOk;
+    try { localStorage.setItem(OWN_KEY, ownTab ? "1" : "0"); } catch (e) { /* private mode */ }
+    if (ownTab && open) openPreviewTab();       // a press is the gesture a browser wants for a new tab
+    paintLive();
+  }
+
+  /* WHERE A DOUBLE-CLICK LANDS: the source's own selection and scroll.  `measureRows` is the alignment's
+     (rows a source line takes, wrapped); the line is put just above the middle of the box. */
+  function scrollSourceTo(line) {
+    const rows = measureRows();
+    const lh = alignState.lh || parseFloat(getComputedStyle(src).lineHeight) || alignState.fontPx * 1.5;
+    const off = alignState.off !== null ? alignState.off : (parseFloat(getComputedStyle(src).paddingTop) || 0);
+    src.scrollTop = Math.max(0, off + rows[Math.max(0, Math.min(line, rows.length - 2))] * lh - src.clientHeight * 0.35);
+  }
+  function jumpTo(req, fromOtherTab) {
+    const hit = LIVE ? LIVE.locate(src.value, req) : null;
+    if (!hit) { toast("That part of the page is not made from your text."); return false; }
+    src.focus({preventScroll: true});
+    src.setSelectionRange(hit.start, hit.end);
+    scrollSourceTo(hit.line);
+    lastCaret = hit.line;
+    if (fromOtherTab) {
+      toast("Landed on " + (hit.exact ? "“" + src.value.slice(hit.start, hit.end) + "”" : "the line") + ", line " + (hit.line + 1));
+      document.title = "↩ line " + (hit.line + 1) + " · " + titleWas;
+      clearTimeout(titleTimer);
+      titleTimer = setTimeout(() => { document.title = titleWas; }, 6000);
+    }
+    return true;
+  }
+  const isControl = e => e.target.closest && e.target.closest("button, input, select, textarea, a, audio, video, summary, [contenteditable]");
+  if (LIVE) sheet.addEventListener("dblclick", e => {
+    if (isControl(e)) return;
+    const req = LIVE.jumpRequest(sheet, e);
+    if (typeof req.line !== "number" && !req.word) return;
+    jumpTo(req, false);
+  });
+
+  if (channel) {
+    window.name = LIVE.EDITOR_WINDOW;           // so that the preview can bring this tab forward
+    channel.onmessage = e => {
+      const m = e.data || {};
+      if (m.from !== "preview") return;
+      if (m.t === "hello" || m.t === "alive") {
+        const was = previewIsOpen();
+        lastPreview = Date.now();
+        if (m.t === "hello") liveSend();
+        if (!was) paintLive();
+      } else if (m.t === "bye") {
+        lastPreview = 0;
+        paintLive();
+      } else if (m.t === "jump") {
+        lastPreview = Date.now();
+        jumpTo(m, true);
+      }
+    };
+    const caretMoved = () => {
+      const line = caretLine();
+      if (line !== lastCaret) { lastCaret = line; if (previewIsOpen()) post({t: "caret", line}); }
+    };
+    ["keyup", "mouseup", "focus"].forEach(type => src.addEventListener(type, caretMoved));
+    setInterval(() => { post({t: "alive"}); paintLive(); }, 3000);
+    window.addEventListener("pagehide", () => post({t: "bye"}));
+    post({t: "hello-editor"});   // a preview tab that is already open asks for the text
+  }
+  const bind = (id, fn) => { const b = $(id); if (b) b.addEventListener("click", fn); };
+  bind("#pv-own-tab", () => setOwnTab(true, true));
+  bind("#editor-live-open", openPreviewTab);
+  bind("#editor-live-here", () => setOwnTab(false));
+  window.ParsehStudioLive = {
+    available: liveOk,
+    isOwnTab: () => ownTab,
+    set: on => setOwnTab(!!on, !!on),
+    open: openPreviewTab,
+    subscribe: fn => { liveSubs.add(fn); return () => liveSubs.delete(fn); },
+  };
+  paintLive();
 
   /* ---- undo / redo -----------------------------------------------------
      An own stack: programmatic edits (paste-answer, image insert, colour

@@ -1445,7 +1445,7 @@ def _routed(w):
     is the word, and its row's sound is its own.  (lookup's `via` is never
     empty -- a word found as itself says `as written` -- so it is the route's
     kind that tells.)"""
-    return w.get("kind") == "affix" or (w.get("via") or "").startswith("under ")
+    return w.get("kind") in ("affix", "spoken") or (w.get("via") or "").startswith("under ")
 
 
 def attach(result, code, text="", gloss="en", sentence=""):

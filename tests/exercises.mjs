@@ -1278,7 +1278,7 @@ print(json.dumps({'errors':b['errors'],'raw':b['raw_fields'],'card':h[h.index('<
   const docMeta={id:'browser-doc-abc123',uid:'0123456789ab',title:'Browser exercises',tags:[],
     created:'2026-09-01T10:00:00',updated:'2026-09-01T10:00:00',build:{status:'none'}};
   let docHtml=await Deno.readTextFile(root+'/markdown/app/templates/doc.html');
-  const docMap={...pageSnippets,BASE:'',STUDIO:'',DECKS_BASE:'/exercises',NOTES_SOURCE:'',DOC_ID:docMeta.id,TITLE:docMeta.title,TARGET:'ar',TARGET_NAME:'Arabic',
+  const docMap={...pageSnippets,BASE:'',STUDIO:'',DECKS_BASE:'/exercises',NOTES_SOURCE:'',LIVE:'',LIVE_SCRIPT:'',DOC_ID:docMeta.id,TITLE:docMeta.title,TARGET:'ar',TARGET_NAME:'Arabic',
     LANG:'en',ARTICLE:docRender.html,TOC:'',BACKLINKS:'',BACKLINKS_N:'0',META_JSON:JSON.stringify(docMeta),LANG_JSON:JSON.stringify(docRender.lang_record),
     LANGS_JSON:JSON.stringify([docRender.lang_record]),
     GLOSSES_JSON:JSON.stringify([{fa:'كتاب',kana:'',translit:'kitāb',tr:'book',guessed:false,lemma:false}])};

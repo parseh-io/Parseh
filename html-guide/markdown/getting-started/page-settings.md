@@ -177,8 +177,10 @@ panel. [The reader](../books/reader.md) lists the header.
 
 The **editor** has **Text**, **Zoom** and **Colours**, and a group of its own,
 **Editor**, with **Write the source right to left** — the direction of the
-source box, for a right-to-left language, remembered for this document. It has
-no phone layout, so no **Interface**.
+source box, for a right-to-left language, remembered for this document —
+**Preview in its own tab**, and **Open the preview tab**
+([the preview in its own tab](../studio/editor.md#own-tab)). It has no phone
+layout, so no **Interface**.
 
 ## An exercise deck's gear
 

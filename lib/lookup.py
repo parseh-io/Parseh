@@ -421,6 +421,13 @@ def rules(code):
         "nominal_endings": ordered plural/degree, possessive and copula
                     suffixes. These expand into whole-suffix rules, restricted
                     to nominal dictionary entries, without increasing MAX_PEEL.
+        "spoken":   the spoken pass (lib/spoken.py): a language whose pages
+                    are written as it is spoken -- Persian's chat, subtitles
+                    and dialogue -- and whose words are read back to the formal
+                    word the dictionary has.  Its tables (a whole-word list
+                    shipped beside this file), its writing-level rules and the
+                    words it says its reasons in are all in this section; a
+                    language without it is looked up as it always was.
     """
     code = languages.get_or_default(code).code
     if code not in _RULES:
@@ -1367,7 +1374,7 @@ def pos_weights(code, word):
     return []
 
 
-def look_up(code, text, pieces=None, authoritative=False):
+def look_up(code, text, pieces=None, authoritative=False, register=None):
     """Look every word of a chunk up.  Returns None when the language has no
     dictionary installed, so a caller can tell "nothing found" from "nothing
     to find with".
@@ -1397,6 +1404,12 @@ def look_up(code, text, pieces=None, authoritative=False):
     one row, in order, a word written twice has its row twice, and each row
     carries `i`, its index in `pieces`, which is how a reader puts it back
     under its word.  Without it nothing here changes.
+
+    `register` is what the page says of the text it is looking up: "spoken"
+    for a video's subtitles, nothing for a book's narration (lib/spoken.py).
+    For a language with spoken rules (Persian) a spoken reading of a word
+    the dictionary knows is offered only where a word of the chunk is
+    certainly spoken or the page says so; it changes nothing for the rest.
     """
     c = _conn(code)
     if c is None:
@@ -1430,16 +1443,40 @@ def look_up(code, text, pieces=None, authoritative=False):
     # the two are one word when together they find what the rule allows
     join = _join_rule(L) if L.spaced and not (pieces or authoritative) else None
     words, seen, also = [], set(), []
+    # THE SPOKEN PASS (lib/spoken.py), for a language that has rules for it and a text of its own words: it reads
+    # two or three words that are one thing, and adds readings to a word the dictionary has not found or knows
+    # only by a guess.  `host` is this module, handed over so that it is the one copy whichever way it was started.
+    spoken, ctx = None, None
+    if L.spaced and not (pieces or authoritative):
+        import spoken as _spoken_module
+        spoken = _spoken_module.rules(sys.modules[__name__], L)
+        if spoken:
+            ctx = spoken.context(sys.modules[__name__], c, L, [w for w, _a in pairs], register)
+    host = sys.modules[__name__]
     i = 0
     while i < len(pairs):
         (raw, alts), initial = pairs[i], starts[i]
+        window = spoken.window(host, c, L, [w for w, _a in pairs], i, ctx) if spoken else None
         joined = (_joined(c, raw, pairs[i + 1][0], L, join)
-                  if join and i + 1 < len(pairs) else None)
-        if joined is not None and joined["hits"]:
+                  if join and i + 1 < len(pairs) and not window else None)
+        if joined is not None and not joined["hits"] and spoken:
+            # می یاد: the two words, written together, may be a spoken verb the old routes do not know
+            whole = _bare(raw, L) + "\u200c" + _bare(pairs[i + 1][0], L)
+            probe = spoken.augment(host, c, L, {"word": whole, "hits": [], "via": "", "tried": [], "kind": ""}, ctx, i)
+            if probe["hits"]:
+                joined = dict(probe, word=joined["word"], tried=joined["tried"])
+        if window:
+            got, i = [window[0]], i + window[1]
+        elif joined is not None and joined["hits"]:
             got, i = [joined], i + 2
+        elif spoken and spoken.noise(raw):
+            got, i = [{"word": raw, "hits": [], "via": "", "tried": [], "kind": ""}], i + 1
         else:
-            got, i = _resolve(c, raw, alts, L, bool(pieces) and not authoritative,
-                              initial), i + 1
+            got, start = _resolve(c, raw, alts, L, bool(pieces) and not authoritative,
+                                  initial), i
+            if spoken:
+                got = [spoken.augment(host, c, L, one, ctx, start) for one in got]
+            i += 1
         if authoritative:
             # one row per piece and never a second cut, so `got` is that
             # row or nothing -- and nothing (`、`, a word of no letters)
@@ -1468,6 +1505,7 @@ def look_up(code, text, pieces=None, authoritative=False):
             break
     _by_use(L.code, words)
     for w in words:
+        w.pop("_rule", None)
         for h in w.get("hits") or []:
             h.pop("_tier", None)
     return {"lang": L.code, "source": about(code) or {}, "words": words}
@@ -1696,13 +1734,16 @@ def _resolve(c, raw, alts, L, from_model, initial=False):
     if not w:
         return []
     hits, tried, via, kind = [], [], "", ""
+    # the rule the answering route took an affix off with: the spoken pass (lib/spoken.py) reads it, to tell a
+    # guess of one letter from an ending the language knows (taken off the answer again by look_up)
+    used = None
     routes = _routes(w, L)
     for n, rt in enumerate(routes):
         tried.append(rt.form)
         found = _route_hits(c, rt.form, rt.rule)
         if not found:
             continue
-        hits, via, kind = found, rt.how, rt.kind
+        hits, via, kind, used = found, rt.how, rt.kind, rt.rule
         later = routes[n + 1:]
         # A CAPITAL THAT OPENS A SENTENCE IS NOT A NAME'S.  `Seppe la
         # verità` answered with the name Seppe alone and never with sapere,
@@ -1727,7 +1768,7 @@ def _resolve(c, raw, alts, L, from_model, initial=False):
                         if h["entry"] not in have and len(more) <= MAX_HITS:
                             h["_tier"] = max(h.get("_tier", 0), T_CASE)
                             more.append(h)
-                    hits, via, kind = more, low.how, low.kind
+                    hits, via, kind, used = more, low.how, low.kind, low.rule
                     break
         # A WORD THAT IS ONLY TWO WORDS WRITTEN AS ONE is taken apart as
         # well, where the language says which pages those are (`also_peel`).
@@ -1769,14 +1810,14 @@ def _resolve(c, raw, alts, L, from_model, initial=False):
                 tried.append(form)
                 found = _route_hits(c, form, rule)
                 if found:
-                    hits, kind = found, k
+                    hits, kind, used = found, k, rule
                     via = ("under %s" % alt if why == "as written"
                            else "under %s (%s)" % (alt, why))
                     break
             if hits:
                 break
     mine = [{"word": raw, "hits": hits, "via": via, "tried": tried,
-             "kind": kind}]
+             "kind": kind, "_rule": used}]
     if hits or not from_model or L.spaced:
         return mine
 

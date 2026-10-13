@@ -40,6 +40,7 @@ its licence, which travels with it.
 | TeX Gyre Pagella, Heros and Chorus | `lib/fonts/`; copied by the studio, and into this guide's pages (Chorus sets no document, only the name Parseh, in the bar of every page of Parseh, in the hub's title, and in the bar of the guide published on the web) | © B. Jackowski, J. M. Nowacki and the TeX users groups | GUST Font License |
 | MathJax 3.2.2 | `lib/mathjax/` | © The MathJax Consortium | Apache License 2.0 |
 | The Italian hyphenation patterns, `hyph-it.tex` | `markdown/exlex/assets/hyph/` | © 2008–2011 Claudio Beccari | LaTeX Project Public License 1.3 or later, or MIT |
+| Hazm's lists of informal Persian words and verbs, as `hazm` rows of the spoken-Persian tables, `fa.spoken.words.tsv` and `fa.spoken.verbs.tsv` | `lib/lang/` | © 2013 Alireza Nourian | MIT |
 | Conjugation rows, and sentences with their machine translations, in the tests' data | `tests/fixtures/verbs/`, `tests/fixtures/align/` | Wiktionary's contributors; Tatoeba's contributors | CC BY-SA 4.0 (Wiktionary); CC BY 2.0 FR (Tatoeba) |
 
 The texts sit beside the files:
@@ -53,6 +54,7 @@ The texts sit beside the files:
   its own metadata. So a font packed into an Anki deck goes with its
   licence.
 - `lib/mathjax/LICENSE` is MathJax's licence.
+- `lib/lang/fa.spoken.HAZM-LICENSE.txt` is Hazm's licence (MIT), with its copyright line, beside the tables it seeded.
 - `hyph-it.tex` says in its own header which licences it is under, and
   carries the MIT text.
 - `tests/fixtures/README.md` says where every text the tests read comes

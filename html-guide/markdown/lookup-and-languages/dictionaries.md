@@ -98,7 +98,8 @@ in order, it gives:
 - up to **three senses**, the likeliest first (below);
 - in grey, **how the word was reached** when it was not found as written —
   *found without the marks and the case* for a vowelled Persian word, or
-  the ending that had to come off first;
+  the ending that had to come off first (a Persian word read as speech says
+  so on its own card instead: [Spoken Persian](#spoken-persian));
 - or, when nothing was found, *not found (tried …)*, naming every form it
   looked for, so that “not in the dictionary” is never confused with
   “never asked”.
@@ -170,6 +171,75 @@ the work is getting from one to the other:
   with the inflection rules consulted as it goes (住んで reaches 住む). That
   cut is greedy and now and then visibly wrong; a wrong entry is easy to
   spot, which is why nothing cleverer is tried silently.
+
+### Spoken Persian
+
+Persian is written as it is said in chats, in subtitles and in the dialogue of
+a novel, and the dictionary has no page for most of that: خونه, میگم,
+اینجوری, دوس دارم, خاهر. For a Persian chunk the panel therefore also **reads a
+word as the formal word it stands for**, and says so. There is nothing to
+install and nothing to switch on, and it never changes the text of a book, a
+video or a transcript: it only adds a way to the dictionary, and it lands only
+on a word the dictionary has.
+
+![The card of the spoken word خونشونه, read as خانه + شان + است: two readings under a header, each tinted, with its pill, the word it was read as, the reason in words, the pieces and the sound](shots/spoken-panel.png)
+
+A card made this way is not an entry, and does not look like one:
+
+- **Tinted, with a dotted edge and a pill that says *spoken*.** A guess cannot
+  be taken for a page of the dictionary. A page the dictionary itself has for a
+  colloquial form is drawn the same way and its pill says *the dictionary's own
+  page*.
+- **The word as written, an arrow, and the word it was read as**: خونه → خانه,
+  with the senses of the formal entry under it.
+- **The reason, in words.** *spoken for خانه (ā said u before a nasal)*. For a
+  word made of several parts the pieces are listed in the order they were read:
+  *خانه + شان + است*.
+- **A piece that has no formal word is named, not dropped.** The emphatic *-ā*
+  of *نریا*, the redundant *-sh* on a verb, the helper of the progressive in
+  *داره میاد*, which is not offered as "to have".
+- **How it is said.** The spoken sound where a rule gives one (*said xune*);
+  where none does, the formal word's, labelled *formal sound*. A spoken sound
+  nobody knew is never made up.
+
+**Where a word can be read two ways, both are shown**, numbered under a header
+that says so, the likelier first: بده is the verb دادن ("let him give") and بد
++ ه ("it is bad"). Where the two readings are the same verb, it is one card with a second
+line: رفتن is the infinitive, and, *also read as رفتند*, "they went". On a page
+that is speech, رفتم is also *رفته‌ام*, because a perfect is said like its
+simple past.
+
+**What comes first** turns on the page. A word the dictionary knows keeps its
+place: خون stays *blood*, first, in a page of formal prose. The video player
+says its captions are speech, and the review of a transcript says so of what it
+reviews; a book says nothing of its narration. On a page that says it is
+speech, or beside a word that only speech writes (*اونا میگن خون بود*), the
+spoken reading is shown as well, and first where the neighbours leave no doubt.
+The one-letter words of chats (ب for به, ک for که, ن for نه) are read only in
+that company: anywhere else a letter is a letter.
+
+**What it reads**, from the plainest to the least sure: the dictionary's own
+colloquial pages; a table of pairs shipped with Parseh (اینجوری, چطوری, ایشون,
+the days of the week, the formulas of chats); the endings and clitics said
+aloud (خوبه, کتابا, خونمون, دیدمش); the verb's spoken stems, endings and
+prefixes (میگم, میاد, نمیدونم, بیگیر), compounds (دوس دارم, نیگا کن) and the
+helpers of the progressive; the sound changes speech writes down (ون for ان,
+the lost *t* of هس and نیس, a ه or ع left out, اوردن for آوردن); words typed
+without spaces; and, last of all, a spelling by ear (مرصی, خاهر, شوما). Each
+step is checked against the dictionary and counts only if it lands on a real
+entry.
+
+**What it cannot do.** It chooses between readings of the same letters by the
+letters and their neighbours and not by the meaning of the sentence, so the
+first reading is only the likelier. A word with no formal twin (a slang word)
+is shown with what the table says it means, and says it has no page. A word bent on
+purpose, a name and a rare word are left as they are. And nobody has measured
+how often a rule reads a word of a language it does not know as one that
+sounds like it; where a card is wrong, the reason on it says how it got there.
+
+Its table of spoken words and verbs is seeded from Hazm's lists of informal
+Persian (MIT licence), which the [licences page](../reference/licences.md)
+credits.
 
 ### English, explained in English
 

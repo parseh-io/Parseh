@@ -1101,7 +1101,31 @@ body.links-open :is(.pz,.modal-overlay) .linkspane{transform: none; visibility: 
   border-bottom: 1px solid var(--chrome-line); background: var(--chrome-panel);}
 :is(.pz,.modal-overlay) .pv-status{font-size: .78rem; color: var(--chrome-mut);}
 :is(.pz,.modal-overlay) .pv-status.err{color: var(--danger);}
+:is(.pz,.modal-overlay) .preview-head{gap: .6rem;}
+:is(.pz,.modal-overlay) .preview-head .pv-status{margin-inline-start: auto;}
+:is(.pz,.modal-overlay) .pv-own-tab{font-size: .72rem; padding: .12rem .5rem;}
 :is(.pz,.modal-overlay) .preview-scroll{overflow-y: auto; flex: 1;}
+:is(.pz,.modal-overlay) .livebar{display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
+  padding: .35rem .9rem; font-size: .82rem; color: var(--chrome-mut);
+  background: var(--chrome-panel); border-bottom: 1px solid var(--chrome-line);}
+:is(.pz,.modal-overlay) .livebar[hidden]{display: none;}
+:is(.pz,.modal-overlay) .live-pill{white-space: nowrap; font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; border-radius: 99px;
+  padding: .08rem .55rem; background: var(--accent); color: var(--accent-fg);}
+:is(.pz,.modal-overlay) .live-say{flex: 1; min-width: 12rem;}
+:is(.pz,.modal-overlay) .live-follow{display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; white-space: nowrap;}
+:is(.pz,.modal-overlay) .editor-livebar{height: 2.4rem; box-sizing: border-box; flex-wrap: nowrap; overflow: hidden;}
+:is(.pz,.modal-overlay) .editor-livebar .live-say{overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
+:is(.pz,.modal-overlay) .editor-livebar:not([hidden]) + .split{height: calc(100vh - 3.05rem - 2.4rem);}
+:is(.pz,.modal-overlay) .split.own-tab{grid-template-columns: minmax(0, 1fr);}
+:is(.pz,.modal-overlay) .split.own-tab .preview-pane{display: none;}
+:is(.pz,.modal-overlay) .split.own-tab .editor-pane{border-right: 0;}
+@media (max-width: 900px){
+:is(.pz,.modal-overlay) .editor-livebar{height: auto; flex-wrap: wrap; overflow: visible;}
+:is(.pz,.modal-overlay) .editor-livebar .live-say{white-space: normal; min-width: 10rem;}
+:is(.pz,.modal-overlay) .editor-livebar:not([hidden]) + .split{height: calc(100vh - 3.05rem);}
+:is(.pz,.modal-overlay) .split.own-tab{grid-template-rows: minmax(0, 1fr);}
+}
+body[data-live="1"] :is(.pz,.modal-overlay) #btn-build,body[data-live="1"] :is(.pz,.modal-overlay) #pdf-options,body[data-live="1"] :is(.pz,.modal-overlay) #btn-pdf-toggle,body[data-live="1"] :is(.pz,.modal-overlay) #btn-add-all,body[data-live="1"] :is(.pz,.modal-overlay) .metabar,body[data-live="1"] :is(.pz,.modal-overlay) .topbar-actions > .dropdown,body[data-live="1"] :is(.pz,.modal-overlay) .topbar-actions > a.btn[href$="/edit"],body[data-live="1"] :is(.pz,.modal-overlay) #btn-backlinks,body[data-live="1"] :is(.pz,.modal-overlay) #btn-stop{display: none;}
 :is(.pz,.modal-overlay) .preview-scroll .sheet{margin: 1rem auto 3rem;}
 :is(.pz,.modal-overlay) .insert-group{display: inline-flex; flex-wrap: wrap; gap: .15rem; margin-right: .3rem;}
 :is(.pz,.modal-overlay) .insert-group .btn{padding: .3rem .45rem;}

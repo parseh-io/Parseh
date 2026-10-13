@@ -277,7 +277,7 @@ try {
       if (kind === 'doc' || kind === 'deck' || kind === 'study' || kind === 'cram')
         eq(await rowsOf(page, 'exercises'), ['translit', 'drag'], `${kind}: Exercises holds the transliterations and the dragging`);
       if (kind === 'doc') eq(await rowsOf(page, 'page'), ['bars'], 'doc: Page holds the bars');
-      if (kind === 'edit') eq(await rowsOf(page, 'editor'), ['dir'], 'edit: the editor group holds the direction of the source');
+      if (kind === 'edit') eq(await rowsOf(page, 'editor'), ['dir', 'tab', 'opentab'], 'edit: the editor group holds the direction of the source and the preview\'s own tab (a switch and a button)');
       eq(await rowsOf(page, 'colours'), ['theme'], `${kind}: Colours`);
       if (kind !== 'edit') eq(await rowsOf(page, 'interface'), ['mode'], `${kind}: Interface`);
       eq(await page.locator('.pg-panel .pg-title').textContent(), 'This page', `${kind}: the panel is "This page"`);

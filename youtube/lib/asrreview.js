@@ -239,7 +239,11 @@
         (row.hits || []).forEach(function (hit) {
           var title = el('p'), head = el('bdi', hit.headword); head.dir = 'auto'; title.appendChild(head);
           if (hit.pos) title.appendChild(document.createTextNode(' · ' + hit.pos)); box.appendChild(title);
-          if (hit.note) box.appendChild(el('p', hit.note, 'fieldnote'));
+          // (a hit the spoken pass read as another word is drawn by lib/parseh.js, as the panels of the readers draw it)
+          var SP = window.Parseh && Parseh.spoken;
+          var said = SP ? SP.note(hit) : hit.note;
+          if (said) box.appendChild(el('p', said, 'fieldnote'));
+          if (SP && hit.spoken) { var block = SP.block(hit, { written: row.word, dir: 'auto' }); if (block) box.appendChild(block); }
           var senses = el('ul'); (hit.senses || []).forEach(function (sense) { var meaning = el('li', sense); meaning.dir = 'auto'; senses.appendChild(meaning); }); box.appendChild(senses);
         });
         if (!row.hits.length && row.tried.length) box.appendChild(el('p', 'Forms checked: ' + row.tried.join(', '), 'fieldnote'));

@@ -169,6 +169,17 @@ def carried():
         "you choose (the file&rsquo;s own header says so, and carries the MIT text): "
         + licence_link("LPPL", "LPPL-1.3") + ", " + licence_link("MIT")))
     out.append(work(
+        "Hazm's list of informal Persian words",
+        "Pairs of a spoken Persian word and its formal word, from Hazm&rsquo;s <code>iwords.dat</code>, and the "
+        "spoken stems of verbs, from its <code>iverbs.dat</code>, checked one by one and written in Parseh&rsquo;s own "
+        "format in <code>lib/lang/fa.spoken.words.tsv</code> and <code>lib/lang/fa.spoken.verbs.tsv</code> "
+        "(the rows whose last column says <code>hazm</code>): they let the dictionary panel read a spoken word "
+        "back to the formal word it is. From <a href=\"https://github.com/roshan-research/hazm\" "
+        "rel=\"noopener\" target=\"_blank\">github.com/roshan-research/hazm</a>.",
+        "&copy; 2013 Alireza Nourian",
+        "MIT licence &mdash; its text, with the copyright line, is <code>lib/lang/fa.spoken.HAZM-LICENSE.txt</code>, "
+        "beside the table: " + licence_link("MIT")))
+    out.append(work(
         "Excerpts in the tests' data",
         "In <code>tests/fixtures/</code>, beside the texts written for the tests: conjugation "
         "rows cut from Wiktionary, and sentences from Tatoeba with their machine translations. "

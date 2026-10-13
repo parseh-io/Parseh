@@ -1,0 +1,7 @@
+{
+ "_comment": "THE DICTIONARY'S OWN colloquial pages (Wiktionary has some: a page that says `colloquial form of X`). The note's rule is that they come before any rule, so a few are here, on purpose few: the engine must reach everything else by rules and tables.",
+ "entries": [
+  ["اینجوری", "adv", "injuri", "colloquial form of این‌طور", "colloquial"],
+  ["کوچیک", "adj", "kuči(k)", "colloquial form of کوچک", "colloquial"]
+ ]
+}

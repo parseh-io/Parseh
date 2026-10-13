@@ -250,5 +250,757 @@
       "surface_only": true, "terminal": true,
       "note": "negative na- taken off and mi- plus ā tried as the dictionary writes it"
     }
-  ]
+  ],
+  "spoken": {
+    "_comment": "THE SPOKEN PASS (lib/spoken.py; the specification is TODOs/NOTE-fa-colloquial-normaliser.md, the design TODOs/DESIGN-fa-colloquial-normaliser.md). Written Persian of speech, chat and subtitles, read back to the formal word the dictionary has. EVERYTHING HERE ONLY ADDS LOOKUP ROUTES: a word the dictionary knows keeps its answer, a rule's result counts only where it lands on a real entry (or on a table row the file names), and what the pass found is marked `spoken` on the hit, with the reason in words, so that nobody takes a guess for an entry. Layers 1 and 2 of the note's section 12 live in this section: the writing level and the whole-word tables.",
+    "tables": ["fa.spoken.words.tsv"],
+    "text": {
+      "via": "by reading it as spoken Persian: {why}",
+      "table": "spoken for {formal}",
+      "entry": "the dictionary's own page for the colloquial form of {formal}",
+      "clean": "written with {what}",
+      "clean_ezafe": "ۀ is ه with the ezafe written on it",
+      "tanwin_mark": "the tanwin ـاً on {base}, a word that does not take it in Persian",
+      "tanwin_n": "ـاً written as ن, the way it is said",
+      "lengthened": "a letter held long for emphasis",
+      "glued": "{parts} written together",
+      "joined": "{parts} written apart, one word: {formal}",
+      "swap": "{what} written for {formal}",
+      "manner": "spoken ـجوری / ـطوری: {formal}",
+      "digits": "figures standing for the number in words: {formal}",
+      "hashtag": "a hashtag: its words are joined by an underscore",
+      "compound": "spoken first part of the compound verb {formal}",
+      "loan": "{formal} with a light verb",
+      "echo": "the echo word {echo}: said after a word to mean `and such`",
+      "twice": "a word said twice for emphasis or repetition",
+      "formula": "a fixed expression, said as a whole",
+      "standalone": "a colloquial word the dictionary does not have",
+      "trap": "also read as {formal}",
+      "emphatic": "-ā on the end of a verb, for emphasis: it has no formal word",
+      "vocative": "-yā: calls out to someone (O …!): it has no formal word",
+      "affection": "-jun: an affectionate ending on a name or a title: it has no formal word",
+      "hem": "the enclitic -m is هم (too, also)",
+      "hem_be": "or the copula: {base} هستم (I am)",
+      "hem_my": "or the possessive: {base}م (my)",
+      "object": "-o is the object marker را",
+      "and": "-o is و (and)",
+      "pish": "a pish on the last letter alone is the object marker -o",
+      "zir": "a zir on the last letter alone is the copula (is)",
+      "copula": "spoken -{ending} for {formal}: the copula",
+      "vending": "spoken -{ending} for -{formal}: the personal ending",
+      "clitic_spoken": "spoken -{ending} for -{formal}",
+      "clitic_bare": "-{ending} written straight on a word that ends in a vowel (the formal one has {buffer} between)",
+      "clitic_host": "-{ending} on {host}: formally it is {formal}",
+      "redundant": "-sh said again on a verb that already has its subject: it has no formal word",
+      "clitic_double": "a clitic that repeats the object already named",
+      "definite": "-e: the definite ({formal} = that one)",
+      "ezafe": "-e written for the ezafe (ـِ)",
+      "plural": "spoken -ā for the plural -hā",
+      "indefinite": "-ā-yi: the plural -hā with the indefinite or relative -i",
+      "affective": "-i: an affectionate ending: it has no formal word",
+      "manner_ki": "-ki: in the manner of …: it has no formal word",
+      "restored": "the final -e of {stem} is not written before a clitic",
+      "spaced": "{parts} written apart: one word",
+      "copula_after_clitic": "the copula written straight on a clitic ({formal}): formally it stands apart",
+      "manner_how": "چطوری can also be چطور + the copula: how are you?",
+      "psych": "a feeling or a state said with a clitic: {stem} + the one it is felt by, and {with}",
+      "plural_contracted": "-{ending} after a word that ends in -e can be the plural and the clitic said together (بچه‌ام = بچه‌هایم)",
+      "formal_reading": "the formal reading of the same letters",
+      "clitic_compound": "a clitic on the first part of a compound verb ({stem} + {ending}): it is the verb's object",
+      "verb_stem": "the spoken stem {spoken} for {formal}",
+      "verb_ending": "-{spoken} for -{formal}",
+      "verb_inf": "the spoken infinitive {spoken} for {formal}",
+      "verb_bare_imp": "an imperative without ب",
+      "verb_plain": "a verb form as speech writes it",
+      "verb": "spoken verb form: {formal} ({why})",
+      "progressive": "{aux} is only the helper of the progressive: it is not offered as `to have`",
+      "perfect": "said as it is written, the same letters are the perfect: {formal}",
+      "sound": "spoken for {formal} ({note})",
+      "verb_prefix_vowel": "ب- written بی- or بو-, the way it is said",
+      "verb_mi_short": "می- written م- in chats",
+      "run_together": "{parts} written together: every piece is a word",
+      "spaced_letters": "the letters of {word} spaced out for emphasis",
+      "modal": "said of what may, or may not, be done: {formal}"
+    },
+    "clean": {
+      "map": {"ي": "ی", "ى": "ی", "ك": "ک", "ە": "ه", "ھ": "ه", "ہ": "ه", "ۂ": "ه", "ڪ": "ک", "ٱ": "ا", "ۀ": "ه"},
+      "what": {
+        "ي": "the Arabic yeh ي (Persian ی)",
+        "ى": "the Arabic alef maqsura ى (Persian ی)",
+        "ك": "the Arabic kaf ك (Persian ک)",
+        "ە": "the letter ە (Persian ه)",
+        "ھ": "the letter ھ (Persian ه)",
+        "ہ": "the letter ہ (Persian ه)",
+        "ۂ": "the letter ۂ (Persian ه)",
+        "ڪ": "the letter ڪ (Persian ک)",
+        "ٱ": "alef wasla ٱ (Persian ا)",
+        "ۀ": "ۀ (ه with the ezafe)",
+        "presentation": "a presentation form (a ligature the keyboard or the page made of letters)",
+        "invisible": "an invisible character inside the word"
+      },
+      "drop": ["ـ", "­", "‎", "‏", "‪", "‫", "‬", "‭", "‮", "⁦", "⁧", "⁨", "⁩", "﻿", "​", "⁠"]
+    },
+    "noise": ["^خ{2,}$", "^ه{3,}$", "^ک{3,}$", "^(ها|هه|هی){2,}$", "^او+ف+$", "^@", "^https?:", "^www\\.", "^[:;]-?[دپ)(]$"],
+    "tanwin": {"min_stem": 2, "min_word": 4},
+    "lengthened": {"min_run": 3, "min_word": 2},
+    "swaps": [
+      {
+        "name": "initial alef",
+        "at": "initial",
+        "min_word": 2,
+        "pairs": [
+          ["ا", "آ"]
+        ],
+        "one_way": true,
+        "what": "ا at the start, for آ"
+      },
+      {
+        "name": "hamza",
+        "at": "any",
+        "min_word": 3,
+        "sets": [
+          ["أ", "إ", "ئ", "ؤ", "ء"]
+        ],
+        "pairs": [
+          ["ا", "أ"],
+          ["ا", "إ"],
+          ["ا", "ئ"],
+          ["ی", "ئ"],
+          ["و", "ؤ"]
+        ],
+        "what": "another carrier of the hamza"
+      },
+      {
+        "name": "final alef",
+        "at": "final",
+        "min_word": 3,
+        "pairs": [
+          ["ا", "ی"]
+        ],
+        "one_way": true,
+        "what": "a final ا, for the ی the word is written with"
+      },
+      {
+        "name": "two spellings",
+        "at": "any",
+        "min_word": 3,
+        "sets": [
+          ["ت", "ط"],
+          ["ز", "ذ"]
+        ],
+        "what": "the other of two accepted spellings"
+      },
+      {
+        "name": "keyboard",
+        "at": "any",
+        "min_word": 3,
+        "pairs": [
+          ["ب", "پ"],
+          ["ج", "چ"],
+          ["ز", "ژ"],
+          ["ک", "گ"]
+        ],
+        "one_way": true,
+        "what": "a letter a keyboard without Persian letters gives"
+      }
+    ],
+    "join": {
+      "first": ["بی", "هم", "نا", "پر", "کم", "خوش", "بد", "هیچ", "تا", "با"],
+      "min_rest": 2,
+      "suffix_words": [
+        "ها",
+        "های",
+        "هایی",
+        "هایم",
+        "هایت",
+        "هایش",
+        "هامان",
+        "هاتان",
+        "هاشان",
+        "هامون",
+        "هاتون",
+        "هاشون",
+        "هام",
+        "هات",
+        "هاش",
+        "ام",
+        "ای",
+        "ایم",
+        "اید",
+        "اند"
+      ]
+    },
+    "glue": {
+      "prepositions": {"از": "از", "به": "به", "ب": "به", "با": "با", "در": "در", "بر": "بر", "تو": "در"},
+      "prepositions_rest_pos": ["noun", "pron", "det", "adj", "adv", "num", "intj"],
+      "prepositions_min_rest": 3,
+      "what": {"چ": "چه", "چی": "چه"},
+      "what_rest_pos": ["noun", "pron", "adj", "adv", "det", "verb"],
+      "one": {"ی": "یک"},
+      "one_min_rest": 3,
+      "object_marker": {
+        "after": ["pron", "det"],
+        "word": "را",
+        "suffix": "را",
+        "min_stem": 2
+      },
+      "number_and": {
+        "letter": "و",
+        "pos": ["num"]
+      },
+      "classifiers": ["تا", "نفر", "تایی"],
+      "classifier_formal": {"تایی": "تا"}
+    },
+    "manner": {
+      "suffixes": ["جوری", "طوری"],
+      "bases": [
+        {
+          "spoken": ["این"],
+          "formal": "این"
+        },
+        {
+          "spoken": ["اون", "آن"],
+          "formal": "آن"
+        },
+        {
+          "spoken": ["همین"],
+          "formal": "همین"
+        },
+        {
+          "spoken": ["همون"],
+          "formal": "همان"
+        },
+        {
+          "spoken": ["چ", "چه"],
+          "formal": "چه",
+          "compound": "چطور"
+        },
+        {
+          "spoken": ["یه", "ی"],
+          "formal": "یک"
+        },
+        {
+          "spoken": ["هر"],
+          "formal": "هر"
+        },
+        {
+          "spoken": ["هیچ"],
+          "formal": "هیچ"
+        },
+        {
+          "spoken": ["بد"],
+          "formal": "بد"
+        }
+      ]
+    },
+    "digits": {
+      "ordinal": ["م", "ام", "‌ام"],
+      "special": {"سه": "سوم"}
+    },
+    "echo": {"letter": "م", "min_word": 3},
+    "cv_light": ["کردن", "شدن", "دادن", "زدن", "داشتن", "گرفتن"],
+    "peel": {
+      "_comment": "LAYERS 3 TO 6 of the note's section 12 (lib/spokenpeel.py): a word taken apart from the outside in -- the endings that stand outside the clitics (emphatic -ā, the vocative, the enclitic هم, the object marker), the copula and the personal ending, the pronominal clitics, the definite -e, the plural -ā -- each rule naming the formal word it stands for and the piece it adds, until what is left is a word the dictionary has.  A path of rules counts only if every rule is one of these and the end of it is an entry or a table row; it is spoken only if one of its rules is.  Formal endings (the plural -hā, the clitics -am -at -aš after a consonant) are in it too, so that they can stand inside a spoken one, but alone they make no reading: the old affix rules of this file keep them.",
+      "max_depth": 3,
+      "min_stem": 2,
+      "nominal_pos": ["noun", "adj", "pron", "adv", "num", "det", "name", "intj"],
+      "plural_pos": ["noun", "adj", "adv", "num", "name"],
+      "hosts": {
+        "_comment": "The words that do not formally take a clitic, and so are spoken with one: time words and adverbs (بعدش), quantifiers (نصفش); the prepositions that take their pronoun apart (به من, از او, با من) as against those that take it on (برایم, رویش); the kinship words an affectionate -i goes on.",
+        "adverbial": [
+          "بعد",
+          "قبل",
+          "اول",
+          "آخر",
+          "راست",
+          "حقیقت",
+          "فردا",
+          "شب",
+          "دوم",
+          "سوم",
+          "اولین",
+          "آخرین",
+          "واقعیت",
+          "خلاصه",
+          "دنبال",
+          "جلو",
+          "عقب",
+          "بالا",
+          "پایین",
+          "کنار",
+          "وسط",
+          "بغل",
+          "نزدیک",
+          "پهلو",
+          "لب",
+          "سر"
+        ],
+        "quantifier": ["نصف", "بیشتر", "کمتر", "یکی", "دو", "سه", "چهار", "پنج", "همه", "باقی", "بقیه", "هیچ‌کدام", "هرکدام", "اکثر", "تمام", "نیمی"],
+        "separate_preps": ["به", "از", "با", "بر", "در"],
+        "kinship": ["مامان", "بابا", "داداش", "آبجی", "خاله", "عمو", "دایی", "عمه", "ننه", "مادر", "پدر", "جون"],
+        "possessive_pron": ["خود", "همه"],
+        "persons": [
+          "مامان",
+          "بابا",
+          "داداش",
+          "آبجی",
+          "خاله",
+          "عمو",
+          "دایی",
+          "عمه",
+          "مادر",
+          "پدر",
+          "برادر",
+          "خواهر",
+          "دوست",
+          "رفیق",
+          "معلم",
+          "دانشجو",
+          "دانش‌آموز",
+          "پسر",
+          "دختر",
+          "بچه",
+          "همکار",
+          "همسایه",
+          "استاد",
+          "دکتر",
+          "مهندس",
+          "پدربزرگ",
+          "مادربزرگ"
+        ],
+        "hem_words": [
+          "باز",
+          "هنوز",
+          "الان",
+          "فردا",
+          "اگر",
+          "حالا",
+          "امروز",
+          "دیروز",
+          "دوباره",
+          "همیشه",
+          "امشب",
+          "فعلا",
+          "اینجا",
+          "آنجا",
+          "همین",
+          "همان",
+          "اینها",
+          "آنها",
+          "من",
+          "تو",
+          "او",
+          "ما",
+          "شما",
+          "ایشان"
+        ]
+      },
+      "pronouns": {
+        "م": "من",
+        "ت": "تو",
+        "ش": "او",
+        "مون": "ما",
+        "تون": "شما",
+        "شون": "آن‌ها",
+        "مان": "ما",
+        "تان": "شما",
+        "شان": "آن‌ها",
+        "ام": "من",
+        "ات": "تو",
+        "اش": "او",
+        "هم": "من"
+      },
+      "clitics": {
+        "formal": ["مان", "تان", "شان", "م", "ت", "ش"],
+        "spoken_plural": ["مون", "تون", "شون"],
+        "spoken_buffered": ["هامون", "هاتون", "هاشون", "هام", "هات", "هاش", "هم"],
+        "formal_of": {
+          "مون": "مان",
+          "تون": "تان",
+          "شون": "شان",
+          "هامون": "مان",
+          "هاتون": "تان",
+          "هاشون": "شان",
+          "هام": "م",
+          "هات": "ت",
+          "هاش": "ش",
+          "هم": "م"
+        }
+      },
+      "copula": {
+        "_comment": "The spoken copula by the last sound of the word it stands on: after a consonant -e -in -an, after ـه -m -st -s -in -an, after ا the same, after ی -e -n.  The formal ones (خوبم خوبی خوبیم) are the old rules'.",
+        "consonant": {"ه": "3s", "ین": "2p", "ن": "3p"},
+        "he": {"م": "1s", "ست": "3s", "س": "3s", "ین": "2p", "ن": "3p"},
+        "alef": {"م": "1s", "ست": "3s", "س": "3s", "ین": "2p", "ن": "3p"},
+        "yeh": {"ه": "3s", "ن": "3p", "ین": "2p"}
+      },
+      "verb_endings": [
+        ["ه", "د"],
+        ["ین", "ید"],
+        ["ن", "ند"]
+      ],
+      "object": {
+        "suffixes": ["رو", "و"],
+        "pish": "ُ"
+      },
+      "emphatic": ["ها", "ا"],
+      "vocative": "یا",
+      "affection": ["جون"],
+      "definite": "ه",
+      "plural": ["ا"],
+      "plural_ezafe": ["ای"],
+      "indefinite": ["ایی", "یی"],
+      "affective": ["ی"],
+      "manner_ki": ["کی"],
+      "copula_formal": {
+        "cons": ["م", "ی", "یم", "ید", "ند"],
+        "vowel": ["ام", "ای", "ایم", "اید", "اند", "یم", "ید"]
+      },
+      "plural_formal": ["هایی", "های", "ها"],
+      "comparative_formal": ["ترین", "تر"],
+      "person_tags": {"ه": "3s", "ین": "2p", "ن": "3p", "ت": "3s"},
+      "stems": {"چ": "چه"},
+      "object_markers": ["رو", "را"]
+    },
+    "psych": {
+      "_comment": "A feeling or a state said with a clitic on the word for it and a verb or an adjective after: the word + clitic, and what it is said with.  A closed list (note C8).",
+      "pairs": [
+        ["خوش", "آمدن"],
+        ["بد", "آمدن"],
+        ["خواب", "آمدن"],
+        ["دل", "خواستن"],
+        ["یاد", "رفتن"],
+        ["یاد", "آمدن"],
+        ["حال", "بد"],
+        ["حال", "خوب"],
+        ["حوصله", "سر رفتن"]
+      ]
+    },
+    "run_together": {
+      "_comment": "Two or more full words written with no space (note A3): split only where every piece is a word of the dictionary, and only where two of the pieces are function words, or three pieces include one.",
+      "min_word": 6,
+      "max_word": 24,
+      "min_piece": 2,
+      "max_pieces": 4,
+      "function_words": ["تو", "من", "او", "ما", "شما", "را", "از", "به", "با", "در", "که", "هم", "بی", "برای", "این", "آن", "اگر", "اما", "تا", "بر"]
+    },
+    "spaced_letters": {
+      "_comment": "Letters spaced out for emphasis (ن ه, ب ر و): a run of up to `max` single letters that is a word of the dictionary's own.",
+      "max": 4
+    },
+    "modals": {
+      "_comment": "The verbs of the note's C9 said as a question or a request: a second reading beside the verb, in words (a gloss, not a rule).",
+      "میشه": {"verb": "شدن", "as": ["ممکن است"]},
+      "نمیشه": {"verb": "شدن", "as": ["ممکن نیست"]}
+    },
+    "sound": {
+      "_comment": "Layer 8: the sound changes speech writes down (the note's section B), read one step back.  `find` is a regular expression (its anchors are the rule's place: ^ the start of a word, $ its end), `put` what stands there in formal Persian; the rule is applied at each place it fits, one place at a time, and the DICTIONARY says whether the result is a word (lib/spokenpeel.py).  `note` is what the reader is told; `sound` (a pattern and what to put) is how the formal word's romanisation changes when the spoken one is said, where it does.  The file's order is the note's, B1 first; a rule that is a broad guess (a letter put in anywhere, two letters swapped) costs 2, the regular ones 1, and a reading that rests on fewer rules stands first.  Only a word the dictionary does not have is read through these (a trap row asks for the others), and a word that needs two of them is in the word table.  The rules of `stage` 9 are the note's A4, the spellings by ear: they are asked only of a stem the sound changes found nothing for.",
+      "plural_tails": [
+        "یان",
+        "ان"
+      ],
+      "rules": [
+        {
+          "id": "B1-an",
+          "find": "ون",
+          "put": "ان",
+          "sound": [
+            "ā(?=[nm])",
+            "u"
+          ],
+          "note": "ā said u before a nasal: ون for ان"
+        },
+        {
+          "id": "B1-am",
+          "find": "وم$",
+          "put": "ام",
+          "sound": [
+            "ā(?=[nm])",
+            "u"
+          ],
+          "note": "ā said u before a nasal: وم for ام"
+        },
+        {
+          "id": "B1-van",
+          "find": "ون",
+          "put": "وان",
+          "sound": [
+            "ā(?=[nm])",
+            "u"
+          ],
+          "note": "ā said u before a nasal: ون for وان"
+        },
+        {
+          "id": "B1-initial",
+          "find": "^او",
+          "put": "آ",
+          "sound": [
+            "^ā(?=[nm])",
+            "u"
+          ],
+          "note": "ā said u before a nasal: آ written او at the start"
+        },
+        {
+          "id": "B2-st",
+          "find": "س$",
+          "put": "ست",
+          "sound": [
+            "st$",
+            "s"
+          ],
+          "note": "the t of a final ـست is not said"
+        },
+        {
+          "id": "B2-sht",
+          "find": "ش$",
+          "put": "شت",
+          "sound": [
+            "št$",
+            "š"
+          ],
+          "note": "the t of a final ـشت is not said"
+        },
+        {
+          "id": "B2-ft",
+          "find": "ف$",
+          "put": "فت",
+          "sound": [
+            "ft$",
+            "f"
+          ],
+          "note": "the t of a final ـفت is not said"
+        },
+        {
+          "id": "B2-nd",
+          "find": "ن$",
+          "put": "ند",
+          "sound": [
+            "nd$",
+            "n"
+          ],
+          "note": "the d of a final ـند is not said"
+        },
+        {
+          "id": "B2-zd",
+          "find": "ز$",
+          "put": "زد",
+          "sound": [
+            "zd$",
+            "z"
+          ],
+          "note": "the d of a final ـزد is not said"
+        },
+        {
+          "id": "B2-st-mid",
+          "find": "س(?=.)",
+          "put": "ست",
+          "note": "the t of ـست is not written inside a word"
+        },
+        {
+          "id": "B3-r",
+          "find": "(?<=[^اآوی‌ه])$",
+          "put": "ر",
+          "note": "a final r is not said",
+          "cost": 2
+        },
+        {
+          "id": "B3-he-r",
+          "find": "ه$",
+          "put": "ر",
+          "note": "a final ـر said ـه",
+          "cost": 2
+        },
+        {
+          "id": "B3-he-l",
+          "find": "ه$",
+          "put": "ل",
+          "note": "a final ـل said ـه",
+          "cost": 2
+        },
+        {
+          "id": "B3-d-t",
+          "find": "د$",
+          "put": "ط",
+          "note": "a final ـط said ـد",
+          "cost": 2
+        },
+        {
+          "id": "B3-n",
+          "find": "(?<=و)$",
+          "put": "ن",
+          "note": "a final n is not said",
+          "cost": 2
+        },
+        {
+          "id": "B4-h",
+          "find": "(?<=.)",
+          "put": "ه",
+          "note": "a ه that is not said is not written",
+          "cost": 2
+        },
+        {
+          "id": "B4-ayn",
+          "find": "(?<=.)",
+          "put": "ع",
+          "note": "a ع that is not said is not written",
+          "cost": 2
+        },
+        {
+          "id": "B4-i-h",
+          "find": "ی",
+          "put": "ه",
+          "note": "ه said as i inside a word",
+          "cost": 2
+        },
+        {
+          "id": "B4-a-ayn",
+          "find": "ا",
+          "put": "ع",
+          "note": "ع written as alef",
+          "cost": 2
+        },
+        {
+          "id": "B4-he-ayn",
+          "find": "ه$",
+          "put": "ع",
+          "note": "a final ـع said ـه",
+          "cost": 2
+        },
+        {
+          "id": "B5-i",
+          "find": "(?<=[^اآوی‌])ی(?=[^اآوی‌])",
+          "put": "",
+          "note": "an i said between two consonants",
+          "cost": 2
+        },
+        {
+          "id": "B6-mb",
+          "find": "مب",
+          "put": "نب",
+          "note": "n said m before b",
+          "cost": 2
+        },
+        {
+          "id": "B6-swap",
+          "swap": true,
+          "note": "two letters said the other way round",
+          "min": 3,
+          "cost": 2
+        },
+        {
+          "id": "B7-x",
+          "find": "خ",
+          "put": "ق",
+          "note": "q said x before a consonant",
+          "min": 3,
+          "cost": 2
+        },
+        {
+          "id": "B7-p",
+          "find": "پ",
+          "put": "ب",
+          "note": "b said p before a consonant or at the end",
+          "min": 3,
+          "cost": 2
+        },
+        {
+          "id": "B7-sj",
+          "find": "چ",
+          "put": "سج",
+          "note": "the s of ـسج is not said",
+          "min": 3,
+          "cost": 2
+        },
+        {
+          "id": "B7-sh-ch",
+          "find": "ش",
+          "put": "چ",
+          "note": "č said š before a consonant",
+          "min": 3,
+          "cost": 2
+        },
+        {
+          "id": "B7-sh-j",
+          "find": "ش",
+          "put": "ج",
+          "note": "j said š before a consonant",
+          "min": 3,
+          "cost": 2
+        },
+        {
+          "id": "A4-vav-after-kh",
+          "stage": 9,
+          "find": "^خ",
+          "put": "خو",
+          "note": "the silent و after خ is not written",
+          "min": 2
+        },
+        {
+          "id": "A4-sets",
+          "stage": 9,
+          "sets": [
+            [
+              "ز",
+              "ذ",
+              "ض",
+              "ظ"
+            ],
+            [
+              "س",
+              "ص",
+              "ث"
+            ],
+            [
+              "ت",
+              "ط"
+            ],
+            [
+              "ه",
+              "ح"
+            ],
+            [
+              "ق",
+              "غ"
+            ],
+            [
+              "ا",
+              "ع",
+              "ء"
+            ]
+          ],
+          "cost": 3,
+          "min": 3,
+          "note": "{a} written for {b}: the same sound"
+        },
+        {
+          "id": "A4-ayn-i",
+          "stage": 9,
+          "find": "ع",
+          "put": "ی",
+          "cost": 3,
+          "min": 3,
+          "note": "ی written ع"
+        },
+        {
+          "id": "A4-ayn-drop",
+          "stage": 9,
+          "find": "(?<=.)ع(?=.)",
+          "put": "",
+          "cost": 3,
+          "min": 3,
+          "note": "a ع that is not said is not in the word"
+        },
+        {
+          "id": "A4-vav-drop",
+          "stage": 9,
+          "find": "(?<=[^اآوی‌])و(?=[^اآوی‌])",
+          "put": "",
+          "cost": 3,
+          "min": 4,
+          "note": "a short vowel written out as و"
+        }
+      ]
+    },
+    "verbs": "fa.spoken.verbs.tsv"
+  }
 }

@@ -41,7 +41,7 @@
      reached (lib/keep.js, TO-DO §19.2, §19.5) -->
 <script src="/lib/keep.js" defer></script>
 </head>
-<body data-page="doc" data-base="{{BASE}}" data-doc-id="{{DOC_ID}}" data-target="{{TARGET}}" data-decks-base="{{DECKS_BASE}}" data-notes-source="{{NOTES_SOURCE}}">
+<body data-page="doc" data-live="{{LIVE}}" data-base="{{BASE}}" data-doc-id="{{DOC_ID}}" data-target="{{TARGET}}" data-decks-base="{{DECKS_BASE}}" data-notes-source="{{NOTES_SOURCE}}">
 <!-- THE MOBILE BAR (docs/mobile.md): the way back to the library, the theme,
      and the gear after it (static/gear.js) -- the Browser | Mobile switch is in
      the gear's Interface group now -- and nothing that writes this document -->
@@ -111,6 +111,15 @@
     </span>
   </div>
 </header>
+
+<!-- THE PREVIEW OF AN EDITOR OPEN IN ANOTHER TAB (?live=1, static/live.js): says so, says whether the editor is there, and takes the
+     reader back to it.  Hidden on every page that is not one. -->
+<div class="livebar" id="livebar" hidden>
+  <span class="live-pill">live</span>
+  <span class="live-say" id="live-say" role="status" aria-live="polite">Waiting for the editor…</span>
+  <label class="live-follow" title="Keep what is being written in view: the preview follows the line the cursor is on"><input type="checkbox" id="live-follow" checked> follow the editor</label>
+  <button class="btn" id="live-editor" type="button" title="Go back to the editor tab (double-click any text here to land on it)">Editor ↗</button>
+</div>
 
 <div class="metabar">
   <div class="tags-edit" id="tags-edit">
@@ -205,6 +214,8 @@
 <script src="{{STUDIO}}/static/app.js"></script>
 <!-- the gear's rows: what this page's settings are, after the script that holds them -->
 <script src="{{STUDIO}}/static/gear.js"></script>
+<!-- ?live=1 only: the text of the editor open in another tab, drawn here as it is typed (static/live.js) -->
+{{LIVE_SCRIPT}}
 <script src="{{STUDIO}}/static/latexwait.js" defer></script>
 </body>
 </html>

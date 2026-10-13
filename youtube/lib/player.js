@@ -612,6 +612,8 @@
   function withLine(body, ch) {
     var line = lineOf(ch);
     if (line) body.words = line;
+    // a video's captions are speech: the dictionary reads a word that way where it can (lib/spoken.py), and says so
+    body.register = 'spoken';
     return body;
   }
   function esc(s) {
@@ -1060,17 +1062,24 @@
       return h + '<div class="dnone">not found (tried ' +
              esc(w.tried.join(', ')) + ')</div></div>';
     }
-    w.hits.forEach(function (x) {
+    // WHAT THE SPOKEN PASS READ (lib/spoken.py): drawn by lib/parseh.js, as the book's panel draws it -- a pill, the word it
+    // was read as, why, its pieces, its sound -- and a word with several readings numbers them
+    var SP = Parseh.spoken, many = SP.many(w);
+    if (many) h += SP.header(w).outerHTML;
+    w.hits.forEach(function (x, k) {
       // as the caption spells it, like the editor's row (srcHit) and the
       // book's panel: 睡觉 in a Simplified video, not the 睡覺 Wiktionary
       // files it under -- which the title still names
       var head = x.spelled || x.headword;
-      h += '<div class="dhit"><span class="dhead2"' +
+      var said = SP.note(x);
+      var block = x.spoken ? SP.block(x, { written: w.word, lang: L.code, dir: L.dir }) : null;
+      h += '<div class="dhit' + SP.row(x) + '">' + (many ? SP.lead(w, k) : '') + '<span class="dhead2"' +
            (x.spelled && x.spelled !== x.headword
              ? ' title="the dictionary files it under ' + esc(x.headword) + '"' : '') +
            '>' + esc(head) + (x.translit ? ' ' + esc(x.translit) : '') + '</span>' +
            (x.pos ? '<span class="dpos"> ' + esc(x.pos) + '</span>' : '') +
-           (x.note ? '<span class="dnote"> — ' + esc(x.note) + '</span>' : '');
+           (said ? '<span class="dnote"> — ' + esc(said) + '</span>' : '') +
+           (block ? block.outerHTML : '');
       // A VERB'S OTHER FORMS, under its headword and before its senses.  The
       // dictionary answers می‌سازم with ساختن "to make, to build", and the
       // reader is left to get from the infinitive to the stem the form in
@@ -1103,7 +1112,8 @@
         h += defsHTML(x);
       h += '</div>';
     });
-    if (w.via && w.via !== 'as written')
+    // (a word the spoken pass read says how in each of its cards: the line that says it again is left out)
+    if (w.via && w.via !== 'as written' && w.kind !== 'spoken')
       h += '<div class="dnone">found ' + esc(w.via) + '</div>';
     return h + '</div>';
   }
@@ -2171,6 +2181,11 @@
     if (sense)
       btns.push(['meaning \u2192', 'put this sense in the meaning',
                  function () { srcPut('en', sense); }]);
+    // A WORD THE SPOKEN PASS READ says so under its row, as the reading panel's card does (lib/parseh.js)
+    if (h.spoken && Parseh.spoken) {
+      var sb = Parseh.spoken.block(h, { lang: L.code, dir: L.dir });
+      if (sb) main += '<div class="svb">' + sb.outerHTML + '</div>';
+    }
     var row = srcRow(into, main, sense, btns);
     // ENGLISH, EXPLAINED IN ENGLISH, read in the gloss language here too --
     // the book's sideHit: the sense as the model puts it, under the row, with

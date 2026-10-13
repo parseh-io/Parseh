@@ -63,7 +63,7 @@ class DictionaryEvidence(unittest.TestCase):
             self.assertEqual(asrdictionary.Resolver("fa").word("،")["state"], "not-word")
 
     def test_separated_prefix_uses_reader_join_rules_not_a_neighbours_meaning(self):
-        def lookup(code, text):
+        def lookup(code, text, **how):          # (the review asks as speech: register="spoken")
             row = dictionary_row(text, "سوختن") if text == "نمی سوزانند" else dictionary_row(text)
             return {"words": [row], "source": {}}
         with mock.patch("lookup.look_up", side_effect=lookup):

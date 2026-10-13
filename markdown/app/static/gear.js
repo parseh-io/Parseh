@@ -149,6 +149,16 @@ const editorGroup = () => ({
      get: () => window.ParsehStudioEditorDir.isRtl(),
      set: v => window.ParsehStudioEditorDir.set(!!v),
      watch: cb => window.ParsehStudioEditorDir ? window.ParsehStudioEditorDir.subscribe(cb) : () => {}},
+    {id: "tab", kind: "switch", label: "Preview in its own tab",
+     help: "Gives the whole window to the text and draws the preview in another tab of the browser, as the finished page, from what you type (unsaved changes included). Double-click anything in it to land on its text. Remembered on this device.",
+     when: () => !!(window.ParsehStudioLive && window.ParsehStudioLive.available),
+     get: () => window.ParsehStudioLive.isOwnTab(),
+     set: v => window.ParsehStudioLive.set(!!v),
+     watch: cb => window.ParsehStudioLive ? window.ParsehStudioLive.subscribe(cb) : () => {}},
+    {id: "opentab", kind: "action", label: "Open the preview tab",
+     help: "Opens the preview in its own tab, or brings that tab forward if it is already open.",
+     when: () => !!(window.ParsehStudioLive && window.ParsehStudioLive.available),
+     onClick: () => window.ParsehStudioLive.open()},
   ]
 });
 

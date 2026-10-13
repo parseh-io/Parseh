@@ -4116,8 +4116,11 @@ class Handler(SimpleHTTPRequestHandler):
                 # by longest match.  A line that does not parse is no word
                 # line, and the text is looked up as it always was.
                 pieces = word_pieces(body.get("words"))
+                # WHAT THE PAGE SAYS OF ITS TEXT (lib/spoken.py): a video's subtitles are speech, a book's narration
+                # is not; the only value is "spoken", and anything else is no hint
+                register = "spoken" if body.get("register") == "spoken" else None
                 if pieces is None:
-                    r = lookup.look_up(code, text)
+                    r = lookup.look_up(code, text, register=register)
                 else:
                     r = lookup.look_up(code, text, pieces=pieces, authoritative=True)
                     # look_up's `i` is the row's place in the PIECES, which
