@@ -1,4 +1,4 @@
-## [a0.5.1] - unreleased
+## [a0.5.1] - 2026-10-14
 ### Added
 - The dictionary reads Persian written as it is said (خونه, میگم, اینجوری, دوس دارم) as the formal word it stands for, and says what it read and why: in the book's panel, the player's, the phone's sheet and the review of a transcript
 - The editor: double-click a word of the preview to land on it in the source, and the preview can be drawn in a tab of its own, as the finished page, from what you type
