@@ -847,8 +847,10 @@ function initEdit() {
     dirty = src.value !== written;
     return written === sent || src.value === written;
   }
-  async function save(thenView) {
-    if (saving) return;          // in-flight guard: no duplicate POST on /new
+  /* `file: false` saves the document here and leaves the file of a file opened from the computer to the caller
+     (static/openfile.js's bar, which asks its own questions) -> whether the document was saved. */
+  async function save(thenView, {file: toFile = true} = {}) {
+    if (saving) return false;    // in-flight guard: no duplicate POST on /new
     saving = true;
     btnSave.disabled = btnSaveView.disabled = true;
     let id = DOC_ID;
@@ -866,24 +868,31 @@ function initEdit() {
         if (!a) {
           toast("Not saved: that name is taken — nothing was written", true);
           src.focus();
-          return;
+          return false;
         }
       }
       if (!a.ok) throw new Error(a.data.error || `the server answered ${a.status}`);
       if (id) {
         if (takeBack(sent, a.data.markdown) && a.data.names_mark) namesMark = a.data.names_mark;
         $(".doc-title").textContent = a.data.meta.title;
-        toast("Saved");
-        if (thenView) location.href = BASE + "/doc/" + id;
+        if (!toFile) return true;
+        // a file opened from the computer (static/openfile.js) is written to as well, and asks what it must
+        // and says what it did; if the person called that off, the page stays: it holds what the file does not
+        const file = window.ParsehFile ? await window.ParsehFile.afterSave() : null;
+        toast(file ? file.said : "Saved");
+        if (thenView && !(file && file.stay)) location.href = BASE + "/doc/" + id;
+        return true;
       } else {
         dirty = false;
         // the direction chosen for it before it had an id is now its own
         if (chosenDir) storeDir(a.data.meta.id, chosenDir);
         location.href = thenView ? BASE + "/doc/" + a.data.meta.id
                                  : BASE + "/doc/" + a.data.meta.id + "/edit";
+        return true;
       }
     } catch (e) {
       toast("Save failed: " + e.message, true);
+      return false;
     } finally {
       // On success we navigate away; only re-enable if we're still here.
       saving = false;
@@ -893,6 +902,10 @@ function initEdit() {
 
   $("#btn-save").addEventListener("click", () => save(false));
   $("#btn-save-view").addEventListener("click", () => save(true));
+  /* What the file bar of a file opened from the computer (static/openfile.js) asks of the editor: whether there is
+     typing that not even the working copy holds, to save it (without the file, which the bar writes), and to forget
+     it when the person throws it away -- so that leaving the page does not ask twice. */
+  window.ParsehEditor = {dirty: () => dirty, save: opts => save(false, opts), forget: () => { dirty = false; }};
   document.addEventListener("keydown", e => {
     const mod = e.metaKey || e.ctrlKey;
     if (!mod) return;

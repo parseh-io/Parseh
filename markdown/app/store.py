@@ -383,6 +383,25 @@ def _create(markdown, tags):
     return meta
 
 
+def create_exact(markdown, tags=None):
+    """A document made of `markdown` EXACTLY as it is -> its meta.
+
+    The library's own way in (create) is for text that comes from somewhere
+    else and has to become a document of this library: it unwraps a fenced
+    answer, gives a file with no header a title, and renames a title another
+    document has.  A file the person opened from elsewhere on the computer
+    (openfile.py) is none of that: it is theirs, it is written back to where
+    it came from, and nothing may be added to it, taken out of it or renamed on
+    the way.  So this writes the text as given -- the caller has settled its
+    line ends and its control characters -- and builds the record from it.
+
+    The name is not made unique either: the library it is made in is a library
+    of this one document."""
+    lib().mkdir(parents=True, exist_ok=True)
+    with _names_lock():
+        return _create(markdown, tags)
+
+
 def get(doc_id):
     d = _doc_dir(doc_id)
     meta = _read_meta(d)

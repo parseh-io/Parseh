@@ -26,7 +26,9 @@ work:
 - **The library** (`/studio/`) lists every document, filters them by
   language, tag and words, and is where documents come in and go out:
   **+ New**, **Paste LLM answer**, **Upload .md / .zip**, **Backup**,
-  **Load from backup**, **Download N shown**.
+  **Load from backup**, **Download N shown** — and **Open a file…**, which
+  opens a Markdown or zip file where it is, on the computer Parseh runs on, instead of
+  bringing it in ([Opening a file from your computer](open-files.md)).
 - **The editor** (`/studio/doc/<id>/edit`, or `/studio/new` for a document
   not saved yet) is the Markdown on the left and the typeset page on the
   right, redrawn as you type.
@@ -86,7 +88,9 @@ whole of it away as one zip, and **Load from backup** puts it back.
 
 The same studio, with the same pages and the same buttons, also serves the
 **notes** you write beside a book or a video — a second library kept with
-that book or video: see [Notes beside books and videos](notes.md).
+that book or video: see [Notes beside books and videos](notes.md) — and a
+file you open from anywhere on the computer, as a library of one document in a
+temporary folder: see [Opening a file from your computer](open-files.md).
 
 > **The studio works on its own too.** Parseh serves it at `/studio/`, but
 > `markdown/app/server.py` can serve it alone, for hacking on it. Everything

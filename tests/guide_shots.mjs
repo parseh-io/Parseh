@@ -62,6 +62,9 @@ const FILES = {
   'gear-deck':         'getting-started/shots/gear-deck.png',
   // the hub
   'editor':            'studio/shots/editor.png',
+  'open-file':         'studio/shots/open-file.png',                     // "Open a file…": the file browser, a Markdown file chosen
+  'open-file-bar':     'studio/shots/open-file-bar.png',                 // a file's page: the bar says what the file holds
+  'open-file-format':  'studio/shots/open-file-format.png',              // what a Markdown file cannot hold: the zip beside it, or the text only
   'own-tab':           'studio/shots/own-tab.png',                       // the preview in a tab of its own: the finished page and its strip
   'study-gif':         'exercises/shots/study.gif',                      // a card turned over, rated, and the next
   // Settings -> Reading help, with a shelf of dictionaries, sentences and models (a hub of its own, see READING_HELP)
@@ -177,6 +180,10 @@ for source, manifest in (extra.get('packs') or {}).items():
     con.execute('INSERT INTO meta VALUES (?, ?)', ('manifest', json.dumps(manifest)))
     con.commit()
     con.close()
+import openfile
+openfile.OPEN_DIR = tmp / 'open'          # the working copies of files opened from the computer: never markdown/open/
+# the places the file browser starts from, as a plain computer has them: this one's own drives are not for a picture
+openfile.places = lambda: [{'name': n, 'path': '/tmp/ana' + ('' if n == 'Home' else '/' + n)} for n in ('Home', 'Desktop', 'Documents', 'Downloads')] + [{'name': 'Computer', 'path': '/'}]
 import mobile_harness
 mobile_harness.serve_it(tmp, port)
 `;
@@ -214,6 +221,22 @@ const makeDoc = async (md, tags) => (await (await post('/studio/api/docs', {mark
 const lessonId = await makeDoc(LESSON, ['grammar', 'verbs']);
 await makeDoc(LINKER('Everyday questions', 'For the verb [رفتن]{tl}, see [the verbs of motion](doc:Verbs of motion) first.'), []);
 await makeDoc(LINKER('Travel phrases', 'The verbs in these phrases are explained in [Verbs of motion](doc:Verbs of motion).'), []);
+// A PERSON'S OWN FOLDER, for the pictures of "Open a file…": notes kept where the person keeps them, not in Parseh.  Under a
+// short, plain path so that the pictures show a place a reader would recognise, removed at the end.
+const MINE = '/tmp/ana/Documents/Persian notes';
+await Deno.mkdir(`${MINE}/Old drafts`, {recursive: true});
+await Deno.mkdir('/tmp/ana/Desktop', {recursive: true});
+await Deno.mkdir('/tmp/ana/Downloads', {recursive: true});
+await Deno.writeTextFile(`${MINE}/Verbs of motion.md`, LESSON);
+await Deno.writeTextFile(`${MINE}/Greetings.md`, '---\ntitle: Greetings\ntarget: fa\n---\n\n[سلام]{tl} = *hello*.\n');
+await Deno.writeTextFile(`${MINE}/Old drafts/Numbers.md`, '---\ntitle: Numbers\ntarget: fa\n---\n\nTo do.\n');
+await py(String.raw`
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1] + '/Class worksheet.zip', 'w') as z:
+    z.writestr('worksheet.md', '---\ntitle: Class worksheet\ntarget: fa\n---\n\nFill in the blanks.\n')
+    z.writestr('README.txt', 'Handed out in week 3.\n')
+`, MINE);
+await Deno.writeTextFile(`${MINE}/shopping.pdf`, '%PDF-1.4\n');
 const deckPath = (await (await post('/exercises/api/decks', {name: 'Everyday Persian', lang: 'fa'})).json()).deck.path;
 for (const markdown of [
   ':::exercise flashcard\ncard-type: vocab\ntarget: [خداحافظ]{tl}\ntransliteration: xodāhāfez\nmeaning: goodbye\n:::',
@@ -490,6 +513,73 @@ const PICS = {
     await page.evaluate(() => document.fonts.ready);
     await sleep(700);
     await save(page, 'editor');
+    await ctx.close();
+  },
+  /* "Open a file…": the browser on a person's own folder, the file's page with its bar, and the question a Markdown file raises */
+  async 'open-file'() {
+    const ctx = await context(DESK(1280));
+    const page = await newPage(ctx, {width: 1100, height: 700});
+    await page.goto(`${B}/studio/`, {waitUntil: 'load'});
+    await page.waitForSelector('#btn-open-file:not([hidden])', {timeout: 15000});
+    await page.evaluate(() => document.fonts.ready);
+    await page.locator('#btn-open-file').click();
+    await page.waitForSelector('.of-modal .of-path');
+    await page.fill('.of-path', MINE + '/');
+    await page.press('.of-path', 'Enter');
+    await page.waitForFunction(() => [...document.querySelectorAll('.of-list .of-n')].some(n => n.textContent === 'Greetings.md'));
+    await page.locator('.of-row', {hasText: 'Verbs of motion.md'}).first().click();
+    await sleep(400);
+    await save(page, 'open-file', page.locator('.of-modal'));
+    await ctx.close();
+  },
+  async 'open-file-bar'() {
+    const ctx = await context(DESK(1280));
+    const page = await newPage(ctx, {width: 1100, height: 330});
+    await page.goto(`${B}/studio/`, {waitUntil: 'load'});
+    await page.waitForSelector('#btn-open-file:not([hidden])', {timeout: 15000});
+    await page.locator('#btn-open-file').click();
+    await page.waitForSelector('.of-modal .of-path');
+    await page.fill('.of-path', MINE + '/Verbs of motion.md');
+    await page.press('.of-path', 'Enter');
+    await page.waitForURL(/\/open\/[0-9a-f]{12}\/doc\//, {timeout: 15000});
+    await page.waitForSelector('#filebar .fb-name:not(:empty)');
+    await page.fill('#tag-input', 'verbs');
+    await page.press('#tag-input', 'Enter');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.waitForFunction(() => /not saved/.test(document.querySelector('#filebar .fb-state').textContent), null, {timeout: 8000});
+    await page.evaluate(() => document.fonts.ready);
+    await sleep(500);
+    await save(page, 'open-file-bar', {x: 0, y: 0, width: 1100, height: 190});
+    await page.locator('#filebar .fb-close').click();
+    await page.waitForSelector('.of-modal');
+    await page.locator('.of-modal button', {hasText: 'Close without saving'}).click();
+    await page.waitForURL(u => !/\/open\//.test(u.pathname));
+    await ctx.close();
+  },
+  async 'open-file-format'() {
+    const ctx = await context(DESK(1280));
+    const page = await newPage(ctx, {width: 1100, height: 600});
+    await page.goto(`${B}/studio/`, {waitUntil: 'load'});
+    await page.waitForSelector('#btn-open-file:not([hidden])', {timeout: 15000});
+    await page.locator('#btn-open-file').click();
+    await page.waitForSelector('.of-modal .of-path');
+    await page.fill('.of-path', MINE + '/Greetings.md');
+    await page.press('.of-path', 'Enter');
+    await page.waitForURL(/\/open\/[0-9a-f]{12}\/doc\//, {timeout: 15000});
+    await page.waitForSelector('#filebar .fb-name:not(:empty)');
+    await page.fill('#tag-input', 'greetings');
+    await page.press('#tag-input', 'Enter');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.waitForFunction(() => /not saved/.test(document.querySelector('#filebar .fb-state').textContent), null, {timeout: 8000});
+    await page.locator('#filebar .fb-save').click();
+    await page.waitForSelector('.of-modal .of-zip');
+    await sleep(400);
+    await save(page, 'open-file-format', page.locator('.of-modal'));
+    await page.locator('.of-modal button', {hasText: 'Cancel'}).click();
+    await page.locator('#filebar .fb-close').click();
+    await page.waitForSelector('.of-modal');
+    await page.locator('.of-modal button', {hasText: 'Close without saving'}).click();
+    await page.waitForURL(u => !/\/open\//.test(u.pathname));
     await ctx.close();
   },
   async 'own-tab'() {
@@ -827,6 +917,7 @@ try {
   try { hub.kill('SIGTERM'); } catch (_) {}
   await hub.status.catch(() => {});
   await Deno.remove(WORK, {recursive: true}).catch(() => {});
+  await Deno.remove('/tmp/ana', {recursive: true}).catch(() => {});      // a person's own folder, made for the pictures of Open a file
   if (!KEEP) await Deno.remove(OUT, {recursive: true}).catch(() => {});
 }
 // a picture that was not taken, or a name of FILES that no picture saved, is a picture the guide cannot be made again with

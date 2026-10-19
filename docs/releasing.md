@@ -137,7 +137,7 @@ Parseh-mine's update from GitHub; everything under *Afterwards*.
 
 ## The known-red baseline
 
-**There is none: every suite is green** (a0.5.1, 2026-10-13). A red suite in
+**There is none: every suite is green** (a0.5.2, 2026-10-19). A red suite in
 step 1 is new breakage and stops the release, unless it is under *Flaky*
 below and passes when run again alone.
 
@@ -158,14 +158,14 @@ run on this machine, were brought up to what it now does (`add_stt`,
 title bar of the transcription window was a `<header>`, which the video pages'
 stylesheet pins to the top of the screen.
 
-Measured on 2026-10-13 on the finished a0.5.1 tree, one suite at a time,
+Measured on 2026-10-19 on the finished a0.5.2 tree, one suite at a time,
 with `TMPDIR` on the main disk:
 
 | Suite | State | Result |
 |---|---|---|
-| unit — `python3 -m unittest discover -s tests -p "test_*.py"` | green | `Ran 3701 tests … OK (skipped=14)` |
+| unit — `python3 -m unittest discover -s tests -p "test_*.py"` | green | `Ran 3779 tests … OK (skipped=14)` |
 | `python3 tests/smoke.py` | green | `1901 passed, 0 failed, 21 skipped` |
-| the 80 `tests/*.mjs` | green | those under *Flaky* below fail now and then, and pass on a second run, alone |
+| the 81 `tests/*.mjs` | green | those under *Flaky* below fail now and then, and pass on a second run, alone |
 
 A new red is breakage: in a worktree on the previous release's tag, run the
 same suite — if it is red there too, it is old; if not, it is yours. (A worktree
@@ -185,7 +185,14 @@ breakage:
   *j* (*the computer killed with … bytes come … got -1 want 200000000*:
   almost always a `TMPDIR` without room, see [Before you
   start](#before-you-start)), and *the rec download could not be caught
-  halfway: []*;
+  halfway: []*. **In a full run it fails about as often as it passes** on this
+  machine (2026-10-19, measured on a0.5.1's own tree as well as on a0.5.2's:
+  the previous release failed it in one full run of three), and it can fail
+  again on the second, alone. Judge it by its pieces, which are not flaky: the
+  background part alone (`MOBILE_PARTS=background deno run --allow-all
+  tests/mobile_pages.mjs`, 37 checks, about 3½ minutes) and every other part
+  (`MOBILE_PARTS=shelf,reader,touch,prefs,video,studio,export,drawings,decks,offline,checkout,app,update`,
+  2172 checks) are both green, and together they are the 2209 of a full run;
 - `tests/reach.mjs`, its `slow` part: *a write on a slow computer was
   refused as away: {"failed":"Failed to fetch"…}*;
 - `tests/activity.mjs`, at 1280×800: *the hub's pill steps aside while

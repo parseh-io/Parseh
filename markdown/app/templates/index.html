@@ -16,6 +16,7 @@
 <!-- the mobile interface's layout of this page (docs/mobile.md): which of the
      two is drawn, <html data-mode> says -->
 <link rel="stylesheet" href="{{BASE}}/static/mobile.css">
+<link rel="stylesheet" href="{{BASE}}/static/openfile.css">
 <script src="{{BASE}}/static/mode.js" defer></script>
 <!-- "?": on a touch screen, every button's explanation is one tap away
      (lib/explain.js, TO-DO §4.7); it draws nothing where a mouse hovers -->
@@ -42,6 +43,10 @@
     <label class="btn" for="file-upload"
            title="A markdown document, or a .zip of one with its pictures and recordings (a document's Download ▾ gives one)">Upload .md / .zip</label>
     <input type="file" id="file-upload" accept=".md,.markdown,.txt,.zip,application/zip" multiple hidden>
+    <!-- A FILE FROM ANYWHERE ON THE COMPUTER PARSEH RUNS ON (a0.5.2, static/openfile.js): worked on where it is, through
+         a copy; the file itself changes only when the copy is saved.  Every device Parseh lets in may use it. -->
+    <button type="button" class="btn" id="btn-open-file" hidden
+            title="Open a Markdown or zip file from anywhere on the computer Parseh runs on. The studio works on a copy; the file itself changes only when you save">Open a file…</button>
     <a class="btn" href="{{BASE}}/api/export" title="Download the whole library as a zip">Backup</a>
     <button type="button" class="btn" id="btn-restore"
             title="Put a backup zip back: every document it holds, with its id, its tags and the links that point at it">Load from backup</button>
@@ -78,6 +83,8 @@
     </select>
   </div>
   {{LANG_CHIPS}}
+  <!-- THE FILES OPEN NOW (static/openfile.js): drawn only when there is one -->
+  <section id="open-files" class="open-files" aria-label="Files opened from the computer" hidden></section>
   <div id="tagbar" class="tagbar"></div>
   <p id="tag-filter-hint" class="tag-filter-hint" hidden>Tags: click to include (+), again to exclude (−), again to clear. Shift-click excludes directly.</p>
   <div id="cards" class="cards" data-lang-filter="[data-lang]"></div>
@@ -110,5 +117,6 @@
 <!-- what the server is working on, on every page of the toolbox (lib/activity.js): serve.py's, so a studio run on its own has none -->
 <script src="/lib/activity.js" async></script>
 <script src="{{BASE}}/static/app.js"></script>
+<script src="{{BASE}}/static/openfile.js"></script>
 </body>
 </html>

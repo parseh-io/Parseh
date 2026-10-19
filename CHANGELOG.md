@@ -1,3 +1,7 @@
+## [a0.5.2] - unreleased
+### Added
+- Open a file… in the studio: a Markdown or zip file from anywhere on the computer Parseh runs on, from any device it lets in, edited through a copy and written only when you save
+
 ## [a0.5.1] - 2026-10-14
 ### Added
 - The dictionary reads Persian written as it is said (خونه, میگم, اینجوری, دوس دارم) as the formal word it stands for, and says what it read and why: in the book's panel, the player's, the phone's sheet and the review of a transcript

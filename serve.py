@@ -275,7 +275,8 @@ def notes_library(prefix):
     if m:
         d = video_dir(m.group(1))
         return studio.notes.dir_for(d) if d else None
-    return None
+    # a file opened from the computer (a0.5.2): its working copy is a library of one document
+    return studio.session_library(prefix)
 
 
 # the studio alone has no books or videos: only this server can say
@@ -2414,7 +2415,9 @@ def long_work(method, path, query, length=0):
     yt = ytpages.BASE
     decks_base = studio.deckroutes.BASE
     if path.startswith(STUDIO_BASE + "/"):
-        return _studio_work(method, path[len(STUDIO_BASE):], None, length, file)
+        # a file opened from the computer is served by the same routes under /open/<sid>
+        sub = re.sub(r"^/open/[0-9a-f]{12}(?=/)", "", path[len(STUDIO_BASE):])
+        return _studio_work(method, sub, None, length, file)
     m = re.match(r"^(/books/[^/]+(?:/[^/]+)?)/notes(/.*)?$", path)
     if m:
         return _studio_work(method, m.group(2) or "/", lambda: _book_named(path),
@@ -4489,6 +4492,10 @@ class Handler(SimpleHTTPRequestHandler):
     # ---- the studio, under its prefix
     def _studio(self, method, sub):
         sub = sub or "/"
+        # a file opened from the computer (a0.5.2): the same routes, on its working copy
+        opened = re.match(r"^/open/([0-9a-f]{12})(/.*)?$", sub)
+        if opened:
+            return studio.serve_open(self, method, opened.group(1), opened.group(2), self._studio)
         for m, pattern, fn in studio.ROUTES:
             if m != method:
                 continue
@@ -8054,6 +8061,18 @@ def main():
     studio.ensure_web_fonts()
     studio.seed_example()
     studio.migrate_library()
+    # THE FILES OPENED FROM THE COMPUTER that the last Parseh left (a0.5.2): a
+    # working copy with nothing unsaved is deleted, one that holds something
+    # is kept and the library page offers it back
+    try:
+        left = studio.openfile.sweep()
+        if left["kept"]:
+            print("%d file%s opened from the computer still hold%s changes that were never saved: the "
+                  "studio's library page offers %s back"
+                  % (len(left["kept"]), "" if len(left["kept"]) == 1 else "s",
+                     "s" if len(left["kept"]) == 1 else "", "it" if len(left["kept"]) == 1 else "them"))
+    except Exception as e:                      # noqa: BLE001 -- housekeeping never stops Parseh from starting
+        print("!! could not look through the files opened from the computer: %s" % e)
     # A LANGUAGE ADDED ON THIS MACHINE BELONGS IN config/languages.json, which
     # no update touches, and not in lib/languages.json, which every update
     # replaces: a row an older lib/newlang.py (or a hand) put there is moved
@@ -8116,6 +8135,12 @@ def main():
         # a download of the pictograms is stopped between two pictures, and carries on next time
         try:
             getarasaac.stop_all()
+        except Exception:                                     # noqa: BLE001
+            pass
+        # the working copies of files opened from the computer that hold nothing unsaved (a0.5.2);
+        # one that does stays, and the next start offers it back
+        try:
+            studio.openfile.shutdown()
         except Exception:                                     # noqa: BLE001
             pass
     import atexit

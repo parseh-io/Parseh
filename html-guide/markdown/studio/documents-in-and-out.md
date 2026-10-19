@@ -21,6 +21,11 @@ away — and two take them out.
 A document's own page has **Download ▾** too, for that one document: see
 [the document page](document-page.md#download).
 
+A sixth button, **Open a file…**, is not like these: it brings nothing in. It
+opens a Markdown or zip file from anywhere on the computer Parseh runs on,
+where it is, and changes it only when you save: see
+[Opening a file from your computer](open-files.md).
+
 Whatever comes in goes through the same check as a save: **its name**. A
 document's name is its title, and no two documents of the library share
 one, so an incoming document whose title is taken opens the dialog

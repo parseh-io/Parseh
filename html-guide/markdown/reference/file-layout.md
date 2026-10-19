@@ -45,7 +45,7 @@ Parseh/
 | `lib/` | What every door shares — see the next table. |
 | `books/` | The books, one folder a book, under its language's folder (below). |
 | `youtube/` | The video player: `lib/` (its pages, its script, the annotation pipeline, the Anki tools), `videos/` (one folder a video, below), `anki/` (the card store, below). |
-| `markdown/` | The studio: `app/` (its server, pages and script, and the exercise decks' pages, store and scheduler), `exlex/` (Markdown to LaTeX to a verified PDF, and `starters/`, the page a new document starts from), `library/` (one folder a document, below). |
+| `markdown/` | The studio: `app/` (its server, pages and script, and the exercise decks' pages, store and scheduler), `exlex/` (Markdown to LaTeX to a verified PDF, and `starters/`, the page a new document starts from), `library/` (one folder a document, below), `open/` (the copies of files opened from the computer, below). |
 | `exercises/` | The exercise decks, one folder a deck, under its language's folder (below). |
 | `clips/` | The clip tray: recordings and frames cut for cards, waiting to be used. |
 | `dict/` | The reading help's downloads, with `corpus/`, `mt/` and `components/` (below). |
@@ -183,6 +183,29 @@ own `markdown/` folder, laid out as the studio's library is —
 matter says where it sits (`anchor: after sub …`, `anchor: before cap …`),
 and it travels in the book's or the video's download.
 
+## Files opened from the computer
+
+`markdown/open/<id>/`, one folder for each file the studio has open from
+elsewhere on the computer ([Opening a file from your
+computer](../studio/open-files.md)). It is made when you open the file and
+deleted when you close it; git ignores it, and a release does not carry it.
+
+| Path | What it is |
+|---|---|
+| `session.json` | Where the file is, how it looked when it was opened (its size, its date and a checksum, which is how a change made by something else is told from a touch), what it held at the last save, and what was accepted to be left out of a Markdown file. |
+| `library/<language>/<id>/` | The copy: a library of one document in the shape of [a studio document](#a-studio-document), served by the studio's own pages. |
+
+The copy is inside Parseh's folder, and not in the operating system's
+temporary folder, on purpose: the PDF is built inside it, as a library
+document's is, so it builds wherever the library does — a user name written
+in Persian or Chinese puts the system's temporary folder where TeX may not
+read it — and a copy that holds changes survives a restart of the computer.
+
+A copy with nothing unsaved is deleted when Parseh stops, and again when it
+starts; one with unsaved changes stays, and the library page lists it. The
+file you opened is never in this folder: it stays where it was, and changes
+only when you save.
+
 ## An exercise deck
 
 `exercises/<language>/<slug>/`:
@@ -316,6 +339,7 @@ Git ignores outright, so that a stray `git add` cannot take them:
   (`books/index.html`), a studio document's `build/` — but not the guide's
   compiled `html-guide/site/`, which is committed so that GitHub Pages can
   publish it;
+- the copies of files opened from the computer (`markdown/open/`);
 - a book or a video taken off the shelf (`.trash/`), the downloads of the
   reading help, your settings (`config/`), the environment
   (`.runtime/`), the certificate (`.tls/`), the updates' backups

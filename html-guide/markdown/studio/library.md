@@ -161,6 +161,12 @@ The bar across the top of the library holds, from the left: **Parseh**
   **Backup**, **Load from backup** and **Download N shown** bring documents
   in and take them out: see
   [Bringing documents in and out](documents-in-and-out.md).
+- **Open a file…** opens a Markdown or zip file from anywhere on the computer,
+  where it is, without bringing it into the library: see
+  [Opening a file from your computer](open-files.md). Any device Parseh
+  lets in may use it: it browses the computer Parseh runs on. While a file
+  is open, a list **Files open now** appears above the tags, with **Read**,
+  **Edit** and **Close** for each.
 - **+ New** starts a document, as above.
 - **Stop server** stops the whole of Parseh — every door, not only the
   studio. It asks first, and names what is still running (a PDF being

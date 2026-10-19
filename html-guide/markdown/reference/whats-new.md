@@ -15,6 +15,19 @@ change. A new version comes in from **Settings → Updating Parseh**
 ([Updating Parseh](../getting-started/updating.md)), which compiles this
 guide and rebuilds the readers by itself.
 
+## a0.5.2 — not yet released
+
+### Open a file from your computer
+
+The studio can open a Markdown or zip file that lives anywhere on the computer Parseh runs on, without copying it into
+the library, from any device Parseh lets in. **Open a file…** on the library page browses that computer (or takes a path
+you type or paste); the file opens in the
+studio's own pages, as a copy in a temporary folder, and the file itself changes only when you save. A bar under the
+title says whether the file holds what the page holds, and a save is atomic and writes only what changed: a zip comes
+back with every other entry byte for byte, a Markdown file keeps its line ends. A Markdown file that has gained
+pictures, recordings or tags is saved as a zip beside it, with the Markdown and its `images/` and `audio/` inside, when
+you say so ([Opening a file from your computer](../studio/open-files.md)).
+
 ## a0.5.1 — 14 October 2026
 
 ### Spoken Persian in the dictionary

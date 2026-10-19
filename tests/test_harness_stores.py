@@ -52,6 +52,7 @@ HARNESSES = {
     "cardkit_harness.py": "redirects",
     "decks_harness.py": "redirects",
     "doclinks_harness.py": "redirects",
+    "openfile_harness.py": "redirects",
     "prompts_harness.py": "redirects",
     "smoke.py": "redirects in SERVE_BOOT",
     "speech_harness.py": "redirects",

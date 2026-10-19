@@ -16,12 +16,14 @@ the PDF build reuses the exlex modules (XeLaTeX + PyMuPDF verification).
 Binds to 127.0.0.1 only — this is a personal, local tool.
 """
 import argparse
+import contextlib
 import io
 import json
 import mimetypes
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import threading
@@ -68,6 +70,8 @@ import version        # noqa: E402  which Parseh this is, for the Server header
 import crosssite      # noqa: E402  only Parseh's own pages may write (TO-DO §3.1)
 import latexdraw      # noqa: E402  a latex block, compiled on its own and kept (§8.39)
 import latexrename    # noqa: E402  a theme renamed, every block put right (§8.39)
+import network        # noqa: E402  who is knocking: only this computer opens its own files
+import openfile       # noqa: E402  a file from anywhere on the computer, open in the studio (a0.5.2)
 # NOTE: `verify` (and its pymupdf dependency) is imported lazily inside
 # build_pdf, so the whole UI still starts when pymupdf is absent — only
 # PDF verification, not the library/editor/preview, needs it.
@@ -135,23 +139,35 @@ def html_only():
     return bool(getattr(_MOUNT, "html_only", False))
 
 
-def use_mount(base=None, html_only=False):
+def current_session():
+    """The file from the computer this thread is serving (openfile.Session), or
+    None: the studio's own library, or the notes beside a book or a video."""
+    return getattr(_MOUNT, "session", None)
+
+
+def use_mount(base=None, html_only=False, session=None):
     """Point this thread at another mount for the rest of the request, and
     give back what it was so a caller can put it back.
 
     htmlgen's too: a `[…](doc:Name)` link between two notes is written by
     htmlgen from a prefix of its own, and a link that kept the studio's would
     walk out of the mount it was written in and land on a document that is
-    not there."""
+    not there.
+
+    `session` is a file opened from the computer (open_scope): the pages then
+    know it, to say so and to write to the file when asked."""
     was = (getattr(_MOUNT, "base", None), getattr(_MOUNT, "html_only", False),
-           htmlgen.set_url_base(None if base is None else (base or "").rstrip("/")))
+           htmlgen.set_url_base(None if base is None else (base or "").rstrip("/")),
+           getattr(_MOUNT, "session", None))
     _MOUNT.base = None if base is None else (base or "").rstrip("/")
     _MOUNT.html_only = bool(html_only)
+    _MOUNT.session = session
     return was
 
 
 def restore_mount(was):
     _MOUNT.base, _MOUNT.html_only = was[0], was[1]
+    _MOUNT.session = was[3] if len(was) > 3 else None
     htmlgen.set_url_base(was[2])
 
 
@@ -488,9 +504,27 @@ def render_template(name, mapping):
     mapping = dict(mapping, BASE=base(), MODE_SCRIPT=deckroutes.MODE_SCRIPT,
                    MODE_SWITCH=deckroutes.MODE_SWITCH, APP_HEAD=deckroutes.APP_HEAD,
                    STUDIO=BASE)
+    if current_session() is not None and name in ("doc.html", "edit.html"):
+        tpl = _in_a_file(tpl, name, current_session())
     for k, v in mapping.items():
         tpl = tpl.replace("{{%s}}" % k, v)
     return tpl
+
+
+def _in_a_file(tpl, name, sess):
+    """A document page of a file opened from the computer (a0.5.2).  Three
+    things differ from the library's, all of them here and none in the
+    templates: the body says which session it is (static/openfile.js reads it
+    to draw the file bar and to write to the file when the editor saves), the
+    script and its sheet are loaded after the page's own, and the way back to
+    the library goes to the studio's library -- this mount's root is the one
+    document."""
+    tpl = tpl.replace("<body ", '<body data-open-sid="%s" data-open-kind="%s" ' % (sess.sid, sess.kind), 1)
+    if name == "doc.html":
+        tpl = tpl.replace('href="{{BASE}}/"', 'href="{{STUDIO}}/"')
+    foot = ('<link rel="stylesheet" href="{{STUDIO}}/static/openfile.css">\n'
+            '<script src="{{STUDIO}}/static/openfile.js"></script>\n')
+    return tpl.replace("</body>", foot + "</body>", 1)
 
 
 def json_for_script(obj):
@@ -672,6 +706,18 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- routing ------------------------------------------------------
 
+    def handle(self):
+        """A browser that goes away between two requests of a connection it kept
+        open is weather, not a fault.  socketserver prints a full traceback
+        for the reset that comes out of the next read, and a studio run on its
+        own (this server, not serve.py's, which says the same of its own
+        clients in handle_error) printed one each time a page was closed.  A
+        real bug in a route is still caught and shown by _routes."""
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            self.close_connection = True
+
     def _dispatch(self, method):
         self._raw = None
         # ONLY PARSEH'S OWN PAGES MAY WRITE (lib/crosssite.py): run on its
@@ -715,6 +761,16 @@ class Handler(BaseHTTPRequestHandler):
                                    {"Location": deckroutes.BASE + "/"})
         if path.startswith(deckroutes.BASE + "/"):
             return deckroutes.dispatch(self, method, path[len(deckroutes.BASE):])
+        # a file from the computer, open in the studio: the very same routes,
+        # on its working copy (serve_open)
+        opened = re.match(r"^/open/([0-9a-f]{12})(/.*)?$", path)
+        if opened:
+            return serve_open(self, method, opened.group(1), opened.group(2), self._routes)
+        return self._routes(method, path)
+
+    def _routes(self, method, path):
+        """The route table, for a path with the mount's prefix already taken
+        off it."""
         for m, pattern, fn in ROUTES:
             if m != method:
                 continue
@@ -888,7 +944,7 @@ def page_doc(h, doc_id):
     # (serve.py tells them; the studio run alone has no notes).  The page
     # then names that prefix, and the copy reads the document from there.
     # A mount they do not know gets no button and no deck address.
-    source = base() if html_only() and deckroutes.notes_source_ok(base()) else ""
+    source = _notes_source()
     decks_here = not html_only() or bool(source)
     doc = htmlgen.render_document(markdown,
                                   asset_base=base() + "/media/%s/" % doc_id,
@@ -994,7 +1050,7 @@ def page_edit(h, doc_id):
     meta, markdown, mark = store.edit_view(doc_id)
     # the notes beside a book or a video, as page_doc reads them: the decks
     # take an exercise from that shelf's documents and give one back to them
-    source = base() if html_only() and deckroutes.notes_source_ok(base()) else ""
+    source = _notes_source()
     m = _edit_mapping(meta.get("target"), source)
     m.update({
         "DOC_ID": doc_id,
@@ -2569,6 +2625,179 @@ def new_template(code=None):
             % (L.name, L.code, how, L.translit_label))
 
 
+# ----------------------------------------------------------------------
+# a file from anywhere on the computer, open in the studio (a0.5.2)
+# ----------------------------------------------------------------------
+#
+# openfile.py keeps the sessions: a Markdown or zip file read into a working
+# copy in a temporary folder, written back only by Save.  The working copy is
+# a studio library of ONE document, so the studio serves it as it serves the
+# notes beside a book: with its routes, run with the library
+# (store.use_library) and the prefix (use_mount) pointed at it for the length
+# of the request.  /open/<sid>/ is that prefix -- /studio/open/<sid>/ inside
+# Parseh -- and everything under it is the studio's own pages and doors, on
+# the file.  What is new here is only the door in (the file browser and Open),
+# the two doors on a session (its state, Save and Close), and what a session
+# does not offer: the library's own business.
+#
+# ANY DEVICE PARSEH LETS IN (the owner, 2026-10-19: "make it available from remote
+# too").  The file browser lists any folder the program can read and Save writes
+# to any path it can write -- on the computer Parseh RUNS on, wherever the person
+# asking is sitting.  Who may ask is the same door as for the rest of the studio
+# (serve.py's gate: this computer, a VPN, a device let in with the code), and
+# nothing here asks again.  What the page has to be told is where the files ARE:
+# a phone's "Open a file" shows the disk of the computer Parseh runs on, not the
+# phone's, and says so (_where).  A file on the device in the hand is another
+# thing, which Upload .md / .zip already is.
+
+
+def _where(h):
+    """Where the files the file doors show are, as a page says it: the name of
+    the computer Parseh runs on, and whether the device asking is another one.
+    (A handler with no client address, a test's fake, is taken for another
+    device: the page then says whose disk it is looking at.)"""
+    ip = (getattr(h, "client_address", None) or ("",))[0]
+    return {"host": socket.gethostname(), "remote": network.where(ip) != network.SELF}
+
+
+def open_prefix(sess):
+    """The address the studio serves a session under."""
+    return BASE + "/open/" + sess.sid
+
+
+@contextlib.contextmanager
+def open_scope(sess):
+    """The studio, pointed at a session for the length of the block: its
+    library, and its prefix (so the links of every page stay inside it)."""
+    was_lib = store.use_library(sess.library)
+    was_mount = use_mount(open_prefix(sess), html_only=False, session=sess)
+    try:
+        yield sess
+    finally:
+        restore_mount(was_mount)
+        store.use_library(was_lib)
+
+
+# What a file opened from the computer does not offer: the library's own
+# business, where a second document, a deleted one or a whole backup would
+# mean nothing (the library is this one document, and it is not kept).
+_NOT_IN_A_FILE = (
+    ("GET", r"^/new$"), ("POST", r"^/api/docs$"), ("POST", r"^/api/docs/zip$"),
+    ("POST", r"^/api/library/zip$"), ("POST", r"^/api/docs/[a-z0-9\-]+/duplicate$"),
+    ("DELETE", r"^/api/docs/[a-z0-9\-]+$"), ("GET", r"^/api/export$"),
+    ("POST", r"^/api/download$"),
+    ("GET", r"^/doc/[a-z0-9\-]+/__offline$"),
+)
+NOT_IN_A_FILE = ("That belongs to the studio's library, not to a file opened from the computer: "
+                 "close the file and do it from the library.")
+
+
+def serve_open(h, method, sid, sub, run):
+    """/open/<sid>/…: the studio's own routes, on the working copy of a file
+    opened from the computer.  `run(method, sub)` is the route table of
+    whoever hosts the studio (the studio alone, or serve.py's /studio)."""
+    try:
+        sess = openfile.get(sid)
+    except KeyError:
+        if method == "GET":
+            return h.send_html(render_template("404.html", {}), 404)
+        return h.send_json({"ok": False, "error": "That file is not open any more: open it again "
+                                                  "from the library."}, 404)
+    sub = sub or "/"
+    with open_scope(sess):
+        if method == "GET" and sub == "/":
+            # the way "back" from the editor, and the root of the mount: the document
+            return h.send_bytes(b"", "text/plain; charset=utf-8", 302,
+                                {"Location": "%s/doc/%s" % (base(), sess.doc_id)})
+        for m, pattern in _NOT_IN_A_FILE:
+            if m == method and re.match(pattern, sub):
+                return h.send_json({"ok": False, "error": NOT_IN_A_FILE}, 404)
+        return run(method, sub)
+
+
+def session_library(prefix):
+    """The working copy behind a session's prefix, or None: what the exercise
+    decks ask (deckroutes.set_notes_resolver) before a document page offers
+    "+ Deck" and before a copy reads the document, as they ask serve.py for a
+    book's notes."""
+    m = re.fullmatch(re.escape(BASE) + r"/open/([0-9a-f]{12})", prefix or "")
+    if not m:
+        return None
+    try:
+        return openfile.get(m.group(1)).library
+    except KeyError:
+        return None
+
+
+deckroutes.set_notes_resolver(session_library)
+
+
+def _notes_source():
+    """The prefix the deck routes read this thread's document from, when it is
+    not the studio's own library: the notes beside a book or a video, or a file
+    opened from the computer -- as long as they know the prefix."""
+    if (html_only() or current_session() is not None) and deckroutes.notes_source_ok(base()):
+        return base()
+    return ""
+
+
+def _session_say(sess):
+    """A session, for the lists and for opening it: its state, and where its pages are."""
+    return dict(sess.state(), url=open_prefix(sess) + "/doc/" + sess.doc_id,
+                edit=open_prefix(sess) + "/doc/" + sess.doc_id + "/edit")
+
+
+def api_file(h, what):
+    """The doors about the computer's files rather than about one document:
+    where to start (places), a folder's contents (list), open a file (open),
+    and what is open (sessions).  All POST: a page of another site cannot
+    send one (crosssite), and none of them reads or writes anything the
+    person did not ask for by name."""
+    body = h._json_body() or {}
+    if what == "places":
+        return h.send_json(dict(_where(h), ok=True, places=openfile.places()))
+    if what == "list":
+        return h.send_json(dict(openfile.listing(str(body.get("path") or ""), hidden=bool(body.get("hidden")),
+                                                 everything=bool(body.get("everything"))), **_where(h)))
+    if what == "sessions":
+        return h.send_json(dict(_where(h), ok=True, sessions=[_session_say(s) for s in openfile.live()]))
+    try:
+        got = openfile.open_path(str(body.get("path") or ""), entry=body.get("entry") or None)
+    except openfile.OpenError as e:
+        return h.send_json(e.answer(), 409 if e.code == "busy" else 400)
+    if "choose" in got:
+        return h.send_json({"ok": True, "choose": got["choose"], "name": got["name"]})
+    return h.send_json(dict(_session_say(got["session"]), ok=True, again=got["again"]))
+
+
+def api_file_session(h, what):
+    """The doors on the file this page is about: its state (is there anything
+    the file does not hold? did somebody change the file?), Save, and Close.
+    Under /open/<sid>/, so the session is the mount's and a body names none."""
+    sess = current_session()
+    if sess is None:
+        return h.send_json({"ok": False, "error": "This is not a file opened from the computer."}, 404)
+    body = h._json_body() or {}
+    if what == "state":
+        return h.send_json(dict(_where(h), ok=True, state=sess.state(), library=BASE + "/"))
+    if what == "save":
+        try:
+            out = sess.save(target=body.get("target") or None, overwrite=bool(body.get("overwrite")),
+                            force=bool(body.get("force")), accept_loss=bool(body.get("accept_loss")))
+        except openfile.OpenError as e:
+            return h.send_json(e.answer(), 400)
+        out.update(_where(h), library=BASE + "/")
+        return h.send_json(out)
+    out = sess.close(discard=bool(body.get("discard")))
+    if out.get("ok"):
+        try:
+            latexdraw.forget_owner(_latex_owner(sess.doc_id))
+        except Exception as e:                               # noqa: BLE001 -- only housekeeping
+            sys.stderr.write("[studio] could not let go of the LaTeX drawings of a closed file: %s\n" % e)
+        out["library"] = BASE + "/"
+    return h.send_json(out)
+
+
 ROUTES = [
     ("GET",    r"^/$",                                    page_index),
     ("GET",    r"^/new$",                                 page_new),
@@ -2650,6 +2879,10 @@ ROUTES = [
     ("GET",    r"^/api/export$",                          api_export),
     ("POST",   r"^/api/download$",                        api_download),
     ("POST",   r"^/api/shutdown$",                        api_shutdown),
+    # a file from anywhere on the computer, open in the studio (a0.5.2): the
+    # doors about the computer's files, and the doors on the file a page is about
+    ("POST",   r"^/api/file/(places|list|open|sessions)$", api_file),
+    ("POST",   r"^/api/file/(state|save|close)$",          api_file_session),
 ]
 
 # The routes that are a page the browser goes to: a document that is not
@@ -2669,6 +2902,13 @@ def main():
     seed_example()
     migrate_library()
     ensure_build_env_async()
+    try:
+        left = openfile.sweep()                 # what the last run left of the files opened from the computer
+        if left["kept"]:
+            print("%d file(s) opened from the computer still hold changes that were never saved: "
+                  "the library page offers them back" % len(left["kept"]))
+    except Exception as e:                      # noqa: BLE001 -- housekeeping never stops the studio from starting
+        print("could not look through the files opened from the computer: %s" % e)
 
     srv = ThreadingHTTPServer(("127.0.0.1", a.port), Handler)
     srv.daemon_threads = True
@@ -2683,6 +2923,7 @@ def main():
         pass
     finally:
         srv.server_close()
+        openfile.shutdown()                     # the working copies with nothing unsaved go with the server
     print("exlex studio stopped.")
 
 

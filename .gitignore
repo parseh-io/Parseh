@@ -171,6 +171,9 @@ markdown/library/*/*/build/
 markdown/library/*/build/
 markdown/library/.seeded*
 markdown/library/_prompt.md
+# the files the studio has open from elsewhere on the computer (markdown/app/openfile.py): a temporary copy of each,
+# deleted when the file is closed
+markdown/open/
 markdown/app/static/fonts/
 markdown/exlex/assets/fonts/
 # a font on its way into assets/fonts: renamed into place, or removed
