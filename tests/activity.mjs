@@ -254,7 +254,13 @@ try {
     check(/open the page/.test(s.text) && await hubp.evaluate(() =>
             document.querySelector('#parseh-working a.pa-open').getAttribute('href') === '/books/'),
           'and links back to the page that started it');
-    const quiet = await hubp.evaluate(() => document.getElementById('parseh-activity').classList.contains('pa-quiet'));
+    // THE HUB IS A TAB BEHIND ANOTHER, and a tab behind another is drawn when the browser gets to it: the page learns that
+    // its panel is in sight from an IntersectionObserver, which runs when the tab is drawn -- 300 to 600 ms after the
+    // panel was there in two runs of ten, and not in four seconds on a loaded computer.  So the tab is the one in front
+    // (it is what somebody who is looking at the panel has), and the pill is waited for
+    await hubp.bringToFront();
+    const quiet = await until(hubp, () => document.getElementById('parseh-activity').classList.contains('pa-quiet'),
+                              null, 10000, 'the hub\'s pill steps aside');
     check(quiet, 'the hub\'s pill steps aside while the panel is in sight');
     // ... and out of the keyboard's way: Tab from the page's last control
     // does not land on a button shrunk to a pixel
@@ -366,7 +372,11 @@ try {
     check(size > 1000 && /mini-en.*\.zip$/.test(file.suggestedFilename()),
           'the browser\'s own download manager got the zip: ' + file.suggestedFilename() + ', ' + size + ' bytes');
     await reader.bringToFront();
-    check(await until(reader, says, [PILL, '^Done: Packing .*The Clock and the Wind'], 5000, 'done'),
+    // "Done" stays on the pill for three seconds after the zip is made, and by the time the browser has handed the file
+    // over and this has looked at it a slow computer has let those seconds go: the page's own diary, kept every 100 ms
+    // from before the click, has it whenever it is read
+    check(await reader.waitForFunction(() => window.__diary.some(d => d.ok && /^Done: Packing .*The Clock and the Wind/.test(d.text)),
+                                       null, {timeout: 15000, polling: 100}).then(() => true, () => false),
           'the reader says "Done" when it is over, in the server\'s words');
     const diary = await reader.evaluate(() => { clearInterval(window.__diaryTimer); return window.__diary; });
     const packing = diary.filter(d => d.ok && /^Working: Packing .*The Clock and the Wind.* to download/.test(d.text));
