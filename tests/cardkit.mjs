@@ -104,9 +104,17 @@ async function fadeMs(path) {
   }
   if (!x || !rate) throw Error('FAIL: not a WAV: ' + path);
   const at = ms => Math.round(ms * rate / 1000), energy = (a, b) => { let e = 0; for (let i = a; i < b; i++) e += (x[i] / 32768) ** 2; return e; };
-  const mean = energy(at(50), at(150)) / (at(150) - at(50));      // 44 periods of 440 Hz
-  const n = at(25), fade = e => +(1.5 * (n * mean - e) / mean / rate * 1000).toFixed(2);
-  return {head: fade(energy(0, n)), tail: fade(energy(x.length - n, x.length)), level: +Math.sqrt(2 * mean).toFixed(2)};
+  // THE TONE'S OWN ENERGY comes from the whole of the clip's middle and is its median, not one stretch of it: 25 ms is
+  // eleven periods of 440 Hz, so a steady tone has the same energy in every bin of 25 ms, and the median is the tone's
+  // even when a bin or two is not.  A computer too busy for a few milliseconds loses a few milliseconds of what it is
+  // recording (a clip of the tab came with level 0.75 and fades of 3.8 ms: the stretch the level was read from had lost
+  // 6% of its energy, and the ends looked the fuller for it).  The bins are in the answer, to be read when it fails.
+  const n = at(25), bins = [];
+  for (let a = n; a + n <= x.length - n; a += n) bins.push(energy(a, a + n) / n);
+  const mean = [...bins].sort((p, q) => p - q)[bins.length >> 1];
+  const fade = e => +(1.5 * (n * mean - e) / mean / rate * 1000).toFixed(2);
+  return {head: fade(energy(0, n)), tail: fade(energy(x.length - n, x.length)), level: +Math.sqrt(2 * mean).toFixed(2),
+          bins: bins.map(b => +(b / mean).toFixed(2)).join(' ')};
 }
 async function trayAudio(dir) {
   const out = [];
