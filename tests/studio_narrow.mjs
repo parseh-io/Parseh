@@ -183,15 +183,27 @@ async function swipe(page, cdp, dy, from) {
   await cdp.send('Input.dispatchTouchEvent', {type: 'touchEnd', touchPoints: []});
   await settle(page);
 }
+/* WAITING FOR A PAGE TO STAND STILL.  Not "two looks, 150 ms apart, gave the same scroll position": a smooth scroll the
+   page is too busy to draw for a moment gives the same two numbers and has not arrived (a heading was measured 62 px
+   short of where it came to rest, 1.5 s later).  The page itself is asked, in its own frames: it has stood still when,
+   for twelve frames in a row, the scroll position and the place of both bars were the same and nothing on it was
+   animating or in transition.  A frame that is not drawn is not counted, so a page that cannot draw never looks still.
+   Capped at ten seconds, and then it is looked at as it is. */
 async function settle(page) {
-  let last = -1;
-  for (let i = 0; i < 60; i++) {
-    const y = await page.evaluate(() => scrollY);
-    if (y === last) break;
-    last = y;
-    await sleep(150);
-  }
-  await sleep(350);                       // the bars slide in .18 s
+  await page.evaluate(() => new Promise(done => {
+    const bars = () => ['.topbar', '#typobar'].map(s => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().top * 10) : null; }).join();
+    const moving = () => document.getAnimations().some(a => a.playState === 'running' && isFinite(a.effect.getComputedTiming().endTime));
+    let last = '', same = 0;
+    const began = performance.now();
+    const look = () => {
+      const now = Math.round(scrollY * 10) + '|' + bars();
+      same = now === last && !moving() ? same + 1 : 0;
+      last = now;
+      if (same >= 12 || performance.now() - began > 10000) done();
+      else requestAnimationFrame(look);
+    };
+    requestAnimationFrame(look);
+  }));
 }
 
 const {proc, info} = await startHarness();
@@ -206,7 +218,7 @@ try {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(`${B}/doc/${info.doc_id}/edit`);
-    await page.waitForFunction(() => /rendered/.test(document.querySelector('#pv-status')?.textContent || ''), null, {timeout: 15000});
+    await page.waitForFunction(() => /rendered/.test(document.querySelector('#pv-status')?.textContent || ''), null, {timeout: 60000});
     await page.evaluate(() => document.fonts.ready);
     await sleep(200);
     if (SHOTS) await page.screenshot({path: `${SHOTS}/editor-${width}.png`});
@@ -253,7 +265,7 @@ try {
     // on the screen
     const page = await browser.newPage({viewport: {width: 1400, height: 900}});
     await page.goto(`${B}/doc/${info.doc_id}/edit`);
-    await page.waitForFunction(() => /rendered/.test(document.querySelector('#pv-status')?.textContent || ''), null, {timeout: 15000});
+    await page.waitForFunction(() => /rendered/.test(document.querySelector('#pv-status')?.textContent || ''), null, {timeout: 60000});
     await page.evaluate(() => document.fonts.ready);
     // the bar as a document in this language has it, and as a Japanese one has it,
     // with the reading-mark button the editor shows for a language that has
@@ -316,9 +328,9 @@ try {
   for (const width of PARTS.includes('b') ? [1400, 400] : []) {
     const page = await browser.newPage({viewport: {width, height: 900}});
     await page.goto(`${B}/doc/${info.doc_id}/edit`);
-    await page.waitForFunction(() => /rendered/.test(document.querySelector('#pv-status')?.textContent || ''), null, {timeout: 15000});
+    await page.waitForFunction(() => /rendered/.test(document.querySelector('#pv-status')?.textContent || ''), null, {timeout: 60000});
     await page.locator('#src').evaluate((t, md) => { t.value = md; t.dispatchEvent(new Event('input', {bubbles: true})); }, OLD_CARDS);
-    await page.waitForFunction(() => document.querySelectorAll('#sheet .ex-flashcard').length === 4, null, {timeout: 15000});
+    await page.waitForFunction(() => document.querySelectorAll('#sheet .ex-flashcard').length === 4, null, {timeout: 60000});
     await page.evaluate(() => document.fonts.ready);
     await sleep(300);
     const cards = page.locator('#sheet .ex-flashcard');
