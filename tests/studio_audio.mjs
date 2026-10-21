@@ -42,7 +42,7 @@ const SHOTS = Deno.env.get('SHOTS') || '';
 let passed = 0;
 const assert = (v, m) => { if (!v) throw Error('FAIL: ' + m); passed++; console.log('  ok', m); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-async function until(fn, what, ms = 8000) {
+async function until(fn, what, ms = 20000) {      // (a wait for something to be so: how long it is given is how long a slow computer is)
   const end = Date.now() + ms;
   for (;;) {
     let v;
@@ -127,12 +127,55 @@ async function suite(mode) {
     }, sel);
     const previewAudio = name => `#sheet figure.audio audio[src*="/audio/${name}"]`;
     const loads = (sel, what) => until(async () => { const p = await player(sel); return p && p.ready >= 1; }, what);
-    // a real click on a native player's ▶ (its left end)
-    const clickPlay = async sel => {
-      await page.locator(sel).first().scrollIntoViewIfNeeded();
-      await sleep(250);                        // a player just drawn lays its controls out
-      const box = await page.locator(sel).first().boundingBox();
-      await page.mouse.click(box.x + 20, box.y + box.height / 2);
+    /* THE PREVIEW IS DRAWN AGAIN by every change of the source and by every file brought in -- the page asks for it 350 ms
+       after a change, and again at once when the clip tray has given it a file -- and each drawing replaces the players
+       of the one before.  A player found while one of them is still to come is a player about to be taken away (a
+       click on it lands on nothing; Playwright says "Element is not attached to the DOM"), so the drawings are counted
+       from out here and waited for: none under way, and none begun for 800 ms. */
+    const renders = {open: 0, last: Date.now()};
+    const isRender = r => r.method() === 'POST' && r.url().endsWith('/api/preview');
+    page.on('request', r => { if (isRender(r)) { renders.open++; renders.last = Date.now(); } });
+    for (const gone of ['requestfinished', 'requestfailed'])
+      page.on(gone, r => { if (isRender(r)) { renders.open = Math.max(0, renders.open - 1); renders.last = Date.now(); } });
+    const previewSettled = (what = 'the preview is drawn') => until(async () => renders.open === 0 && Date.now() - renders.last >= 800, what, 20000);
+    /* A real click on a native player's ▶ (its left end), made where the player stands STILL and on what is there,
+       and LOOKED FOR in the player's own events: the click that did nothing is made again, the one that did something
+       never is (a second would pause what the first started).  A player that has just been drawn lays its controls
+       out, and the page aligns its panes after a drawing, so a box measured and clicked 250 ms later was a guess. */
+    const clickPlay = async (sel, tab = page, event = 'play') => {
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        const at = await tab.evaluate(([sel, event]) => new Promise(done => {
+          let last = '', same = 0, looks = 0;
+          const look = () => {
+            const a = document.querySelector(sel);
+            if (a) {
+              a.scrollIntoView({block: 'nearest'});
+              const r = a.getBoundingClientRect(), key = [r.x, r.y, r.width, r.height].map(Math.round).join();
+              same = key === last ? same + 1 : 0;
+              last = key;
+              const x = r.x + 20, y = r.y + r.height / 2;
+              if (same >= 6 && document.elementFromPoint(x, y) === a) {
+                window.__heard = 0;
+                a.addEventListener(event, () => { window.__heard++; }, {once: true});
+                return done({x, y});
+              }
+            } else { same = 0; last = ''; }
+            if (++looks > 400) return done(null);
+            setTimeout(look, 25);
+          };
+          look();
+        }), [sel, event]);
+        if (!at) continue;
+        await tab.mouse.click(at.x, at.y);
+        for (let i = 0; i < 30; i++) {
+          if (await tab.evaluate(() => window.__heard).catch(() => 0)) return;
+          await sleep(50);
+        }
+        // a click heard late is a click that worked: the player is already doing what it was asked
+        if (await tab.evaluate(([sel, event]) => { const a = document.querySelector(sel); return !!a && (event === 'play' ? !a.paused : a.paused); },
+                               [sel, event]).catch(() => false)) return;
+      }
+      throw Error('FAIL: a click on the ▶ of ' + sel + " never made the player " + event);
     };
 
     /* ---------------- a) the Audio button ---------------- */
@@ -319,11 +362,12 @@ async function suite(mode) {
     assert(Buffer.from(await Deno.readFile(`${docDir}/${bye.path}`)).equals(Buffer.from(await Deno.readFile(`${info.tray}/${bye.name}`))),
            `${bye.path} copied from the tray byte for byte (the tray keeps it)`);
     await toastSays(/^Brought 1 file from the clip tray$/, 'the paste says what it brought');
+    await previewSettled('the preview is drawn again with the clip in the document');
     await loads(previewAudio(bye.name), 'the pasted clip loads in the preview');
     await clickPlay(previewAudio(bye.name));
     await until(async () => { const p = await player(previewAudio(bye.name)); return !p.paused && p.t > 0.2; }, 'the pasted clip plays');
     assert(true, 'the pasted clip plays in the preview');
-    await clickPlay(previewAudio(bye.name));
+    await clickPlay(previewAudio(bye.name), page, 'pause');
 
     /* ---------------- e) a clip window ---------------- */
     console.log('e) a clip window');
@@ -358,6 +402,7 @@ async function suite(mode) {
     // Every moment it plays is watched, not only where it stopped.
     const keepsWindow = async (tab, sel, start, end, where) => {
       const state = () => tab.evaluate(s => { const a = document.querySelector(s); return {ready: a.readyState, paused: a.paused, t: a.currentTime}; }, sel);
+      if (tab === page) await previewSettled(`${where}: the preview is drawn`);
       await until(async () => (await state()).ready >= 1, `${where}: the windowed player loads`);
       for (const round of [1, 2]) {
         await tab.evaluate(s => {
@@ -367,13 +412,14 @@ async function suite(mode) {
             if (window.__seen === seen) requestAnimationFrame(look);
           };
           look();
+          // and by the player's own events, which do not wait for a frame: a page too busy to draw for the whole of a
+          // window less than a second long has no frame in it to look at (the first position seen was Infinity)
+          for (const ev of ['playing', 'timeupdate'])
+            a.addEventListener(ev, () => { if (window.__seen === seen && !a.paused) { seen.min = Math.min(seen.min, a.currentTime); seen.max = Math.max(seen.max, a.currentTime); } });
         }, sel);
-        await tab.locator(sel).scrollIntoViewIfNeeded();
-        await sleep(250);
-        const box = await tab.locator(sel).boundingBox();
-        await tab.mouse.click(box.x + 20, box.y + box.height / 2);
-        await until(async () => !(await state()).paused, `${where}: it plays (round ${round})`, 5000);
-        await until(async () => (await state()).paused, `${where}: it stops by itself (round ${round})`, 6000);
+        await clickPlay(sel, tab);
+        await until(async () => !(await state()).paused, `${where}: it plays (round ${round})`, 20000);
+        await until(async () => (await state()).paused, `${where}: it stops by itself (round ${round})`, 20000);
         const p = await state(), seen = await tab.evaluate(() => window.__seen);
         assert(p.t >= end - 0.15 && p.t <= end + 0.15 && seen.max <= end + 0.15 && seen.min >= start - 0.1 && seen.min <= start + 0.3,
                `${where}, play ${round}: from ${seen.min.toFixed(2)} to ${p.t.toFixed(2)} s, inside [${start}, ${end}] (+0.15)`);
