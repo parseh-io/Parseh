@@ -671,7 +671,17 @@ await scene('d) the page and the hub\'s door', async () => {
   // flag them as the pages do, so that the ids are the ones the reader and the player make
   const mk = await ctx.newPage();
   await mk.goto(base + '/later/');
-  await mk.evaluate(async ps => { for (const p of ps) await ParsehLater.add(ParsehLater.record(p)); await ParsehLater.sync(); }, [FIRST, SECOND, THIRD, PERSIAN, CLIP]);
+  // EACH FLAG GETS ITS OWN MOMENT, two seconds after the one before, named here and not read off the clock: made in a loop the five were
+  // stamped within a millisecond or two of each other, a flag's `at` has the clock's millisecond for its grain, and "the one flagged
+  // last first" below is an order by `at` -- two flags stamped in the same millisecond keep the order they were made in, so the heading of
+  // 'Mini' (its newest flag made third) came before 'Persian one' (made fourth) in about one run in a few (measured: 43 of 200 loops of
+  // five had two neighbours with the same stamp)
+  await mk.evaluate(async ps => {
+    const t0 = Date.now() / 1000 - 20;
+    let i = 0;
+    for (const p of ps) await ParsehLater.add(ParsehLater.record(Object.assign({}, p, {at: t0 + 2 * i++})));
+    await ParsehLater.sync();
+  }, [FIRST, SECOND, THIRD, PERSIAN, CLIP]);
   await mk.close();
   eq((await askDoor(base, 'counts=1')).total, 5, 'the five flags are on the computer');
   await page.goto(base + '/');
