@@ -112,6 +112,16 @@ recording field a **▶** to hear it. A Jolly field has **Image…** and
 **Recording…**, which upload a file and put its line into the field at the
 cursor.
 
+A picture field of any exercise also has **Pictogram…** beside **Upload…**, and a
+Jolly field one beside **Image…**: they search the ARASAAC pictograms kept on this
+computer by a word, show each before you choose, and store a copy in the document
+as an uploaded picture would be. An exercise's own picture comes with a width of
+20 % and the middle, which suit a pictogram. **Pictogram…** at the foot of the
+form, beside **∑ Maths…**, puts one in the field you were last in: a small
+picture inside the line of a text field, a figure in a Jolly field, the picture
+itself in a picture field
+([Pictograms](pictograms.md#looking-for-a-pictogram-and-using-one)).
+
 Every text box of the form has its own **⇤ RTL** / **⇥ LTR** button: the
 box starts the way its text is written, and the button turns it for typing
 — a Persian answer inside an English exercise, say. It changes only how
@@ -125,8 +135,8 @@ form stays open — then puts the exercise in at the cursor, on lines of its
 own. **Cancel**, **✕** or Escape closes the form and writes nothing.
 
 > **Save the document before uploading.** Pictures and recordings go into
-> the document's own folders, so **Upload…**, **Image…** and
-> **Recording…** need it saved once.
+> the document's own folders, so **Upload…**, **Image…**, **Recording…**
+> and **Pictogram…** need it saved once.
 
 ### Paste markdown…
 

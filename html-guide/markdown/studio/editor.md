@@ -310,6 +310,9 @@ for Parseh's address and press the button again.
 
 **Image**, **Images…**, **Audio**, **Recordings…** and **Video** are for
 the document's pictures, recordings and videos: see
-[Pictures and recordings in a document](editor-media.md). **Exercises ▾** is
+[Pictures and recordings in a document](editor-media.md). **Pictograms…**
+looks for an ARASAAC pictogram by a word and puts it in as a figure, with the
+credit its licence asks for: see
+[Pictograms](pictograms.md#looking-for-a-pictogram-and-using-one). **Exercises ▾** is
 [Exercises in the editor](editor-exercises.md). **Stop server** stops
 Parseh, after asking.

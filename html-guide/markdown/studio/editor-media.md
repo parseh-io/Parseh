@@ -16,12 +16,16 @@ that put them there.
 
 > **Save first.** A document gets its folder on its first save, so the
 > buttons that store a file — **Image**, **Images…**, **Audio**,
-> **Recordings…**, a picture pasted or dropped — ask you to save a new
+> **Recordings…**, **Pictograms…**, a picture pasted or dropped — ask you to save a new
 > document first (*Save the document first — images are stored in its
 > folder*). A line naming a file can be typed at any time; until the file is
 > there, the preview shows a placeholder.
 
 ## Pictures: Image and Images…
+
+(A picture that is an ARASAAC pictogram has a button of its own, **Pictograms…**,
+which searches them by a word and shows each before you add it:
+[Pictograms](pictograms.md#looking-for-a-pictogram-and-using-one).)
 
 **Image** opens a file picker for PNG, JPEG, SVG and PDF files, several at
 once. Each is stored in the document's `images/` and put in on a line of

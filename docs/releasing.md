@@ -160,16 +160,17 @@ run on this machine, were brought up to what it now does (`add_stt`,
 title bar of the transcription window was a `<header>`, which the video pages'
 stylesheet pins to the top of the screen.
 
-Measured on 2026-10-21 on the finished a0.5.3 tree, one suite at a time,
-with `TMPDIR` on the main disk (the browser suites with two copies of other
-suites running beside them, a load of 6 to 10 on 24 cores, which is the stricter
-way):
+Measured on 2026-10-21 and 22 on the finished a0.5.3 tree (a0.5.3-rc2), one
+suite at a time, with `TMPDIR` on the main disk, on a computer doing nothing
+else; the two suites whose checks were found racing in the loop
+(`player_note`, `review_later_core`) also in a crowd of four copies at once,
+which is the stricter way (24 and 12 runs, none red):
 
 | Suite | State | Result |
 |---|---|---|
-| unit — `python3 -m unittest discover -s tests -p "test_*.py"` | green | `Ran 3789 tests … OK (skipped=14)` |
-| `python3 tests/smoke.py` | green | `1901 passed, 0 failed, 21 skipped` |
-| the 81 `tests/*.mjs` | green | each of them; none is accepted as flaky |
+| unit — `python3 -m unittest discover -s tests -p "test_*.py"` | green | `Ran 3852 tests … OK (skipped=14)` |
+| `python3 tests/smoke.py` | green | `1902 passed, 0 failed, 21 skipped` |
+| the 82 `tests/*.mjs` | green | each of them; none is accepted as flaky |
 
 A new red is breakage: in a worktree on the previous release's tag, run the
 same suite — if it is red there too, it is old; if not, it is yours. (A worktree
@@ -203,7 +204,7 @@ a crowd has. A suite's own selectors make a loop short (`--env NAME=VALUE`): `SE
 `REACH_PARTS=slow` for `reach`, `MOBILE_PARTS=background MOBILE_BG_ONLY=i2` for `mobile_pages`. A check that fails
 without saying what it saw (which toast, which pictures, what the folder says) is mended to say it before it is chased.
 
-**What the flaky checks of a0.5.2 were**, so that the next one is looked for among them:
+**What the flaky checks of a0.5.2 and a0.5.3 were**, so that the next one is looked for among them:
 
 | Suite | What it did | What it waits for now |
 |---|---|---|
@@ -215,6 +216,8 @@ without saying what it saw (which toast, which pictures, what the folder says) i
 | `arasaac_door` | counted a button or a box at the instant the server's state changed, before the page's own look; slowed the host by the clock and hoped the page's once-a-second look fell inside | the page's controls; the pictures held at the host until the count had been seen |
 | `reach`, the slow part | counted the asks from the browser's events, in which a cut ask's end can reach the test after the next ask's start | the page's own count |
 | `cardkit` | waited five to ten seconds for sound to play through; wanted one pause at the end of a clip where two came, 5 ms apart; read a clip's own level from one stretch of it, and read the fade of a clip of a tab that the computer was too busy to record a few milliseconds of (a hole of 6 ms in the middle made 8 ms look like 4; one of 12 ms in the last 25 made it 25) | thirty seconds; no pause before the end; the median of the clip's middle; a clip with a hole is said to have one and its fade is not read |
+| `decks`, the editor's *Load from a deck…* | waited for the words of a toast a second time, and the first insertion's toast still held them (a toast fades but is never emptied), so the checks that followed looked at a page the copy had not reached | the second block in the text |
+| `review_later_core`, the list's headings | made five flags in a loop and asserted an order by their time stamps, a flag's `at` having the clock's millisecond for its grain (43 of 200 loops of five had two neighbours stamped alike, and such flags keep the order they were made in; and a flag made again is never older than what removed it, so a moment in the past is put back to the instant of the clean-up) | each flag's moment named, from now on, 50 ms apart |
 
 Not reproduced in dozens of runs each, under every load tried, so hardened and made to describe themselves when they
 fail: `studio_starter_media` (the editor draws the new picture) and the *Failed to fetch* of a write in `reach`'s slow
@@ -228,7 +231,11 @@ browser's closed connection as a traceback (a0.5.2).
 the instant something else became true (the server's state changes before the page has been told). A flash on the
 screen is read from a diary the page keeps, not caught. A thing drawn more than once is waited for until it is still.
 A gesture is looked for in its effect (the player's own `play`), not trusted to have landed. What the browser reports of
-the network is not what the page did: the page counts its own asks. And a failure says what it saw.
+the network is not what the page did: the page counts its own asks. A toast keeps its words after it has faded (its
+element is hidden, never emptied), so waiting for the words of the second of two equal toasts is satisfied by the first:
+wait for what the action did (the text, the file, the list). Things made in a loop are made in the same millisecond or
+two, and a time stamp has the millisecond for its grain: a check that orders by it names the moments itself. And a
+failure says what it saw.
 
 The suites are written for a computer doing little else: at a load of a hundred on 24 cores, what needs real time
 (sound recorded from a tab, a smooth scroll) fails honestly. And **a Chromium that dies** (*Target page, context or

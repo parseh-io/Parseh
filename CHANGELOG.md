@@ -1,6 +1,10 @@
 ## [a0.5.3] - unreleased
+### Added
+- Pictograms: a frame to look for an ARASAAC pictogram by a word, in any language fetched, with thumbnails and a preview of each; it opens from Settings → Pictograms (to look), from the editor's Pictograms… (a figure at the cursor, with ARASAAC's credit added once) and from the exercise form and the decks (a card's picture, an exercise's picture, a small picture inside the text, a figure in a jolly card)
+
 ### Fixed
 - Settings → Pictograms: a page that watched a download or an update end could stay on "Part of it is here" until it was loaded again
+- The editor: a figure, a recording, a video or an exercise added with the cursor still at the top of a page went in above the front matter, and the page stopped being its language
 
 ## [a0.5.2] - 2026-10-21
 ### Added

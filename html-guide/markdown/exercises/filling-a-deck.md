@@ -159,6 +159,10 @@ the deck's language, solved, so that you see what you are writing.
   have **Upload…**, which stores the file in the deck and fills in its path;
   a recording field has a ▶ to hear it. A jolly card's field has **Image…**
   and **Recording…**, which upload a file and put its line in at the cursor.
+  A picture field also has **Pictogram…**, which looks for an ARASAAC
+  pictogram by a word and stores a copy in the deck (a deck writes no
+  credit by itself: give ARASAAC's with a deck you share —
+  [Pictograms](../studio/pictograms.md#looking-for-a-pictogram-and-using-one)).
   Pictures may be PNG, JPEG, SVG or PDF, up to 15 MB; recordings MP3, M4A,
   AAC, Ogg, Opus, WAV, FLAC or WebM, up to 30 MB, and a recording that holds
   no sound is refused. A large upload shows on the **Working…** pill while

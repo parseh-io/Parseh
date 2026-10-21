@@ -17,6 +17,21 @@ guide and rebuilds the readers by itself.
 
 ## a0.5.3 — not yet released
 
+### Looking for a pictogram, and adding it
+
+The pictograms Parseh keeps (**Settings → Pictograms (ARASAAC)**) can now be looked through and used by hand. A frame
+over the page takes a word, in any language you fetched or in one, and shows the pictograms for it as thumbnails, best
+match first, with a preview of the one you choose: the picture as large as the screen allows, what it means, the words
+it has in every language, and what ARASAAC says of it. **The Settings page only looks.** The **editor's Pictograms…**
+puts one in as a figure at the cursor, a copy in the document's own pictures, and writes ARASAAC's credit as the last
+paragraph, once. **The exercise form**, in the editor and in a deck, has a *Pictogram…* beside each picture field's
+*Upload…*, and one in its bar for the field you were last in: a small picture inside a line of text, or a figure in a
+jolly card. The pictograms ARASAAC marks as about violence or sex are left out unless you tick a box, and the frame says
+how many were left out ([Pictograms](../studio/pictograms.md)).
+
+An embed added to a page you had not clicked into (a figure, a recording, a video, an exercise) used to land above the
+page's front matter and make it no language at all; it now goes below it.
+
 ### The Pictograms page after a download or an update
 
 The Pictograms page of Settings could go on saying *Part of it is here* after a download or an update had ended, until

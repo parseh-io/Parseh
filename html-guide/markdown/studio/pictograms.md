@@ -2,7 +2,7 @@
 title: Pictograms (ARASAAC)
 linkTitle: Pictograms
 weight: 12
-description: Settings → Pictograms (ARASAAC) (/settings/arasaac/) — some fourteen thousand pictograms and the words that name them, fetched once from ARASAAC and kept on this computer for the studio's exercises; whose pictures they are and what their licence asks of you (a credit, nothing sold, the same licence for what you share), what each choice costs, who may fetch them, and where the files are.
+description: Settings → Pictograms (ARASAAC) (/settings/arasaac/) — some fourteen thousand pictograms and the words that name them, fetched once from ARASAAC and kept on this computer for the studio's pages and exercises; whose pictures they are and what their licence asks of you (a credit, nothing sold, the same licence for what you share), what each choice costs, how to look for one by a word and add it to a page, a card or an exercise, who may fetch them, and where the files are.
 ---
 
 ARASAAC — the Aragonese Portal of Augmentative and Alternative Communication,
@@ -12,15 +12,17 @@ thousand **pictograms**: small drawings of a house, of *to eat*, of
 can keep them on this computer, so that an exercise can carry a picture of
 what it is about.
 
-They are for the studio's exercises: a picture to put beside a word, on a
-card or in a question. This page is where they are fetched, kept and taken
-away; nothing else in Parseh needs them, and nothing breaks without them.
+They are for the studio's pages and exercises: a picture to put beside a word,
+on a card, in a question or on a line of a lesson. This page is where they are
+fetched, kept and taken away, and where you can [look through
+them](#looking-for-a-pictogram-and-using-one); nothing else in Parseh needs
+them, and nothing breaks without them.
 
 It is **optional** in every sense. Until you press a button on its page
 nothing is fetched, Parseh's own installation is exactly the size it was, and
-no page of Parseh asks for a pictogram. Nothing you write goes with the
-request: the page asks two of ARASAAC's own hosts for ARASAAC's own files, and
-tells them nothing of yours.
+no page of Parseh puts a pictogram anywhere you did not put it. Nothing you
+write goes with the request: the page asks two of ARASAAC's own hosts for
+ARASAAC's own files, and tells them nothing of yours.
 
 ## Getting there
 
@@ -141,6 +143,55 @@ not failing**: what came is kept, the page says so, and the button says
 **Carry on**. A download that was cut by a dropped line, a closed laptop or a
 Parseh that was stopped carries on the same way, and **no picture is fetched
 twice**.
+
+## Looking for a pictogram, and using one
+
+Once the pictograms are here you can find one by a word and see it before you
+use it. A frame opens over the page you are on, like every dialog of Parseh,
+and it is the same frame wherever it opens:
+
+| From | You press | What it does with the one you choose |
+|---|---|---|
+| This page | **Look through the pictograms…**, in the row that says what is installed (it is there once a picture is) | **Nothing to add:** it is only to look |
+| The editor of a document | **Pictograms…**, beside **Images…** | Puts a **figure on a line of its own** at the cursor, with the word as its caption, and a copy of the picture in the document's own pictures |
+| An exercise, in the editor or in a deck | **Pictogram…**, beside **Upload…** on a picture field | Fills the field with the picture's path (and, for an exercise's picture, a width of 20 % and the middle, which suit a pictogram) |
+| An exercise, in the editor or in a deck | **Pictogram…**, at the foot of the form beside **LaTeX drawing…** and **∑ Maths…** | Puts it in the field you were last in: a **small picture inside the line** of a text field, a figure in the blocks of a jolly card, the path in a picture field |
+
+In the frame:
+
+- **Type a word.** It finds the pictograms whose words match, in every language
+  you fetched or in the one you choose, whichever way you type it: *casa*,
+  *Casa*, *cása*, and a Persian word with either kind of *y* or *k*. Every word
+  you type must be found, in any order. The best match comes first: the word
+  itself, then its plural, then words that begin with it, then words that
+  contain it. With nothing typed it lists every pictogram, alphabetically.
+- **Look at one.** Click a thumbnail (or move to it with the arrow keys): the
+  picture shows large at the side, with its word, what it means, the words it
+  has in every language here, what ARASAAC says of it, and its number. On a
+  phone the picture opens as a sheet over the list, with **Back to the list**.
+- **Add it.** Where the frame can add, the button says what it does —
+  **Add to the page**, **Use this pictogram**, **Put it in the text** — and
+  where several may go in one after another a second one, **… keep looking**,
+  adds it and stays open. The words under the pictures are in the language of the
+  page you are on, when its words are here.
+- **Violence and sex.** ARASAAC marks some pictograms as about violence or
+  about sex. They are **left out** unless you tick the box, and the frame says
+  how many were left out, so you do not wonder why a word you know has no
+  picture.
+- **It says what is not here.** With nothing installed it says so, and sends
+  you to this page (or says where to go, in the studio run on its own); with
+  a download not finished it lists what has come, and says how far it got.
+
+**What goes into your page** is always **a copy** of the picture, kept in the
+document's own pictures (or the deck's), named `arasaac-<number>.png`; the same
+pictogram twice is one file. An update of the pictograms never changes what a
+page already holds, and the page stays whole when you move it. In the editor
+the first pictogram also writes **ARASAAC's credit as the last paragraph** of
+the document, once; it stays until you take it out, and if you take out the
+last pictogram, take the credit out too. **A deck does not write a credit by
+itself**: if you share a deck whose cards hold pictograms, give the credit with
+it ([the licence](#whose-pictures-these-are) says why, and `LICENSE-ARASAAC.txt`
+has the words).
 
 ## Who may use it
 
