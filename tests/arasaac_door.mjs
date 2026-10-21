@@ -311,6 +311,9 @@ async function suite(phone) {
       const s1 = await stats();
       eq(s1.pictures, 0, 'and no picture was asked for again');
       eq(s1.lists, 1, 'one list');
+      // THE ROW SAYS "installed" AS SOON AS THE WORDS ARE THERE, but the page draws Remove… only when the job is over, and it
+      // learns that from its next poll (once a second): wait for the buttons, not for the row
+      await until(async () => (await page.locator('#ar [data-remove-lang]').count()) === 2, 'the job ends and both languages can be removed');
       eq(await page.locator('#ar [data-remove-lang]').count(), 2, 'both languages can be removed now');
       // the size: a question of its own, because it replaces every picture
       await page.check('input[name=px][value="500"]');
