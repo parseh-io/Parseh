@@ -19,6 +19,7 @@ so that a browser test can change the world under an open page:
     {"cmd": "clear"}                      the folder emptied, the job forgotten
     {"cmd": "build", "locales": ["en"], "resolution": 300, "stop_after": 12}   the real download, run here
     {"cmd": "slow", "seconds": 0.02}      how long the host takes over each answer
+    {"cmd": "hold"} / {"cmd": "release"}  the pictures wait at the host until released (the lists do not)
     {"cmd": "fail", "pattern": "/2239/", "how": "500", "times": 99}    a misbehaving host (arasaac_fake.World.fail)
     {"cmd": "unfail"}                     it behaves again
     {"cmd": "change", "ids": [3], "picture": true, "add": [99999], "drop": [4]}   ARASAAC moved on
@@ -129,6 +130,10 @@ def command(line):
             srv.after.clear()
     elif what == "slow":
         srv.world.delay = float(c["seconds"])
+    elif what == "hold":                    # the pictures wait at the host (not the lists) until `release`
+        srv.world.gate.clear()
+    elif what == "release":
+        srv.world.gate.set()
     elif what == "fail":
         srv.world.fail(c["pattern"], c.get("how", "500"), int(c.get("times", 1)))
     elif what == "unfail":

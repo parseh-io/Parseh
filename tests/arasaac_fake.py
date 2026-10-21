@@ -46,6 +46,8 @@ class World:
         self.no_picture = set()                 # ids the host answers 404 for
         self.failures = []                      # [(regex of the path, behaviour, times left)]
         self.delay = 0.0
+        self.gate = threading.Event()           # the pictures wait here while it is cleared (the harness's `hold`)
+        self.gate.set()
         self.when = 1700000000.0
         for i in range(n):
             self.add(start + i * 7)
@@ -141,6 +143,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             srv.in_flight += 1
             srv.most_in_flight = max(srv.most_in_flight, srv.in_flight)
         try:
+            if re.search(r"/pictograms/\d+/", self.path):
+                world.gate.wait(60)             # held: a test that wants to see the count of them before the first one
             if world.delay:
                 time.sleep(world.delay)
             for rx, hook in list(srv.after.items()):

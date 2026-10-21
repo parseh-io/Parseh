@@ -346,9 +346,9 @@ async function suite(phone) {
       await h.send({cmd: 'change', add: [99999], drop: [3]});
       await h.send({cmd: 'reset_stats'});
       // THREE PICTURES ARE A FEW MILLISECONDS AT THE FAKE HOST'S SPEED, and the page asks how things stand once a second:
-      // slowed, the pictures are there to be seen (without it the count was read before the pictures began, or after
-      // they were over, and an `or it is over` let the second pass for the count)
-      await h.send({cmd: 'slow', seconds: 0.6});
+      // so they are held at the host until the count has been seen (slowed by the clock instead, 0.6 s each, the page's
+      // look could fall before the pictures began or after they were over -- it did, on a loaded computer)
+      await h.send({cmd: 'hold'});
       await door();
       eq(await page.locator('#ar [data-update]').count(), 1, 'Update is offered');
       await page.click('#ar [data-update]');
@@ -356,8 +356,8 @@ async function suite(phone) {
       has(await text('[data-row="job"]'), 'Looking for what has changed', 'the row says what it is doing');
       await until(async () => /\b\d of 3 pictures\b/.test(await text('[data-row="job"]')), 'the row counts the pictures');
       assert(true, 'and counts what it has to fetch: three, not all of them');
+      await h.send({cmd: 'release'});
       await until(async () => !(await state()).arasaac.job.running, 'it is over', 30000);
-      await h.send({cmd: 'slow', seconds: 0});
       const s = await stats();
       eq(s.lists, 1, 'the list was asked for once');
       eq(s.pictures, 3, 'and only the pictures a record named: the two that moved and the new one');
@@ -365,7 +365,14 @@ async function suite(phone) {
       eq(s.files, 30, 'one new, one gone');
       eq((await state()).arasaac.pictograms, 30, 'and the records say so');
       eq((await state()).arasaac.job.error, '', 'with no error');
-      await until(async () => (await text('[data-row="whole"]')).includes('Installed'), 'and it is installed');
+      // (if it is not, both sides are described -- what the folder says it is, and what the row says: a timeout alone does not
+      // tell a page that did not look again from a folder that is not whole)
+      await until(async () => (await text('[data-row="whole"]')).includes('Installed'), 'and it is installed')
+        .catch(async e => {
+          const st = (await state()).arasaac;
+          throw Error(e.message + ' -- the folder: ' + JSON.stringify({state: st.state, pending: st.pending, missing: st.missing, files: st.files,
+                      pictograms: st.pictograms, job: st.job}) + '; the row: ' + (await text('[data-row="whole"]')));
+        });
       await h.send({cmd: 'clear'}).catch(() => {});
     });
 
