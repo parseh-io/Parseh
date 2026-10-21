@@ -214,11 +214,11 @@ without saying what it saw (which toast, which pictures, what the folder says) i
 | `studio_narrow`, a contents jump | took two looks at the scroll 150 ms apart for a page standing still | twelve drawn frames with nothing moving |
 | `arasaac_door` | counted a button or a box at the instant the server's state changed, before the page's own look; slowed the host by the clock and hoped the page's once-a-second look fell inside | the page's controls; the pictures held at the host until the count had been seen |
 | `reach`, the slow part | counted the asks from the browser's events, in which a cut ask's end can reach the test after the next ask's start | the page's own count |
-| `cardkit` | waited five to ten seconds for sound to play through; wanted one pause at the end of a clip where two came, 5 ms apart | thirty seconds; no pause before the end |
+| `cardkit` | waited five to ten seconds for sound to play through; wanted one pause at the end of a clip where two came, 5 ms apart; read a clip's own level from one stretch of it, and a few milliseconds the computer was too busy to record, there, made its 8 ms fade look like 4 | thirty seconds; no pause before the end; the median of the clip's middle |
 
-Not reproduced in some sixty runs under every load tried, so hardened and made to describe themselves when they
-fail: `studio_starter_media` (the editor draws the new picture), the 22 ms fade of `cardkit`, and the *Failed to fetch*
-of a write in `reach`'s slow part.
+Not reproduced in some hundred runs each, under every load tried, so hardened and made to describe themselves when they
+fail: `studio_starter_media` (the editor draws the new picture) and the *Failed to fetch* of a write in `reach`'s slow
+part (three hundred writes against a computer that is held still for eight seconds at a time, none refused).
 
 Two of the causes were faults of Parseh, not of the tests, and are mended in it: the Pictograms page could stay on
 *Part of it is here* after a job had ended (`getarasaac.status()` read the job last), and the studio alone printed a
