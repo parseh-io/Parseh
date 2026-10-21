@@ -187,7 +187,8 @@ python3 tests/repeat.py studio_audio -n 20
 
 Most of the flaky checks failed rarely on a quiet computer and often on a loaded one, which is the computer they
 failed on. What found nearly all of them was **copies of the suite running at once** (four copies put a computer of 24
-cores at a load of 30 or more), each with its own temporary folders and ports:
+cores at a load of a dozen or so, twice or three times what it was when they were first seen), each with its own
+temporary folders and ports:
 
 ```bash
 for i in 1 2 3 4; do python3 tests/repeat.py studio_audio -n 3 & done; wait

@@ -154,7 +154,11 @@ def check(cond, what, detail=""):
 def run(cmd, cwd=None, env=None, timeout=900):
     e = dict(os.environ)
     e.update(env or {})
-    r = subprocess.run(cmd, cwd=cwd, env=e, capture_output=True, text=True, timeout=timeout)
+    # NOTHING IT STARTS SHARES THIS PROCESS'S STDIN.  `import asrworkspaceworker` is a program: it reads its code from
+    # stdin until the end of the file, so where stdin was a terminal or a pipe nobody closed (a loop started from a tool,
+    # say) the import check of that module waited its sixty seconds and the whole test died with TimeoutExpired; from a
+    # shell with its input redirected it never did
+    r = subprocess.run(cmd, cwd=cwd, env=e, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 
 
@@ -5946,7 +5950,7 @@ def test_server():
     config = tempfile.mkdtemp(prefix="parseh-smoke-config-")
     proc = subprocess.Popen([sys.executable, "-u", "-c", SERVE_BOOT, config,
                              "--http", "--local", str(port)],
-                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
+                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
     try:
         up = False
         for _ in range(80):
