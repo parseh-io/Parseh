@@ -101,8 +101,9 @@ Parseh-mine's update from GitHub; everything under *Afterwards*.
   browser profile per suite — into `TMPDIR`. Where `/tmp` is a memory disk
   (a *tmpfs*) that is filling up, they fail in ways that look like faults
   of Parseh: `tests/mobile_pages.mjs`'s background step *j* failed every
-  time with `/tmp` 79% full, and passed every time on the main disk. Point
-  it at the main disk:
+  time with `/tmp` 79% full, and passed every time on the main disk (it
+  names the folder in a sentence now, when it has no room). Point it at the
+  main disk:
 
   ```bash
   mkdir -p ~/.cache/parseh-tests-tmp && export TMPDIR=~/.cache/parseh-tests-tmp
@@ -159,12 +160,14 @@ run on this machine, were brought up to what it now does (`add_stt`,
 title bar of the transcription window was a `<header>`, which the video pages'
 stylesheet pins to the top of the screen.
 
-Measured on 2026-10-19 on the finished a0.5.2 tree, one suite at a time,
-with `TMPDIR` on the main disk:
+Measured on 2026-10-21 on the finished a0.5.3 tree, one suite at a time,
+with `TMPDIR` on the main disk (the browser suites with two copies of other
+suites running beside them, a load of 6 to 10 on 24 cores, which is the stricter
+way):
 
 | Suite | State | Result |
 |---|---|---|
-| unit — `python3 -m unittest discover -s tests -p "test_*.py"` | green | `Ran 3779 tests … OK (skipped=14)` |
+| unit — `python3 -m unittest discover -s tests -p "test_*.py"` | green | `Ran 3789 tests … OK (skipped=14)` |
 | `python3 tests/smoke.py` | green | `1901 passed, 0 failed, 21 skipped` |
 | the 81 `tests/*.mjs` | green | each of them; none is accepted as flaky |
 
