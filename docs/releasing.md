@@ -216,7 +216,7 @@ without saying what it saw (which toast, which pictures, what the folder says) i
 | `reach`, the slow part | counted the asks from the browser's events, in which a cut ask's end can reach the test after the next ask's start | the page's own count |
 | `cardkit` | waited five to ten seconds for sound to play through; wanted one pause at the end of a clip where two came, 5 ms apart; read a clip's own level from one stretch of it, and a few milliseconds the computer was too busy to record, there, made its 8 ms fade look like 4 | thirty seconds; no pause before the end; the median of the clip's middle |
 
-Not reproduced in some hundred runs each, under every load tried, so hardened and made to describe themselves when they
+Not reproduced in dozens of runs each, under every load tried, so hardened and made to describe themselves when they
 fail: `studio_starter_media` (the editor draws the new picture) and the *Failed to fetch* of a write in `reach`'s slow
 part (three hundred writes against a computer that is held still for eight seconds at a time, none refused).
 
