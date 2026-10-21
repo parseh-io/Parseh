@@ -806,7 +806,9 @@ async function partSkip(page, tag) {
     const b = await page.locator(sel).boundingBox();
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
     await page.mouse.down();
-    await sleep(700);
+    // held until the row of seconds is there -- a hold opens it after half a second of the page's own clock, and a
+    // fixed 700 ms was a look taken before it on a computer too busy to keep that clock
+    await page.waitForFunction(() => document.querySelectorAll('.nc-popb').length > 0, null, {timeout: 15000}).catch(() => {});
     const rows = await page.evaluate(() => [...document.querySelectorAll('.nc-popb')].map(x => x.textContent));
     await page.mouse.up();
     return rows;
@@ -3701,6 +3703,16 @@ async function partBackground() {
   // and what the computer says of the book now, with it among the recordings
   const made = await (await fetch(EN + '__offline')).json();
   const TITLE = made.title, FA_TITLE = (await (await fetch(FA + '__offline')).json()).title;
+  // a toast waited for, and when it does not come, the toasts there were: "nothing was changed" in place of a refusal
+  // says that the press did not do what it was meant to (a timeout of twenty seconds says only that nothing came)
+  const toastedSaying = async (page, line, timeout) => {
+    try { return await toasted(page, line, timeout); }
+    catch (e) {
+      const seen = await page.evaluate(() => ({log: window.__toastLog || [], now: (document.getElementById('parseh-toast') || {}).textContent,
+                                               button: (document.querySelector('.kp-keep') || {}).textContent, at: Math.round(performance.now())})).catch(x => String(x));
+      throw Error(e.message.split('\n')[0] + ' -- toasts seen: ' + JSON.stringify(seen));
+    }
+  };
   const stopHub = () => Deno.kill(hub.pid, 'SIGSTOP');
   const goHub = () => Deno.kill(hub.pid, 'SIGCONT');
   async function phone(ctx) {
@@ -3710,17 +3722,29 @@ async function partBackground() {
     page.touch = await ctx.newCDPSession(page);
     await page.touch.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 1});
     await watchWay(page);
+    await page.addInitScript(() => {                    // every toast the page shows, and when (see toastedSaying)
+      window.__toastLog = [];
+      const hook = () => {
+        const t = document.getElementById('parseh-toast');
+        if (!t) { setTimeout(hook, 20); return; }
+        new MutationObserver(() => window.__toastLog.push([Math.round(performance.now()), t.textContent]))
+          .observe(t, {childList: true, characterData: true, subtree: true});
+      };
+      hook();
+    });
     return page;
   }
   async function open(page, url) {
     await page.goto(url);
     await setMode(page, 'mobile');
     await page.reload();
-    await page.waitForFunction(() => !!window.ParsehKeep, null, {timeout: 20000});
+    // (a minute for each: a browser that has just been started, as step j's is, on a computer with a hundred other things
+    // to do, takes longer than twenty seconds to bring a page and its worker up)
+    await page.waitForFunction(() => !!window.ParsehKeep, null, {timeout: 60000});
     if (!(await page.evaluate(() => !!(navigator.serviceWorker && navigator.serviceWorker.controller)))) {
-      await page.waitForFunction(() => navigator.serviceWorker.ready, null, {timeout: 20000}).catch(() => {});
+      await page.waitForFunction(() => navigator.serviceWorker.ready, null, {timeout: 60000}).catch(() => {});
       await page.reload();
-      await page.waitForFunction(() => navigator.serviceWorker.controller, null, {timeout: 20000});
+      await page.waitForFunction(() => navigator.serviceWorker.controller, null, {timeout: 60000});
     }
     await answerPlace(page);
   }
@@ -3731,6 +3755,11 @@ async function partBackground() {
                                null, {timeout: 30000});
     await tap(page, '.kp-keep');
     await page.waitForSelector('.kp-sheet');
+    // A BOOK ALREADY KEPT: the sheet looks at what is on the phone file by file ("Looking at what is on this phone, file
+    // by file…") and ticks the boxes by what it finds, undoing a tick made before it has answered -- which a person's
+    // finger never beats and a test's does (a Save then says "nothing was changed")
+    await page.waitForFunction(() => !/^Looking at what is on this phone/.test((document.querySelector('.kp-check') || {}).textContent || ''),
+                               null, {timeout: 60000});
   }
   // exactly these recordings ticked, by file name; the notes' row as it is
   const pick = (page, names) => page.evaluate(names => {
@@ -3781,15 +3810,22 @@ async function partBackground() {
      computer does when it sleeps. */
   async function midway(page, part, open_ = 12, shut = 80) {
     stopHub();
-    let last = null;
+    let last = null, looks = 0, ever = 0;
+    const trail = [], began = Date.now();
     for (const t = Date.now(); Date.now() - t < 120000;) {
-      last = await downloads(page);
+      last = await downloads(page); looks++;
       const d = last.find(x => x.part === part);
       if (d && d.downloaded > 0 && (!d.total || d.downloaded < d.total)) return d.downloaded;
+      if (last.length && !ever) ever = Date.now() - began;
+      if (trail.length < 12 && (d || last.length)) trail.push([Date.now() - began, last.map(x => [x.part, x.downloaded, x.total])]);
       goHub(); await sleep(open_); stopHub(); await sleep(shut);
     }
     goHub();
-    throw Error('FAIL: the ' + part + ' download could not be caught halfway: ' + JSON.stringify(last));
+    const kept = await inCache(page, 'parseh-kept-' + HERE, BIG_URL).catch(() => 'err');
+    const btn = await button(page).catch(() => 'err');
+    throw Error('FAIL: the ' + part + ' download could not be caught halfway: ' + JSON.stringify(last) + ' after ' + looks +
+                ' looks; something listed first after ' + ever + ' ms; seen ' + JSON.stringify(trail) +
+                '; the big file in the phone\'s cache: ' + kept + '; the button says ' + JSON.stringify(btn));
   }
   async function hubAgain() {
     hub = new Deno.Command(PY, {args: ['tests/mobile_harness.py', 'serve', WORK, String(port)], cwd: root,
@@ -4101,7 +4137,7 @@ async function partBackground() {
       await sheet(page);
       await pick(page, ['part1.mp3']);
       await press(page);
-      await toasted(page, REFUSED, 20000);
+      await toastedSaying(page, REFUSED, 20000);
       assert(true, 'the browser refuses the background download: "' + REFUSED + '"');
       await page.waitForFunction(() => !(document.querySelector('.kp-keep') || {}).disabled);
       eq([await entry(page), (await downloads(page)).length, (await button(page)).startsWith('Keep on this phone')],
@@ -4130,7 +4166,7 @@ async function partBackground() {
       await pick(page, ['slow.wav']);                  // part1 unticked, slow.wav ticked
       page.once('dialog', d => d.accept());            // "Give back … ?" -- yes
       await press(page);
-      await toasted(page, REFUSED, 20000);
+      await toastedSaying(page, REFUSED, 20000);
       eq([had > 0, await inCache(page, 'parseh-kept-' + HERE, P1) === had,
           (await entry(page)).media.includes(P1)], [true, true, true],
          'refused, the Save gave nothing back: the unticked recording is still on the phone and written down');
@@ -4173,6 +4209,16 @@ async function partBackground() {
     // a phone's does, and this is the one place the suite can show it.
     if (only('j')) {
       const dir = await Deno.makeTempDir({prefix: 'parseh-bg-profile-'});
+      // THE PROFILE KEEPS THE 200 MB RECORDING, and a copy of it while it comes.  A temporary folder without that room
+      // fails further down as "got -1 want 200000000", which reads as a fault of Parseh; on a tmpfs /tmp that is filling
+      // up it is the folder (docs/releasing.md, "Before you start": TMPDIR on the main disk)
+      const df = await new Deno.Command('df', {args: ['-Pk', dir], stdout: 'piped', stderr: 'null'}).output().catch(() => null);
+      const room = df ? Math.floor(+td.decode(df.stdout).trim().split('\n').pop().split(/\s+/)[3] / 1024) : NaN;
+      if (room < 800) {
+        await Deno.remove(dir, {recursive: true}).catch(() => {});
+        throw Error('FAIL: step j keeps a 200 MB recording in a browser profile under ' + dir + ' and needs about 800 MB free there; ' +
+                    'it has ' + room + ' MB. Set TMPDIR to a folder on a disk with room (docs/releasing.md, "Before you start").');
+      }
       const ctx = await chromium.launchPersistentContext(dir, {executablePath: Deno.env.get('CHROME_BIN'),
                                                                headless: true, ...PHONE});
       try {
@@ -4488,11 +4534,13 @@ async function partUpdate() {
     await page.goto(B + url);
     await setMode(page, 'mobile');
     await page.reload();
-    await page.waitForFunction(() => !!window.ParsehKeep, null, {timeout: 20000});
+    // (a minute for each: a browser that has just been started, as step j's is, on a computer with a hundred other things
+    // to do, takes longer than twenty seconds to bring a page and its worker up)
+    await page.waitForFunction(() => !!window.ParsehKeep, null, {timeout: 60000});
     if (!(await page.evaluate(() => !!(navigator.serviceWorker && navigator.serviceWorker.controller)))) {
-      await page.waitForFunction(() => navigator.serviceWorker.ready, null, {timeout: 20000}).catch(() => {});
+      await page.waitForFunction(() => navigator.serviceWorker.ready, null, {timeout: 60000}).catch(() => {});
       await page.reload();
-      await page.waitForFunction(() => navigator.serviceWorker.controller, null, {timeout: 20000});
+      await page.waitForFunction(() => navigator.serviceWorker.controller, null, {timeout: 60000});
     }
     await answerPlace(page);
   }
@@ -4510,6 +4558,11 @@ async function partUpdate() {
                                null, {timeout: 60000});
     await tap(page, '.kp-keep');
     await page.waitForSelector('.kp-sheet');
+    // A BOOK ALREADY KEPT: the sheet looks at what is on the phone file by file ("Looking at what is on this phone, file
+    // by file…") and ticks the boxes by what it finds, undoing a tick made before it has answered -- which a person's
+    // finger never beats and a test's does (a Save then says "nothing was changed")
+    await page.waitForFunction(() => !/^Looking at what is on this phone/.test((document.querySelector('.kp-check') || {}).textContent || ''),
+                               null, {timeout: 60000});
   }
   // Keep it, or Save; and where the phone's room is asked about, anyway
   async function press(page) {
