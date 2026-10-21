@@ -31,7 +31,7 @@ const SHOTS = Deno.env.get('SHOTS') || '';
 let passed = 0;
 const assert = (v, m) => { if (!v) throw Error('FAIL: ' + m); passed++; console.log('  ok', m); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-async function until(fn, what, ms = 8000) {
+async function until(fn, what, ms = 20000) {      // (a wait for something to be so: how long it is given is how long a slow computer is)
   const end = Date.now() + ms;
   for (;;) {
     let v;
@@ -361,8 +361,18 @@ async function suite(mode) {
     await toastSays(/^Uploaded starter-house\.svg$/, 'the upload keeps the name');
     // the page drew the house from that address before: it draws the new
     // picture now, not what it remembers
+    // (if it does not, the page is described: which pictures it holds, whether they loaded, which names it marked, what
+    // the preview last said -- a timeout of eight seconds on its own says nothing of which of those it was)
     const drawn = await until(async () => { const c = await colour(); return c[0] === 46 && c[1] === 139 && c[2] === 87 && c; },
-                              'the editor draws the new picture');
+                              'the editor draws the new picture')
+      .catch(async e => {
+        const seen = await page.evaluate(() => ({
+          imgs: [...document.querySelectorAll('#sheet img')].map(i => [i.getAttribute('src'), i.complete, i.naturalWidth]),
+          marked: typeof MEDIA_CHANGED === 'undefined' ? null : [...MEDIA_CHANGED],
+          status: (document.querySelector('#pv-status') || {}).textContent, toast: (document.querySelector('#toast') || {}).textContent,
+        })).catch(x => String(x));
+        throw Error(e.message + ' -- the page: ' + JSON.stringify(seen));
+      });
     assert(drawn, 'the editor draws the new picture at once, not the house it drew before ' + JSON.stringify(drawn));
     await page.evaluate(() => { document.querySelector('#toast').textContent = ''; });
     await page.click('#btn-save');
