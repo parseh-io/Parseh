@@ -331,6 +331,14 @@ CHROME_BIN=/path/to/chrome PARSEH_PYTHON=/path/to/python3 \
   deno run --allow-all tests/html_guide.mjs
 ```
 
+A browser test that fails now and then is run again and again, to see how often
+and why, one run after another or with the computer made busy on purpose
+(`--stress`), and its failures counted by their reasons:
+
+```bash
+python3 tests/repeat.py studio_audio -n 20
+```
+
 ## Releasing a version
 
 For whoever releases Parseh, from a copy of its source code;
