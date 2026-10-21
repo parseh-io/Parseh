@@ -1,4 +1,4 @@
-## [a0.5.2] - unreleased
+## [a0.5.2] - 2026-10-21
 ### Added
 - Open a file… in the studio: a Markdown or zip file from anywhere on the computer Parseh runs on, from any device it lets in, edited through a copy and written only when you save
 
