@@ -616,7 +616,7 @@ function deckUpload(deck, kind = "images") {
     return {path: data.path || `${kind}/${data.name}`, url: data.url};
   };
 }
-const uploads = deck => ({uploadImage: deckUpload(deck), uploadAudio: deckUpload(deck, "audio")});
+const uploads = deck => ({uploadImage: deckUpload(deck), uploadAudio: deckUpload(deck, "audio"), pictureHome: "this deck"});
 
 /* An exercise is saved even when a picture or a recording it names is not
    in the deck.  The answer says so, and the toast passes it on. */

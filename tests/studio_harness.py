@@ -12,7 +12,12 @@ with real recordings (ffmpeg) in it.
 Seeds two clips in the tray (Persian, "سلام" and "خداحافظ") and a document
 holding tests/fixtures/studio/audio/audio.md with its recording and picture.
 Prints `READY {json}` once listening.  SIGTERM or SIGINT removes the temp
-tree.  Never touches markdown/library/, exercises/ or clips/."""
+tree.  Never touches markdown/library/, exercises/ or clips/.
+
+    --pictograms           an INSTALLED set of ARASAAC pictograms (tests/pictogram_world.py) in the temporary
+    --pictograms=partial   arasaac/ -- or a download that was stopped; without the flag the folder is empty, and
+                           either way it is the temporary one: the checkout's own is never read or written
+                           (its path is in READY, so a suite may take the folder away and put it back)"""
 import json
 import os
 import shutil
@@ -27,6 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MODE = sys.argv[1] if len(sys.argv) > 1 else "studio"
 FORCE_LATEX_MISSING = "--latex-missing" in sys.argv[2:]
 FORCE_LATEX_COMPILER_STATES = "--latex-compiler-states" in sys.argv[2:]
+PICTOGRAMS = next((a.partition("=")[2] or "complete" for a in sys.argv[2:] if a.split("=")[0] == "--pictograms"), "")
 
 if MODE == "parseh":
     os.chdir(ROOT)
@@ -53,9 +59,21 @@ import network    # noqa: E402
 # presses ◐ or the gear's Colours would write config/prefs.json -- the theme of
 # the owner's own pages -- through serve.py's /__prefs
 import prefs      # noqa: E402
+# and the ARASAAC pictograms (lib/getarasaac.py): the picker reads them, and the checkout's own arasaac/ may be 160 MB of
+# the owner's -- or none at all, which a suite must not depend on either
+import getarasaac     # noqa: E402
+import arasaacsearch  # noqa: E402
 
 tmp = Path(tempfile.mkdtemp(prefix="parseh-studio-audio-test-"))
 store.LIB = tmp / "library"
+getarasaac.ARASAAC_DIR = str(tmp / "arasaac")
+getarasaac._FACTS.clear()
+arasaacsearch.forget()
+if PICTOGRAMS:
+    sys.path.insert(0, str(ROOT / "tests"))
+    import pictogram_world                         # noqa: E402
+    pictogram_world.install(getarasaac.ARASAAC_DIR, complete=PICTOGRAMS != "partial",
+                            pictures=None if PICTOGRAMS != "partial" else 12)
 network.STORE = str(tmp / "config" / "network.json")
 prefs.STORE = str(tmp / "config" / "prefs.json")
 # and the LaTeX drawings' themes, their drawings and their packages
@@ -138,7 +156,7 @@ try:
     srv.daemon_threads = True
     studio.SERVER["instance"] = srv
     print("READY " + json.dumps({"port": srv.server_address[1], "studio": studio.BASE, "mode": MODE,
-                                 "library": str(store.LIB), "tray": str(tray),
+                                 "library": str(store.LIB), "tray": str(tray), "arasaac": getarasaac.ARASAAC_DIR,
                                  "latex_drawn": str(latexdraw.DRAWN),
                                  "texmf_list": texpackages.manifest_path(),
                                  "rich_doc_id": rich["id"], "rich_doc_dir": str(store.doc_dir(rich["id"])),

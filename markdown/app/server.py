@@ -72,6 +72,8 @@ import latexdraw      # noqa: E402  a latex block, compiled on its own and kept 
 import latexrename    # noqa: E402  a theme renamed, every block put right (§8.39)
 import network        # noqa: E402  who is knocking: only this computer opens its own files
 import openfile       # noqa: E402  a file from anywhere on the computer, open in the studio (a0.5.2)
+import getarasaac     # noqa: E402  the ARASAAC pictograms, optional and local (lib/getarasaac.py)
+import arasaacsearch  # noqa: E402  a word looked for among them, for the picker (a0.5.3)
 # NOTE: `verify` (and its pymupdf dependency) is imported lazily inside
 # build_pdf, so the whole UI still starts when pymupdf is absent — only
 # PDF verification, not the library/editor/preview, needs it.
@@ -1117,6 +1119,22 @@ def serve_gear_file(h, name):
     h.send_bytes(data, ctype + "; charset=utf-8", 200, {"Cache-Control": "no-cache"})
 
 
+def serve_picker_file(h, name):
+    """The pictogram picker's two files (lib/pictograms.js and its sheet, a0.5.3): the frame the editor
+    and the exercise form open to look for an ARASAAC pictogram.
+
+    The studio's pages link the script as /lib/pictograms.js, which is the toolbox's own when the studio is
+    mounted in it; run on its own the studio has no /lib/, and without these two the button of the editor
+    and of the form would do nothing (the form hides its own when the script is not there).  The script
+    links its sheet from beside itself, so the one route answers both."""
+    ctype = "text/css" if name.endswith(".css") else "text/javascript"
+    try:
+        data = (LIB / name).read_bytes()
+    except OSError:
+        return h.send_json({"error": "not found"}, 404)
+    h.send_bytes(data, ctype + "; charset=utf-8", 200, {"Cache-Control": "no-cache"})
+
+
 def serve_prompt_options(h):
     """The choices a person makes for one prompt, which the row (lib/llmrow.js)
     draws beside the copy button: the scheme of the transliteration.  The
@@ -1515,6 +1533,34 @@ def serve_latex(h, name):
     if path is None:
         return h.send_json({"error": "no such drawing"}, 404)
     return h.send_file(Path(path))
+
+
+def api_arasaac_search(h):
+    """A word looked for among the ARASAAC pictograms (lib/arasaacsearch.py): what the picker
+    shows as thumbnails.  A read, though it is asked with a POST -- the words travel in a body, not in
+    an address -- and one that touches nothing: what is on this computer's disk, and nothing a client
+    sends becomes a path."""
+    body = h._json_body() or {}
+    try:
+        out = arasaacsearch.search(body.get("q", ""), body.get("locales"), body.get("display"),
+                                   body.get("offset"), body.get("limit"), body.get("sensitive") is True)
+    except getarasaac.ArasaacError as e:
+        return h.send_json({"ok": False, "error": e.say, "code": e.code}, 400)
+    return h.send_json(out)
+
+
+def serve_arasaac_picture(h, pid):
+    """One pictogram's picture, by its number: the picker's thumbnail and preview, and the bytes the
+    editor and the exercise form carry into a document as their own copy (docs/arasaac.md, 5.7)."""
+    found = arasaacsearch.picture(pid)
+    if found is None:
+        return h.send_json({"error": "no such pictogram here"}, 404)
+    try:
+        data = Path(found).read_bytes()
+    except OSError:
+        return h.send_json({"error": "no such pictogram here"}, 404)
+    query = urllib.parse.urlsplit(h.path).query
+    h.send_bytes(data, "image/png", 200, {"Cache-Control": arasaacsearch.cache_control(query)})
 
 
 def serve_media(h, doc_id, name):
@@ -2819,6 +2865,7 @@ ROUTES = [
     ("GET",    r"^/static/app\.js$",                      serve_app_js),
     ("GET",    r"^/lib/llmrow\.js$",                      serve_llmrow_js),
     ("GET",    r"^/lib/(pagesettings\.(?:js|css)|pagezoom\.js)$", serve_gear_file),
+    ("GET",    r"^/lib/(pictograms\.(?:js|css))$",         serve_picker_file),
     ("GET",    r"^/__prompt/options$",                    serve_prompt_options),
     ("GET",    r"^/static/mathjax\.js$",                  serve_math_js),
     ("GET",    r"^/static/mathjax\.css$",                 serve_math_css),
@@ -2826,6 +2873,10 @@ ROUTES = [
     ("GET",    r"^/static/(.+)$",                         serve_static),
     # the LaTeX drawing sheet: the themes to choose from, and a block drawn as
     # it is typed (static/exform.js, openLatexOverlay)
+    # the pictogram picker (lib/pictograms.js): a word looked for among the ARASAAC pictograms
+    # installed here, and a picture of one by its number
+    ("POST",   r"^/api/arasaac/search$",                  api_arasaac_search),
+    ("GET",    r"^/arasaac/([0-9]{1,7})\.png$",           serve_arasaac_picture),
     ("GET",    r"^/api/latex/themes$",                    api_latex_themes),
     ("POST",   r"^/api/latex/preview$",                   api_latex_preview),
     # a latex block's drawing, by its key (lib/latexdraw.py): one address for

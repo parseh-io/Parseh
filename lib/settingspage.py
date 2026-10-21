@@ -316,10 +316,12 @@ ROUTES = {
     "/settings/api/prompts/import": ("prompts.save",),
     "/settings/api/prompts/delete": ("prompts.delete",),
     # the ARASAAC pictograms (lib/getarasaac.py, its own door: lib/arasaacpage.py): how they
-    # stand and what a choice would cost, open; getting them, looking for what changed, stopping
-    # and removing them, open to any device let in (SETTINGS says why)
+    # stand, what a choice would cost and a word looked for among them (the picker, a0.5.3), open;
+    # getting them, looking for what changed, stopping and removing them, open to any device let in
+    # (SETTINGS says why)
     "/settings/api/arasaac/state": READ,
     "/settings/api/arasaac/plan": READ,
+    "/settings/api/arasaac/search": READ,
     "/settings/api/arasaac/get": ("arasaac.get",),
     "/settings/api/arasaac/update": ("arasaac.get",),
     "/settings/api/arasaac/stop": ("arasaac.stop",),
@@ -528,7 +530,7 @@ DOORS = (
      "The prompts you wrote for a chatbot: export, import, delete",
      ("prompts.save", "prompts.delete")),
     ("/settings/arasaac/", "Pictograms (ARASAAC)",
-     "Pictures for the studio's exercises: ARASAAC's pictograms, with their licence",
+     "Pictures for pages and exercises: ARASAAC's pictograms, to look through and use, with their licence",
      ("arasaac.get", "arasaac.remove", "arasaac.stop")),
     # NO SETTING BEHIND THIS DOOR: a skill is built when it is asked for and downloaded as a file; what is done with
     # it afterwards is the person's own step in the chatbot (lib/skillspage.py)
@@ -968,9 +970,9 @@ def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_ta
   </a>
   <a class="door" href="/settings/arasaac/">
     <div class="dname">Pictograms (ARASAAC)</div>
-    <div class="dwhat">Pictures for the exercises the studio asks a chatbot to write: ARASAAC&rsquo;s
-    pictograms and the words that name them, fetched once and kept on this computer &mdash; shared
-    under a licence that asks for a credit and rules out selling what is made with them.</div>
+    <div class="dwhat">Pictures for the studio&rsquo;s pages and exercises: ARASAAC&rsquo;s pictograms
+    and the words that name them, fetched once and kept on this computer, to look through by a word and
+    add &mdash; shared under a licence that asks for a credit and rules out selling what is made with them.</div>
     <div class="tags">%(arasaac_gate)s%(arasaac_tags)s</div>
   </a>
   <a class="door" href="/settings/skills/">

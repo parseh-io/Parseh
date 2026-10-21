@@ -34,6 +34,7 @@ LIB = os.path.dirname(os.path.realpath(__file__))
 if LIB not in sys.path:
     sys.path.insert(0, LIB)
 import getarasaac                                                # noqa: E402
+import arasaacsearch                                             # noqa: E402
 import languages                                                 # noqa: E402
 import lookuppage                                                # noqa: E402
 import settingspage                                              # noqa: E402
@@ -125,6 +126,10 @@ def api(what, body, where=""):
     try:
         if what == "state":
             return 200, view(where, body.get("device") or "")
+        if what == "search":
+            # the picker's search (lib/arasaacsearch.py): a read, open to every device let in, like the state
+            return 200, arasaacsearch.search(body.get("q", ""), body.get("locales"), body.get("display"),
+                                             body.get("offset"), body.get("limit"), body.get("sensitive") is True)
         if what == "plan":
             px = body.get("resolution", getarasaac.DEFAULT_RESOLUTION)
             locales = getarasaac.check_locales(body.get("locales", [getarasaac.BASE_LOCALE]))
@@ -175,8 +180,13 @@ guide.</p>
               % (settingspage._in_script(v), SCRIPT))
     return settingspage.frame("Pictograms (ARASAAC) &mdash; %s settings" % settingspage.NAME,
                               '<a href="/settings/">settings</a> &middot; pictograms (ARASAAC)',
-                              "Pictograms", GUIDE, main, style=lookuppage.STYLE + STYLE, script=script)
+                              "Pictograms", GUIDE, main, style=lookuppage.STYLE + STYLE, script=script,
+                              extra_head=PICKER_HEAD)
 
+
+# the picker, which Look through the pictograms opens (lib/pictograms.js): one tag, async, and the script links its own
+# sheet from beside itself; both files are served by serve.py (STATIC_FILES)
+PICKER_HEAD = '<script src="/lib/pictograms.js" async></script>'
 
 STYLE = r"""
 .ar .whomay{display:flex;gap:8px 10px;align-items:baseline;flex-wrap:wrap;margin:.2rem 0 1rem;font-size:13.5px;color:var(--dim)}
@@ -463,8 +473,11 @@ SCRIPT = r"""
     }
     if (s.state === 'other') facts.push('Made by a Parseh with another shape of file: press Get it to make it again, or remove it.');
     if (!facts.length) return '';
+    // LOOKING AT THEM is not fetching them: its own button, and only where there is a picture to look at (the picker, a0.5.3)
+    var look = s.files ? '<button class="go" type="button" data-look title="Search the pictograms by a word and look at them, as large as you like">' +
+      'Look through the pictograms…</button>' : '';
     return '<div class="it" data-row="whole"><div class="it-main"><div class="it-head"><span class="it-name">The pictograms</span>' +
-      pill(st.cls, st.glyph, st.word) + '</div><div class="it-facts">' + facts.join(' · ') + '</div></div><span></span><div class="it-act"></div></div>';
+      pill(st.cls, st.glyph, st.word) + '</div><div class="it-facts">' + facts.join(' · ') + '</div></div><span></span><div class="it-act">' + look + '</div></div>';
   }
 
   var drawn = null, held = null;
@@ -535,6 +548,17 @@ SCRIPT = r"""
   }
   function lost() { asking = {kind: 'bad', said: 'The server did not answer.'}; drawn = null; draw(); }
 
+  /* ---- looking through them: the picker (lib/pictograms.js) with nothing to add, over this page */
+  function look() {
+    if (!window.ParsehPictograms) { asking = {kind: 'bad', said: 'The picker did not load: reload this page.'}; drawn = null; draw(); return; }
+    ParsehPictograms.open({
+      search: '/settings/api/arasaac/search',
+      picture: function (id) { return '/settings/arasaac/picture/' + id + '.png'; },
+      title: 'Pictograms (ARASAAC)',
+      note: 'These are the pictures on this computer. Search them by a word, in any of the languages fetched, and click one to look at it properly.'
+    });
+  }
+
   root.addEventListener('change', function (e) {
     var t = e.target, c;
     if ((c = t.getAttribute('data-tick'))) { pick.locales[c] = t.checked; drawn = null; replan(); draw(); }
@@ -552,6 +576,7 @@ SCRIPT = r"""
         kick();
       }).catch(lost);
     }
+    if (b.hasAttribute('data-look')) { look(); return; }
     if (b.hasAttribute('data-get')) { start('get', {locales: ticked(), resolution: pick.px}); return; }
     if (b.hasAttribute('data-update')) { start('update', {}); return; }
     if (b.hasAttribute('data-resize')) { asking = {kind: 'size'}; draw(); return; }

@@ -13,8 +13,9 @@ WHAT THIS IS.  ARASAAC (the Aragonese Portal of Augmentative and Alternative
 Communication) publishes some fourteen thousand pictograms -- a house, to eat,
 nervous -- drawn by Sergio Palao for the Government of Aragon, each with the
 words that name it in some forty languages.  Parseh keeps them in `arasaac/`
-so that an exercise the studio asks a chatbot to write can carry a picture of
-what it is about.  It is optional in every sense: nothing here is imported,
+so that a page, a card or an exercise of the studio can carry a picture of
+what it is about -- found by a word and added by hand (lib/arasaacsearch.py, lib/pictograms.js), and one day asked
+for by a chatbot's answer.  It is optional in every sense: nothing here is imported,
 fetched or started until somebody presses *get it* on Settings -> Pictograms
 (lib/arasaacpage.py), and a person who never asks for it has the toolbox they
 had.

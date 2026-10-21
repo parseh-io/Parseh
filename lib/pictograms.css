@@ -1,0 +1,176 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* THE PICTOGRAM PICKER (lib/pictograms.js, a0.5.3): a frame over the page, like every dialog of Parseh.
+
+   It is drawn by three kinds of page -- the hub's Settings, the studio's editor and its exercise
+   form -- and so its colours are read from whichever set of tokens the page has: the studio's
+   --chrome-* first, the hub's --card, --ink, --dim, --rule, --bg after them, and a light default last.
+   Nothing here is written for one page's class names.  The pictures sit on white tiles in every theme:
+   a pictogram is black lines on nothing, and on a dark page it would be lost. */
+
+.pg-overlay {
+  --pg-panel: var(--chrome-panel, var(--card, #ffffff));
+  --pg-page: var(--chrome-bg, var(--bg, #f3eff1));
+  --pg-fg: var(--chrome-fg, var(--ink, #2f272b));
+  /* the quiet text is the text colour, thinned toward the panel: the studio's sepia --chrome-mut is 4.4 to 1 on its panel
+     and 3.9 on its page, which is under what small print needs, and this frame has a lot of small print (the credit) */
+  --pg-mut: color-mix(in srgb, var(--pg-fg) 80%, var(--pg-panel));
+  --pg-line: var(--chrome-line, var(--rule, #e3d9dd));
+  --pg-accent: var(--accent, #be3455);
+  --pg-accent-fg: var(--accent-fg, #ffffff);
+  --pg-danger: var(--danger, #9b3327);
+  --pg-ok: var(--ok, #2e7d4f);
+  /* over the studio's dialogs (100) and its tray (118), under its toasts (120): what was done is said on the screen
+     while the frame is still open */
+  position: fixed; inset: 0; z-index: 119; background: rgba(23, 18, 20, .55);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  font-family: inherit; color: var(--pg-fg); box-sizing: border-box;
+}
+.pg-overlay *, .pg-overlay *::before, .pg-overlay *::after { box-sizing: border-box; }
+.pg-overlay [hidden] { display: none !important; }
+/* the page behind does not scroll while the frame is over it -- said by what is there, so that a frame taken out of the
+   page by anything but its own Close cannot leave the page locked */
+html:has(.pg-overlay) { overflow: hidden; }
+
+.pg-modal {
+  background: var(--pg-panel); color: var(--pg-fg); border-radius: 12px;
+  width: min(1020px, 96vw); height: min(780px, 92vh);
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+}
+.pg-modal:focus { outline: none; }
+
+.pg-head { display: flex; align-items: center; gap: .6rem; padding: .85rem 1.1rem .15rem; }
+.pg-head h3 { margin: 0; font-size: 1.05rem; font-weight: 650; flex: 1 1 auto; min-width: 0; }
+.pg-x {
+  flex: none; width: 2rem; height: 2rem; padding: 0; border: 1px solid transparent; border-radius: 6px;
+  background: none; color: var(--pg-mut); font-size: 1.3rem; line-height: 1; cursor: pointer;
+}
+.pg-x:hover { border-color: var(--pg-line); color: var(--pg-accent); }
+.pg-note { margin: 0; padding: 0 1.1rem .3rem; font-size: .84rem; color: var(--pg-mut); }
+
+.pg-search { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .7rem; padding: .4rem 1.1rem .8rem; margin: 0; }
+.pg-q {
+  flex: 1 1 14rem; min-width: 0; padding: .5rem .7rem; font: inherit; font-size: 1rem;
+  border: 1px solid var(--pg-line); border-radius: 8px; background: var(--pg-page); color: var(--pg-fg);
+}
+.pg-lang {
+  flex: 0 1 auto; max-width: 100%; padding: .48rem .5rem; font: inherit;
+  border: 1px solid var(--pg-line); border-radius: 8px; background: var(--pg-page); color: var(--pg-fg);
+}
+.pg-sens { display: inline-flex; align-items: center; gap: .4rem; font-size: .84rem; color: var(--pg-mut); cursor: pointer; }
+.pg-sens input { margin: 0; width: 1.05rem; height: 1.05rem; }
+.pg-overlay :is(input, select, button):focus-visible { outline: 2px solid var(--pg-accent); outline-offset: 1px; }
+
+.pg-body {
+  flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 19.5rem;
+  border-top: 1px solid var(--pg-line);
+}
+.pg-results { min-width: 0; min-height: 0; overflow: auto; padding: .7rem 1.1rem 1rem; }
+.pg-count { margin: 0 0 .6rem; font-size: .84rem; color: var(--pg-mut); min-height: 1.2em; }
+.pg-count b { color: var(--pg-fg); font-weight: 600; }
+.pg-hidden-note { margin: 0 0 .7rem; padding: .45rem .7rem; font-size: .84rem; color: var(--pg-mut);
+  border-inline-start: 3px solid var(--pg-accent); background: var(--pg-page); border-radius: 0 8px 8px 0; }
+.pg-link {
+  display: inline; padding: 0; border: 0; background: none; font: inherit; color: var(--pg-accent);
+  text-decoration: underline; cursor: pointer;
+}
+.pg-results.pg-loading .pg-grid { opacity: .55; }
+
+.pg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(6.4rem, 1fr)); gap: .55rem; }
+.pg-cell {
+  position: relative; display: flex; flex-direction: column; gap: .3rem; align-items: stretch; padding: .35rem;
+  border: 1px solid var(--pg-line); border-radius: 10px; background: var(--pg-panel); color: var(--pg-fg);
+  font: inherit; text-align: center; cursor: pointer; min-width: 0;
+}
+.pg-cell:hover { border-color: var(--pg-accent); }
+.pg-cell[aria-selected="true"] { border-color: var(--pg-accent); box-shadow: 0 0 0 2px var(--pg-accent); }
+.pg-tile {
+  display: flex; align-items: center; justify-content: center; aspect-ratio: 1; border-radius: 7px; background: #fff;
+  overflow: hidden;
+}
+.pg-tile img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pg-cell.pg-missing .pg-tile::after { content: "?"; color: #8a7d82; font-size: 1.6rem; }
+.pg-cell.pg-missing .pg-tile img { display: none; }
+.pg-cap {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  font-size: .8rem; line-height: 1.25; min-height: 2.5em; overflow-wrap: anywhere;
+}
+.pg-more-row { display: flex; justify-content: center; margin: 1rem 0 .2rem; }
+
+.pg-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .3rem; padding: .45rem .85rem;
+  border: 1px solid var(--pg-line); border-radius: 7px; background: var(--pg-panel); color: var(--pg-fg);
+  font: inherit; font-size: .9rem; line-height: 1.2; cursor: pointer; text-decoration: none;
+}
+.pg-btn:hover { border-color: var(--pg-accent); color: var(--pg-accent); }
+.pg-btn.pg-primary { background: var(--pg-accent); border-color: var(--pg-accent); color: var(--pg-accent-fg); }
+.pg-btn.pg-primary:hover { filter: brightness(1.1); color: var(--pg-accent-fg); }
+.pg-btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+
+.pg-empty { padding: 1.4rem .2rem; color: var(--pg-mut); }
+.pg-empty p { margin: 0 0 .6rem; max-width: 40rem; }
+.pg-empty b { color: var(--pg-fg); }
+.pg-empty .pg-error { color: var(--pg-danger); }
+
+.pg-preview {
+  min-width: 0; min-height: 0; overflow: auto; padding: .9rem 1rem 1rem; background: var(--pg-page);
+  border-inline-start: 1px solid var(--pg-line); display: flex; flex-direction: column; gap: .55rem;
+}
+.pg-big { display: flex; align-items: center; justify-content: center; aspect-ratio: 1; width: 100%; max-width: 17.5rem;
+  margin: 0 auto; border-radius: 10px; background: #fff; border: 1px solid var(--pg-line); overflow: hidden; }
+.pg-big img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pg-big:empty::after { content: "Choose a pictogram to see it here"; color: #8a7d82; font-size: .84rem; padding: 1rem; text-align: center; }
+.pg-word { margin: .1rem 0 0; font-size: 1.1rem; font-weight: 650; overflow-wrap: anywhere; }
+.pg-meaning { margin: 0; font-size: .86rem; color: var(--pg-mut); overflow-wrap: anywhere; }
+.pg-words { margin: 0; font-size: .84rem; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .15rem .6rem; }
+.pg-words dt { color: var(--pg-mut); }
+.pg-words dd { margin: 0; overflow-wrap: anywhere; }
+.pg-tags { display: flex; flex-wrap: wrap; gap: .3rem; margin: 0; padding: 0; list-style: none; }
+.pg-tags li { padding: .1rem .5rem; border: 1px solid var(--pg-line); border-radius: 999px; font-size: .75rem; color: var(--pg-mut); }
+.pg-tags li.pg-flag { border-color: var(--pg-danger); color: var(--pg-danger); }
+.pg-number { margin: 0; font-size: .78rem; color: var(--pg-mut); font-variant-numeric: tabular-nums; }
+.pg-actions { display: flex; flex-direction: column; gap: .4rem; margin-top: .2rem; }
+.pg-view-only { margin: 0; font-size: .8rem; color: var(--pg-mut); }
+
+.pg-foot {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .9rem; padding: .6rem 1.1rem;
+  border-top: 1px solid var(--pg-line);
+}
+.pg-credit { flex: 1 1 18rem; min-width: 0; margin: 0; font-size: .74rem; line-height: 1.35; color: var(--pg-mut); }
+.pg-say { flex: 1 1 100%; margin: 0; font-size: .84rem; min-height: 0; }
+.pg-say:empty { display: none; }
+.pg-say.pg-bad { color: var(--pg-danger); }
+.pg-say.pg-good { color: var(--pg-ok); }
+
+@media (max-width: 760px) {
+  .pg-overlay { padding: 0; align-items: stretch; }
+  .pg-modal { width: 100vw; height: 100%; max-height: none; border-radius: 0; }
+  .pg-head, .pg-search, .pg-note, .pg-foot { padding-inline: .8rem; }
+  .pg-head { padding-top: .6rem; }
+  .pg-note { font-size: .76rem; line-height: 1.3; }
+  .pg-credit { font-size: .7rem; }
+  .pg-search { padding-bottom: .6rem; }
+  .pg-btn, .pg-q, .pg-lang { min-height: 2.6rem; }
+  .pg-body { position: relative; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .pg-results { padding: .5rem .8rem .8rem; }
+  .pg-grid { grid-template-columns: repeat(auto-fill, minmax(5.4rem, 1fr)); gap: .45rem; }
+  /* THE PREVIEW IS A SHEET OVER THE LIST, there being no room beside it: a tap on a thumbnail opens it, with the
+     picture as large as the screen is wide, the words, and the buttons where a thumb reaches; Back shuts it */
+  .pg-preview { display: none; }
+  .pg-preview.pg-has:not(.pg-closed) {
+    display: flex; position: absolute; inset: 0; z-index: 3; border: 0; padding: .7rem .9rem 1rem;
+    flex-direction: column; overflow: auto; background: var(--pg-page);
+  }
+  .pg-preview.pg-has:not(.pg-closed) { padding-bottom: 0; }
+  .pg-back { align-self: flex-start; }
+  .pg-big { width: min(72vw, 16rem); max-width: none; flex: none; }
+  /* the buttons stay at the foot of the sheet whatever is above them: a thumb does not scroll to press Add */
+  .pg-preview.pg-has:not(.pg-closed) .pg-actions {
+    position: sticky; bottom: 0; margin-top: auto; padding: .6rem 0 .8rem; background: var(--pg-page);
+    border-top: 1px solid var(--pg-line);
+  }
+  .pg-info { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+}
+@media (min-width: 761px) { .pg-info { display: contents; } .pg-back { display: none; } }
+@media (prefers-reduced-motion: no-preference) { .pg-cell { transition: border-color .12s; } }

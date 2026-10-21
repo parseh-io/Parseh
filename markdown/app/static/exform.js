@@ -503,6 +503,54 @@ async function defaultExercisePreview(markdown) {
   return {html: data.doc.html, lang: data.doc.lang, target: data.doc.target};
 }
 
+/* ---------------------------------------------------------------------------
+   THE PICTOGRAM PICKER, pointed at the studio (lib/pictograms.js, a0.5.3).
+
+   The frame is one for the Settings door, the editor and this form; what is
+   handed to it here is where the studio answers (its own two routes, which
+   read what lib/getarasaac.py keeps), the language the document is in, and
+   where the pictograms are got when none are here.  `door` is the hub's page
+   and the studio run on its own has no such page, so it is told by the mount:
+   LATEX_BASE is "" only when the studio is the whole site.  The picture
+   reaches a document through the uploader the caller already has -- the
+   document's images/, a deck's -- so a copy is made as for any picture and
+   nothing here writes a file of its own. */
+function pictogramsLoaded() { return !!(window.ParsehPictograms && window.ParsehPictograms.open); }
+function pictogramOptions(extra) {
+  return Object.assign({
+    search: LATEX_BASE + "/api/arasaac/search",
+    picture: id => LATEX_BASE + "/arasaac/" + id + ".png",
+    lang: lang().code,
+    door: LATEX_BASE ? "/settings/arasaac/" : null,
+  }, extra);
+}
+function openPictograms(extra) {
+  if (!pictogramsLoaded()) { toast("The pictogram picker did not load: reload the page.", true); return null; }
+  return window.ParsehPictograms.open(pictogramOptions(extra));
+}
+// what a pictogram is written as, by where it goes (docs/arasaac.md 5.5): the path alone for a card's side, the path
+// with a width and a side for an exercise's picture, a small picture inside a line of text, and on a line of its own
+// -- a figure -- in a jolly card's blocks
+const PICTOGRAM_PICTURE = {width: 20, align: "center"};
+const PICTOGRAM_FIGURE = "{width=18 align=center}";
+const pictogramInline = (path, pick) => `![${pick.alt || ""}](${path})`;
+const pictogramFigure = (path, pick) => `![${pick.alt || ""}](${path})${PICTOGRAM_FIGURE}`;
+/* A small picture put into the line the cursor is in, a space either side where it would touch a word. */
+function putPictogramInline(input, markup, at, to) {
+  const value = String(input.value);
+  at = at == null ? value.length : at;
+  to = to == null ? at : to;
+  const before = value.slice(0, at), after = value.slice(to);
+  const pre = before && !/\s$/.test(before) ? " " : "";
+  const post = after && !/^\s/.test(after) ? " " : "";
+  input.value = before + pre + markup + post + after;
+  const end = (before + pre + markup + post).length;
+  input.focus();
+  input.setSelectionRange(end, end);
+  input.dispatchEvent(new Event("input", {bubbles: true}));
+  return end;
+}
+
 /* The visual exercise form, for the editor and for the exercise decks.
    `onSave(markdown)` receives the one `:::exercise` block; it may be async,
    and when it throws the message is shown and the form stays open.
@@ -514,9 +562,11 @@ async function defaultExercisePreview(markdown) {
    ("audio/<name>") -- or either to {path, url}: each picture or recording
    field of a flashcard then gets an "Upload…" button that fills it in, and
    a jolly card's fields "Image…" and "Recording…" buttons that put the
-   line in at the cursor.  Without them the fields are paths. */
+   line in at the cursor.  Without them the fields are paths.  A pictogram
+   (lib/pictograms.js) is stored by the same `uploadImage`, and `pictureHome`
+   names where that is, for what the frame says ("this page", "this deck"). */
 function openExerciseForm({model, def, mode = "add", onSave, preview, title, saveLabel,
-                           uploadImage: upload, uploadAudio, directions}) {
+                           uploadImage: upload, uploadAudio, directions, pictureHome = "this page"}) {
   const adding = mode !== "edit";
   const renderPreview = preview || defaultExercisePreview;
   const root = $("#modal-root"); root.innerHTML = "";
@@ -528,6 +578,7 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
     <div class="row ex-form-actions">
     <button class="btn ghost" data-x="latex" title="A drawing made by LaTeX itself -- chemistry, TikZ, units -- put in the field you were last in. It belongs in a Jolly card's four fields, which take blocks.">LaTeX drawing…</button>
     <button class="btn ghost" data-x="math" title="Write a formula with its picture beside it and put it in the field you were last in — the same sheet the document editor uses. In an exercise a formula may sit in the prompt, in the sentence, in an answer or on a card; it may not sit inside a blank.">∑ Maths…</button>
+    <button class="btn ghost" data-x="pictogram" hidden title="Look for an ARASAAC pictogram by a word and put it in the field you were last in: a small picture inside the text, or its path in a picture field. It is copied into this page's own pictures.">Pictogram…</button>
     <span class="ex-form-spacer"></span>
     <button class="btn" data-x="cancel">Cancel</button>
     <button class="btn primary" data-x="save"></button></div></div>`;
@@ -593,6 +644,35 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
     audio: {accept: AUDIO_ACCEPT, placeholder: "audio/example.mp3", what: "recording"},
   };
   const urls = {};                   // what an upload said a path is served at
+  // a picture field's way of taking a pictogram: the Pictogram… beside its Upload…, and the one in the action bar
+  // when the hand was last in it (path, then the pick, which says the word)
+  const pictureTakers = new WeakMap();
+  const lineTakers = new WeakMap();    // and a jolly card's blocks: a figure on a line of its own
+  const canPictogram = () => pictogramsLoaded() && typeof uploaders.image === "function";
+  // a pictogram is chosen in the frame, and stored by the form's own uploader as any picture is
+  const keepPictogram = async pick => {
+    const got = await uploaders.image(await pick.file());
+    const path = typeof got === "string" ? got : got && got.path;
+    if (!path) throw new Error("the upload named no file");
+    if (got && got.url) urls[path] = got.url;
+    return path;
+  };
+  const pictogramButton = (label, title, cls, done) => {
+    const button = document.createElement("button");
+    button.type = "button"; button.className = "btn small ghost " + cls;
+    button.textContent = label; button.title = title;
+    button.addEventListener("click", () => openPictograms({
+      title: "A pictogram for this picture",
+      note: `A copy goes into ${pictureHome}'s pictures, and its path into the field.`,
+      addLabel: "Use this pictogram",
+      onPick: async pick => {
+        const path = await keepPictogram(pick);
+        if (previewClosed) return;
+        done(path, pick);
+      },
+    }));
+    return button;
+  };
   const uploadButton = (kind, label, title, cls, done) => {
     const pick = document.createElement("input");
     pick.type = "file"; pick.accept = MEDIA[kind].accept; pick.hidden = true;
@@ -626,6 +706,7 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
       {single: true, spellcheck: false, placeholder: MEDIA[kind].placeholder, help});
     if (typeof uploaders[kind] !== "function") return input;
     const row = document.createElement("div"); row.className = "ex-upload-row";
+    input.dataset.media = kind;
     input.replaceWith(row); row.append(input);
     row.append(...uploadButton(kind, "Upload…", `Upload a ${MEDIA[kind].what} for this exercise`,
       "ex-upload", path => {
@@ -633,6 +714,17 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
         if (part) part.uploaded(path); else model.fields[key] = path;
         scheduleExercisePreview();
       }));
+    if (kind === "image" && canPictogram()) {
+      const taken = (path, pick) => {
+        input.value = path;
+        if (part && part.pictogram) part.pictogram(path, pick);
+        else if (part) part.uploaded(path);
+        else model.fields[key] = path;
+        scheduleExercisePreview();
+      };
+      pictureTakers.set(input, taken);
+      row.append(pictogramButton("Pictogram…", "Look for an ARASAAC pictogram and use it as this picture", "ex-pictogram", taken));
+    }
     return input;
   };
 
@@ -822,11 +914,18 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
           const row = document.createElement("div"); row.className = "ex-upload-row";
           input.replaceWith(row);
           row.append(input);
+          input.dataset.media = kind;
           if (canUpload) row.append(...uploadButton(kind, "Upload…",
             `Upload a ${MEDIA[kind].what} for this side of the card`, "ex-upload", path => {
               input.value = path; model.fields[key] = path;
               scheduleExercisePreview();
             }));
+          if (kind === "image" && canPictogram()) {
+            const taken = path => { input.value = path; model.fields[key] = path; scheduleExercisePreview(); };
+            pictureTakers.set(input, taken);
+            row.append(pictogramButton("Pictogram…", "Look for an ARASAAC pictogram and put it on this side of the card",
+                                       "ex-pictogram", taken));
+          }
           if (kind === "audio") row.append(playButton(input));
         }
         return;
@@ -836,11 +935,11 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
         // and a picture or a recording put in on a line of its own
         input.classList.add("ex-jolly-text");
         input.rows = 4;
-        const put = path => {
+        const put = (path, text) => {
           const at = input.selectionStart ?? input.value.length;
           const to = input.selectionEnd ?? at;
           const before = input.value.slice(0, at), after = input.value.slice(to);
-          const line = `![](${path})`;
+          const line = text || `![](${path})`;
           const pre = before && !before.endsWith("\n") ? "\n" : "";
           const post = after && !after.startsWith("\n") ? "\n" : "";
           input.value = before + pre + line + post + after;
@@ -856,6 +955,15 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
             kind2 === "image" ? "Upload a picture and put it in this field, on a line of its own, at the cursor"
                               : "Upload a recording and put it in this field, on a line of its own, at the cursor",
             kind2 === "image" ? "ex-insert-image" : "ex-insert-audio", put));
+        }
+        if (canPictogram()) {
+          // the card's blocks are the page's markdown: a pictogram goes on a line of its own, as a figure, where the
+          // cursor was (a box keeps its selection while the frame has the focus); the action bar's button writes
+          // through the same `put`
+          lineTakers.set(input, (path, pick) => put(path, pictogramFigure(path, pick)));
+          inserts.append(pictogramButton("Pictogram…",
+            "Look for an ARASAAC pictogram and put it in this field, on a line of its own, at the cursor",
+            "ex-insert-pictogram", (path, pick) => put(path, pictogramFigure(path, pick))));
         }
         if (inserts.children.length) input.after(inserts);
       }
@@ -913,22 +1021,32 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
     const pictureField = (key, label, help) => {
       const parts = splitExerciseImage(model.fields[key]);
       const write = () => { model.fields[key] = joinExerciseImage(parts); };
+      let widthInput = null, alignSelect = null;
       const input = mediaField(pics, key, label, "image", help,
         {value: parts.path,
          change: v => { parts.path = v.trim(); write(); },
-         uploaded: path => { parts.path = path; write(); }});
+         uploaded: path => { parts.path = path; write(); },
+         // a pictogram is 300 pixels of line drawing: drawn at the 60 % a picture takes it is soft and huge
+         // (docs/arasaac.md, 3), so it comes with the width and the side that suit it, and the boxes say so
+         pictogram: path => {
+           parts.path = path;
+           parts.width = PICTOGRAM_PICTURE.width; parts.align = PICTOGRAM_PICTURE.align;
+           if (widthInput) widthInput.value = String(parts.width);
+           if (alignSelect) alignSelect.value = parts.align;
+           write();
+         }});
       const style = document.createElement("details");
       style.className = "ex-field-style";
       const summary = document.createElement("summary");
       summary.textContent = "Size and position"; style.appendChild(summary);
       const cols = document.createElement("div"); cols.className = "ex-field-cols";
       style.appendChild(cols);
-      const width = field(cols, "Width (% of the column)", parts.width,
+      const width = widthInput = field(cols, "Width (% of the column)", parts.width,
         v => { parts.width = v; write(); },
         {single: true, type: "number", spellcheck: false,
          help: "5–100; 60 is what a picture takes when nothing is said"});
       width.min = "5"; width.max = "100";
-      select(cols, "Where it sits", parts.align,
+      alignSelect = select(cols, "Where it sits", parts.align,
         [["left", "Left"], ["center", "Centre"], ["right", "Right"]],
         v => { parts.align = v; write(); });
       // under the path and its Upload…, not inside the row they share
@@ -1103,6 +1221,40 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
       },
     });
   });
+
+  /* A PICTOGRAM GOES INTO THE FIELD THE HAND WAS LAST IN, like a formula: a small picture inside the line of a
+     text field (an option, a side of a pair, the prompt, the sentence, a card's meaning), on a line of its own in
+     a jolly card's blocks, and as the path of a picture field (which has its own Pictogram… as well).  The cursor
+     is taken before the frame opens, because opening it takes the focus, and moves on past each picture put in. */
+  const pictoBtn = $('[data-x="pictogram"]', ov);
+  if (pictoBtn && canPictogram()) {
+    pictoBtn.hidden = false;
+    pictoBtn.addEventListener("click", () => {
+      const into = lastField || $("textarea,input", body);
+      if (!into) { toast("Put the cursor in a field first.", true); return; }
+      if (into.dataset.media === "audio") {
+        toast("That field takes a recording: put the cursor in a text field or a picture field.", true);
+        return;
+      }
+      const taker = pictureTakers.get(into);
+      const liner = lineTakers.get(into);
+      let at = into.selectionStart, to = into.selectionEnd;
+      openPictograms({
+        title: taker ? "A pictogram for this picture" : "A pictogram for this field",
+        note: taker ? `A copy goes into ${pictureHome}'s pictures, and its path into the field.`
+                    : `A copy goes into ${pictureHome}'s pictures, and a small picture into the text at the cursor.`,
+        addLabel: taker ? "Use this pictogram" : "Put it in the text",
+        keepLabel: taker ? "" : "Put it in, keep looking",
+        onPick: async pick => {
+          const path = await keepPictogram(pick);
+          if (previewClosed) return;
+          if (taker) return taker(path, pick);
+          if (liner) return liner(path, pick);
+          at = to = putPictogramInline(into, pictogramInline(path, pick), at, to);
+        },
+      });
+    });
+  }
 
   root.appendChild(ov);
   scheduleExercisePreview();

@@ -143,6 +143,7 @@ import promptkit          # noqa: E402  the choices a person makes for one promp
 import promptspage        # noqa: E402  Settings -> Your prompts
 import getarasaac         # noqa: E402  the ARASAAC pictograms: their words and their pictures (§8.40, W9)
 import arasaacpage        # noqa: E402  Settings -> Pictograms (ARASAAC)
+import arasaacsearch      # noqa: E402  a word looked for among them, and a picture served (a0.5.3)
 import languages            # noqa: E402  the registry: names, folders, the CSS tokens
 import make_index           # noqa: E402  what a built reader says about itself
 import mobile               # noqa: E402  the mobile interface's own pages (/m/books/)
@@ -536,6 +537,9 @@ STATIC_FILES = {"/lib/lmlikelihoodsettings.js", "/lib/llmsettings.js", "/youtube
                 # THE GEAR (a0.5.0): the one panel every page opens for its own settings
                 # (lib/pagesettings.js, which links the sheet from beside itself)
                 "/lib/pagesettings.js", "/lib/pagesettings.css",
+                # THE PICTOGRAM PICKER (a0.5.3): the frame that searches ARASAAC's pictograms, shown over
+                # the door that lists them, the editor and the exercise form (lib/pictograms.js)
+                "/lib/pictograms.js", "/lib/pictograms.css",
                 # and the book reader's use of it (lib/gear-reader.js, loaded by parseh.js
                 # into every reader beside it)
                 "/lib/gear-reader.js",
@@ -1718,9 +1722,13 @@ PROMPTS_ROUTES = {
 # SETTINGS -> PICTOGRAMS (ARASAAC) (§8.40, W9, lib/arasaacpage.py): the page, and each of its routes,
 # every one of them in lib/settingspage.py ROUTES
 ARASAAC_PAGE = "/settings/arasaac/"
+# a picture of the pictograms, for the picker's thumbnails and preview: read-only, the same file for every
+# device that has been let in (lib/arasaacsearch.py picture() takes digits and nothing else)
+ARASAAC_PICTURE = re.compile(r"^/settings/arasaac/picture/([0-9]{1,7})\.png$")
 ARASAAC_ROUTES = {
     "/settings/api/arasaac/state": "state",
     "/settings/api/arasaac/plan": "plan",
+    "/settings/api/arasaac/search": "search",
     "/settings/api/arasaac/get": "get",
     "/settings/api/arasaac/update": "update",
     "/settings/api/arasaac/stop": "stop",
@@ -6911,6 +6919,11 @@ class Handler(SimpleHTTPRequestHandler):
             if method != "GET":
                 return self._method_not_allowed()
             return self.send_html(arasaacpage.page(self._where(), self._whose_device()))
+        picture = ARASAAC_PICTURE.match(path)
+        if picture:
+            if method not in ("GET", "HEAD"):
+                return self._method_not_allowed()
+            return self._arasaac_picture(picture.group(1))
         if path == SKILLS_PAGE.rstrip("/"):
             return self._redirect(SKILLS_PAGE)
         if path == SKILLS_PAGE:
@@ -7375,6 +7388,20 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json({"ok": False, "error": str(e)}, 500)
         return self.send_bytes(data, "application/zip", 200,
                                {"Content-Disposition": 'attachment; filename="%s.zip"' % name})
+
+    def _arasaac_picture(self, pid):
+        """One pictogram's picture (the picker's thumbnail and preview, and the bytes an editor puts into a
+        document): read from arasaac/pictograms/, which only this module's digits can name."""
+        found = arasaacsearch.picture(pid)
+        if found is None:
+            return self._not_found("No such pictogram here.")
+        try:
+            with open(found, "rb") as f:
+                data = f.read()
+        except OSError:
+            return self._not_found("No such pictogram here.")
+        query = urllib.parse.urlsplit(self.path).query
+        return self.send_bytes(data, "image/png", 200, {"Cache-Control": arasaacsearch.cache_control(query)})
 
     def _arasaac_api(self, method, path):
         """Settings -> Pictograms (ARASAAC) (lib/arasaacpage.py).  Every route is a POST, gated above

@@ -76,6 +76,7 @@ function initEdit() {
         const current = src.value.split("\n");
         current.splice(line, Math.max(1, endLine - line + 1), ...text.split("\n"));
         setSource(current.join("\n"));
+        if (pictogramsLoaded() && ParsehPictograms.used(text)) ensureArasaacCredit();
       },
     }, formUploads));
   }
@@ -84,7 +85,11 @@ function initEdit() {
   // the form opens, so its preview plays them (a document not saved yet
   // brings them in when it is saved)
   function chooseExercise() {
-    openExercisePicker(Object.assign({onSave: text => insertStandaloneLine(text),
+    openExercisePicker(Object.assign({onSave: text => {
+                                        insertStandaloneLine(text);
+                                        // a pictogram the form's own Pictogram… put in: the document is to credit ARASAAC
+                                        if (pictogramsLoaded() && ParsehPictograms.used(text)) ensureArasaacCredit();
+                                      },
                                       onPaste: text => adoptFromTray(text)}, formUploads));
   }
 
@@ -224,6 +229,8 @@ function initEdit() {
           setSource(merged.text, at);
         }
         insertStandaloneLine(merged.block);
+        // a deck's exercise may carry pictograms, copied with it: the page takes the credit with them
+        if (pictogramsLoaded() && ParsehPictograms.named(merged.block)) ensureArasaacCredit();
         close();
         // one toast, as the copies into a deck answer: a second would only
         // rub out the first, and a warning nobody reads is no warning
@@ -1554,6 +1561,14 @@ function initEdit() {
   // embed arriving then -- the next of several files uploaded or dropped at
   // once -- goes in on the line after it, not over the word inside it.
   let lastEmbed = null;
+  /* A page nobody has clicked into has its cursor at the very first character, which is the front matter's opening
+     line.  An embed put there stands above the `---` and the page is then no language at all (the preview falls back to
+     the first the toolbox has), so wherever a cursor is inside or before the matter, an embed goes below it. */
+  function belowFrontMatter() {
+    const m = /^---[ \t]*\n[\s\S]*?\n---[ \t]*(?:\n|$)/.exec(src.value);
+    const end = m ? m[0].length : 0;
+    if (src.selectionStart < end) src.setSelectionRange(end, end);
+  }
   function insertStandaloneLine(line, selectWord) {
     // the dialect wants embeds on a line of their own
     pushHistory(true);
@@ -1562,6 +1577,7 @@ function initEdit() {
     if (last && src.selectionStart === last.word[0] && src.selectionEnd === last.word[1]
         && src.value.slice(last.from, last.to) === last.line)
       src.setSelectionRange(last.to, last.to);
+    belowFrontMatter();
     const a = src.selectionStart;
     const before = src.value.slice(0, a), after = src.value.slice(src.selectionEnd);
     const pre = before && !before.endsWith("\n\n")
@@ -1949,6 +1965,59 @@ function initEdit() {
       }
     }
     refresh().catch(e => toast(e.message, true));
+  });
+
+  /* ---- pictograms (ARASAAC): looked for and seen in a frame, added as the figure they are ----
+
+     The button opens lib/pictograms.js over the page.  What is chosen is fetched as the bytes it is and put into
+     this document's own images/ by the same upload as any picture (so the copy is the document's, named
+     arasaac-<number>.png, and the same bytes are stored once); the line that goes in is a figure on a line of its
+     own, its caption the word and its size the one a pictogram wants (docs/arasaac.md, 5.5).  The licence asks
+     for a credit that travels with the document, so the first time one is added the last paragraph becomes
+     ARASAAC's own words -- once, never twice, and only the person takes it out. */
+  const CREDIT_MARK = /Pictograms author: Sergio Palao/;
+  async function ensureArasaacCredit() {
+    let credit = "";
+    try { credit = await ParsehPictograms.credit(pictogramOptions().search); } catch (e) { /* said below */ }
+    if (!credit) {
+      toast("The ARASAAC credit could not be read: the licence asks for it, so add it as the last paragraph "
+            + "(Settings → Pictograms has its words)", true);
+      return false;
+    }
+    if (CREDIT_MARK.test(src.value)) return false;
+    const at = src.value.length;
+    const gap = src.value.endsWith("\n\n") ? "" : src.value.endsWith("\n") ? "\n" : "\n\n";
+    src.setRangeText(gap + credit + "\n", at, at, "preserve");
+    dirty = true;
+    pushHistory(false);                       // one step with the picture that asked for it
+    debouncedPreview();
+    toast("Added ARASAAC's credit as the last paragraph — the licence asks for it, and it stays until you delete it");
+    return true;
+  }
+
+  const btnPictograms = $("#btn-pictograms");
+  if (btnPictograms) btnPictograms.addEventListener("click", () => {
+    if (!DOC_ID) {
+      toast("Save the document first — pictures are stored in its folder", true);
+      return;
+    }
+    openPictograms({
+      title: "Add a pictogram to this page",
+      note: "A copy of the picture goes into this document's images/ folder and a figure at the cursor. "
+          + "The line that credits ARASAAC is added once, as the last paragraph.",
+      addLabel: "Add to the page",
+      keepLabel: "Add, keep looking",
+      onPick: async pick => {
+        const data = await uploadImage(DOC_ID, await pick.file());
+        const caption = pick.alt || "pictogram";
+        // text the person had selected is theirs: a figure goes in after it, not over it (an embed replaces the selection,
+        // except the caption of the one put in last, which the next goes in after)
+        const placeholder = lastEmbed && src.selectionStart === lastEmbed.word[0] && src.selectionEnd === lastEmbed.word[1];
+        if (!placeholder && src.selectionEnd > src.selectionStart) src.setSelectionRange(src.selectionEnd, src.selectionEnd);
+        insertStandaloneLine(`![${caption}](${data.path})${PICTOGRAM_FIGURE}`, caption);
+        return await ensureArasaacCredit() ? "ARASAAC's credit is now the page's last paragraph." : "";
+      },
+    });
   });
 
   /* ---- recordings: the manager ----
