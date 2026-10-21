@@ -959,6 +959,12 @@ def status():
         pictograms how many are listed; files how many pictures are here and bytes what they weigh
         pending    how many are still to be confirmed
         job        the running (or last) job"""
+    # THE JOB IS LOOKED AT FIRST, before a thing is read from the disk.  A job that ends while the folder is being
+    # counted (a long look on a busy computer) used to be reported after it: the manifest read before its last write,
+    # "partial", beside a job that was over -- and a page that stops asking when the job is over stayed on "Part of it
+    # is here" for good.  Looked at first, a job reported as over has finished all it wrote before it is read from;
+    # one reported as running is asked about again.
+    taken = job()
     mine = manifest()
     odd = os.path.isfile(manifest_path()) and not mine
     n, size = pictures_here()
@@ -984,7 +990,7 @@ def status():
     return {"state": state, "resolution": mine.get("resolution"), "locales": here,
             "pictograms": len(known), "files": n, "bytes": size + words_bytes, "pending": pending,
             "missing": sum(1 for r in known.values() if r.get("x")), "finished": mine.get("finished"),
-            "job": job()}
+            "job": taken}
 
 
 def installed():

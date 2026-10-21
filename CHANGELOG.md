@@ -1,5 +1,6 @@
 ## [a0.5.3] - unreleased
-### Added
+### Fixed
+- Settings → Pictograms: a page that watched a download or an update end could stay on "Part of it is here" until it was loaded again
 
 ## [a0.5.2] - 2026-10-21
 ### Added

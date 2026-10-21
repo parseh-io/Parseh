@@ -17,6 +17,13 @@ guide and rebuilds the readers by itself.
 
 ## a0.5.3 — not yet released
 
+### The Pictograms page after a download or an update
+
+The Pictograms page of Settings could go on saying *Part of it is here* after a download or an update had ended, until
+the page was loaded again: its last answer said the job was over beside what the folder held a moment before the
+job's last write. Parseh now looks at the job before it looks at the folder, so an answer that says the job is over
+describes the folder as the job left it ([Pictograms](../studio/pictograms.md)).
+
 ## a0.5.2 — 21 October 2026
 
 ### Open a file from your computer

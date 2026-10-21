@@ -725,6 +725,26 @@ class Job(Tree):
         self.assertIsNotNone(j["finished"])
         self.assertEqual(ga.status()["state"], "installed")
 
+    def test_a_job_that_ends_while_the_folder_is_read_is_not_said_over_beside_what_the_folder_held_before(self):
+        # The page stops asking once it has been told the job is over.  An answer that said "over" beside the manifest
+        # as it was BEFORE the job's last write ("partial") was the last it drew: "Part of it is here" for good, on a
+        # computer on which counting the folder took long enough for a job to end in the middle of it
+        self.build(("en",), 300)
+        ga._note(running=True, finished=None, say="x")           # an update is running ...
+        read = ga.manifest
+
+        def manifest_and_then_the_job_ends():
+            got = read()
+            ga._note(running=False, finished=time.time(), say="done")     # ... and ends just after the manifest is read
+            return got
+        with mock.patch.object(ga, "manifest", manifest_and_then_the_job_ends):
+            answer = ga.status()
+        self.assertFalse(ga.running())
+        self.assertTrue(answer["job"]["running"],
+                        "the job was running when the answer began: it is said to be, and the page asks again")
+        self.assertFalse(ga.status()["job"]["running"], "and the next answer says it is over, with the folder as it ends")
+        self.assertEqual(ga.status()["state"], "installed")
+
     def test_stop_ends_the_job_as_stopped_and_not_as_failed(self):
         self.world.delay = 0.05
         ga.start(["en"], 300)
