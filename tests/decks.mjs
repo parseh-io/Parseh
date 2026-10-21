@@ -2179,7 +2179,12 @@ async function suite(browser, mode) {
                                       .some(e => /Which cat/.test(e.textContent)));
       await ed.locator('.ex-from-deck-modal .dl-item', {hasText: 'Which cat'}).click();
       await ed.locator('.ex-from-deck-modal [data-x="insert"]').click();
-      await waitToast(ed, /Exercise inserted/, 'the same exercise a second time');
+      // THE SECOND BLOCK IS WAITED FOR IN THE TEXT, not in the toast: the toast of the first insertion keeps its words after
+      // it has faded (its element is hidden, never emptied), so the same words were "seen" at once, and the checks below
+      // looked at a page the copy had not reached -- green on a quiet computer, red on a busy one
+      await ed.waitForFunction(() => document.querySelector('#src').value.split('image: images/cat-2.png').length === 3,
+                               null, {timeout: 20000}).catch(() => { throw Error(`FAIL (${mode}): the second block was never put in`); });
+      assert(true, 'the same exercise a second time went in');
       const twice = (await (await ctx.request.get(url(`${S}/api/docs/${info.doc_id}/images`))).json()).images;
       assert(twice.length === 2, 'the same picture again is the picture already there, not cat-3.png');
       assert((await ed.inputValue('#src')).split('image: images/cat-2.png').length === 3,
