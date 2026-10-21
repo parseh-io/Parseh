@@ -592,7 +592,13 @@ try {
     eq(await state(), {text: '✱ notes', pressed: 'false', on: false, btn: true, prev: false, next: false,
                        disabled: [true, true], lit: 0}, `${k}: the button is in the bar, off, with no count and no arrows`);
     eq(await lit(), [], `${k}: with it off not one phrase wears a class of it`);
-    // on and off again, the transcript is byte for byte what it was: not a class, not an attribute is left behind
+    // on and off again, the transcript is byte for byte what it was: not a class, not an attribute is left behind.
+    // THE PLAYER'S OWN HIGHLIGHT IS NOT THE BUTTON'S: the first tick after the video is ready (every 250 ms, once its metadata is
+    // in) puts `on-air` on the segment being played and `near` on its neighbours, and the page is called synced.  Taken before that
+    // the picture of the transcript had neither, and taken after the toggle it had both -- a difference the button never made; so
+    // the picture is taken once the player has synced (the body says so), and the comparison stays byte for byte
+    await page.waitForFunction(() => document.body.classList.contains('synced'), null, {timeout: 20000})
+      .catch(() => { throw Error(`FAIL: ${k}: the player never synced with the video, so the transcript has no settled state to compare`); });
     const htmlOff = await page.evaluate(() => document.querySelector('#segs').innerHTML);
     await page.click('#notesbtn');
     eq(await lit(), I.noted, `${k}: on, the phrases that carry a note wear the class, and the blank note is none (${JSON.stringify(I.blank)} is not among them)`);
