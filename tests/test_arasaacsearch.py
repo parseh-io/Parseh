@@ -415,6 +415,45 @@ class Changes(Folder):
         self.assertEqual(sr.version(5, {}), "0-0")
 
 
+class Damaged(Folder):
+    """A word list is a file on a disk that anybody may have edited or a half download may have left: what is not an
+    entry is passed over, and the entries that are still find their pictures."""
+
+    def test_entries_that_are_not_entries_are_passed_over(self):
+        self.words("en", {1: ["junk", None, {"k": 5}, {"k": ""}, {"p": "only a plural"}, entry("house")],
+                          2: [], 3: entry("not a list"), 4: [entry("home", m=7), {"k": "hut", "m": ["x"]}]})
+        self.facts(ids=(1, 2, 3, 4))
+        self.pictures((1, 2, 3, 4))
+        self.manifest()
+        got = sr.search("house")
+        self.assertEqual(self.ids(got), [1])
+        self.assertEqual(got["results"][0]["words"], {"en": ["house"]})
+        self.assertEqual(self.ids(sr.search("hut")), [4])
+        self.assertEqual(self.ids(sr.search("")), [4, 1])                     # home, house; 2 and 3 have no word to be listed by
+
+    def test_a_word_list_that_is_not_a_list_of_words_is_no_language_here(self):
+        ga._write_json(ga.index_path("en"), {"format": 1, "words": ["not", "an", "object"]})
+        self.facts(ids=(1,))
+        self.pictures((1,))
+        self.manifest()
+        got = sr.search("house")
+        self.assertFalse(got["ready"])
+        self.assertEqual(got["locales"], [])
+        with open(ga.index_path("en"), "w", encoding="utf-8") as f:
+            f.write("{not json")
+        self.assertFalse(sr.search("house")["ready"])
+
+    def test_records_of_another_shape_do_not_break_the_flags(self):
+        self.words("en", {1: [entry("kiss")]})
+        ga._write_json(ga.facts_path(), {"format": 1, "pictograms": {"1": "not a record", "2": {"f": "many"}}})
+        ga._FACTS.clear()
+        self.pictures((1,))
+        self.manifest()
+        got = sr.search("kiss")
+        self.assertEqual(self.ids(got), [1])
+        self.assertEqual(got["results"][0]["flags"], [])
+
+
 class Pictures(Folder):
     def test_a_picture_is_found_by_its_number_alone(self):
         self.pictures((12, 3456))
