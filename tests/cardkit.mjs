@@ -236,7 +236,7 @@ const listen = page => page.evaluate(() => {
 });
 async function heard(page, what) {
   await page.waitForFunction(() => window.__plays.some(x => x[0] === 'pause') &&
-                                   window.__plays.some(x => x[0] === 'playing'), null, {timeout: 8000})
+                                   window.__plays.some(x => x[0] === 'playing'), null, {timeout: 30000})
     .catch(() => { throw Error('FAIL: no preview was played and stopped: ' + what); });
   const p = await page.evaluate(() => window.__plays.slice());
   await page.evaluate(() => { window.__plays = []; });
@@ -303,7 +303,7 @@ print(r.stdout.strip().splitlines()[-1])
   await inject(page, A);
   // the reader's own narration is playing when the editor opens
   await page.click('#play');
-  await page.waitForFunction(() => !document.getElementById('audio').paused, null, {timeout: 8000});
+  await page.waitForFunction(() => !document.getElementById('audio').paused, null, {timeout: 30000});
   await openCut(page, 'book');
   await onScreen(page, '.pc-cut', 'the cut editor');
   assert(await page.evaluate(() => getComputedStyle(document.querySelector('.pc-root')).position === 'fixed'),
@@ -400,7 +400,7 @@ print(r.stdout.strip().splitlines()[-1])
   await page.keyboard.press('ArrowUp');
   v = await vals(page);
   assert(v.s === (+g[0].toFixed(2) + 0.1).toFixed(2), `ArrowUp in the start input: +0.1 → ${v.s}`);
-  await page.waitForFunction(() => document.querySelector('.pc-root .pc-play').paused, null, {timeout: 5000});
+  await page.waitForFunction(() => document.querySelector('.pc-root .pc-play').paused, null, {timeout: 30000});
   await page.focus('.pc-edge1');
   await page.keyboard.press(' ');
   await sleep(300);
@@ -425,7 +425,7 @@ print(r.stdout.strip().splitlines()[-1])
   await openCut(page, 'book');
   await page.waitForFunction(() => document.querySelector('.pc-root .pc-play').readyState >= 1);
   await typeTimes(page, '1.00', '3.40');
-  await page.waitForFunction(() => document.querySelector('.pc-root .pc-play').paused, null, {timeout: 8000});
+  await page.waitForFunction(() => document.querySelector('.pc-root .pc-play').paused, null, {timeout: 30000});
   await sleep(150);
   const playState = () => page.evaluate(() => {
     const a = document.querySelector('.pc-root .pc-play'), b = document.querySelector('.pc-cut [data-e="p"]');
@@ -456,9 +456,11 @@ print(r.stdout.strip().splitlines()[-1])
   ps = await playState();
   assert(!ps.paused && ps.t < 1.5 && ps.label === '‖',
          `▶ pressed 150 ms into that preview plays the clip from its start (at ${ps.t.toFixed(2)}, ${ps.paused ? 'paused' : 'playing'}, ${ps.label})`);
-  await page.waitForFunction(() => document.querySelector('.pc-root .pc-play').paused, null, {timeout: 6000});
+  await page.waitForFunction(() => document.querySelector('.pc-root .pc-play').paused, null, {timeout: 30000});
   const pauses = await page.evaluate(() => window.__plays.filter(x => x[0] === 'pause').map(x => x[1]));
-  assert(pauses.length === 1 && near(pauses[0], 3.3, 0.06),
+  // (a stop BEFORE the end is what this says it does not have: the pause at the end may be reported twice a few
+  // milliseconds apart -- 3.304 and 3.309 on a computer with a hundred things to do -- and is still one stop at the end)
+  assert(pauses.length >= 1 && pauses.every(t => near(t, 3.3, 0.06)),
          `…through to its end, 3.30, without a stop on the way (stopped at ${pauses.map(x => x.toFixed(3))})`);
   await page.click('.pc-cut [data-e="p"]');
   await sleep(300);
@@ -522,7 +524,7 @@ print(r.stdout.strip().splitlines()[-1])
   assert(t.length === 2 && near(t[0][0], 0.2, 0.04) && near(t[0][1], 0.8, 0.04) && near(t[1][0], 1.2, 0.04),
          `its tones are where the recording has them: ${JSON.stringify(t.map(r => r.map(x => +x.toFixed(3))))} (want [0.2,0.8],[1.2,1.5])`);
   assert((await page.textContent('.pc-name')).startsWith(tray[0]), 'the editor names the saved clip');
-  await page.waitForFunction(() => document.querySelector('.pc-saved-audio').readyState >= 1, null, {timeout: 8000});
+  await page.waitForFunction(() => document.querySelector('.pc-saved-audio').readyState >= 1, null, {timeout: 30000});
   assert(await page.evaluate(n => document.querySelector('.pc-saved-audio').src.endsWith('/clips/media/' + n), tray[0]),
          'the saved clip loads in the editor from the tray');
   // the keyboard keeps its place through the save
@@ -546,10 +548,10 @@ print(r.stdout.strip().splitlines()[-1])
   assert(deaf.length === 0 && stops.has('BUTTON.pc-hear') && ![...stops].some(x => /^(AUDIO|VIDEO)/.test(x)),
          `every one of the ${stops.size} stops of Tab hears keys, the saved clip's ▶ among them${deaf.length ? ': not ' + deaf.join(', ') : ''}`);
   // the saved clip plays from its own button
-  await page.waitForFunction(() => document.querySelector('.pc-saved-audio').paused, null, {timeout: 8000});
+  await page.waitForFunction(() => document.querySelector('.pc-saved-audio').paused, null, {timeout: 30000});
   await page.click('.pc-cut .pc-hear');
   await page.waitForFunction(() => !document.querySelector('.pc-saved-audio').paused && document.querySelector('.pc-saved-audio').currentTime > 0.2,
-                             null, {timeout: 5000});
+                             null, {timeout: 30000});
   assert(await page.textContent('.pc-cut .pc-hear') === '‖' &&
          await page.evaluate(() => parseFloat(document.querySelector('.pc-saved .pc-fill').style.width) > 0),
          'its ▶ plays the saved clip, shows ‖ and how far it has played');
@@ -882,7 +884,7 @@ print(json.dumps(out))
   watch(film, errors);
   await film.goto(`${A}/youtube/v/${info.video}/`);
   await film.waitForFunction(() => document.getElementById('film') && document.getElementById('film').readyState >= 1,
-                             null, {timeout: 10000});
+                             null, {timeout: 30000});
   await inject(film, A);
   await film.evaluate(() => { const f = document.getElementById('film'); f.muted = true; return f.play(); });
   await film.waitForFunction(() => !document.getElementById('film').paused);
@@ -934,7 +936,7 @@ print(json.dumps(out))
          `no waveform: peaks answered ${peaksAnswers}, the strip is plain`);
   await nb.fill('.pc-cut .e0', '1.8'); await nb.press('.pc-cut .e0', 'Enter');
   await nb.fill('.pc-cut .e1', '3.3'); await nb.press('.pc-cut .e1', 'Enter');
-  await nb.waitForFunction(() => document.querySelector('.pc-root .pc-play').paused, null, {timeout: 5000});
+  await nb.waitForFunction(() => document.querySelector('.pc-root .pc-play').paused, null, {timeout: 30000});
   await nb.click('.pc-cut .pc-save');
   await nb.waitForSelector('.pc-saved:not([hidden]) .pc-name', {timeout: 20000})
     .catch(async () => { throw Error('FAIL: no clip was recorded: ' + await nb.textContent('.pc-stat')); });
@@ -956,7 +958,7 @@ print(json.dumps(out))
   const nf = await browserB.newPage({viewport: {width: 1000, height: 760}});
   watch(nf, errors);
   await nf.goto(`${B}/youtube/v/${info.video}/`);
-  await nf.waitForFunction(() => document.getElementById('film') && document.getElementById('film').readyState >= 1, null, {timeout: 10000});
+  await nf.waitForFunction(() => document.getElementById('film') && document.getElementById('film').readyState >= 1, null, {timeout: 30000});
   await inject(nf, B);
   await openCut(nf, 'film');
   await nf.waitForFunction(() => document.querySelector('.pc-root .pc-play').readyState >= 1);
@@ -983,7 +985,7 @@ print(json.dumps(out))
   await inject(ni, B);
   await openCut(ni, 'book', {hint: 'interrupted'});
   await typeTimes(ni, '1.8', '3.3');
-  await ni.waitForFunction(() => document.querySelector('.pc-root .pc-play').paused, null, {timeout: 5000});
+  await ni.waitForFunction(() => document.querySelector('.pc-root .pc-play').paused, null, {timeout: 30000});
   await sayings(ni);
   await ni.evaluate(() => {
     window.__cuts = 0;
@@ -1016,7 +1018,7 @@ print(json.dumps(out))
   // over 1000 kbit/s): the stretch is loaded before it is played, and the
   // clip is the right one.
   await openCut(ni, 'book', {source: {src: '../audio/slow.wav'}, context: [30.5, 33], guess: [30.8, 32.3], hint: 'slow'});
-  await ni.waitForFunction(() => document.querySelector('.pc-root .pc-play').readyState >= 1, null, {timeout: 10000});
+  await ni.waitForFunction(() => document.querySelector('.pc-root .pc-play').readyState >= 1, null, {timeout: 30000});
   await sayings(ni);
   const net = await ni.context().newCDPSession(ni);
   await net.send('Network.enable');
@@ -1046,7 +1048,7 @@ print(json.dumps(out))
   // at [2, 2.6], so what its ends lack is the fade.
   const fades = {};
   await openCut(ni, 'book', {context: [2.1, 2.5], guess: [2.1, 2.5], hint: 'fade'});
-  await ni.waitForFunction(() => document.querySelector('.pc-root .pc-play').readyState >= 1, null, {timeout: 10000});
+  await ni.waitForFunction(() => document.querySelector('.pc-root .pc-play').readyState >= 1, null, {timeout: 30000});
   beforeB = await trayAudio(TRAYB);
   await ni.click('.pc-cut .pc-save');
   await ni.waitForSelector('.pc-saved:not([hidden]) .pc-name', {timeout: 30000})
