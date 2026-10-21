@@ -1105,11 +1105,11 @@ print(json.dumps(out))
   await ni.keyboard.press('Escape');
   await ni.waitForFunction(() => window.__done, null, {timeout: 5000});
   await ni.evaluate(() => { window.MediaStreamTrackProcessor = window.__tp; });
-  const holey = Object.entries(fades).filter(([, f]) => f.holes.length), whole = Object.values(fades).filter(f => !f.holes.length);
+  const holey = Object.entries(fades).filter(([, f]) => f.holes.length), readable = Object.values(fades).filter(f => !f.holes.length);
   for (const [name, f] of holey)
     console.log(`     (the ${name} clip has ${f.holes.length} hole(s) in it, [start ms, length ms] ${JSON.stringify(f.holes)}: the computer was ` +
                 'too busy to record those milliseconds, and its fade is not read)');
-  assert(whole.length >= 1 && whole.every(f => f.level > 0.7 && [f.head, f.tail].every(ms => ms >= 7 && ms <= 9)),
+  assert(readable.length >= 1 && readable.every(f => f.level > 0.7 && [f.head, f.tail].every(ms => ms >= 7 && ms <= 9)),
          `a clip recorded in the browser and one cut from a tab's recording each fade 8 ms at both ends, as the server's: ${JSON.stringify(fades)}`);
 
   assert(errors.length === 0, 'no page error and no failed request of the kit: ' + errors.join(' | '));
