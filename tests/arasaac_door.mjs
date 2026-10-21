@@ -124,7 +124,12 @@ async function suite(phone) {
     const api = async (what, body) => page.evaluate(([w, b]) => fetch('/settings/api/arasaac/' + w, {
       method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(b || {})}).then(async r => Object.assign(await r.json(), {status: r.status})), [what, body || {}]);
     const stats = () => h.send({cmd: 'stats'});
-    const installed = async () => { await until(async () => (await text('[data-row="whole"]')).includes('Installed'), 'the pictograms are installed', 40000); };
+    // INSTALLED is what the folder is; the page's controls open when it has also been told the job is over, which it
+    // learns from its next look (once a second) -- so both, before a button is counted
+    const installed = async () => {
+      await until(async () => (await text('[data-row="whole"]')).includes('Installed') && (await page.locator('#ar input:disabled').count()) === 0,
+                  'the pictograms are installed', 40000);
+    };
 
     await section('a) not installed', async () => {
       await world(40);
@@ -282,6 +287,7 @@ async function suite(phone) {
       await page.click('#ar .ask [data-yes-lang]');
       await until(async () => (await state()).arasaac.locales.fr === undefined, 'the French words are gone');
       eq((await state()).arasaac.files, 20, 'the pictures are not');
+      await until(async () => (await page.locator('#lang-fr').count()) === 1, 'French can be ticked again (the page draws it when the answer to the removal reaches it)');
       eq(await page.locator('#lang-fr').count(), 1, 'French can be ticked again');
       await page.click('#ar [data-remove-all]');
       has(await text('#ar .ask'), 'Remove all the pictograms?', 'removing everything asks first');
