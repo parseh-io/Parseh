@@ -145,6 +145,31 @@ const SAMPLER = () => {
 };
 const AWAY = 1, OFF = 2, AGAIN = 3, WAIT = 4, KEPT_UP = 5;     // the columns of a sample
 
+/* HOW MANY ASKS OF THE ONE QUESTION THE PAGE HAS OUT AT ONCE, counted by the page: its own fetch of /__activity, from the
+   call to the answer or the abort, kept (the most there ever were) in the tab's sessionStorage, which outlives the
+   documents the tab walks through.  The page cuts an ask that has had no answer in fifteen seconds and asks again at
+   once; counted from out here, in the browser's own events, the cut ask's `requestfailed` can reach the test after
+   the next ask's `request` -- two "out at once" that were never both out -- and on a computer with a hundred other
+   things to do it did, in four runs out of four. */
+const COUNTER = () => {
+  try {
+    const real = window.fetch;
+    let open = 0;
+    window.fetch = function (input) {
+      let url = '';
+      try { url = typeof input === 'string' ? input : (input && input.url) || String(input); } catch (e) { /* none */ }
+      if (!/\/__activity(\?|$)/.test(url)) return real.apply(this, arguments);
+      open++;
+      try { sessionStorage.setItem('parseh_test_most', String(Math.max(+sessionStorage.getItem('parseh_test_most') || 0, open))); } catch (e) { /* none */ }
+      const done = () => { open = Math.max(0, open - 1); };
+      const p = real.apply(this, arguments);
+      p.then(done, done);
+      return p;
+    };
+  } catch (e) { /* none */ }
+};
+const mostAtOnce = page => page.evaluate(() => +sessionStorage.getItem('parseh_test_most') || 0);
+
 // every ask of the one question this page makes, and how many were out at once
 function countAsks(page) {
   const a = {all: 0, open: 0, most: 0, failed: 0, answered: 0};
@@ -157,6 +182,7 @@ function countAsks(page) {
 async function phone(b = browser, opts = PHONE) {
   const ctx = await b.newContext(opts);
   await ctx.addInitScript(SAMPLER);
+  await ctx.addInitScript(COUNTER);
   const page = await ctx.newPage();
   page.on('pageerror', e => { errors.push(e.message); console.log('PAGE ERROR', e.message); });
   if (opts.hasTouch) {
@@ -274,7 +300,8 @@ async function partSilent() {
     assert(took >= 44000 && took < 65000, `offline only after the long window: ${took} ms of silence`);
     eq(said.why, 'silent', 'and it was the silence that said so');
     assert(page.asks.all - asked >= 3, `having asked more than once: ${page.asks.all - asked} asks into the silence`);
-    assert(page.asks.most <= 1, `one ask at a time, never a pile of them: at most ${page.asks.most} out at once`);
+    const most = await mostAtOnce(page);
+    assert(most <= 1, `one ask at a time, never a pile of them: at most ${most} out at once`);
     st = await state(page);
     eq([st.off, st.again, st.wait], [true, true, false], 'then the offline chip and ↻, and "checking…" gone');
     const seen = await page.evaluate(() => window.__seen);
@@ -304,7 +331,10 @@ async function partSlow() {
   try {
     const walk = ['/m/books/', '/?mode=mobile', '/m/kept/', '/m/videos/'];
     for (let i = 0; Date.now() - t0 < 120000; i++) {
-      await page.goto(B + walk[i % walk.length], {waitUntil: 'domcontentloaded', timeout: 60000}).catch(() => {});
+      let went = null;                           // how the walk to this page ended, if it did not end well
+      const began = Date.now();
+      await page.goto(B + walk[i % walk.length], {waitUntil: 'domcontentloaded', timeout: 60000})
+        .catch(e => { went = e.message.split('\n')[0] + ' after ' + (Date.now() - began) + ' ms'; });
       walked++;
       // a write while it is slow: waited for, never refused
       const w = await page.evaluate(async () => {
@@ -314,7 +344,14 @@ async function partSlow() {
         } catch (e) { return {failed: e.message, away: !!e.away}; }
       }).catch(e => ({failed: e.message}));
       if (w.status) writes++;
-      else if (w.away) throw Error('FAIL: a write on a slow computer was refused as away: ' + JSON.stringify(w));
+      else if (w.away) {
+        // said with what else is known: a write that fails because its page was being left (the walk to it ended in an
+        // error, or the page was still loading) is not the page calling a slow computer away
+        const where = await page.evaluate(() => ({url: location.href, ready: document.readyState, online: navigator.onLine,
+          nav: (performance.getEntriesByType('navigation')[0] || {}).type, up: Math.round(performance.now())})).catch(e => String(e));
+        throw Error('FAIL: a write on a slow computer was refused as away: ' + JSON.stringify(w) + '; the walk to the page: ' +
+                    (went || 'arrived') + '; the page: ' + JSON.stringify(where) + '; frozen now: ' + frozen);
+      }
       await sleep(12000);
       const seen = await page.evaluate(() => window.__seen).catch(() => []);
       seenAll.push(...seen);
@@ -332,7 +369,8 @@ async function partSlow() {
   assert(writes > 0, `and the writes made meanwhile were waited for and answered: ${writes} of ${walked}`);
   assert(sawWait, 'while "checking…" said, quietly, that the answers were slow');
   eq(st.memory && st.memory.away, false, 'nothing written down for the next page but "there"');
-  assert(page.asks.most <= 1, `one ask of the question at a time throughout: at most ${page.asks.most} out at once`);
+  const most = await mostAtOnce(page);
+  assert(most <= 1, `one ask of the question at a time throughout: at most ${most} out at once`);
   await page.context().close();
 }
 
