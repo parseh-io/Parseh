@@ -76,7 +76,7 @@ function initEdit() {
         const current = src.value.split("\n");
         current.splice(line, Math.max(1, endLine - line + 1), ...text.split("\n"));
         setSource(current.join("\n"));
-        if (pictogramsLoaded() && ParsehPictograms.used(text)) ensureArasaacCredit();
+        if (pictogramsUsed(text)) ensureArasaacCredit();
       },
     }, formUploads));
   }
@@ -88,7 +88,7 @@ function initEdit() {
     openExercisePicker(Object.assign({onSave: text => {
                                         insertStandaloneLine(text);
                                         // a pictogram the form's own Pictogram… put in: the document is to credit ARASAAC
-                                        if (pictogramsLoaded() && ParsehPictograms.used(text)) ensureArasaacCredit();
+                                        if (pictogramsUsed(text)) ensureArasaacCredit();
                                       },
                                       onPaste: text => adoptFromTray(text)}, formUploads));
   }
@@ -230,7 +230,7 @@ function initEdit() {
         }
         insertStandaloneLine(merged.block);
         // a deck's exercise may carry pictograms, copied with it: the page takes the credit with them
-        if (pictogramsLoaded() && ParsehPictograms.named(merged.block)) ensureArasaacCredit();
+        if (pictogramsNamed(merged.block)) ensureArasaacCredit();
         close();
         // one toast, as the copies into a deck answer: a second would only
         // rub out the first, and a warning nobody reads is no warning
@@ -1978,7 +1978,7 @@ function initEdit() {
   const CREDIT_MARK = /Pictograms author: Sergio Palao/;
   async function ensureArasaacCredit() {
     let credit = "";
-    try { credit = await ParsehPictograms.credit(pictogramOptions().search); } catch (e) { /* said below */ }
+    try { credit = await (await loadPictograms()).credit(pictogramOptions().search); } catch (e) { /* said below */ }
     if (!credit) {
       toast("The ARASAAC credit could not be read: the licence asks for it, so add it as the last paragraph "
             + "(Settings → Pictograms has its words)", true);

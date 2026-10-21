@@ -16,6 +16,7 @@
 //   f) an exercise deck's form puts the pictures into the deck
 //   g) not installed, or part of it: what the frame says, and where it sends
 //   h) a phone: the frame fills the screen and the preview comes with a choice; the three themes
+//   i) an exercise taken out of a deck, with a pictogram in it, brings the credit into the page
 // Two modes, each a tests/studio_harness.py:
 //   parseh  Parseh's handler (the door, the studio at /studio, the decks at /exercises)
 //   studio  the studio's own server (at /, serving the picker's two files itself)
@@ -26,7 +27,7 @@ import {chromium} from 'npm:playwright-core@1.52.0';
 const root = await Deno.realPath(new URL('..', import.meta.url));
 const python = Deno.env.get('PARSEH_PYTHON') || 'python3';
 const modes = (Deno.env.get('PICKER_MODES') || 'parseh,studio').split(',');
-const sections = Deno.env.get('PICKER_SECTIONS') || 'abcdefgh';
+const sections = Deno.env.get('PICKER_SECTIONS') || 'abcdefghi';
 const SHOTS = Deno.env.get('SHOTS') || '';
 let passed = 0;
 const assert = (v, m) => { if (!v) throw Error('FAIL: ' + m); passed++; console.log('  ok', m); };
@@ -265,9 +266,15 @@ async function suite(mode) {
       console.log(' d) the editor');
       const id = await newDoc('Houses');
       const dir = await docDir(id);
+      // THE PICKER IS NOT LINKED BY THE PAGE: it comes when a button is pressed (a tag in a page is a request its load waits
+      // for, and a kept deck opened with the computer answering nothing waited thirty seconds: mobile_pages b2)
+      const asked = [];
+      page.on('request', r => { if (/\/lib\/pictograms\.(js|css)/.test(r.url())) asked.push(r.url().split('/').pop()); });
       await openEditor(id);
+      equal([asked, await page.evaluate(() => typeof window.ParsehPictograms)], [[], 'undefined'], 'the editor\'s page has not asked for the picker, and it is not there');
       await page.locator('#btn-pictograms').click();
       await frame.waitFor();
+      equal(asked, ['pictograms.js', 'pictograms.css'], 'it is fetched when the button is pressed, with its sheet');
       await settled('the first page');
       equal(await frame.locator('h3').textContent(), 'Add a pictogram to this page', 'the editor\'s Pictograms… opens the frame, named for what it does');
       assert(/images\/ folder/.test(await page.locator('.pg-note').textContent()), 'and it says a copy goes into the document\'s own folder');
@@ -527,6 +534,37 @@ async function suite(mode) {
       const bytes = new Uint8Array(await (await fetch(`${origin}/exercises/media/${deck.folder}/${deck.slug}/images/arasaac-2317.png`)).arrayBuffer());
       assert(same(bytes, await pictogramFile(2317)), 'and the deck holds the picture, byte for byte');
       await shot(page, `${mode}-f-deck`);
+    }
+
+    if (mode === 'parseh' && sections.includes('i')) {
+      console.log(' i) an exercise taken out of a deck brings ARASAAC\'s credit with its pictogram');
+      // a page whose exercise has a pictogram for its picture, put into a deck the way a page puts one there
+      const srcId = await newDoc('Source', 'es', ':::exercise single-choice\nprompt: Which house?\n'
+        + 'image: images/arasaac-2317.png {width=20 align=center}\n- [x] la casa\n- [ ] el perro\n:::');
+      await fetch(url(`/api/docs/${srcId}/images?name=arasaac-2317.png`), {method: 'POST', body: await pictogramFile(2317)});
+      const srcMeta = (await api('GET', `/api/docs/${srcId}`)).meta;
+      const made = await (await fetch(origin + '/exercises/api/decks', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                                         body: JSON.stringify({name: 'Houses to load', lang: 'es'})})).json();
+      const put = await (await fetch(origin + `/exercises/api/decks/${made.deck.path}/copy`, {method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({doc_id: srcId, ordinal: 1, subtype: 'single-choice', updated: srcMeta.updated})})).json();
+      assert(put.item && /arasaac-2317\.png/.test(put.item.markdown), 'the deck holds the exercise with its pictogram');
+      const dst = await newDoc('Target', 'es', 'Una casa.');
+      const dstDir = await docDir(dst);
+      await openEditor(dst);
+      await page.evaluate(() => { const t = document.getElementById('src'); t.focus(); t.setSelectionRange(t.value.length, t.value.length); });
+      assert(!(await source()).includes('Pictograms author'), 'the page has no credit yet');
+      await page.locator('summary', {hasText: 'Exercises'}).click();
+      await page.locator('#btn-exercise-deck').click();
+      await page.waitForSelector('.ex-from-deck-modal .dl-item');
+      await page.locator('.ex-from-deck-modal [data-x="deck"]').selectOption(made.deck.path);
+      await page.locator('.ex-from-deck-modal .dl-item', {hasText: 'Which house'}).click();
+      await page.locator('.ex-from-deck-modal [data-x="insert"]').click();
+      await until(async () => (await source()).includes('image: images/arasaac-2317.png'), 'the exercise is put into the page');
+      await until(async () => (await source()).includes('Pictograms author'), 'and the credit with it');
+      const text = await source();
+      equal(occurrences(text, 'Pictograms author'), 1, 'once');
+      assert(text.trimEnd().endsWith(CREDIT), 'as the last paragraph');
+      assert(same(await Deno.readFile(`${dstDir}/images/arasaac-2317.png`), await pictogramFile(2317)), 'and the picture is the page\'s own copy, byte for byte');
     }
 
     if (sections.includes('h')) {

@@ -514,8 +514,39 @@ async function defaultExercisePreview(markdown) {
    LATEX_BASE is "" only when the studio is the whole site.  The picture
    reaches a document through the uploader the caller already has -- the
    document's images/, a deck's -- so a copy is made as for any picture and
-   nothing here writes a file of its own. */
-function pictogramsLoaded() { return !!(window.ParsehPictograms && window.ParsehPictograms.open); }
+   nothing here writes a file of its own.
+
+   NO PAGE LINKS THE PICKER'S SCRIPT.  It is fetched here, the first time a
+   Pictogram… button is pressed.  A tag in the page, async or not, is a
+   request the page's `load` waits for, and a deck kept on a phone and opened
+   with the computer answering nothing sat on it for thirty seconds (the page
+   itself was drawn from its copy: tests/mobile_pages.mjs, b2).  What only a
+   search needs is asked for when a search is wanted, and with a deadline. */
+let pictogramsLoading = null;
+function loadPictograms() {
+  if (window.ParsehPictograms && window.ParsehPictograms.open) return Promise.resolve(window.ParsehPictograms);
+  if (!pictogramsLoading) {
+    pictogramsLoading = new Promise((ok, no) => {
+      const tag = document.createElement("script");
+      const fail = why => { clearTimeout(timer); tag.remove(); no(new Error(why)); };
+      const timer = setTimeout(() => fail("The pictogram picker did not come: is the computer that runs Parseh reachable?"), 10000);
+      tag.src = "/lib/pictograms.js";
+      tag.onload = () => {
+        clearTimeout(timer);
+        if (window.ParsehPictograms && window.ParsehPictograms.open) ok(window.ParsehPictograms);
+        else fail("The pictogram picker did not start.");
+      };
+      tag.onerror = () => fail("The pictogram picker could not be fetched: is the computer that runs Parseh reachable?");
+      document.head.append(tag);
+    });
+    pictogramsLoading.catch(() => { pictogramsLoading = null; });        // asked for again at the next press
+  }
+  return pictogramsLoading;
+}
+// was a pictogram put in through the frame since this page loaded?  (nothing was, if the frame never came)
+const pictogramsUsed = text => !!(window.ParsehPictograms && window.ParsehPictograms.used(text));
+// does a text name a copy of a pictogram (images/arasaac-<number>.png)?  A pure question: it needs no script
+const pictogramsNamed = text => /images\/arasaac-\d+(?:-\d+)?\.png/.test(String(text || ""));
 function pictogramOptions(extra) {
   return Object.assign({
     search: LATEX_BASE + "/api/arasaac/search",
@@ -524,9 +555,10 @@ function pictogramOptions(extra) {
     door: LATEX_BASE ? "/settings/arasaac/" : null,
   }, extra);
 }
-function openPictograms(extra) {
-  if (!pictogramsLoaded()) { toast("The pictogram picker did not load: reload the page.", true); return null; }
-  return window.ParsehPictograms.open(pictogramOptions(extra));
+async function openPictograms(extra) {
+  let picker;
+  try { picker = await loadPictograms(); } catch (e) { toast(e.message, true); return null; }
+  return picker.open(pictogramOptions(extra));
 }
 // what a pictogram is written as, by where it goes (docs/arasaac.md 5.5): the path alone for a card's side, the path
 // with a width and a side for an exercise's picture, a small picture inside a line of text, and on a line of its own
@@ -648,7 +680,7 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
   // when the hand was last in it (path, then the pick, which says the word)
   const pictureTakers = new WeakMap();
   const lineTakers = new WeakMap();    // and a jolly card's blocks: a figure on a line of its own
-  const canPictogram = () => pictogramsLoaded() && typeof uploaders.image === "function";
+  const canPictogram = () => typeof uploaders.image === "function";
   // a pictogram is chosen in the frame, and stored by the form's own uploader as any picture is
   const keepPictogram = async pick => {
     const got = await uploaders.image(await pick.file());

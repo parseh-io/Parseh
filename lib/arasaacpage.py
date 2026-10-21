@@ -180,13 +180,8 @@ guide.</p>
               % (settingspage._in_script(v), SCRIPT))
     return settingspage.frame("Pictograms (ARASAAC) &mdash; %s settings" % settingspage.NAME,
                               '<a href="/settings/">settings</a> &middot; pictograms (ARASAAC)',
-                              "Pictograms", GUIDE, main, style=lookuppage.STYLE + STYLE, script=script,
-                              extra_head=PICKER_HEAD)
+                              "Pictograms", GUIDE, main, style=lookuppage.STYLE + STYLE, script=script)
 
-
-# the picker, which Look through the pictograms opens (lib/pictograms.js): one tag, async, and the script links its own
-# sheet from beside itself; both files are served by serve.py (STATIC_FILES)
-PICKER_HEAD = '<script src="/lib/pictograms.js" async></script>'
 
 STYLE = r"""
 .ar .whomay{display:flex;gap:8px 10px;align-items:baseline;flex-wrap:wrap;margin:.2rem 0 1rem;font-size:13.5px;color:var(--dim)}
@@ -548,15 +543,35 @@ SCRIPT = r"""
   }
   function lost() { asking = {kind: 'bad', said: 'The server did not answer.'}; drawn = null; draw(); }
 
-  /* ---- looking through them: the picker (lib/pictograms.js) with nothing to add, over this page */
+  /* ---- looking through them: the picker (lib/pictograms.js) with nothing to add, over this page.  The script is fetched
+     when the button is pressed, as the studio's pages fetch it: no tag of this page asks for it, so nothing of the page waits
+     on it, and it is asked for with a deadline */
+  var picker = null;
+  function loadPicker() {
+    if (window.ParsehPictograms) return Promise.resolve();
+    if (!picker) {
+      picker = new Promise(function (ok, no) {
+        var tag = document.createElement('script');
+        function fail(why) { clearTimeout(timer); tag.remove(); no(new Error(why)); }
+        var timer = setTimeout(function () { fail('The picker did not come: the computer may not be reachable.'); }, 10000);
+        tag.src = '/lib/pictograms.js';
+        tag.onload = function () { clearTimeout(timer); if (window.ParsehPictograms) ok(); else fail('The picker did not start.'); };
+        tag.onerror = function () { fail('The picker could not be fetched: the computer may not be reachable.'); };
+        document.head.appendChild(tag);
+      });
+      picker.catch(function () { picker = null; });
+    }
+    return picker;
+  }
   function look() {
-    if (!window.ParsehPictograms) { asking = {kind: 'bad', said: 'The picker did not load: reload this page.'}; drawn = null; draw(); return; }
-    ParsehPictograms.open({
-      search: '/settings/api/arasaac/search',
-      picture: function (id) { return '/settings/arasaac/picture/' + id + '.png'; },
-      title: 'Pictograms (ARASAAC)',
-      note: 'These are the pictures on this computer. Search them by a word, in any of the languages fetched, and click one to look at it properly.'
-    });
+    loadPicker().then(function () {
+      ParsehPictograms.open({
+        search: '/settings/api/arasaac/search',
+        picture: function (id) { return '/settings/arasaac/picture/' + id + '.png'; },
+        title: 'Pictograms (ARASAAC)',
+        note: 'These are the pictures on this computer. Search them by a word, in any of the languages fetched, and click one to look at it properly.'
+      });
+    }, function (e) { asking = {kind: 'bad', said: e.message}; drawn = null; draw(); });
   }
 
   root.addEventListener('change', function (e) {

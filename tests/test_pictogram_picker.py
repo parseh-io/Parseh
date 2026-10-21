@@ -15,9 +15,10 @@ nothing here reaches ARASAAC.  What is held:
     404 -- never a path, whatever is sent;
   * THE STUDIO RUN ON ITS OWN ANSWERS FOR WHAT IT LINKS: the picker's two files (and no other file of lib/), the
     search and the pictures, as the toolbox does under /studio;
-  * EVERY PAGE THAT CARRIES THE EXERCISE FORM CARRIES THE PICKER'S SCRIPT, ONCE AND ASYNC (a deck kept on a phone
-    opens away from the computer without waiting for a file that only a search needs), and the script links its
-    own sheet from beside itself, so no page has to;
+  * NO PAGE LINKS THE PICKER'S SCRIPT: the exercise form and the door fetch it when a button is pressed, with a
+    deadline, and the script links its own sheet from beside itself.  A tag in a page is a request its `load` waits
+    for, and a deck kept on a phone and opened with the computer answering nothing sat on it for thirty seconds
+    (tests/mobile_pages.mjs, b2: found by the a0.5.3 loop);
   * THE EDITOR HAS ITS BUTTON, and the door its own, which is drawn only when a picture is here to look at.
 """
 import http.client
@@ -233,14 +234,17 @@ class Served(unittest.TestCase):
         self.assertTrue((ROOT / "lib" / "pictograms.css").is_file())
 
     # ---- the pages
-    def test_every_page_with_the_exercise_form_carries_the_script_once_and_async_and_no_sheet(self):
+    def test_no_page_links_the_picker_it_is_fetched_when_a_button_is_pressed(self):
         for name in WITH_THE_FORM:
             html = (TEMPLATES / name).read_text(encoding="utf-8")
             self.assertIn("{{STUDIO}}/static/exform.js", html, name)
-            tags = re.findall(r'<script src="/lib/pictograms\.js"([^>]*)></script>', html)
-            self.assertEqual(len(tags), 1, name)
-            self.assertEqual(tags[0].strip(), "async", name + ": a kept page waits for nothing that only a search needs")
-            self.assertNotIn("pictograms.css", html, name + ": the script links its own sheet")
+            self.assertNotIn("/lib/pictograms", html, name + ": a tag is a request the page's load waits for")
+        form = (ROOT / "markdown" / "app" / "static" / "exform.js").read_text(encoding="utf-8")
+        self.assertIn('tag.src = "/lib/pictograms.js"', form, "the form fetches it itself")
+        self.assertIn("10000", form, "with a deadline: a computer that answers nothing does not hold the button for ever")
+        self.assertIn("pictogramsNamed", form, "and a question that needs no script (does a text name a pictogram?) is asked without it")
+        import offline
+        self.assertNotIn("/lib/pictograms.js", offline.SHARED, "a phone does not keep a file that only a search needs")
 
     def test_the_editor_has_its_button_next_to_the_images(self):
         html = (TEMPLATES / "edit.html").read_text(encoding="utf-8")
@@ -251,7 +255,8 @@ class Served(unittest.TestCase):
     def test_the_door_draws_its_button_only_where_a_picture_is_to_be_looked_at(self):
         import arasaacpage
         page = arasaacpage.page()
-        self.assertIn('<script src="/lib/pictograms.js" async></script>', page)
+        self.assertNotIn('<script src="/lib/pictograms.js"', page, "the door fetches it when the button is pressed, as the form does")
+        self.assertIn("loadPicker", page)
         self.assertIn("data-look", page)                       # the script of the page, which draws the button
         self.assertIn("Look through the pictograms", page)
         self.assertIn("/settings/api/arasaac/search", page)
