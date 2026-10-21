@@ -137,9 +137,10 @@ Parseh-mine's update from GitHub; everything under *Afterwards*.
 
 ## The known-red baseline
 
-**There is none: every suite is green** (a0.5.2, 2026-10-19). A red suite in
-step 1 is new breakage and stops the release, unless it is under *Flaky*
-below and passes when run again alone.
+**There is none: every suite is green** (a0.5.3, 2026-10-21), **and none is
+accepted as flaky.** A red suite in step 1 is new breakage and stops the
+release. One that is red and then green when it is run again alone is not
+"flaky, accepted": it has a cause nobody has found yet (*Flaky tests*, below).
 
 It was not always so. Three suites were red from a0.3.0 to a0.4.3 —
 `decomposition`, `exercises` and `studio_narrow` — and were mended on
@@ -165,7 +166,7 @@ with `TMPDIR` on the main disk:
 |---|---|---|
 | unit — `python3 -m unittest discover -s tests -p "test_*.py"` | green | `Ran 3779 tests … OK (skipped=14)` |
 | `python3 tests/smoke.py` | green | `1901 passed, 0 failed, 21 skipped` |
-| the 81 `tests/*.mjs` | green | those under *Flaky* below fail now and then, and pass on a second run, alone |
+| the 81 `tests/*.mjs` | green | each of them; none is accepted as flaky |
 
 A new red is breakage: in a worktree on the previous release's tag, run the
 same suite — if it is red there too, it is old; if not, it is yours. (A worktree
@@ -173,44 +174,62 @@ lacks the git-ignored fonts and built fixture readers: copy them from the
 checkout first, or six unit tests of `test_mobile_pages` and
 `test_offline_notes` fail for that reason alone.)
 
-**Flaky, not broken.** These have failed now and then and passed when the
-suite was run again alone. They depend on timing — a browser that is slow
-to start, a download caught halfway, a toast waited for twenty seconds —
-and on the machine being otherwise quiet. Rerun the suite once, **alone**,
-before calling any of them new breakage; a step that fails again alone is
-breakage:
+**No suite is accepted as flaky.** Until a0.5.2 this page kept a list of suites that "failed now and then and
+passed when run again". a0.5.3 went through it with the tool below: every check on it that could be made to fail had a
+cause, found by driving the suite, and was mended, which is why the list is gone. A suite that fails and passes again
+alone has a cause nobody has found yet; a red in step 1 is breakage to be explained, not a roll of the dice.
 
-- `tests/mobile_pages.mjs`, its background part: step *i2* (*a Save the
-  browser refuses frees nothing*: the *REFUSED* toast within 20 s), step
-  *j* (*the computer killed with … bytes come … got -1 want 200000000*:
-  almost always a `TMPDIR` without room, see [Before you
-  start](#before-you-start)), and *the rec download could not be caught
-  halfway: []*. **In a full run it fails about as often as it passes** on this
-  machine (2026-10-19, measured on a0.5.1's own tree as well as on a0.5.2's:
-  the previous release failed it in one full run of three), and it can fail
-  again on the second, alone. Judge it by its pieces, which are not flaky: the
-  background part alone (`MOBILE_PARTS=background deno run --allow-all
-  tests/mobile_pages.mjs`, 37 checks, about 3½ minutes) and every other part
-  (`MOBILE_PARTS=shelf,reader,touch,prefs,video,studio,export,drawings,decks,offline,checkout,app,update`,
-  2172 checks) are both green, and together they are the 2209 of a full run;
-- `tests/reach.mjs`, its `slow` part: *a write on a slow computer was
-  refused as away: {"failed":"Failed to fetch"…}*;
-- `tests/activity.mjs`, at 1280×800: *the hub's pill steps aside while
-  the panel is in sight* (the hub is a tab behind another, and the page
-  learns that its panel is in sight a moment after the check looks);
-- `tests/studio_audio.mjs`: *the pasted clip plays*;
-- `tests/studio_starter_media.mjs`: *timed out: the editor draws the new
-  picture*;
-- `tests/studio_narrow.mjs`, its phone part: *phone 320x568, a contents jump
-  down: the heading is at the top of the screen* (94 px once, in a full run on
-  a machine at load 5; 10 px each of the four times it was run alone);
-- `tests/arasaac_door.mjs`, its phone pass, section *g*: *both languages can be
-  removed now (got 0, want 2)* (once in a full run; green alone, 286 checks);
-- `tests/cardkit.mjs`: *a clip recorded in the browser and one cut from a tab's
-  recording each fade 8 ms at both ends* (a measured fade, 22 ms in a run on a
-  loaded machine; green alone, 150 checks);
-- any suite that stops with *Target page, context or browser has been
-  closed*: Chromium itself crashed (`coredumpctl list chrome` shows it).
+**Finding the cause.** `tests/repeat.py` runs one suite again and again and says how often it was red, and why:
+
+```bash
+python3 tests/repeat.py studio_audio -n 20
+```
+
+Most of the flaky checks failed rarely on a quiet computer and often on a loaded one, which is the computer they
+failed on. What found nearly all of them was **copies of the suite running at once** (four copies put a computer of 24
+cores at a load of 30 or more), each with its own temporary folders and ports:
+
+```bash
+for i in 1 2 3 4; do python3 tests/repeat.py studio_audio -n 3 & done; wait
+```
+
+`--stress K` pins the suite to K cores that K busy loops also use. It slows everything evenly, so it found few of
+them: what fails is a check that falls between two things happening at their own pace, and that wants jitter, which
+a crowd has. A suite's own selectors make a loop short (`--env NAME=VALUE`): `SECTIONS=g` for `arasaac_door`,
+`REACH_PARTS=slow` for `reach`, `MOBILE_PARTS=background MOBILE_BG_ONLY=i2` for `mobile_pages`. A check that fails
+without saying what it saw (which toast, which pictures, what the folder says) is mended to say it before it is chased.
+
+**What the flaky checks of a0.5.2 were**, so that the next one is looked for among them:
+
+| Suite | What it did | What it waits for now |
+|---|---|---|
+| `mobile_pages`, background (steps g, h, i2, j) | pressed Save on the sheet of a book already kept before the sheet had finished looking at the phone, which re-ticks the boxes by what it finds: the Save said *nothing was changed* and no download began (*the rec download could not be caught halfway: []*, i2's missing refusal) | the sheet's own line *Looking at what is on this phone…* to be gone |
+| `mobile_pages`, the reader | waited 700 ms for a hold to open its row | the row |
+| `studio_audio`, the pasted clip | clicked a player in a preview that was about to be drawn again (a paste and the clip tray's adoption draw it twice, each replacing the players of the one before) | no `/api/preview` open and none begun for 800 ms; then a click where the player has stood still for six frames, and its own `play` |
+| `activity` | looked at the hub's pill in a tab behind another, which is drawn when the browser gets to it; looked for a three-second *Done* after the browser had handed the file over | the tab in front; the page's own diary of its pill |
+| `studio_narrow`, a contents jump | took two looks at the scroll 150 ms apart for a page standing still | twelve drawn frames with nothing moving |
+| `arasaac_door` | counted a button or a box at the instant the server's state changed, before the page's own look; slowed the host by the clock and hoped the page's once-a-second look fell inside | the page's controls; the pictures held at the host until the count had been seen |
+| `reach`, the slow part | counted the asks from the browser's events, in which a cut ask's end can reach the test after the next ask's start | the page's own count |
+| `cardkit` | waited five to ten seconds for sound to play through; wanted one pause at the end of a clip where two came, 5 ms apart | thirty seconds; no pause before the end |
+
+Not reproduced in some sixty runs under every load tried, so hardened and made to describe themselves when they
+fail: `studio_starter_media` (the editor draws the new picture), the 22 ms fade of `cardkit`, and the *Failed to fetch*
+of a write in `reach`'s slow part.
+
+Two of the causes were faults of Parseh, not of the tests, and are mended in it: the Pictograms page could stay on
+*Part of it is here* after a job had ended (`getarasaac.status()` read the job last), and the studio alone printed a
+browser's closed connection as a traceback (a0.5.2).
+
+**Writing a check that does not flake.** Wait for the state the check is about, not for a time, and never read it at
+the instant something else became true (the server's state changes before the page has been told). A flash on the
+screen is read from a diary the page keeps, not caught. A thing drawn more than once is waited for until it is still.
+A gesture is looked for in its effect (the player's own `play`), not trusted to have landed. What the browser reports of
+the network is not what the page did: the page counts its own asks. And a failure says what it saw.
+
+The suites are written for a computer doing little else: at a load of a hundred on 24 cores, what needs real time
+(sound recorded from a tab, a smooth scroll) fails honestly. And **a Chromium that dies** (*Target page, context or
+browser has been closed*; `coredumpctl list` shows it) is not a test: on this computer it happened sixteen times between
+2026-09-10 and 2026-09-28, the weeks in which suites ran in several checkouts at once, and not since.
 
 **Taking it again.** When this table is older than the last release, or you
 do not trust it, measure it again before changing anything: on the last
@@ -279,9 +298,12 @@ once in one checkout break each other — and compare with the baseline.
    for n in $(grep -v ' 0$' ../parseh-suites/results.txt | cut -d' ' -f1); do echo "== $n"; tail -8 "../parseh-suites/$n.log"; done
    ```
 
-4. Every red suite must be in the baseline, failing the same way. A flaky
-   step: rerun that suite alone (`deno run --allow-all tests/<name>.mjs`).
-   Anything else is new breakage: **stop, mend it, and begin again at 1.**
+4. A red suite is breakage: **stop, mend it, and begin again at 1.** Run it
+   again alone first (`deno run --allow-all tests/<name>.mjs`) to learn what
+   kind: red again, it is yours or old (the baseline above says which); green,
+   it is a flaky check nobody has explained, and it is not carried into the
+   release as one — `python3 tests/repeat.py <name> -n 20`, and the other
+   ways of making it fail under *Flaky tests*, find its cause in minutes.
 5. Remove `../parseh-suites` when done.
 
 ### 2. The version
