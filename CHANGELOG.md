@@ -1,4 +1,4 @@
-## [a0.5.3] - unreleased
+## [a0.5.3] - 2026-10-22
 ### Added
 - Pictograms: a frame to look for an ARASAAC pictogram by a word, in any language fetched, with thumbnails and a preview of each; it opens from Settings → Pictograms (to look), from the editor's Pictograms… (a figure at the cursor, with ARASAAC's credit added once) and from the exercise form and the decks (a card's picture, an exercise's picture, a small picture inside the text, a figure in a jolly card)
 
