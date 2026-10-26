@@ -1,4 +1,4 @@
-## [a0.5.4] - unreleased
+## [a0.5.4] - 2026-10-26
 ### Added
 - Follow-up questions, a fourteenth exercise type: a chain of exercises answered one after the other, with a form for its steps, and the same in a deck (study and cram) and on paper
 - LaTeX drawings: The .tex that was compiled and The whole log, on request, beside a drawing that cannot be made and under Settings → LaTeX drawings → Draw the sample, each with a Copy
