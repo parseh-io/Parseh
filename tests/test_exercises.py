@@ -1360,5 +1360,159 @@ class PaperLayoutTests(unittest.TestCase):
         self.assertNotIn("expaper", html)
 
 
+# ------------------------------------------------------------ follow-up questions (a0.5.4)
+
+FRONT = "---\ntitle: D\ntarget: it\n---\n\n"
+CHAIN = """:::exercise follow-up
+prompt: Read, then answer.
+explanation-correct: Fine.
+::::exercise single-choice
+prompt: Where?
+- [ ] home
+- [x] station
+::::
+::::exercise true-false
+- Late. => true
+::::
+::::exercise flashcard
+card-type: vocab
+target: [binario]{tl}
+meaning: platform
+::::
+:::
+"""
+AFTER = ":::exercise single-choice\nprompt: After.\n- [x] a\n- [ ] b\n:::\n"
+TWO = "::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n"
+
+
+class FollowUpDialectTests(unittest.TestCase):
+    """The fourteenth exercise type: a chain of exercises answered in order, each step one fence deeper."""
+
+    def parse(self, src):
+        return mdparser.parse(FRONT + src)[1]
+
+    def errors(self, src):
+        block = self.parse(src)[0]
+        return block["errors"], [s["errors"] for s in block.get("steps", [])]
+
+    def test_a_follow_up_is_a_chain_of_the_exercises_written_inside_it(self):
+        chain, after = self.parse(CHAIN + "\n" + AFTER)
+        self.assertEqual([], chain["errors"])
+        self.assertEqual(("follow-up", "chain"), (chain["subtype"], chain["primitive"]))
+        self.assertEqual(["single-choice", "true-false", "flashcard"], [s["subtype"] for s in chain["steps"]])
+        self.assertEqual([[], [], []], [s["errors"] for s in chain["steps"]])
+        self.assertEqual("Read, then answer.", chain["fields"]["prompt"])
+        # the exercise after it is an exercise of its own, whole
+        self.assertEqual(("single-choice", []), (after["subtype"], after["errors"]))
+        self.assertNotIn("steps", after)
+
+    def test_a_step_reads_as_the_exercise_it_would_be_on_its_own(self):
+        step = self.parse(CHAIN)[0]["steps"][0]
+        self.assertEqual(":::exercise single-choice\nprompt: Where?\n- [ ] home\n- [x] station\n:::", step["source"])
+        # the same exercise written at the top level is the same block
+        alone = self.parse(step["source"])[0]
+        self.assertEqual((alone["fields"], alone["items"]), (step["fields"], step["items"]))
+
+    def test_the_steps_lines_are_the_documents_lines(self):
+        chain = self.parse(CHAIN)[0]
+        # FRONT has 5 lines (0-4); the follow-up opens on line 5 and closes on 21
+        self.assertEqual((5, 21), (chain["_line"], chain["_end_line"]))
+        self.assertEqual([(8, 12), (13, 15), (16, 20)], [(s["_line"], s["_end_line"]) for s in chain["steps"]])
+
+    def test_what_a_follow_up_refuses_it_says(self):
+        self.assertEqual((["follow-up needs at least two steps"], [[]]),
+                         self.errors(":::exercise follow-up\n::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n:::"))
+        self.assertEqual((["follow-up needs at least two steps"], []), self.errors(":::exercise follow-up\n:::"))
+        self.assertEqual((["follow-up has no answer rows; write its steps"], [[], []]),
+                         self.errors(":::exercise follow-up\n- a row\n" + TWO + ":::"))
+        self.assertEqual((["a follow-up cannot hold a follow-up"], [["follow-up needs at least two steps"], []]),
+                         self.errors(":::exercise follow-up\n::::exercise follow-up\n::::\n"
+                                     "::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n:::"))
+
+    def test_a_step_that_is_wrong_is_named_by_its_number(self):
+        errors, steps = self.errors(":::exercise follow-up\n::::exercise single-choice\n- [ ] a\n- [ ] b\n::::\n"
+                                    "::::exercise nonsense\n- [x] a\n::::\n:::")
+        self.assertEqual(["step 1: single-choice exercise needs exactly one [x] answer",
+                          "step 2: unknown exercise type: nonsense"], errors)
+        self.assertEqual([["single-choice exercise needs exactly one [x] answer"], ["unknown exercise type: nonsense"]], steps)
+
+    def test_a_step_never_closed_does_not_swallow_the_follow_ups_end(self):
+        errors, steps = self.errors(":::exercise follow-up\n::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n"
+                                    "::::exercise single-choice\n- [x] a\n- [ ] b\n:::")
+        self.assertEqual(["step 2: step is missing its closing :::: line"], errors)
+        self.assertEqual([[], ["step is missing its closing :::: line"]], steps)
+        # …and what comes after the follow-up is still read
+        blocks = self.parse(":::exercise follow-up\n::::exercise single-choice\n- [x] a\n- [ ] b\n:::\n\n" + AFTER)
+        self.assertEqual(["exercise", "exercise"], [b["type"] for b in blocks])
+        self.assertEqual([], blocks[1]["errors"])
+
+    def test_a_drawing_in_a_step_is_one_colon_more(self):
+        src = (":::exercise follow-up\n::::exercise single-choice\nprompt: |\n  Which?\n  :::::latex chemistry {width=40}\n"
+               "  \\ce{H2O}\n  :::::\n- [x] a\n- [ ] b\n::::\n::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n:::")
+        chain = self.parse(src)[0]
+        self.assertEqual(([], [[], []]), (chain["errors"], [s["errors"] for s in chain["steps"]]))
+        # the step is the exercise as it reads at the top level: its drawing is the four-colon one
+        self.assertIn("  ::::latex chemistry {width=40}\n  \\ce{H2O}\n  ::::\n", chain["steps"][0]["source"])
+        html = htmlgen.render_document(FRONT + src)["html"]
+        self.assertIn('data-latex-src="\\ce{H2O}"', html)
+
+    def test_the_page_draws_one_step_to_a_wrapper_and_numbers_every_exercise(self):
+        out = htmlgen.render_document(FRONT + CHAIN + "\n" + AFTER)
+        html = out["html"]
+        self.assertEqual(1, html.count('class="exercise ex-chain"'))
+        self.assertIn('data-subtype="follow-up" data-primitive="chain" data-scored="0"', html)
+        self.assertIn('data-steps="3" data-step="1"', html)
+        self.assertEqual(['1', '2', '3', '4', '5'], re.findall(r'data-exercise="(\d+)"', html))
+        self.assertEqual(['scored', 'scored', 'card'], re.findall(r'class="ex-step" data-step="\d" data-kind="(\w+)"', html))
+        self.assertIn(">Step 1 of 3<", html)
+        self.assertEqual(3, html.count('class="btn ex-step-check"') + html.count('class="btn ex-step-show"'))
+        self.assertIn("Follow-up questions", html)
+        # the chain is not scored, its two scored steps and the one after it are
+        self.assertEqual(3, html.count('data-scored="1"'))
+
+    def test_a_follow_up_with_a_mistake_is_drawn_as_the_error_it_is(self):
+        html = htmlgen.render_document(FRONT + ":::exercise follow-up\n" + TWO[:TWO.index("::::exercise", 5)] + ":::")["html"]
+        self.assertIn("ex-invalid", html)
+        self.assertNotIn("ex-chain", html)
+
+    def test_nesting_an_exercise_is_what_reading_a_step_undoes(self):
+        alone = (":::exercise single-choice\nprompt: |\n  Which?\n  ::::latex chemistry\n  \\ce{H2O}\n  ::::\n"
+                 "- [x] a\n- [ ] b\n:::")
+        nested = mdparser.nest_step(alone)
+        self.assertEqual(["::::exercise single-choice", "  :::::latex chemistry", "  :::::", "::::"],
+                         [l for l in nested.split("\n") if l.lstrip().startswith("::")])
+        self.assertEqual(alone, "\n".join(mdparser._denest(l) for l in nested.split("\n")))
+        # a chain made of two nested exercises reads back as the same two
+        chain = self.parse(":::exercise follow-up\n" + nested + "\n" + mdparser.nest_step(AFTER) + "\n:::")[0]
+        self.assertEqual(([], [alone, AFTER.strip()]), (chain["errors"], [s["source"] for s in chain["steps"]]))
+
+    def test_the_decks_rule_is_one_exercise_the_pages_is_every_step(self):
+        import decks
+        _fm, blocks = mdparser.parse(FRONT + CHAIN)
+        self.assertEqual(["follow-up"], [b["subtype"] for b in decks._walk(blocks, steps=False)])
+        self.assertEqual(["follow-up", "single-choice", "true-false", "flashcard"], [b["subtype"] for b in decks._walk(blocks)])
+
+    def test_a_jolly_card_in_a_step_is_a_card_for_the_word_scan_too(self):
+        # the lines a card draws as blocks are the document's own lines, steps or not
+        card = "card-type: jolly\nfront-primary: |\n  one\n\n  two\nback-primary: x\n"
+        alone = mdparser.card_spans(FRONT + ":::exercise flashcard\n" + card + ":::\n")
+        chain = mdparser.card_spans(FRONT + ":::exercise follow-up\n::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n"
+                                    "::::exercise flashcard\n" + card + "::::\n:::\n")
+        self.assertEqual([(8, 0), (9, 0), (10, 0)], alone)
+        self.assertEqual([(13, 0), (14, 0), (15, 0)], chain)
+
+    def test_the_paper_has_a_frame_for_each_step(self):
+        fm, blocks = mdparser.parse(FRONT + CHAIN)
+        tex = texgen.generate(fm, blocks, colophon=False)
+        body = tex[tex.index("\\begin{document}"):]
+        self.assertEqual(3, body.count("\\expaperstep{"))
+        self.assertEqual(1, body.count("\\expaperexercise{"))
+        for n, label in ((1, "Choose one answer"), (2, "True / False"), (3, "Flashcard")):
+            self.assertIn("%d.\\enspace %s" % (n, label), body)
+        self.assertIn("\\expaperboolmarks{True / False}", body)          # a step keeps what its type puts on paper
+        self.assertIn("\\expapercardsize{120}", body)                     # and a card its front and back
+        self.assertEqual(1, body.count("\\begin{itemize}"))                # the choice's; the true/false is its own frame
+
+
 if __name__ == "__main__":
     unittest.main()

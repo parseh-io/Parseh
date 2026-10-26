@@ -287,6 +287,72 @@ class TheContractIsAllThere(unittest.TestCase):
             self.assertIn(needle, head, "the header names " + needle)
 
 
+class TheSheetHasTwoStages(unittest.TestCase):
+    """a0.5.4: the phone's sheet opens on an index of the themes and enters one; the toolkit says all of it."""
+
+    def setUp(self):
+        self.raw = JS.read_text(encoding="utf-8")
+        self.js = code(self.raw)
+
+    def test_the_api_gains_the_stage_and_the_back(self):
+        for name in ("stage: function () { return isUp && sheet ? stage : null; }", "back: back"):
+            self.assertIn(name, self.js)
+        for fn in ("function enter(gid)", "function leaveStage(spend)", "function back()", "function updateIndex()",
+                   "function summaryOf(b)", "function rowParts(row)", "function paintHead()", "function paintStage()"):
+            self.assertIn(fn, self.js, fn)
+
+    def test_the_summary_rule_is_kind_by_kind(self):
+        s = self.js
+        rule = s[s.index("function rowParts(row)"):s.index("function asParts(v)")]
+        for kind in ("switch", "choice", "slider", "stepper", "levels", "buttons"):
+            self.assertIn("case '%s':" % kind, rule, kind)
+        for never in ("case 'link'", "case 'action'", "case 'note'", "case 'node'"):
+            self.assertNotIn(never, rule, "a " + never[6:-1] + " says nothing in a summary")
+        self.assertIn("words(row.short)", rule, "a switch says its short name, where it is on")
+        self.assertIn("{ bdi: name }", rule, "a level's name is told apart for a right-to-left reading")
+        self.assertIn("el('bdi', null, p.bdi)", self.js)
+        # a group's own summary wins, and an empty one is a summary
+        self.assertIn("given !== undefined && given !== null", s)
+
+    def test_two_history_entries_and_the_gesture_that_leaves_the_theme_first(self):
+        s = self.js
+        self.assertIn("function spendEntries(how, keep)", s)
+        self.assertIn("history.go(-n)", s, "both entries given back in one go, to be spent in one popstate")
+        self.assertIn("if (stage === 'index') pushEntry();", s, "the second entry is pushed by the first theme only")
+        self.assertIn("stack.length = at + 1;", s, "a gesture out of a theme forgets the entry it spent")
+
+    def test_the_two_heights_are_remembered_on_the_device(self):
+        s = self.js
+        self.assertIn("var TALL_KEY = 'parseh_gear_tall';", s)
+        self.assertIn("localStorage.setItem(TALL_KEY, '1')", s)
+        self.assertIn("localStorage.removeItem(TALL_KEY)", s)
+        self.assertIn("function halfH()", s)
+        self.assertIn("function tallH()", s)
+
+    def test_a_borrowed_node_follows_the_stage(self):
+        self.assertIn("isUp: function () { return isUp && (!sheet || stage === g.id); }", self.js)
+
+    def test_the_pane_that_is_not_on_stage_is_out_of_reach(self):
+        self.assertIn("setInert(indexPane, inTheme);", self.js)
+        self.assertIn("setInert(themePane, sheet && !inTheme);", self.js)
+
+    def test_the_x_is_last_for_the_keyboard_in_the_sheet(self):
+        self.assertIn("if (xEl.parentNode !== panel) panel.appendChild(xEl);", self.js)
+
+    def test_the_standard_interface_group_says_its_pages(self):
+        self.assertIn("'Mobile pages' : 'Browser pages'", self.js)
+
+    def test_the_top_of_the_script_documents_the_stages(self):
+        head = self.raw[:self.raw.index("(function () {")]
+        for needle in ("THE PHONE'S SHEET HAS TWO STAGES", "stage()", "back()", "Group.summary", "`short`", "parseh_gear_tall",
+                       "HISTORY:", "bdi"):
+            self.assertIn(needle, head, "the header names " + needle)
+
+    def test_no_media_query_asks_whether_motion_is_wanted(self):
+        # the slide asks the sheet's own transition, which the stylesheet takes away under reduced motion
+        self.assertIn("getComputedStyle(trackEl).transitionDuration", self.js)
+
+
 class TheSheetOfStyles(unittest.TestCase):
 
     def setUp(self):
@@ -347,6 +413,16 @@ class TheSheetOfStyles(unittest.TestCase):
 
     def test_the_chrome_does_not_turn_round_in_a_right_to_left_page(self):
         self.assertIn("direction:ltr", self.css)
+
+    def test_the_two_stages_and_the_two_heights(self):
+        for rule in (".pg-irow{", "min-height:var(--pg-row,56px)", ".pg-pane-index",
+                     ".pg-sheet.pg-in-theme .pg-stages{transform:translateX(-50%)}",
+                     ".pg-panel.pg-sheet.pg-tall{height:calc(var(--pg-vh,8px) * 100 - 48px)}",
+                     "visibility:hidden;transition:visibility 0s linear .16s", ".pg-panel .pg-isum"):
+            self.assertIn(rule.replace(".pg-irow{", ".pg-panel .pg-irow{"), self.css, rule)
+        # the switch's own track keeps its name: the stages' container is another class
+        self.assertIn(".pg-stages", self.css)
+        self.assertIn("white-space:nowrap;overflow:hidden;text-overflow:ellipsis", self.css, "a summary is one line, cut")
 
     def test_a_hidden_row_stays_hidden_whatever_display_it_was_given(self):
         self.assertIn(".pg-panel [hidden]{display:none!important}", self.css)

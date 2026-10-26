@@ -316,8 +316,10 @@ hover it never delivers. A tap elsewhere on the line still plays it from its
 beginning. On a narrow screen the bar slides out of the way as the page
 moves down and comes back on the smallest move up, bringing the video with
 it; a desktop is left exactly as it is. On a phone the bar has **⚙**:
-the page's panel opens as a sheet from the foot of the screen, with everything the bar
-does not keep in reach — and, in its last group, **Use it without the computer**,
+the page's panel opens as a sheet from the foot of the screen — first a list of themes, each
+saying what it is set to, then one theme at a time, half the screen high or tall as you choose
+([The ⚙ settings of a page](../getting-started/page-settings.md#on-a-phone-the-list-of-themes-then-one-theme))
+— with everything the bar does not keep in reach, and, in its last theme, **Use it without the computer**,
 which keeps the video on the phone for when the computer cannot be reached
 ([Browser and Mobile](../getting-started/mobile-mode.md)).
 

@@ -966,7 +966,8 @@ _MATHS_IN_SOURCE = re.compile(r"\]\{\s*math\s*\}|^:::math\s*$", re.I | re.M)
 # same light regex the full parser matches inline marks with (imported, not
 # copied, so the two can never drift the way lib/latexthemes.blocks_in's own
 # comment warns a copy would).
-_LATEX_BLOCK = re.compile(r"^[ \t>]*::::latex\b.*?^[ \t>]*::::[ \t]*$", re.I | re.M | re.S)
+# (a fence of four colons or more, closed by its own: a drawing in a step of a follow-up has five)
+_LATEX_BLOCK = re.compile(r"^[ \t>]*(:{4,})latex\b.*?^[ \t>]*\1[ \t]*$", re.I | re.M | re.S)
 
 
 def _maths_in(markdown):

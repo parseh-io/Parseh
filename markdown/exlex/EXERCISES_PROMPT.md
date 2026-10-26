@@ -77,6 +77,23 @@ Picture and recording paths — `front-image: images/name.ext`, `front-audio: au
 
 {{/type_choose_all}}{{?type_odd_one_out}}`odd-one-out` — choice rows with exactly the odd item marked `[x]`.
 
-{{/type_odd_one_out}}Every exercise but a flashcard may also carry two pictures of its own (`image:` and `image-answer:`) and two recordings (`audio:` and `audio-answer:`). They name files the person adds by hand in the studio: **never write any of these fields yourself**, and keep unchanged the ones an exercise already has.
+{{/type_odd_one_out}}{{?type_follow_up}}`follow-up` — a chain of exercises answered one after the other: the learner checks a step, reads what it says, and only then sees the next. Its own fields are the optional `prompt:` (what the learner reads first: a short text or dialogue the steps are about) and the optional explanations, which come after the last step. Its steps are exercises of any other type written INSIDE it, **one colon more on every fence**: a step opens with `::::exercise type` and closes with `::::`, and holds exactly what an exercise of that type holds on its own; a drawing or any other block inside a step has one more colon too. A follow-up needs at least two steps, and a step is never a follow-up. Use it when a question should build on the one before: first the gist of a text, then a detail, then the word used in a sentence of the learner's own. Every step is visible on paper at once, so write each so that it does not give away the one before.
+
+```markdown
+:::exercise follow-up
+prompt: Read the short dialogue, then answer about it, one question at a time.
+explanation-correct: You followed all of it.
+::::exercise single-choice
+prompt: Where are the two speakers?
+- [ ] at home
+- [x] at the station
+::::
+::::exercise true-false
+- The train leaves at nine. => false
+::::
+:::
+```
+
+{{/type_follow_up}}Every exercise but a flashcard may also carry two pictures of its own (`image:` and `image-answer:`) and two recordings (`audio:` and `audio-answer:`). They name files the person adds by hand in the studio: **never write any of these fields yourself**, and keep unchanged the ones an exercise already has.
 
 Correct answers must always be explicit. Keep exercises answerable from the page. Vary types when that helps learning, avoid trivial repetition, and include concise explanations when they teach something useful.{{?type_pairs}} Do not place `=>` inside either side of a matching row unless escaped as `\=>`.{{/type_pairs}}{{/exercise_blocks}}

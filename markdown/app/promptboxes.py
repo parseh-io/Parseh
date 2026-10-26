@@ -132,6 +132,7 @@ TYPES = (
     Type("incorrect-part", "find the mistake", "the part of a sentence that is wrong"),
     Type("choose-all", "choose all that apply", "every correct answer among several"),
     Type("odd-one-out", "odd one out", "the item that does not belong"),
+    Type("follow-up", "follow-up questions", "a chain of exercises answered one after the other"),
 )
 TYPE_IDS = tuple(t.id for t in TYPES)
 # the parser's second spelling of a type the prompt teaches once

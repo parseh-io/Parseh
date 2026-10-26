@@ -52,5 +52,5 @@ explains it. The pages in between take one family of constructs each, and
 [Documents in each language](languages/_index.md) says what changes from one
 target language to the next.
 
-The exercises — `:::exercise` blocks, thirteen kinds of them — have a
+The exercises — `:::exercise` blocks, fourteen kinds of them — have a
 section of their own in this guide, [Writing exercises](../dialect-exercises/_index.md).

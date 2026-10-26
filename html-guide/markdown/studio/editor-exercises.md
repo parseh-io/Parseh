@@ -5,8 +5,8 @@ description: The Exercises ▾ menu — Add exercise… and its form, ✎ Edit i
 ---
 
 An exercise is a block of the document's Markdown, from an
-`:::exercise <type>` line to a closing `:::` — twelve kinds of activity
-and three kinds of flashcard, answered on the document's page and studied
+`:::exercise <type>` line to a closing `:::` — twelve kinds of activity,
+three kinds of flashcard and the follow-up chain, answered on the document's page and studied
 in the exercise decks. You can type one by hand (the syntax of every kind
 is in [Writing exercises](../dialect-exercises/_index.md)), but the
 editor's **Exercises ▾** menu writes them for you, reads them back, and
@@ -41,6 +41,7 @@ each with a line saying what it is:
 | **Embedded vocabulary flashcard** | `flashcard`, `card-type: vocab` |
 | **Embedded opposites flashcard** | `flashcard`, `card-type: opposites` |
 | **Embedded Jolly flashcard** | `flashcard`, `card-type: jolly` |
+| **Follow-up questions** | `follow-up` |
 
 Pick one, and the form for that kind opens. You never have to know the
 Markdown it writes: the form asks for what the learner will see.
@@ -90,6 +91,19 @@ The form is in sections, from the top:
     is **Front**, **Back** (which turns the card round), **Both (random)**
     (the front or the back, drawn each time the card is shown) or **Both
     (repeat)** (the front first; a deck asks both sides).
+  - *Follow-up questions*: **Steps**, a list in which every step has its
+    place (*Step 3 of 8*), its type and its opening words, a handle to
+    **drag**, **↑** and **↓**, a box to type its place in, **✎ Edit**,
+    **Duplicate**, **⤴ Put back** (out of the chain, onto the page as an
+    exercise of its own), **Delete** (with an **Undo** for six seconds) and a
+    tick — ticked steps move and go together. **+ New step…** opens the grid
+    again, without the follow-up, and the chosen type's own form **in a
+    frame over this one**, titled *Step 2 — …*, with **Add to the chain** for
+    **Insert exercise**; **+ From this page…** lists the exercises the page
+    already has, to make steps of, and **Remove them from the page once they
+    are in the chain** takes the originals away in the same undoable step.
+    [Follow-up questions](../dialect-exercises/follow-up.md#writing-one-in-the-form)
+    has every control.
 
   Every row has **↑** and **↓** to move it and **Delete** to take it away.
 - **Pictures (optional)** and **Recordings (optional)** (every kind but a

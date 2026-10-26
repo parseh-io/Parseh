@@ -176,7 +176,7 @@ On a narrow screen the top bar and the typography bar are pinned to the top
 of the window, and both go away as the page moves down and come back on the
 smallest move up. The toolbar keeps **☰ Contents**,
 **⇄ Glosses**, **↩ Linked from** and **Aa**; **Aa** opens the page's panel at its text
-sizes, as a sheet from the foot of the screen, and closes it again. The **⚙** sits in the
+sizes (on a phone, as a sheet from the foot of the screen, on its **Text** theme), and closes it again. The **⚙** sits in the
 top bar, after **◐**; the **Browser | Mobile** switch is in the panel's **Interface** group. The top bar's buttons scroll sideways when they do
 not fit.
 

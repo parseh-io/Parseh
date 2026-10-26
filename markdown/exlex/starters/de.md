@@ -411,6 +411,38 @@ prompt: Which word does not belong with the others?
 explanation-correct: [der Januar]{tl} is a month; the others are days of the week.
 :::
 
+### Follow-up questions
+
+A follow-up is a chain of exercises answered one after the other: check a step, read what it says, and the next one comes under it. A step is any exercise, written inside the chain with one colon more on its fences (`::::exercise …` and `::::`). The PDF prints every step at once, numbered, so write each one so that it does not give away the one before.
+
+:::exercise follow-up
+prompt: At the bakery a customer says: [Guten Tag! Ich hätte gern einen Kaffee und ein Brötchen, bitte.]{tl} Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then something to eat.
+::::exercise single-choice
+prompt: What does the customer want to drink?
+- [x] [einen Kaffee]{tl}
+- [ ] [ein Brötchen]{tl}
+- [ ] [eine Rechnung]{tl}
+explanation-correct: [Der Kaffee]{tl}, *the coffee*; the roll is [das Brötchen]{tl}.
+::::
+::::exercise true-false
+prompt: Now decide.
+- [Brötchen]{tl} is a neuter noun: [das Brötchen]{tl}, [ein Brötchen]{tl}. => true
+- [Bitte]{tl} means *thank you*. => false
+explanation-correct: [Bitte]{tl} is *please* (and *you're welcome*); *thank you* is [danke]{tl}.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the words you have just read.
+content-direction: target
+text: [Guten Tag! Ich hätte gern [[drink]] und [[food]], bitte.]{tl}
+- [drink] [einen Kaffee]{tl}
+- [food] [ein Brötchen]{tl}
+- [ ] [ein Kaffee]{tl}
+explanation-correct: [Der Kaffee]{tl} is masculine, and an object in the accusative takes [einen]{tl}.
+::::
+:::
+
 ### Flashcards
 
 A vocabulary card; `direction: reverse` shows the English side first, and `front-audio:` gives the

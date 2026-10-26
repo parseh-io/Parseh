@@ -1970,7 +1970,7 @@ _EX_TEX_LABELS = {
     "yes-no": "Yes / No", "true-false": "True / False",
     "single-choice": "Choose one answer", "construct-sentence": "Construct the sentence",
     "incorrect-part": "Identify the incorrect part", "choose-all": "Choose all correct answers",
-    "odd-one-out": "Odd one out",
+    "odd-one-out": "Odd one out", "follow-up": "Follow-up questions",
 }
 
 
@@ -2358,6 +2358,8 @@ EXERCISE_PAPER = r"""% ----------------------- EXERCISES ON PAPER --------------
 % another (a quotation) is never split: there is no page to measure.
 \newbox\expaperexbox
 \newbox\expaperexpiece
+\def\expaperexframe{rulec}
+\def\expaperexfill{boxbg}
 \newlength\expaperexfits
 \newlength\expaperexwidth
 \newlength\expaperexto
@@ -2419,15 +2421,21 @@ EXERCISE_PAPER = r"""% ----------------------- EXERCISES ON PAPER --------------
         \setbox\expaperexpiece\vbox to\expaperexto{\unvbox\expaperexpiece\boxmaxdepth\z@}%
       \fi
       \wd\expaperexpiece\expaperexwidth
-      \noindent\fcolorbox{rulec}{boxbg}{\box\expaperexpiece}\par
+      \noindent\fcolorbox{\expaperexframe}{\expaperexfill}{\box\expaperexpiece}\par
       \setlength\expaperexto{\expaperexfits}%
     \ifvoid\expaperexbox\else\repeat
     \endgroup
   \else
-    \noindent\fcolorbox{rulec}{boxbg}{\begin{minipage}{\expaperexwidth}%
+    \noindent\fcolorbox{\expaperexframe}{\expaperexfill}{\begin{minipage}{\expaperexwidth}%
       \unvbox\expaperexbox\end{minipage}}\par
   \fi}
 \makeatother
+% A STEP OF A FOLLOW-UP is an exercise's box one fence lighter: the same breaking rules (it keeps together, or goes on
+% over the pages a tall one needs), on white, in a thinner line, so that the inner frames do not fight the chain's
+% own head above them.
+\newcommand\expaperstep[1]{%
+  \begingroup\def\expaperexframe{rulec}\def\expaperexfill{white}%
+  \setlength\fboxrule{0.75\fboxrule}\expaperexercise{#1}\endgroup}
 %
 % Matching: each entry of each column in a frame of its own, the columns
 % equal in width with a gap between them for the line the student draws.
@@ -2704,14 +2712,22 @@ def _exercise_prompt(prompt):
     return "".join(rendered) + "\\smallskip{}"
 
 
-def _render_exercise(b):
-    """Printable, deliberately unsolved twin of an interactive exercise."""
+def _render_exercise(b, step=None):
+    """Printable, deliberately unsolved twin of an interactive exercise.
+
+    `step` is (k, n) for a STEP OF A FOLLOW-UP (a0.5.4): what comes back is the exercise's inside, numbered, to be set in
+    the step's own frame by _render_chain -- laid out exactly as the type is laid out on its own, except that a card is
+    its two sides one under the other, labelled Front and Back, which a card to cut and fold would not be inside a
+    frame; the footnotes are deferred by the chain, past its last step."""
+    if b.get("primitive") == "chain" and not b.get("errors") and step is None:
+        return _render_chain(b)
     f, items = b.get("fields", {}), b.get("items", [])
     label = _EX_TEX_LABELS.get(b.get("subtype"), "Exercise")
     body = []
     # the whole exercise is a minipage, which would swallow a \footnote
     # written anywhere inside it: defer them all past its end
-    prev = _begin_defer()
+    prev = None if step else _begin_defer()
+    end_defer = (lambda: "") if step else (lambda: _end_defer(prev))
     kind = (f.get("card-type") or "vocab").lower()
     cards = {}
     import mdparser     # exlex's parser imports this module: not at the top
@@ -2742,15 +2758,21 @@ def _render_exercise(b):
     if b.get("primitive") != "flashcard":
         prompt += _ex_image(f, "image") + _ex_audio(f, "audio")
     elif not b.get("errors"):
+        front, back = _card_sides(f, kind, cards)
+        if step:
+            # inside a step's frame: the two sides one under the other, each said what it is
+            inside = ("%s\\par\\smallskip%s{\\sffamily\\bfseries\\footnotesize Front}\\par\\smallskip %s\\par\\medskip"
+                      "{\\sffamily\\bfseries\\footnotesize Back}\\par\\smallskip %s"
+                      % (_step_head(step, label), prompt, front, back))
+            return "\\large " + inside if print_size() != DEFAULT_PRINT_SIZE else inside
         # a card to cut out and fold, its label and prompt above its frame
         # (\expapercard); in large print a step larger, as every exercise is
-        front, back = _card_sides(f, kind, cards)
         head = ("{\\sffamily\\bfseries\\footnotesize\\color{accent}%s}\\par\\smallskip%s"
                 % (escape_latin(label), prompt))
         card = "\\expapercard{%s}{%s}{%s}" % (head, front, back)
         if print_size() != DEFAULT_PRINT_SIZE:
             card = "{\\large %s}" % card
-        return "\\par\\bigskip%s\\medskip%s" % (card, _end_defer(prev))
+        return "\\par\\bigskip%s\\medskip%s" % (card, end_defer())
     if b.get("errors"):
         # black and white keeps the words and loses the red, as every
         # colour written in this file does there
@@ -2812,15 +2834,63 @@ def _render_exercise(b):
         shown = items[1:] + items[:1] if len(items) > 1 else items
         body.append("\\begin{itemize}%s\\end{itemize}" % "".join(
             "\\item %s" % _ex_inline(x["text"]) for x in shown))
-    inside = ("{\\sffamily\\bfseries\\footnotesize\\color{accent}%s}\\par\\smallskip%s%s"
-              % (escape_latin(label), prompt, "\\par".join(body)))
+    head = _step_head(step, label) if step else (
+        "{\\sffamily\\bfseries\\footnotesize\\color{accent}%s}" % escape_latin(label))
+    inside = "%s\\par\\smallskip%s%s" % (head, prompt, "\\par".join(body))
     if print_size() != DEFAULT_PRINT_SIZE:
         # in large print an exercise is set a step larger than the text
         # round it: it is what the reader holds closest, and writes on
         inside = "\\large " + inside
+    if step:
+        return inside
     # in a box that goes on over pages when it is taller than one
     # (\expaperexercise): ten framed rows of pictures are, at any size
-    return "\\par\\medskip\\expaperexercise{%s}\\medskip%s" % (inside, _end_defer(prev))
+    return "\\par\\medskip\\expaperexercise{%s}\\medskip%s" % (inside, end_defer())
+
+
+def _step_head(step, label):
+    """The head of a step's frame: its number, then what kind of exercise it is."""
+    return ("{\\sffamily\\bfseries\\footnotesize\\color{accent}%d.\\enspace %s}"
+            % (step[0], escape_latin(label)))
+
+
+def _render_chain(b):
+    """A FOLLOW-UP ON PAPER (a0.5.4): one exercise under its label, its prompt and its shared picture once at the top;
+    then its steps numbered 1., 2., ..., each in a lighter frame of its own and each laid out exactly as its type is
+    laid out on paper -- so a chain may part between two steps at a page's foot (every step is a frame that keeps
+    together, or continues over pages as a tall exercise does) and never inside a step, and a step's picture stays with
+    its step.  Answers, explanations and the pictures of an answer are left out, as for every exercise.  Each step is
+    seen at once, whether or not the one before gives it away: the guide says so."""
+    import mdparser     # exlex's parser imports this module: not at the top
+    f = b.get("fields", {})
+    prev = _begin_defer()
+    prompt = ""
+    if f.get("prompt"):
+        field = mdparser.card_field(b, "prompt", cur_lang().code)
+        if field and field[0] == "blocks":
+            _FN["defs"].update(field[2])
+            prompt = render_blocks(field[1])
+            if prompt[:1].isalpha():
+                prompt = "{}" + prompt
+        else:
+            prompt = _exercise_prompt(f["prompt"])
+    shared = _ex_image(f, "image") + _ex_audio(f, "audio")
+    prompt += shared
+    head = ("{\\sffamily\\bfseries\\footnotesize\\color{accent}%s}\\par\\smallskip%s"
+            % (escape_latin(_EX_TEX_LABELS["follow-up"]), prompt))
+    if print_size() != DEFAULT_PRINT_SIZE:
+        head = "\\large " + head
+    steps = b.get("steps") or []
+    out = ["\\par\\medskip\\expaperexercise{%s}" % head]
+    for k, step in enumerate(steps, 1):
+        # the head holds on to the first step, which never leaves it alone at the foot of a page -- unless the head
+        # carries a picture of its own, which with a large print and a picture on the step too would push the whole
+        # chain to a page of its own and leave the one before empty; a page may end between any two steps, never
+        # inside one (the step's own frame keeps together, or goes on over the pages)
+        out.append("\\par%s\\medskip\\expaperstep{%s}"
+                   % ("\\nopagebreak" if k == 1 and not shared else "", _render_exercise(step, (k, len(steps)))))
+    out.append("\\medskip" + _end_defer(prev))
+    return "".join(out)
 
 
 # LATEX BLOCKS ON PAPER (TO-DO §8.39) are the same drawing the screen shows:
@@ -3525,7 +3595,7 @@ def generate(fm, blocks, fa_scale=None, voce_size="38", voce_lead="44",
     tex = _placeholder_line(tex, "PRINTOPTIONS", print_options_tex(size, is_mono()))
     # the exercises' own macros, only where one of them is printed
     tex = _placeholder_line(tex, "EXERCISEPAPER",
-                            exercise_paper_tex("\\expapercard{" in body)
+                            exercise_paper_tex("\\expapercard" in body)      # \expapercard{ for a card, \expapercardsize for a step's
                             if "\\expaper" in body else "")
     tex = (tex
            .replace("%%MARGINS%%", _MARGINS[size])

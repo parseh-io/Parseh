@@ -59,14 +59,37 @@ Parseh's: use the browser's own zoom there.
   pixels wide, as tall as the window allows, scrolling inside itself, over the
   page and not instead of it. **✕**, **Esc**, or a click anywhere outside shuts it.
 - **On a phone** — and in any window 560 pixels wide or narrower — it opens as a **sheet from the
-  bottom edge, half the screen high**. The text stays on show above it, and it is not a dialog that
-  blocks the page: change a size and the text changes where you can see it.
-  **✕**, the phone's back gesture, or **Esc** with a keyboard shuts it. Every
-  row on a phone is at least a finger high.
+  bottom edge**, in two stages (below), over half the screen at rest. The text stays on show above
+  it, and it is not a dialog that blocks the page: change a size and the text changes where you can
+  see it. **✕**, the phone's back gesture, or **Esc** with a keyboard shuts it. Every row on a phone
+  is at least a finger high.
 - **Esc** is spent on the panel first, so that whatever is under it — a gloss
   cloud, a list — does not shut as well.
 
-![A Persian book on a phone with the ⚙ sheet open: half the screen, the text above it, the first group under its first line](shots/gear-reader-phone.png){width=45 align=center}
+### On a phone: the list of themes, then one theme
+
+The sheet does not hold one long scroll. It opens on a **list of themes** — the groups
+of the tables below, **Levels & reading**, **Listening**, **Text**, **Colours** and the rest —
+and under each name one line that says **what it is set to now**: *With vowels, Chunks, Plain*;
+*1×, skip 10 s · keeps going*; *English text 20 px*; *Mobile pages*. You see the whole list
+at once, without scrolling, and what you are looking for is usually the line itself.
+
+![A Persian book on a phone with the ⚙ sheet open on its list of themes: Levels & reading, Listening, Looking a word up, Text, Zoom, Colours and Interface, each with what it is set to](shots/gear-reader-phone.png){width=45 align=center}
+
+A tap on a theme slides the sheet to **that theme alone**: its rows, exactly as the tables
+below describe them, with the theme's name at the top and, under it, where its settings are kept.
+**‹** at the left of the head — or the phone's back gesture — goes back to the list, to the
+place you left it. **✕** shuts the whole sheet from either stage, and so do **Esc** and a swipe down on the head.
+**Aa** on a book, a video or a document opens the sheet already on **Text**.
+
+![The same sheet on its Text theme: the slider for the book's own words, with ‹ to go back to the list](shots/gear-reader-phone-theme.png){width=45 align=center}
+
+The sheet rests **half the screen high**, because a change of **Text**, **Levels**, **Zoom** or
+**Colours** shows on the page above it. If you would rather have more room, **drag the head up**
+(or tap the small bar at the top of it): the sheet becomes **tall** — the whole screen but a
+strip of the page — and a drag down, or another tap on the bar, brings it back. **Parseh
+remembers which you chose on this device**, for every page, so a phone that likes the tall
+sheet opens it tall. A swipe down from half shuts it, as ever.
 
 A group with nothing to show on this page or this book is not drawn: a book
 with no recording has no **Listening**, a book in English has no
@@ -200,8 +223,8 @@ sheet reads **✥ dragging on**.
 
 **Aa** stays where it was on a page that has it — the header of a book and of
 a video, the toolbar of a document — and now opens the panel, scrolled to its
-**Text** group: one set of sliders, not two. Press it again and the panel
-shuts. The values are the same ones as ever, so what you set before is still
+**Text** group (on a phone: on the **Text** theme): one set of sliders, not two.
+Press it again and the panel shuts. The values are the same ones as ever, so what you set before is still
 set.
 
 On a phone held sideways with the video on the whole screen, **Aa** is the one

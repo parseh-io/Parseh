@@ -17,6 +17,50 @@ guide and rebuilds the readers by itself.
 
 ## a0.5.4 — not yet released
 
+### The ⚙ sheet on a phone, in themes
+
+On a phone the page's settings used to be one long list, two rows in view at a time, with **Colours** and **Interface** at
+the far end of it. The ⚙ sheet now **opens on a list of themes** — **Levels & reading**, **Listening**, **Looking a word
+up**, **Text**, **Zoom**, **Colours**, **Interface** — each with one line under its name saying **what it is set to now**
+(*With vowels, Chunks · no glosses*; *1×, skip 10 s · keeps going*; *English text 20 px*; *Mobile pages*), all in view at
+once. A tap on a theme slides the sheet to its rows alone, with **‹** and the phone's back gesture to return to the list;
+**Aa** still opens the sheet on **Text**. The sheet rests half the screen high, because a change of text, levels, zoom or
+colours shows on the page above it; **drag its head up, or tap the small bar on it, and it is tall** — and Parseh
+remembers that on this device. A computer's panel, a popover with every row in one list, is as it was
+([The ⚙ settings of a page](../getting-started/page-settings.md#on-a-phone-the-list-of-themes-then-one-theme)).
+
+### Follow-up questions: a chain of exercises
+
+A new kind of exercise, **Follow-up questions**, for asking about a text in stages. Its steps are exercises of any other type,
+written inside it with one more colon on their fences (`::::exercise` … `::::`), and the learner answers them **one after
+the other**: **Check step**, the step's own explanation between it and the next, **Next step**, and a strip that says *Step 2
+of 3*. At the end the chain says its result in words (*2 of 3 steps right*). The editor has it as the last tile of **Add
+exercise…**, with a **Steps** list you can drag, move with ↑ ↓ or by typing a place, edit, copy, delete (with an Undo),
+tick and move together; **+ New step…** opens the type's own form in a frame over the chain's, and **+ From this page…**
+makes a chain of the exercises the page already has, taking them off the page in the same undoable step if you wish. In a
+deck a follow-up is **one exercise**: it is studied a step at a time, the four ratings come after the last step, and the
+history keeps how many steps were right; **Make a follow-up chain of these…** does it from the ticked exercises of a deck,
+and **+ Add all exercises** from a page. A cram counts it right only if every step was. On paper the steps are numbered
+frames, each laid out as its type is. Each of the eleven starters has one, about language
+([Follow-up questions](../dialect-exercises/follow-up.md)).
+
+### LaTeX drawings: what was compiled, and why it did not work
+
+A LaTeX drawing that could not be made said why in a sentence and nothing more, and **Draw the sample** in **Settings →
+LaTeX drawings** said less. Now a frame of a block that went to LaTeX, and the sample, have two buttons: **The .tex that
+was compiled**, the exact document LaTeX was given, and **The whole log**, everything it wrote, with the lines the
+sentence was made from marked and the view scrolled to them. Each has a **Copy**. They are kept with the drawing, so
+nothing is made a second time to show them. The sample shows both even when it succeeds, above **The whole preamble**.
+Drawings kept by an earlier Parseh are made again once, with them.
+
+A drawing that failed inside a *package* — a missing font, say — used to be answered *LaTeX stopped without saying
+why*, because LaTeX writes such a message with the package's file name in front of it and Parseh was reading only
+the block's. It now reads a message from any file, says which file asked, names a missing font with the package that
+has it, and says *LaTeX made no page* for a compile that ends without one. Some TeX Live packages do not list what they need:
+getting **xskak** alone left a drawing failing on the next missing file, one at a time. The catalogue has one row for it,
+under **Games**, that gets its fonts and the other packages it loads in one go
+([LaTeX drawings](../dialect/latex-drawings.md#when-it-cannot-be-drawn)).
+
 ## a0.5.3 — 22 October 2026
 
 ### Looking for a pictogram, and adding it

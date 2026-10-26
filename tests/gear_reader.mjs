@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {chromium} from 'npm:playwright-core@1.52.0';
-import {gearOpen, gearClose, gearUp, gearRow} from './gear_driver.mjs';
+import {gearOpen, gearClose, gearUp, gearRow, gearReach} from './gear_driver.mjs';
 // Run: CHROME_BIN=/path/to/chrome deno run --allow-all tests/gear_reader.mjs
 //      GEAR_READER_SHOTS=<dir>   saves the screenshots this suite looks at (the header, the gear on every group,
 //                                wide and on a phone, in the three themes, a right-to-left book, an old reader)
@@ -27,8 +27,11 @@ import {gearOpen, gearClose, gearUp, gearRow} from './gear_driver.mjs';
 //             and the highlight where they were, a copy and a card carrying the vowelled text, a chapter fetched
 //             afterwards bare too, a reload keeping it, and the page restored node for node
 //  phone)     390x844 with a finger: the first line is the hub, the shelf, the contents, Aa and the gear (no ⋯),
-//             the sheet is half the window with the text above it, quick toggles first, every row a finger high,
-//             the Keep row, closed by ✕, Esc and the back gesture, the listening line while listen is on
+//             the sheet is half the window with the text above it and opens on the INDEX of the themes with what
+//             each is set to (all seven in view), Aa lands on Text and a second press shuts it, a theme's rows a
+//             finger high, the Keep row only while its theme is on stage, closed by ✕, Esc and the back gesture
+//             (which leaves a theme first), the listening line while listen is on, and the index on a Persian,
+//             a Japanese and a Chinese book
 //  keys)      a device's keys survive a reload and stay on the device; the person's (speed, skip, the pause between
 //             repeats, wait at a change, keep going, the levels' names, the theme) cross to another browser
 //             context through the one server; a rename shows in the other
@@ -204,12 +207,14 @@ const switchOn = (page, id) => page.evaluate(id => document.querySelector(`.pg-p
 const selectDisabled = (page, id) => page.evaluate(id => document.querySelector(`.pg-panel [data-pg-row="${id}"] select`).disabled, id);
 const switchDisabled = (page, id) => page.evaluate(id => document.querySelector(`.pg-panel [data-pg-row="${id}"] button.pg-switch`).disabled, id);
 async function flip(page, id) {
+  await gearReach(page, id);                    // on the phone's sheet the row's theme is entered first
   const sw = gearRow(page, id).locator('button.pg-switch');
   await sw.scrollIntoViewIfNeeded();
   if (page.touch) await sw.tap(); else await sw.click();
   await sleep(120);
 }
 async function pick(page, id, label) {
+  await gearReach(page, id);
   const s = gearRow(page, id).locator('select.pg-select');
   await s.scrollIntoViewIfNeeded();
   await s.selectOption({label});
@@ -440,6 +445,8 @@ try {
     await page.locator('.pg-panel [data-pg-row=mode] button:text-is("Mobile")').click();
     eq(await page.evaluate(() => [document.documentElement.getAttribute('data-mode'), localStorage.getItem('parseh_mode'), document.querySelector('[data-parseh-gear]').classList.contains('pg-mobile')]),
        ['mobile', 'mobile', true], 'Interface: Mobile is the toolbox\'s own switch, and the gear takes its phone dress');
+    // the open popover became the phone's sheet, on its index: the theme is entered again
+    await gearOpen(page, 'interface');
     await page.locator('.pg-panel [data-pg-row=mode] button:text-is("Browser")').click();
     eq(await page.evaluate(() => document.documentElement.getAttribute('data-mode')), 'browser', 'and Browser brings the page back');
     await page.context().close();
@@ -630,28 +637,59 @@ try {
     // Aa, on a phone, opens the sheet at Text -- and not the old panel
     await tap(page, '#typo');
     await until(page, () => !document.querySelector('.pg-panel').hidden, null, 'the sheet from Aa');
-    await sleep(250);
-    eq(await page.evaluate(() => {
-      const g = document.querySelector('.pg-panel [data-pg-group=text]').getBoundingClientRect(), b = document.querySelector('.pg-panel .pg-body').getBoundingClientRect();
-      return {atTop: Math.abs(g.top - b.top) < 40, old: !document.querySelector('.parseh-typo').hidden};
-    }), {atTop: true, old: false}, 'Aa opens the sheet at Text, and the old panel stays shut');
+    await sleep(300);
+    eq(await page.evaluate(() => ({stage: document.querySelector('.pg-panel').getAttribute('data-pg-stage'), title: document.querySelector('.pg-title').textContent,
+      first: !!document.activeElement.closest('[data-pg-group=text]'), old: !document.querySelector('.parseh-typo').hidden})),
+       {stage: 'text', title: 'Text', first: true, old: false}, 'Aa opens the sheet at Text (the index underneath, its first slider focused), and the old panel stays shut');
+    // a second press shuts it while Text is on stage; pressed on the index (or another theme) it brings Text back instead
+    await tap(page, '#typo');
+    await until(page, () => document.querySelector('.pg-panel').hidden, null, 'Aa again shuts it');
+    assert(true, 'a second press of Aa shuts the sheet while Text is on stage');
+    await tap(page, '#typo');
+    await until(page, () => !document.querySelector('.pg-panel').hidden, null, 'the sheet from Aa again');
+    await sleep(300);
+    await tap(page, '.pg-panel .pg-back');
+    await sleep(300);
+    eq(await page.evaluate(() => document.querySelector('.pg-panel').getAttribute('data-pg-stage')), 'index', '‹ goes back to the index');
+    await tap(page, '#typo');
+    await sleep(300);
+    eq(await page.evaluate(() => [document.querySelector('.pg-panel').hidden, document.querySelector('.pg-panel').getAttribute('data-pg-stage')]), [false, 'text'], 'Aa pressed with the index showing takes the sheet to Text and does not shut it');
     await gearClose(page);
     await tap(page, '[data-parseh-gear]');
     await until(page, () => !document.querySelector('.pg-panel').hidden, null, 'the sheet');
     await sleep(300);
     const sheet = await page.evaluate(() => {
-      const r = document.querySelector('.pg-panel').getBoundingClientRect(), main = document.querySelector('main .sub .p1').getBoundingClientRect();
+      const r = document.querySelector('.pg-panel').getBoundingClientRect();
       const probe = document.elementFromPoint(200, 160);
       return {sheet: document.querySelector('.pg-panel').classList.contains('pg-sheet'), share: r.height / innerHeight, bottom: Math.round(r.bottom - innerHeight), textAbove: !!probe && !probe.closest('.pg-panel'),
-              firstGroup: document.querySelector('.pg-panel [data-pg-group]:not([hidden])').dataset.pgGroup, firstRow: document.querySelector('.pg-panel [data-pg-group]:not([hidden]) [data-pg-row]').dataset.pgRow,
+              stage: document.querySelector('.pg-panel').getAttribute('data-pg-stage'),
               dock: (() => { const d = document.querySelector('.nc-dock'); return d ? getComputedStyle(d).zIndex : null; })(), history: history.state && history.state.parsehGear ? 'pushed' : 'none'};
     });
     assert(sheet.sheet && sheet.share > 0.45 && sheet.share < 0.65 && sheet.bottom === 0 && sheet.textAbove, `the sheet is about half the screen, at the foot, the text visible above it: ${JSON.stringify(sheet)}`);
-    eq([sheet.firstGroup, sheet.firstRow], ['levels', 'levels'], 'the quick toggles come first: the levels, the glosses, the cloud');
-    // every row a finger high
-    const rows = await page.evaluate(() => [...document.querySelectorAll('.pg-panel [data-pg-row]')].filter(r => !r.hidden).map(r => [r.dataset.pgRow, Math.round(r.getBoundingClientRect().height)]));
-    assert(rows.every(([, h]) => h >= 48), `every row is at least 48px high (${rows.length} rows)`);
-    const small = await page.evaluate(() => [...document.querySelectorAll('.pg-panel button, .pg-panel select, .pg-panel .pg-lvcheck')].filter(e => e.getClientRects().length > 0)
+    eq(sheet.stage, 'index', 'it opens on the index of the themes');
+    // THE INDEX: a row for each theme the book has, what each is set to said under its name, all in view with no scroll
+    const idx = await page.evaluate(() => [...document.querySelectorAll('.pg-panel .pg-irow')].filter(r => r.getClientRects().length).map(r =>
+      [r.dataset.pgIndex, r.querySelector('.pg-iname').textContent, r.querySelector('.pg-isum').textContent, Math.round(r.getBoundingClientRect().height)]));
+    console.log('  index:', JSON.stringify(idx));
+    eq(idx.map(r => r[0]), ['levels', 'listening', 'looking', 'text', 'zoom', 'colours', 'interface'], 'the themes, in the plan\'s order: levels, listening, looking, text, zoom, colours, interface');
+    eq(idx.map(r => r[1]), ['Levels & reading', 'Listening', 'Looking a word up', 'Text', 'Zoom', 'Colours', 'Interface'], 'each says its name');
+    assert(idx.every(r => r[3] >= 48), 'every row of the index is a finger high (' + idx.map(r => r[3]).join(',') + 'px)');
+    const fit = await page.evaluate(() => { const b = document.querySelector('.pg-panel .pg-body').getBoundingClientRect(), rows = [...document.querySelectorAll('.pg-panel .pg-irow')].filter(r => r.getClientRects().length);
+      return rows.every(r => { const q = r.getBoundingClientRect(); return q.top >= b.top - 0.5 && q.bottom <= b.bottom + 0.5; }); });
+    eq(fit, true, 'and all seven are inside the half sheet at once, with no scrolling');
+    const sum = Object.fromEntries(idx.map(r => [r[0], r[2]]));
+    assert(/^Sentence, Chunks\b/.test(sum.levels), `Levels & reading says the ticked levels: "${sum.levels}"`);
+    assert(/^1×, skip 10 s\b/.test(sum.listening), `Listening says the speed and the skip: "${sum.listening}"`);
+    eq(sum.looking, 'get one →', 'Looking a word up says "get one" while nothing is installed');
+    assert(/^English text \d+(\.\d+)? px$/.test(sum.text), `Text says the first slider's value: "${sum.text}"`);
+    eq([sum.zoom, sum.colours, sum.interface], ['100 %', 'Follow my device', 'Mobile pages'], 'Zoom, Colours (the scheme chosen) and Interface (Mobile pages)');
+    await shot(page, 'phone-index');
+    // every row a finger high, in the theme on stage
+    await gearOpen(page, 'levels');
+    const rows = await page.evaluate(() => [...document.querySelectorAll('.pg-panel [data-pg-group=levels] [data-pg-row]')].filter(r => !r.hidden).map(r => [r.dataset.pgRow, Math.round(r.getBoundingClientRect().height)]));
+    assert(rows.every(([, h]) => h >= 48), `every row of a theme is at least 48px high (${rows.length} rows)`);
+    eq(await page.evaluate(() => document.querySelector('.pg-panel [data-pg-group]:not(.pg-here)') && 'x'), 'x', 'and the other themes are not drawn');
+    const small = await page.evaluate(() => [...document.querySelectorAll('.pg-panel [data-pg-group=levels] button, .pg-panel [data-pg-group=levels] select, .pg-panel [data-pg-group=levels] .pg-lvcheck, .pg-panel .pg-back, .pg-panel .pg-x')].filter(e => e.getClientRects().length > 0)
       .map(e => { e.scrollIntoView({block: 'center'}); const r = e.getBoundingClientRect(); return [e.className, Math.round(r.width), Math.round(r.height)]; }).filter(([, w, h]) => w < 44 || h < 44));
     eq(small, [], 'and every control in it a finger\'s size');
     await gearOpen(page, 'listening');
@@ -659,12 +697,17 @@ try {
     await tap(page, '.pg-panel [data-pg-row=cont] button.pg-switch');
     eq(await page.evaluate(() => [document.getElementById('cont').classList.contains('on'), localStorage.getItem('bk_cont')]), [false, '0'], 'a tap on a row presses the page\'s own control: keep going off, remembered');
     await tap(page, '.pg-panel [data-pg-row=cont] button.pg-switch');
-    // the Keep row, the last group's node
+    // the Keep row, in the last theme: the buttons stand in it only while it is on stage
+    eq(await page.evaluate(() => !!document.querySelector('.pg-panel .kp-btn')), false, 'the Keep buttons are on the page, not in the sheet, while another theme is on stage');
     await gearOpen(page, 'interface');
     const keep = await page.evaluate(() => { const r = document.querySelector('.pg-panel [data-pg-row=keep]'); return r ? [r.hidden, !!r.querySelector('.kp-btn'), r.querySelector('.kp-keep') ? r.querySelector('.kp-keep').textContent : null] : null; });
-    eq(keep, [false, true, 'Keep on this phone'], 'the Keep buttons stand in the last group while the sheet is up');
+    eq(keep, [false, true, 'Keep on this phone'], 'the Keep buttons stand in the last theme\'s row while it is on stage');
+    await tap(page, '.pg-panel .pg-back');
+    await sleep(300);
+    eq(await page.evaluate(() => [!!document.querySelector('.pg-panel .kp-btn'), !!document.querySelector('header .hrow > .kp-btn')]), [false, true], 'and ‹ sends them home to the header');
+    await gearOpen(page, 'interface');
     await gearClose(page);
-    eq(await page.evaluate(() => [!!document.querySelector('header .hrow > .kp-btn'), document.querySelector('.kp-btn').getClientRects().length > 0]), [true, false], 'and are back in the header, out of sight, when it is shut');
+    eq(await page.evaluate(() => [!!document.querySelector('header .hrow > .kp-btn'), document.querySelector('.kp-btn').getClientRects().length > 0]), [true, false], 'and they are back in the header, out of sight, when it is shut');
     // closes by ✕, Esc, back
     await gearOpen(page);
     await page.keyboard.press('Escape');
@@ -674,6 +717,18 @@ try {
     await sleep(500);
     assert(!(await gearUp(page)), 'the back gesture shuts it (and stays on the book)');
     assert((await page.evaluate(() => location.pathname)) === READERS.en, 'on the same page');
+    // from a theme the gesture goes back to the index first, and closes the sheet at the second
+    await gearOpen(page, 'text');
+    await page.goBack().catch(() => {});
+    await sleep(500);
+    eq(await page.evaluate(() => [document.querySelector('.pg-panel').hidden, document.querySelector('.pg-panel').getAttribute('data-pg-stage')]), [false, 'index'], 'the back gesture from a theme returns to the index');
+    await page.goBack().catch(() => {});
+    await sleep(500);
+    assert(!(await gearUp(page)) && (await page.evaluate(() => location.pathname)) === READERS.en, 'and the next one closes the sheet, on the same page');
+    await gearOpen(page, 'looking');
+    await page.keyboard.press('Escape');
+    assert(!(await gearUp(page)), 'Esc shuts the whole sheet from a theme');
+    await sleep(300);
     // listen on its own: the listening line
     await until(page, () => document.getElementById('audio').readyState >= 1, null, 'the recording\'s length');
     await gearSwitchTouch(page, 'listen', true);
@@ -689,10 +744,36 @@ try {
       await sleep(120);
       await shot(page, `phone-${g}`);
     }
+    await gearClose(page);
+    // THE INDEX IN OTHER LANGUAGES: the chrome stays English and left to right, a level's NAME may not (it is in a
+    // <bdi>), and a book of five levels (Japanese, Chinese) is cut with an ellipsis, not wrapped
+    for (const code of ['fa', 'ja', 'zh']) {
+      await open(page, code);
+      await tap(page, '[data-parseh-gear]');
+      await until(page, () => !document.querySelector('.pg-panel').hidden, null, `the sheet on the ${code} book`);
+      await sleep(300);
+      const r = await page.evaluate(() => {
+        const row = document.querySelector('.pg-panel .pg-irow[data-pg-index=levels]'), sum = row.querySelector('.pg-isum'), c = getComputedStyle(sum);
+        const panel = document.querySelector('.pg-panel');
+        return {text: sum.textContent, bdi: [...sum.querySelectorAll('bdi')].map(b => b.textContent), dir: [panel.getAttribute('dir'), c.direction, panel.getAttribute('lang')],
+                oneLine: sum.getBoundingClientRect().height < 20, rowH: Math.round(row.getBoundingClientRect().height), cut: c.textOverflow + '/' + c.whiteSpace,
+                inside: row.getBoundingClientRect().right <= innerWidth + 0.5, aria: row.getAttribute('aria-label'),
+                rows: [...document.querySelectorAll('.pg-panel .pg-irow')].filter(x => x.getClientRects().length).length,
+                all: (() => { const b = document.querySelector('.pg-panel .pg-body').getBoundingClientRect(); return [...document.querySelectorAll('.pg-panel .pg-irow')].filter(x => x.getClientRects().length).every(x => { const q = x.getBoundingClientRect(); return q.top >= b.top - 0.5 && q.bottom <= b.bottom + 0.5; }); })()};
+      });
+      console.log(`  ${code}:`, JSON.stringify([r.text, r.rowH]));
+      assert(r.bdi.length >= 2 && r.bdi.join(', ') === r.text.split(' \u00b7 ')[0], `${code}: every ticked level's name is in a <bdi> and they read in the order of the levels (${JSON.stringify(r.bdi)})`);
+      eq(r.dir, ['ltr', 'ltr', 'en'], `${code}: the sheet is English and left to right even on a ${code} book`);
+      eq([r.oneLine, r.cut, r.inside], [true, 'ellipsis/nowrap', true], `${code}: the summary is one line, cut with an ellipsis, inside the row`);
+      assert(r.rowH >= 48 && r.rows >= 6 && r.all, `${code}: ${r.rows} rows (Listening only where the book has a recording), a finger high (${r.rowH}px), all in view with no scrolling`);
+      assert(r.aria.startsWith('Levels & reading, ') && r.aria.includes(r.bdi[0]), `${code}: and a screen reader hears the row as its name and its summary`);
+      await shot(page, `phone-index-${code}`);
+      await gearClose(page);
+    }
     await page.context().close();
   }
   async function gearSwitchTouch(page, id, wantOn) {
-    await gearOpen(page);
+    await gearReach(page, id);
     const sw = gearRow(page, id).locator('button.pg-switch');
     await sw.scrollIntoViewIfNeeded();
     if (((await sw.getAttribute('aria-checked')) === 'true') !== wantOn) await sw.tap();

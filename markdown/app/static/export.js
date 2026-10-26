@@ -373,13 +373,16 @@ function xpCram(place, look) {
     $$(".exercise-correction, .ex-edit, .ex-to-deck", stage).forEach(x => x.remove());
     place(stage);
     look.apply();
-    const run = bindExercises(stage);
+    // a follow-up's own bar (Check step, Next step) is the page's own here (xpChain), as the studio's cram page does it
+    const run = bindExercises(stage, {chainBar: false});
     const ex = run.exercises[0] || null;
+    const chain = run.chains[0] || null;
     const kind = !ex || $(".ex-invalid", ex) ? "invalid"
+      : chain ? "chain"
       : ex.dataset.primitive === "flashcard" ? "flashcard"
       : ex.dataset.scored === "1" ? "scored" : "invalid";
-    current = {card, run, ex, kind, checked: false};
-    const flash = $(".ex-flashcard", stage);
+    current = {card, run, ex, kind, chain, checked: false};
+    const flash = kind === "chain" ? null : $(".ex-flashcard", stage);
     if (flash) {
       turnObserver = new MutationObserver(() => {
         const flipped = flash.classList.contains("flipped");
@@ -393,7 +396,10 @@ function xpCram(place, look) {
     $("#cram-show").hidden = kind !== "flashcard";
     $("#cram-show").disabled = false;
     $("#cram-wrong").hidden = $("#cram-correct").hidden = true;
+    $("#cram-step").hidden = true;
+    $("#cram-check").textContent = "Check";
     $("#cram-next").hidden = kind !== "invalid";
+    if (kind === "chain") { chain.onChange(() => xpChain(current)); xpChain(current); }
     $("#cram-skip").hidden = kind === "invalid";
     if (stage.getBoundingClientRect().top < 0) stage.scrollIntoView({block: "start"});
     if (kind === "flashcard") playSide("front");
@@ -470,7 +476,46 @@ function xpCram(place, look) {
     look.apply();
     bindExercises(solutionSheet, {preview: true});
   }
+  /* A FOLLOW-UP, CRAMMED (decks.js cramChain): the steps one after the other, Check step (Show answer for a card), Next
+     step; right only when every scored step was right, and a chain that was not comes round again whole. */
+  function xpChain(shown) {
+    if (current !== shown || shown.kind !== "chain") return;
+    const c = shown.chain, check = $("#cram-check"), showBtn = $("#cram-show"), step = $("#cram-step");
+    if (c.finished) {
+      if (shown.checked) return;
+      shown.checked = true;
+      const good = !c.scored || c.rights === c.scored;
+      judged(shown.card, good);
+      if (!good) order.push(shown.card);
+      check.hidden = showBtn.hidden = step.hidden = true;
+      $("#cram-skip").hidden = true;
+      result.textContent = c.scored ? `${c.rights} of ${c.scored} steps right` : `All ${c.n} steps seen`;
+      result.className = "dk-result " + (good ? "ok" : "err");
+      result.hidden = false;
+      progress.textContent = `${index + 1} of ${order.length}`;
+      $("#cram-next").hidden = false;
+      $("#cram-next").textContent = index === order.length - 1 ? "Finish" : "Next exercise";
+      return;
+    }
+    result.hidden = true;
+    showBtn.disabled = false;
+    if (!c.checked) {
+      step.hidden = true;
+      check.hidden = c.card;
+      showBtn.hidden = !c.card;
+      check.textContent = "Check step";
+    } else {
+      check.hidden = showBtn.hidden = true;
+      step.hidden = false;
+      result.textContent = c.card ? "" : (c.wrongHere ? "Not quite" : "Correct");
+      result.className = "dk-result " + (c.wrongHere ? "err" : "ok");
+      result.hidden = c.card;
+      step.focus({preventScroll: true});
+    }
+  }
+  $("#cram-step").addEventListener("click", () => { if (current && current.kind === "chain") current.chain.next(); });
   $("#cram-check").addEventListener("click", () => {
+    if (current && current.kind === "chain") { current.chain.check(); return; }
     if (!current || current.kind !== "scored" || current.checked) return;
     const good = current.run.judge(current.ex);
     current.checked = true;
@@ -489,6 +534,7 @@ function xpCram(place, look) {
       showSolution(current);
   });
   $("#cram-show").addEventListener("click", () => {
+    if (current && current.kind === "chain") { current.chain.check(); return; }
     const flash = $(".ex-flashcard", stage);
     if (flash && !flash.classList.contains("flipped")) flash.click();
     $("#cram-show").disabled = true;

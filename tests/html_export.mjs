@@ -458,7 +458,8 @@ async function documentFile(browser, file, t) {
     await painted(page);
     opened = await look(page);
     eq(opened.slice(0, 2), ['sepia', 'sepia'], 'the page opens on Sepia, not the Dark the studio was showing, and Aa says so');
-    eq(await page.locator('#sheet .exercise').count(), BLOCKS.length, `all ${BLOCKS.length} exercises are on the page`);
+    // (a follow-up holds its steps, which are exercises of the page too: they are not counted among the starter's blocks)
+    eq(await page.locator('#sheet .exercise:not(.ex-step .exercise)').count(), BLOCKS.length, `all ${BLOCKS.length} exercises are on the page`);
     eq(await page.locator('#sheet [contenteditable], #sheet textarea, .ex-edit, .ex-to-deck, .video-edit, .audio-edit').count(), 0,
        'nothing on it edits');
     eq(await page.locator('[data-tl-src], [data-src-line], [data-occ], [data-editor-preview]').count(), 0,
@@ -498,13 +499,14 @@ async function documentFile(browser, file, t) {
     assert(heard > 0.2 && heard < 0.6, `▶ plays the clip, and it stops at its end (${heard.toFixed(2)} s)`);
 
     // the exercises: every choice exercise answered right but one, then checked
-    const choice = page.locator('#sheet .exercise[data-primitive="choice"]');
+    // (the steps of a follow-up are answered one by one, below)
+    const choice = page.locator('#sheet .exercise[data-primitive="choice"]:not(.ex-step .exercise)');
     const nChoice = await choice.count();
-    const wrongAt = await page.evaluate(() => [...document.querySelectorAll('#sheet .exercise[data-primitive="choice"]')]
+    const wrongAt = await page.evaluate(() => [...document.querySelectorAll('#sheet .exercise[data-primitive="choice"]:not(.ex-step .exercise)')]
       .findIndex(e => e.dataset.subtype === 'single-choice'));
     for (let i = 0; i < nChoice; i++) await answerChoice(choice.nth(i), i === wrongAt);
     await page.click('.ex-correct-all');
-    const marks = await page.evaluate(() => [...document.querySelectorAll('#sheet .exercise')].map(e =>
+    const marks = await page.evaluate(() => [...document.querySelectorAll('#sheet .exercise:not(.ex-step .exercise)')].map(e =>
       [e.dataset.primitive, e.dataset.subtype, e.classList.contains('correct') ? 'right' : e.classList.contains('incorrect') ? 'wrong' : '-']));
     const choiceMarks = marks.filter(m => m[0] === 'choice').map(m => m[2]);
     eq(choiceMarks, choiceMarks.map((_, i) => i === wrongAt ? 'wrong' : 'right'),
@@ -712,6 +714,29 @@ async function deckFile(browser, file, t) {
       pictures += drawn.length;
       const n = (times.get(st.key) || 0) + 1;
       times.set(st.key, n);
+      if (st.primitive === 'chain') {
+        // a follow-up, step by step: its choice steps right, a placement step left as it stands, so that it is wrong
+        // and comes back, as any exercise that was wrong does -- and is skipped when it does
+        if (n > 1) { skipped.add(st.key); await page.click('#cram-skip'); continue; }
+        const nSteps = await page.locator('#cram-stage .ex-step').count();
+        let checked = 0;
+        for (let k = 1; k <= nSteps; k++) {
+          const stepEx = page.locator(`#cram-stage .ex-step[data-step="${k}"] > .exercise`);
+          if (await stepEx.getAttribute('data-primitive') === 'choice') await answerChoice(stepEx);
+          const label = await page.evaluate(() => { const b = document.querySelector('#cram-check:not([hidden])') || document.querySelector('#cram-show:not([hidden])'); return b ? b.id + ':' + b.textContent : ''; });
+          if (!/^cram-(check:Check step|show:Show answer)$/.test(label)) throw Error(`FAIL (${mode}): step ${k} of “${st.key}” offers “${label}”`);
+          await page.click(label.startsWith('cram-check') ? '#cram-check' : '#cram-show');
+          checked++;
+          if (k < nSteps) await page.click('#cram-step');
+        }
+        const said = await page.locator('#cram-result').textContent();
+        const m = /^(\d+) of (\d+) steps right$/.exec(said);
+        if (!m || checked !== nSteps) throw Error(`FAIL (${mode}): “${st.key}” says “${said}”`);
+        first.set(st.key, m[1] === m[2]);
+        if (m[1] !== m[2]) wrongOnce.add(st.key);
+        await page.click('#cram-next');
+        continue;
+      }
       if (st.check) {
         if (n > 1) { skipped.add(st.key); await page.click('#cram-skip'); continue; }
         if (st.primitive === 'choice') await answerChoice(page.locator('#cram-stage .exercise'));
@@ -739,6 +764,8 @@ async function deckFile(browser, file, t) {
       }
     }
     eq(times.size, picked, `every picked exercise came up (${picked}), in ${steps} steps`);
+    assert([...times.keys()].some(k => k.startsWith('follow-up|')) && [...wrongOnce].some(k => k.startsWith('follow-up|')),
+           'a follow-up was among them, done a step at a time in the exported page, and it came back whole because a step was wrong');
     assert(wrongOnce.size > 1 && [...wrongOnce].every(k => times.get(k) === 2), 'every wrong one came back, once');
     assert(solutions > 0, 'a wrong matching or placement exercise shows its correct answer');
     assert(pictures > 0, `the pictures are inside it, and drawn (${pictures} seen)`);

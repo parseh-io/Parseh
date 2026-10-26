@@ -35,10 +35,16 @@ import {chromium} from 'npm:playwright-core@1.52.0';
 //           mount and the mount that replaces it, 'unmounted' by unmount()); unmount() takes the button, the panel,
 //           <html>'s class, the listeners and (on a phone) the history entry away, and says nothing twice
 //  keys)    the keyboard: Tab order, Space and Enter on a switch, arrows in a radiogroup, Home and End
-//  phone)   on a 390x844 touch screen: the sheet is about half the window with the page visible above, every row
-//           and control 48px or more, not modal (a tap above it works), closes by ✕, Esc and the back gesture --
-//           and the back gesture still works after the sheet was closed by hand (a spent entry is not heard);
-//           a swipe down on its head closes it
+//  phone)   on a 390x844 touch screen (a0.5.4: two stages, two heights): the sheet opens on the INDEX of the themes, each
+//           with a summary of what it is set to (the default rule kind by kind; a group's own summary wins; names
+//           in <bdi>), seven rows of 56px (50px at 360x740, or where eight must fit) inside the half sheet with no
+//           scrolling, each what a finger reaches at its centre; a tap enters a theme (its head, ‹ 48px, only its
+//           group drawn), ‹, the back gesture, ✕, Esc and a swipe return or close from both stages, with a second
+//           history entry that is spent exactly once (the next sheet's back gesture still works); open('text')
+//           lands on the theme; stage() and back(); the two heights by drag, flick and a tap on the grab line,
+//           remembered across a reload; a Keep-style node row only while its theme is on stage; the sheet
+//           becoming the popover with a theme up and back; Tab order ‹ rows ✕; the landscape floor; the popover
+//           untouched
 //  widths)  nothing overflows sideways at 320, 360, 390 and 430px, with names that are far too long
 //  contrast) the name, the sentence, the caption, the chips and the links keep 4.5:1 (3:1 for the large) in the
 //           light, dark and sepia themes, in both fixtures
@@ -107,7 +113,7 @@ main{max-width:760px;margin:0 auto;padding:16px 14px 60vh;overflow-x:clip}
 `;
 
 function bookPage(q) {
-  const long = q.get('long') === '1', stub = q.get('stubzoom') === '1', node = q.get('node') === '1';
+  const long = q.get('long') === '1', stub = q.get('stubzoom') === '1', node = q.get('node') === '1', summed = q.get('sum') === '1';
   return `<!doctype html>
 <html lang="fa" dir="rtl" data-parseh-lang="fa">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -197,10 +203,10 @@ ${stub ? `<script>${ZOOM_STUB}</script>` : ''}
        setShown: function (k, v) { st.levels[k].shown = v; rec('level.shown.' + k, v); },
        setName: function (k, n) { st.levels[k].name = n; rec('level.name.' + k, n); }, watch: watch('levels')},
       sw('diacritics', 'Diacritics', 'Shows the small marks that write the vowels on Persian and Arabic text. Off, the text reads as it is ordinarily printed.', 'vowels',
-         {when: function () { return st.lang === 'fa'; }}),
+         {short: 'diacritics', when: function () { return st.lang === 'fa'; }}),
       sw('gloss', 'Glosses', 'Show the meaning beside each chunk. Turn it off to test yourself against the chunks alone. Key G.', 'gloss',
-         {disabled: function () { return st.hover ? 'The cloud is showing the glosses, so this rests while it is on.' : false; }}),
-      sw('hover', 'Glosses in a cloud', "Read the text clean: a chunk's gloss opens in a cloud when you point at it. Key H.", 'hover'),
+         {short: 'glosses', disabled: function () { return st.hover ? 'The cloud is showing the glosses, so this rests while it is on.' : false; }}),
+      sw('hover', 'Glosses in a cloud', "Read the text clean: a chunk's gloss opens in a cloud when you point at it. Key H.", 'hover', {short: 'cloud'}),
       sw('hoverpause', 'Pause while a gloss is open', 'While a gloss is open the recording waits, and goes on a moment after it closes.', 'pause',
          {when: function () { return st.audio; }}),
       {id: 'tip', kind: 'note', text: 'Only the levels you tick are drawn; the book itself is not changed.'}]},
@@ -212,10 +218,10 @@ ${stub ? `<script>${ZOOM_STUB}</script>` : ''}
        get: function () { return st.skip; }, set: function (v) { st.skip = v; rec('skip', v); }},
       slider('gap', 'Pause between repeats', 'The silence between one repeat of a line and the next while loop is on.', 'gap', 0, 5, 0.5, ' s',
              {format: function (v) { return v === 0 ? 'none' : v + ' s'; }}),
-      sw('cont', 'Keep playing into the next line', 'When a line of the recording ends, go straight on to the next one.', 'cont'),
+      sw('cont', 'Keep playing into the next line', 'When a line of the recording ends, go straight on to the next one.', 'cont', {short: 'keeps going'}),
       sw('bnd', 'Wait at each new chapter', 'When the recording reaches a new chapter it stops and waits for you to press ▶.', 'bnd')]},
     {id: 'lookup', title: 'Looking a word up', caption: 'Saved on this device.', rows: [
-      sw('dict', 'Look words up in a dictionary', 'Where a chunk has not been glossed, click or tap it to look its words up.', 'dict'),
+      sw('dict', 'Look words up in a dictionary', 'Where a chunk has not been glossed, click or tap it to look its words up.', 'dict', {short: 'dictionary'}),
       // THE CHAIN: the dictionary, its definitions, their translation -- each hung under the one above it, and
       // each asking the switch above whether it is on (the row above a row says so as the argument of disabled)
       sw('defs', "Show the dictionary's definitions", "Under each word it finds, the dictionary's own definition.", 'defs',
@@ -239,7 +245,15 @@ ${stub ? `<script>${ZOOM_STUB}</script>` : ''}
       {id: 'keep1', kind: 'node', label: 'Keep on this phone', help: 'Keeps this book so it opens with the computer away.',
        el: function () { return window.__noKeep1 ? null : document.getElementById('keep1'); }},
       {id: 'keep2', kind: 'node', el: function () { return document.getElementById('keep2'); }},
-      {id: 'late', kind: 'node', label: 'A button that is not there yet', el: function () { return window.__late || null; }}]}` : ''}${long ? `,
+      {id: 'late', kind: 'node', label: 'A button that is not there yet', el: function () { return window.__late || null; }}]}` : ''}${summed ? `,
+    // an adapter that says its own summary: a function with a name that reads right to left, and a plain string
+    {id: 'summed', title: 'Said by the page', caption: 'Saved on this device.',
+     summary: function () { return [{bdi: 'فارسی ساده'}, ', ', {bdi: 'Chunks'}, ' · no glosses']; },
+     rows: [sw('sumsw', 'A switch with a short name that is not used', 'The group says its own summary, so this one is ignored.', 'cont', {short: 'ignored'})]},
+    {id: 'said', title: 'Said in words', caption: 'Saved on this device.', summary: 'In the page\\'s own words',
+     rows: [{id: 'saidnote', kind: 'note', text: 'A note.'}]},
+    {id: 'quiet', title: 'Says nothing', caption: 'Saved on this device.', summary: function () { return ''; },
+     rows: [sw('quietsw', 'A switch', 'Its short name is not used either: an empty summary is a summary.', 'cont', {short: 'ignored'})]}` : ''}${long ? `,
     {id: 'long', title: 'Names far too long', caption: 'Saved on this device.', rows: [
       {id: 'longlevels', kind: 'levels', label: 'A level with a name nobody should have to read in one line',
        help: 'A long sentence about this row that goes on and on and on, to see where it wraps and that it never pushes the row wider than the sheet.',
@@ -476,6 +490,11 @@ const isUp = page => page.evaluate(() => window.__gear.isOpen());
 async function openGear(page, group) {
   await page.evaluate(g => window.__gear.open(g), group || undefined);
   await page.waitForSelector('.pg-panel:not([hidden])');
+  // on the phone's sheet a theme slides in from the right (0.16 s): let it come to rest before anything is measured
+  if (group && await page.evaluate(() => document.querySelector('.pg-panel').classList.contains('pg-sheet'))) {
+    await page.waitForFunction(g => document.querySelector('.pg-panel').getAttribute('data-pg-stage') === g, group, {timeout: 2000}).catch(() => {});
+    await sleep(240);
+  }
 }
 
 const ids = {book: ['levels', 'listening', 'lookup', 'text', 'zoom', 'colours', 'interface'],
@@ -863,7 +882,8 @@ await sec('kinds', async () => {
   t = await open('phone', 'doc', {query: 'extra=1'});
   p = t.page;
   await openGear(p);
-  eq([await groupOf(p, 'onlymobile').isVisible(), await groupOf(p, 'onlybrowser').isVisible()], [true, false], "layouts: in the mobile layout the phone's group is drawn and the browser's is not");
+  // the sheet draws a theme at a time: what it offers is its index
+  eq([await p.locator('.pg-irow[data-pg-index=onlymobile]').isVisible(), await p.locator('.pg-irow[data-pg-index=onlybrowser]').isVisible()], [true, false], "layouts: in the mobile layout the phone's group is on the index and the browser's is not");
   await t.close();
 });
 
@@ -905,8 +925,11 @@ await sec('node', async () => {
   await gearBtn(p).tap();
   await p.waitForSelector('.pg-panel:not([hidden])');
   let s = await state();
+  eq([s.in1, s.in2, s.kids], [false, false, ['keep1', 'keep2', 'after']], 'node: the sheet opens on the index, and the buttons are where they were until their theme is entered');
+  await openGear(p, 'keep');
+  s = await state();
   eq([s.in1, s.in2, s.kids, s.marks, s.parent1, s.mine], [true, true, ['after'], 2, 'pg-node', 'the very same element'],
-     'node: opened, both buttons are in the panel (the same elements) and a mark stands in each place');
+     'node: with its theme on stage both buttons are in the panel (the same elements) and a mark stands in each place');
   eq(await rowOf(p, 'keep1').locator('#keep1').isVisible(), true, 'node: drawn in its row');
   eq([await rowOf(p, 'keep1').locator('.pg-name').textContent(), await rowOf(p, 'keep1').locator('.pg-help').textContent()],
      ['Keep on this phone', 'Keeps this book so it opens with the computer away.'], 'node: with its name and its sentence where it was given them');
@@ -936,13 +959,16 @@ await sec('node', async () => {
   eq([s.marks, s.parent1, s.next1, s.mine], [0, 'menu', 'keep2', 'the very same element'], '...the same parent, the same next sibling, the very same element, and no mark left behind');
   await gearBtn(p).tap();
   await p.waitForSelector('.pg-panel:not([hidden])');
-  eq((await state()).in1, true, 'node: opened again, they come in again');
+  eq((await state()).in1, false, 'node: opened again, on the index, they are home');
+  await openGear(p, 'keep');
+  eq((await state()).in1, true, 'node: and come in again with their theme');
   await p.evaluate(() => Parseh.mode.set('browser'));
   await until(async () => (await state()).in1 === false, 'node: the layout is left');
   s = await state();
   eq([s.kids.slice(0, 3), s.marks, await isUp(p)], [['keep1', 'keep2', 'after'], 0, true], 'node: the group is for the mobile layout, so leaving it sends the elements home while the panel stays up');
   await p.evaluate(() => Parseh.mode.set('mobile'));
-  await until(async () => (await state()).in1 === true, 'node: back in the layout they return');
+  await openGear(p, 'keep');
+  await until(async () => (await state()).in1 === true, 'node: back in the layout, with the theme entered, they return');
   await p.evaluate(() => window.__gear.unmount());
   s = await state();
   eq([s.in1, s.in2, s.kids.slice(0, 3), s.marks], [false, false, ['keep1', 'keep2', 'after'], 0], 'node: unmount sends every borrowed element home');
@@ -1064,16 +1090,27 @@ await sec('keys', async () => {
 });
 
 await sec('phone', async () => {
+  const H = 844;
+  // the sheet's own numbers, read from the page
+  const stageOf = p => p.evaluate(() => window.__gear.stage());
+  const entryOf = p => p.evaluate(() => history.state && history.state.parsehGear);
+  const hitsIndexRow = (p, id) => p.evaluate(id => {
+    const r = document.querySelector(`.pg-irow[data-pg-index="${id}"]`), b = r.getBoundingClientRect();
+    const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    return !!e && !!e.closest(`.pg-irow[data-pg-index="${id}"]`);
+  }, id);
+  const tapIndex = (p, id) => p.locator(`.pg-irow[data-pg-index="${id}"]`).tap();
+  const shut = p => p.waitForSelector('.pg-panel', {state: 'hidden'});
+  const openSheet = async p => { await gearBtn(p).tap(); await p.waitForSelector('.pg-panel:not([hidden])'); await sleep(250); };
+
   let t = await open('phone', 'book');
   let p = t.page;
   await p.evaluate(() => { window.__esc = []; window.addEventListener('keydown', e => { if (e.key === 'Escape') window.__esc.push(e.defaultPrevented); }); });
-  await gearBtn(p).tap();
-  await p.waitForSelector('.pg-panel:not([hidden])');
+  await openSheet(p);
   eq(await panelOf(p).evaluate(e => [e.classList.contains('pg-sheet'), e.classList.contains('pg-popover')]), [true, false], 'phone: the panel is the sheet');
-  await sleep(250);
-  const H = 844, rs = await rect(p, '.pg-panel');
+  const rs = await rect(p, '.pg-panel');
   assert(near(rs.b, H, 1) && near(rs.w, 390, 1) && rs.l <= 1, `phone: the sheet stands on the foot of the window, the whole width (bottom ${Math.round(rs.b)}, ${Math.round(rs.w)}px)`);
-  assert(rs.h >= H * 0.45 && rs.h <= H * 0.65, `phone: about half the window high (${Math.round(rs.h)} of ${H}px)`);
+  assert(rs.h >= H * 0.45 && rs.h <= H * 0.65, `phone: it rests about half the window high (${Math.round(rs.h)} of ${H}px)`);
   // a point on the second paragraph of the page, which the sheet leaves in view
   const aim = await p.evaluate(() => { const r = document.querySelectorAll('.para')[1].getBoundingClientRect(); return {x: 195, y: Math.round(r.top + 20), sheet: document.querySelector('.pg-panel').getBoundingClientRect().top}; });
   const above = await p.evaluate(a => { const e = document.elementFromPoint(a.x, a.y); return {in: !!e.closest('.pg-panel'), para: !!e.closest('.para')}; }, aim);
@@ -1081,108 +1118,439 @@ await sec('phone', async () => {
   await p.touchscreen.tap(aim.x, aim.y);
   eq(await isUp(p), true, 'phone: a tap on the page above leaves it open (not modal)');
   eq(await p.evaluate(() => [getComputedStyle(document.documentElement).overflow, getComputedStyle(document.body).overflow, document.querySelectorAll('[class*=backdrop], [class*=dim]').length]), ['visible', 'visible', 0], 'phone: nothing dims or locks the page');
-  eq(await p.evaluate(() => document.querySelector('.pg-grip').getClientRects().length > 0), true, 'phone: the grab line is drawn');
-  // sizes: no row and no control under 48px
+
+  /* ---- THE INDEX: the themes, each with what it is set to, all seven in view without a scroll ---- */
+  eq([await stageOf(p), await panelOf(p).getAttribute('data-pg-stage')], ['index', 'index'], 'index: the sheet opens on the index');
+  eq(await p.evaluate(() => [document.querySelector('.pg-title').textContent, document.querySelector('.pg-sub').textContent,
+      document.querySelector('.pg-sub').getClientRects().length > 0, document.querySelector('.pg-back').getClientRects().length]),
+     ['This page', 'Only for this page.', true, 0], 'index: the head says This page, with "Only for this page." as its subtitle, and no ‹');
+  eq(await p.evaluate(() => document.querySelector('.pg-first').getClientRects().length), 0, 'index: the paragraph is not a row of the body any more');
+  const idx = await p.evaluate(() => [...document.querySelectorAll('.pg-irow')].filter(r => r.getClientRects().length).map(r =>
+    [r.getAttribute('data-pg-index'), r.querySelector('.pg-iname').textContent, r.querySelector('.pg-isum').textContent, r.getAttribute('aria-label'), r.tagName]));
+  eq(idx.map(r => r[0]), ids.book, 'index: one row for each theme the page draws, in the spec\'s order');
+  eq(idx.map(r => r[1]), ['Levels & reading', 'Listening', 'Looking a word up', 'Text', 'Zoom', 'Colours', 'Interface'], 'index: each says the theme\'s name');
+  eq(idx.map(r => r[4]), Array(7).fill('BUTTON'), 'index: each row is a button');
+  // THE SUMMARIES, by the default rule, kind by kind
+  eq(idx[0][2], 'With vowels, Chunks, Plain · diacritics · glosses', 'summary: levels (the ticked names, joined) then the switches that are ON and have a short name');
+  eq(idx[1][2], '1× · 10 s · 1.5 s · keeps going', 'summary: a choice says its chosen label, a slider its formatted value, a switch its short name');
+  eq(idx[2][2], '', 'summary: nothing on, nothing said (a line of no words is not drawn)');
+  eq(idx[3][2], '28px · 14px · 760px · 1.5', 'summary: a slider without format says its value and its unit; the action says nothing');
+  eq(idx[4][2], '100 %', 'summary: the zoom stepper');
+  eq(idx[5][2], 'Light', 'summary: the colour scheme chosen');
+  eq(idx[6][2], 'Mobile pages', 'summary: the interface (the standard group names it)');
+  eq(idx[1][3], 'Listening, 1× · 10 s · 1.5 s · keeps going', 'summary: a screen reader hears the row as its name and its summary');
+  eq(idx[2][3], 'Looking a word up', 'summary: and as its name alone where there is no summary');
+  eq(await p.evaluate(() => document.querySelector('[data-pg-index=lookup] .pg-isum').getClientRects().length), 0, 'summary: an empty one takes no line');
+  // a summary follows the page: a switch pressed from outside, a slider moved
+  await p.evaluate(() => { window.__st.dict = true; window.__st.gloss = false; window.__st.speed = 1.5; window.__emit('dict'); window.__emit('gloss'); window.__emit('speed'); });
+  await until(() => p.evaluate(() => document.querySelector('[data-pg-index=lookup] .pg-isum').textContent === 'dictionary'), 'the summary follows a switch of the page');
+  eq(await p.evaluate(() => [document.querySelector('[data-pg-index=levels] .pg-isum').textContent, document.querySelector('[data-pg-index=listening] .pg-isum').textContent]),
+     ['With vowels, Chunks, Plain · diacritics', '1.5× · 10 s · 1.5 s · keeps going'], 'summary: and the others follow it, a switch that went off no longer named');
+  await p.evaluate(() => { window.__st.dict = false; window.__st.gloss = true; window.__st.speed = 1; window.__emit('dict'); window.__emit('gloss'); window.__emit('speed'); });
+  await until(() => p.evaluate(() => document.querySelector('[data-pg-index=lookup] .pg-isum').getClientRects().length === 0), 'and back');
+  // sizes: seven rows in the half sheet, each a finger's target, each what a finger reaches at its centre
+  const body = await rect(p, '.pg-body');
+  const rows = await p.evaluate(() => [...document.querySelectorAll('.pg-irow')].filter(r => r.getClientRects().length).map(r => { const b = r.getBoundingClientRect(); return {id: r.getAttribute('data-pg-index'), t: b.top, b: b.bottom, h: b.height, w: b.width}; }));
+  assert(rows.every(r => r.t >= body.t - 0.5 && r.b <= body.b + 0.5), `index: the seven rows are inside the body with no scrolling (${Math.round(rows[0].t - body.t)}..${Math.round(rows[6].b - body.t)} of ${Math.round(body.h)}px)`);
+  assert(rows.every(r => near(r.h, 56, 0.6) && r.w >= 387), 'index: each row is 56px high and the whole width (two lines: a finger\'s target)');
+  const hits = [];
+  for (const r of rows) hits.push(await hitsIndexRow(p, r.id));
+  eq(hits, Array(7).fill(true), 'index: each row is what a finger reaches at its centre (elementFromPoint)');
+  eq(await p.evaluate(() => { const b = document.querySelector('.pg-body'); return b.scrollHeight - b.clientHeight; }) <= 1, true, 'index: the body itself does not scroll');
+  // the grab line is a target of 48px, over the head's middle
+  const gr = await rect(p, '.pg-grip');
+  assert(near(gr.w, 48, 0.6) && near(gr.h, 48, 0.6), `phone: the grab line is a 48px square (${Math.round(gr.w)}x${Math.round(gr.h)})`);
+  eq(await p.evaluate(() => { const g = document.querySelector('.pg-grip').getBoundingClientRect(); const e = document.elementFromPoint(g.left + g.width / 2, g.top + g.height / 2); return !!e.closest('.pg-grip'); }), true, 'phone: and what a finger reaches at its centre');
+  eq(await p.evaluate(() => { const g = document.querySelector('.pg-gripline'); return g.getClientRects().length > 0; }), true, 'phone: the grab line is drawn');
+  // ✕ is 48px and in the corner; the head is under 52px, so the rows have the room
+  const xr = await rect(p, '.pg-x');
+  assert(near(xr.w, 48, 0.6) && near(xr.h, 48, 0.6) && near(xr.r, rs.r, 2), `phone: ✕ is 48x48 at the right end of the head (${Math.round(xr.w)}x${Math.round(xr.h)})`);
+
+  /* ---- A THEME: its group alone, ‹ and the caption in the head ---- */
+  const hist1 = await p.evaluate(() => history.length), id1 = await entryOf(p);
+  assert(typeof id1 === 'string' && id1.length > 0, 'history: the sheet pushed an entry of its own on opening');
+  await tapIndex(p, 'listening');
+  await until(async () => (await stageOf(p)) === 'listening', 'a tap on a row enters the theme');
+  await sleep(260);
+  eq(await panelOf(p).getAttribute('data-pg-stage'), 'listening', 'theme: data-pg-stage says which');
+  eq(await p.evaluate(() => [document.querySelector('.pg-title').textContent, document.querySelector('.pg-sub').textContent,
+      document.querySelector('.pg-title').getAttribute('aria-live')]),
+     ['Listening', 'Follows you to your other devices.', 'polite'], 'theme: the head becomes the theme\'s name with its caption, and the title is a polite live region');
+  eq(await p.evaluate(() => [...document.querySelectorAll('.pg-group')].filter(g => g.getClientRects().length).map(g => g.getAttribute('data-pg-group'))), ['listening'], 'theme: only that group is drawn');
+  eq(await p.evaluate(() => ['.pg-gtitle', '.pg-caption'].map(s => document.querySelector('[data-pg-group=listening] ' + s).getClientRects().length)), [0, 0], "theme: the group's own title and caption are not drawn twice (the head says them)");
+  const br = await rect(p, '.pg-back');
+  assert(near(br.w, 48, 0.6) && near(br.h, 48, 0.6) && br.l <= 2, `theme: ‹ is 48x48 at the left end of the head (${Math.round(br.w)}x${Math.round(br.h)})`);
+  eq(await p.evaluate(() => { const b = document.querySelector('.pg-back'); const r = b.getBoundingClientRect(); return [b.getAttribute('aria-label'), !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2).closest('.pg-back')]; }), ['Back to the list', true], 'theme: ‹ says where it goes and is what a finger reaches');
+  eq(await p.evaluate(() => { const a = document.activeElement; return !!a.closest('[data-pg-group=listening]'); }), true, "theme: the keyboard's place is on the theme's first control");
+  assert((await p.evaluate(() => history.length)) === hist1 + 1, 'history: entering a theme pushed a second entry');
+  const id2 = await entryOf(p);
+  assert(typeof id2 === 'string' && id2 !== id1, 'history: and it is its own');
+  // every control of the theme is a finger's size, and what a finger reaches at its centre
   const small = await panelOf(p).evaluate(panel => {
     const out = [];
-    panel.querySelectorAll('.pg-row:not([hidden])').forEach(r => { if (r.getClientRects().length && r.getBoundingClientRect().height < 47.5 && !r.classList.contains('pg-noterow')) out.push('row ' + r.getAttribute('data-pg-row') + ' ' + Math.round(r.getBoundingClientRect().height)); });
-    panel.querySelectorAll('button, a[href], select, input').forEach(c => {
+    panel.querySelectorAll('[data-pg-group=listening] button, [data-pg-group=listening] a[href], [data-pg-group=listening] select, [data-pg-group=listening] input, .pg-back, .pg-x').forEach(c => {
       if (!c.getClientRects().length) return;
       const t = c.type === 'checkbox' ? c.closest('label') : c;
+      t.scrollIntoView({block: 'center'});
       const r = t.getBoundingClientRect();
-      if (r.height < 47.5 || (c.type === 'checkbox' && r.width < 47.5)) out.push((c.className || c.tagName) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+      if (r.height < 47.5 || (c.type === 'checkbox' && r.width < 47.5)) { out.push((c.className || c.tagName) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height)); return; }
+      const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!e || !(c === e || c.contains(e) || t.contains(e))) out.push('unreachable ' + (c.className || c.tagName));
     });
     return out;
   });
-  eq(small, [], 'phone: every row and every control of the visible groups is 48px or more');
-  // every group, scrolled to, has them too
-  const smallAll = [];
-  for (const g of ids.book) {
-    await openGear(p, g);
-    smallAll.push(...await panelOf(p).evaluate(panel => {
-      const out = [];
-      panel.querySelectorAll('button, a[href], select, input').forEach(c => {
-        if (!c.getClientRects().length) return;
-        const t = c.type === 'checkbox' ? c.closest('label') : c, r = t.getBoundingClientRect();
-        if (r.height < 47.5) out.push((c.className || c.tagName) + ' ' + Math.round(r.height));
-      });
-      return out;
-    }));
-  }
-  eq(smallAll, [], 'phone: and in all seven groups');
-  // closing: ✕, Esc, the back gesture, a swipe
-  const hist0 = await p.evaluate(() => history.state && history.state.parsehGear);
-  assert(typeof hist0 === 'string' && hist0.length > 0, 'phone: the sheet pushed a history entry of its own');
-  await p.locator('.pg-x').tap();
-  await p.waitForSelector('.pg-panel', {state: 'hidden'});
-  eq(await p.evaluate(() => [location.pathname, history.state]), ['/fx/book.html', null], 'phone: ✕ closes it and spends its history entry');
-  await sleep(150);
-  await gearBtn(p).tap();
-  await p.waitForSelector('.pg-panel:not([hidden])');
-  await p.goBack();
-  await p.waitForSelector('.pg-panel', {state: 'hidden'});
-  eq(await p.evaluate(() => location.pathname), '/fx/book.html', 'phone: the back gesture closes it, and stays on the page');
-  // AND STILL WORKS AFTER A SHEET CLOSED BY HAND: the popstate of a spent entry is not heard as a gesture
-  await gearBtn(p).tap();
-  await p.waitForSelector('.pg-panel:not([hidden])');
-  await p.locator('.pg-x').tap();
-  await p.waitForSelector('.pg-panel', {state: 'hidden'});
-  await sleep(200);
-  await gearBtn(p).tap();
-  await p.waitForSelector('.pg-panel:not([hidden])');
-  await p.goBack();
-  await p.waitForSelector('.pg-panel', {state: 'hidden'});
-  eq(await p.evaluate(() => location.pathname), '/fx/book.html', 'phone: closed by hand once, the next back gesture still closes the next sheet (a spent entry is not heard)');
-  await gearBtn(p).tap();
-  await p.waitForSelector('.pg-panel:not([hidden])');
-  await p.keyboard.press('Escape');
-  await p.waitForSelector('.pg-panel', {state: 'hidden'});
-  eq(await p.evaluate(() => window.__esc), [], 'phone: Esc closes it too, and the page does not hear it');
-  await sleep(200);
-  await gearBtn(p).tap();
-  await p.waitForSelector('.pg-panel:not([hidden])');
-  await p.goBack();
-  await p.waitForSelector('.pg-panel', {state: 'hidden'});
-  eq(await p.evaluate(() => location.pathname), '/fx/book.html', 'phone: and after Esc as well');
-  // a swipe down on the head
-  await gearBtn(p).tap();
-  await p.waitForSelector('.pg-panel:not([hidden])');
+  eq(small, [], 'theme: every control in view is 48px or more and is what a finger reaches at its centre');
+  // ‹ goes back to the index: the row that was open is where the keyboard is, and the entry is given back
+  await p.locator('.pg-back').tap();
+  await until(async () => (await stageOf(p)) === 'index', '‹ returns to the index');
+  eq(await p.evaluate(() => [document.activeElement.getAttribute('data-pg-index'), document.querySelector('.pg-title').textContent, document.querySelector('.pg-back').getClientRects().length]),
+     ['listening', 'This page', 0], 'theme: ‹ returns to the index, the row that was open has the keyboard, the head is the page\'s again');
   await sleep(250);
-  const rh = await rect(p, '.pg-head');
-  await p.mouse.move(120, rh.t + 20);
-  await p.mouse.down();
-  await p.mouse.move(120, rh.t + 40, {steps: 3});
-  await p.mouse.up();
-  await sleep(120);
-  eq([await isUp(p), await panelOf(p).evaluate(e => e.style.transform)], [true, ''], 'phone: a short pull on the head springs back');
-  await p.mouse.move(120, rh.t + 20);
-  await p.mouse.down();
-  await p.mouse.move(120, rh.t + 220, {steps: 8});
-  await p.mouse.up();
-  await p.waitForSelector('.pg-panel', {state: 'hidden'});
-  assert(true, 'phone: a swipe down on the head closes it');
+  eq(await entryOf(p), id1, 'history: ‹ spent its own entry (the sheet\'s is the one left)');
+  eq(await isUp(p), true, 'history: and the sheet is still up');
+  // the back gesture from a theme returns to the index; from the index it closes
+  await tapIndex(p, 'text');
+  await until(async () => (await stageOf(p)) === 'text', 'the text theme');
+  await p.goBack();
+  await until(async () => (await stageOf(p)) === 'index', 'the back gesture returns to the index');
+  eq([await isUp(p), await entryOf(p)], [true, id1], 'history: the back gesture from a theme leaves the theme and not the sheet');
+  await p.goBack();
+  await shut(p);
+  eq(await p.evaluate(() => location.pathname), '/fx/book.html', 'history: the second gesture closes the sheet, and stays on the page');
+  eq(await stageOf(p), null, 'stage(): null when it is shut');
+  // ✕ from a theme closes the whole sheet and spends BOTH entries; the next sheet's back gesture still works
   await sleep(200);
-  eq(await p.evaluate(() => history.state), null, 'phone: and spends its entry');
-  // the sheet follows the layout: Browser in the Interface group changes the button's place, not the sheet's being the sheet
-  await openGear(p, 'interface');
+  await openSheet(p);
+  await tapIndex(p, 'zoom');
+  await until(async () => (await stageOf(p)) === 'zoom', 'the zoom theme');
+  await p.locator('.pg-x').tap();
+  await shut(p);
+  await sleep(300);
+  eq(await p.evaluate(() => [location.pathname, history.state]), ['/fx/book.html', null], 'close: ✕ from a theme closes the whole sheet and spends both its entries');
+  await openSheet(p);
+  eq(await stageOf(p), 'index', 'close: the sheet opens on the index again, not where it was left');
+  await p.goBack();
+  await shut(p);
+  eq(await p.evaluate(() => location.pathname), '/fx/book.html', 'close: and the back gesture after it still closes the next sheet (a spent entry is not heard as a gesture)');
+  // the same for ‹ then ✕, and for ✕ from the index
+  await sleep(200);
+  await openSheet(p);
+  await tapIndex(p, 'colours');
+  await until(async () => (await stageOf(p)) === 'colours', 'the colours theme');
+  await p.locator('.pg-back').tap();
+  await until(async () => (await stageOf(p)) === 'index', 'back to the index');
+  await sleep(250);
+  await p.locator('.pg-x').tap();
+  await shut(p);
+  await sleep(300);
+  eq(await p.evaluate(() => history.state), null, 'close: ‹ and then ✕ leave no entry behind');
+  await openSheet(p);
+  await p.goBack();
+  await shut(p);
+  eq(await p.evaluate(() => location.pathname), '/fx/book.html', 'close: and the next back gesture still works');
+  // Esc closes the whole sheet from a theme, once, and the page does not hear it
+  await sleep(200);
+  await openSheet(p);
+  await tapIndex(p, 'interface');
+  await until(async () => (await stageOf(p)) === 'interface', 'the interface theme');
+  await p.keyboard.press('Escape');
+  await shut(p);
+  eq(await p.evaluate(() => window.__esc), [], 'close: Esc closes the whole sheet from a theme (one key, one layer), and the page does not hear it');
+  await sleep(300);
+  eq(await p.evaluate(() => history.state), null, 'close: and spends both entries');
+  await openSheet(p);
+  await p.goBack();
+  await shut(p);
+  eq(await p.evaluate(() => location.pathname), '/fx/book.html', 'close: the gesture after Esc still closes the next sheet');
+  // a swipe down on the head, from the index and from a theme
+  for (const where of ['index', 'text']) {
+    await sleep(200);
+    await openSheet(p);
+    if (where !== 'index') { await tapIndex(p, where); await until(async () => (await stageOf(p)) === where, 'the ' + where + ' theme'); await sleep(260); }
+    const rh = await rect(p, '.pg-head');
+    await p.mouse.move(120, rh.t + 30);
+    await p.mouse.down();
+    await p.mouse.move(120, rh.t + 50, {steps: 3});
+    await p.mouse.up();
+    await sleep(160);
+    eq([await isUp(p), await panelOf(p).evaluate(e => e.style.transform)], [true, ''], `swipe: a short pull on the head springs back (${where})`);
+    await p.mouse.move(120, rh.t + 30);
+    await p.mouse.down();
+    await p.mouse.move(120, rh.t + 230, {steps: 8});
+    await p.mouse.up();
+    await shut(p);
+    assert(true, `swipe: a swipe down on the head closes the whole sheet (${where})`);
+    await sleep(300);
+    eq(await p.evaluate(() => history.state), null, 'swipe: and spends its entries');
+  }
+
+  /* ---- gear.open(group), stage(), back() ---- */
+  await sleep(200);
+  eq(await p.evaluate(() => [window.__gear.back(), window.__gear.stage()]), [false, null], 'api: back() and stage() on a shut sheet say nothing');
+  await p.evaluate(() => window.__gear.open('text'));
+  await p.waitForSelector('.pg-panel:not([hidden])');
+  await sleep(260);
+  eq(await stageOf(p), 'text', 'api: open("text") lands on the theme (what Aa does)');
+  eq(await p.evaluate(() => { const a = document.activeElement; return [!!a.closest('[data-pg-group=text]'), a.classList.contains('pg-range')]; }), [true, true], 'api: with its first control focused');
+  eq(await p.evaluate(() => [window.__gear.back(), window.__gear.stage()]), [true, 'index'], 'api: back() goes to the index underneath');
+  eq(await p.evaluate(() => [window.__gear.back(), window.__gear.stage()]), [false, 'index'], 'api: and does nothing on the index');
+  await p.evaluate(() => window.__gear.open());
+  eq(await stageOf(p), 'index', 'api: open() with no group leaves the stage as it is');
+  await p.evaluate(() => window.__gear.open('zoom'));
+  await p.evaluate(() => window.__gear.open());
+  eq(await stageOf(p), 'zoom', 'api: open() on a sheet that is up leaves the theme on stage');
+  await p.evaluate(() => window.__gear.open('colours'));
+  eq([await stageOf(p), (await p.evaluate(() => history.length)) - hist1], ['colours', 1], 'api: from one theme to another there is still the one extra entry');
+  await p.evaluate(() => window.__gear.open('nonesuch'));
+  eq(await stageOf(p), 'colours', 'api: a group that is not there leaves it where it is');
+  await p.keyboard.press('Escape');
+  await shut(p);
+  await sleep(300);
+
+  /* ---- keys ---- */
+  await openSheet(p);
+  await p.keyboard.press('Tab');
+  eq(await p.evaluate(() => document.activeElement.getAttribute('data-pg-index')), 'levels', 'keys: Tab from the sheet goes to the first row of the index');
+  await p.keyboard.press('Tab');
+  eq(await p.evaluate(() => document.activeElement.getAttribute('data-pg-index')), 'listening', 'keys: and through the rows');
+  await p.keyboard.press('Enter');
+  await until(async () => (await stageOf(p)) === 'listening', 'Enter opens the row');
+  assert(true, 'keys: Enter on a row of the index opens the theme');
+  await p.keyboard.press('Shift+Tab');
+  eq(await p.evaluate(() => document.activeElement.className), 'pg-back', 'keys: in a theme, Shift+Tab from the first control reaches ‹');
+  await p.keyboard.press('Enter');
+  await until(async () => (await stageOf(p)) === 'index', 'Enter on ‹');
+  eq(await p.evaluate(() => document.activeElement.getAttribute('data-pg-index')), 'listening', 'keys: Enter on ‹ goes back, to the row that was open');
+  await p.keyboard.press('Space');
+  await until(async () => (await stageOf(p)) === 'listening', 'Space opens a row');
+  assert(true, 'keys: Space opens a row too');
+  await p.keyboard.press('Escape');
+  await shut(p);
+  await sleep(300);
+  await openSheet(p);
+  await tapIndex(p, 'colours');
+  await until(async () => (await stageOf(p)) === 'colours', 'colours');
+  await p.keyboard.press('Tab');
+  eq(await p.evaluate(() => document.activeElement.className), 'pg-x', 'keys: in a theme Tab goes ‹, the rows, ✕ (✕ is last)');
+  await p.keyboard.press('Escape');
+  await shut(p);
+  await sleep(300);
+
+  /* ---- THE TWO HEIGHTS ---- */
+  eq(await p.evaluate(() => localStorage.getItem('parseh_gear_tall')), null, 'height: half is the resting height (nothing stored)');
+  await openSheet(p);
+  const half = await rect(p, '.pg-panel');
+  // a drag on the head; `pause` (ms between the moves) makes it slow, which is not a flick
+  const dragHead = async (dy, steps = 8, y = 30, pause = 0) => {
+    const rh = await rect(p, '.pg-head');
+    await p.mouse.move(100, rh.t + y);
+    await p.mouse.down();
+    for (let i = 1; i <= steps; i++) { await p.mouse.move(100, rh.t + y + dy * i / steps); if (pause) await sleep(pause); }
+    await p.mouse.up();
+    await sleep(320);
+  };
+  await dragHead(-40, 4, 30, 90);
+  eq([await panelOf(p).evaluate(e => e.classList.contains('pg-tall')), await p.evaluate(() => localStorage.getItem('parseh_gear_tall'))], [false, null], 'height: a drag up of less than a third of the way springs back to half');
+  assert(near((await rect(p, '.pg-panel')).h, half.h, 2), 'height: and the sheet is as it was');
+  await dragHead(-200);
+  eq([await panelOf(p).evaluate(e => e.classList.contains('pg-tall')), await p.evaluate(() => localStorage.getItem('parseh_gear_tall'))], [true, '1'], 'height: a drag up past a third of the way makes it tall, and the choice is remembered');
+  const tallR = await rect(p, '.pg-panel');
+  assert(near(tallR.h, H - 48, 2) && near(tallR.t, 48, 2) && near(tallR.b, H, 1), `height: tall is the window less 48px (${Math.round(tallR.h)} of ${H}px, top at ${Math.round(tallR.t)})`);
+  assert(await p.evaluate(() => { const r = document.querySelector('.para').getBoundingClientRect(); return r.top < 48 + 1 || true; }), 'height: ...');
+  await dragHead(60, 4, 30, 90);
+  eq(await panelOf(p).evaluate(e => e.classList.contains('pg-tall')), true, 'height: a drag down from tall of less than a third stays tall');
+  await dragHead(200);
+  eq([await panelOf(p).evaluate(e => e.classList.contains('pg-tall')), await p.evaluate(() => localStorage.getItem('parseh_gear_tall')), await isUp(p)], [false, null, true], 'height: a drag down from tall past a third brings it to half (it does not close), and that is remembered');
+  assert(near((await rect(p, '.pg-panel')).h, half.h, 2), 'height: half again');
+  // a flick does the same from less
+  await dragHead(-90, 2);
+  eq(await panelOf(p).evaluate(e => e.classList.contains('pg-tall')), true, 'height: a flick up makes it tall');
+  await dragHead(90, 2);
+  eq(await panelOf(p).evaluate(e => e.classList.contains('pg-tall')), false, 'height: a flick down from tall brings it to half');
+  // a tap on the grab line toggles, from the index and from a theme (and is not a drag)
+  await p.locator('.pg-grip').tap();
+  await sleep(320);
+  eq([await panelOf(p).evaluate(e => e.classList.contains('pg-tall')), await p.evaluate(() => localStorage.getItem('parseh_gear_tall'))], [true, '1'], 'height: a tap on the grab line makes it tall');
+  await tapIndex(p, 'text');
+  await until(async () => (await stageOf(p)) === 'text', 'text');
+  await sleep(260);
+  eq(await panelOf(p).evaluate(e => e.classList.contains('pg-tall')), true, 'height: the detent is the same on a theme');
+  // the index at tall simply has room
+  await p.locator('.pg-back').tap();
+  await until(async () => (await stageOf(p)) === 'index', 'index');
+  await sleep(300);
+  const bodyT = await rect(p, '.pg-body');
+  const rowsT = await p.evaluate(() => [...document.querySelectorAll('.pg-irow')].filter(r => r.getClientRects().length).map(r => r.getBoundingClientRect().bottom));
+  assert(rowsT.length === 7 && rowsT[6] < bodyT.b - 40, `height: the index at tall has room under the rows (${Math.round(bodyT.b - rowsT[6])}px)`);
+  const footT = await p.evaluate(() => { const f = document.querySelector('.pg-footlink'), b = f.getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return [f.getAttribute('href'), !!e.closest('.pg-footlink')]; });
+  eq(footT, ['/settings/', true], 'height: and the foot link to the settings of Parseh closes the list, where a finger reaches it');
+  // remembered across a reload, for the next sheet, the next page
+  await p.keyboard.press('Escape');
+  await shut(p);
+  await p.reload();
+  await p.waitForFunction(() => window.__ready === true);
+  await openSheet(p);
+  eq(await panelOf(p).evaluate(e => e.classList.contains('pg-tall')), true, 'height: after a reload the sheet opens tall (parseh_gear_tall, on this device)');
+  assert(near((await rect(p, '.pg-panel')).h, H - 48, 2), 'height: and is tall');
+  await p.locator('.pg-grip').tap();
+  await sleep(320);
+  eq([await panelOf(p).evaluate(e => e.classList.contains('pg-tall')), await p.evaluate(() => localStorage.getItem('parseh_gear_tall'))], [false, null], 'height: a tap on the grab line again makes it half, and forgets it');
+  // the window changing under a sheet that is tall: the detent stays
+  await p.locator('.pg-grip').tap();
+  await sleep(320);
+  await p.setViewportSize({width: 390, height: 640});
+  await sleep(300);
+  assert(near((await rect(p, '.pg-panel')).h, 640 - 48, 3), 'height: a window that changes height (a phone\'s keyboard) stands the sheet again, in the detent in force');
+  await p.setViewportSize({width: 390, height: 844});
+  await p.locator('.pg-grip').tap();
+  await sleep(320);
+  await p.keyboard.press('Escape');
+  await shut(p);
+  await t.close();
+
+  // the 360x740 phone: the same seven themes in the half sheet, squeezed to 50px so that they fit
+  t = await open('phone', 'book', {width: 360, height: 740});
+  p = t.page;
+  await openSheet(p);
+  const body2 = await rect(p, '.pg-body'), rs2 = await rect(p, '.pg-panel');
+  const rows2 = await p.evaluate(() => [...document.querySelectorAll('.pg-irow')].filter(r => r.getClientRects().length).map(r => { const b = r.getBoundingClientRect(); return {id: r.getAttribute('data-pg-index'), t: b.top, b: b.bottom, h: b.height}; }));
+  assert(rows2.length === 7 && rows2.every(r => r.t >= body2.t - 0.5 && r.b <= body2.b + 0.5), `index 360x740: the seven rows are inside the half sheet (${Math.round(rs2.h)}px) with no scrolling (${Math.round(rows2[6].b - body2.t)} of ${Math.round(body2.h)}px)`);
+  assert(rows2.every(r => r.h >= 49.5), `index 360x740: none under 50px (${Math.round(rows2[0].h)}px)`);
+  const hits2 = [];
+  for (const r of rows2) hits2.push(await hitsIndexRow(p, r.id));
+  eq(hits2, Array(7).fill(true), 'index 360x740: each row is what a finger reaches at its centre');
+  await t.close();
+
+  // a page with eight themes (the Keeping group of the phone): at 390x844 they are squeezed to 50px and still need no scroll
+  t = await open('phone', 'book', {query: 'node=1'});
+  p = t.page;
+  await openSheet(p);
+  const body3 = await rect(p, '.pg-body');
+  const rows3 = await p.evaluate(() => [...document.querySelectorAll('.pg-irow')].filter(r => r.getClientRects().length).map(r => { const b = r.getBoundingClientRect(); return {t: b.top, b: b.bottom, h: b.height}; }));
+  assert(rows3.length === 8 && rows3.every(r => r.t >= body3.t - 0.5 && r.b <= body3.b + 0.5 && r.h >= 49.5), `index: eight themes still fit at 390x844, squeezed to 50px (${Math.round(rows3[7].b - body3.t)} of ${Math.round(body3.h)}px)`);
+
+  /* ---- A NODE (lib/keep.js's buttons) stands in its row only while its theme is on stage ---- */
+  const nodeAt = p => p.evaluate(() => ['keep1', 'keep2'].map(id => { const e = document.getElementById(id); return e.parentElement.classList.contains('pg-node') ? 'row' : e.parentElement.id || e.parentElement.tagName; }));
+  eq(await nodeAt(p), ['menu', 'menu'], 'node: on the index the buttons are on the page, where they were');
+  await tapIndex(p, 'keep');
+  await until(async () => (await stageOf(p)) === 'keep', 'the keeping theme');
+  eq(await nodeAt(p), ['row', 'row'], 'node: with its theme on stage they stand in their row');
+  await sleep(260);
+  eq(await p.evaluate(() => { const b = document.getElementById('keep1').getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return e === document.getElementById('keep1'); }), true, 'node: and are what a finger reaches');
+  await p.locator('.pg-back').tap();
+  await until(async () => (await stageOf(p)) === 'index', 'index');
+  eq(await nodeAt(p), ['menu', 'menu'], 'node: ‹ sends them home');
+  eq(await p.evaluate(() => [...document.getElementById('menu').children].map(e => e.id)), ['keep1', 'keep2', 'after'], 'node: to the same place among their neighbours');
+  await tapIndex(p, 'text');
+  await until(async () => (await stageOf(p)) === 'text', 'text');
+  eq(await nodeAt(p), ['menu', 'menu'], 'node: while another theme is on stage they are on the page');
+  await p.evaluate(() => window.__gear.open('keep'));
+  eq(await nodeAt(p), ['row', 'row'], 'node: from one theme to another they come in');
+  await p.evaluate(() => window.__gear.back());
+  eq(await nodeAt(p), ['menu', 'menu'], 'node: and go home again');
+  await p.evaluate(() => window.__gear.open('keep'));
+  await p.evaluate(() => window.__gear.back());
+  await p.evaluate(() => window.__gear.open('keep'));
+  eq(await nodeAt(p), ['row', 'row'], 'node: entered twice over they are in the row once');
+  await p.evaluate(() => { window.__noKeep1 = true; window.__gear.refresh(); });
+  eq(await nodeAt(p), ['menu', 'row'], 'node: a row that stops being drawn sends its own button home (the other row keeps its)');
+  await p.evaluate(() => { window.__noKeep1 = false; window.__gear.refresh(); });
+  eq(await nodeAt(p), ['row', 'row'], 'node: and takes it in again');
+  await p.keyboard.press('Escape');
+  await shut(p);
+  eq(await nodeAt(p), ['menu', 'menu'], 'node: the sheet shut, they are home');
+  await t.close();
+
+  /* ---- a summary the page says itself wins; names that read right to left are wrapped ---- */
+  t = await open('phone', 'book', {query: 'sum=1'});
+  p = t.page;
+  await openSheet(p);
+  const said = await p.evaluate(() => ['summed', 'said', 'quiet'].map(id => { const s = document.querySelector(`[data-pg-index=${id}] .pg-isum`); return [s.textContent, s.getClientRects().length > 0, [...s.querySelectorAll('bdi')].map(b => b.textContent), document.querySelector(`[data-pg-index=${id}]`).getAttribute('aria-label')]; }));
+  eq(said[0].slice(0, 3), ['فارسی ساده, Chunks · no glosses', true, ['فارسی ساده', 'Chunks']], 'summary: a group\'s own summary (a function of parts) is the summary, and its names are in <bdi>');
+  eq(said[0][3], 'Said by the page, فارسی ساده, Chunks · no glosses', 'summary: and what a screen reader hears');
+  eq(said[1].slice(0, 3), ["In the page's own words", true, []], 'summary: a string is the summary');
+  eq(said[2].slice(0, 2), ['', false], 'summary: an empty summary draws nothing, whatever the rows would say');
+  const lv = await p.evaluate(() => [...document.querySelectorAll('[data-pg-index=levels] .pg-isum bdi')].map(b => b.textContent));
+  eq(lv, ['With vowels', 'Chunks', 'Plain'], 'summary: the levels row\'s names are each in a <bdi> (a level\'s name may be in any script)');
+  eq(await p.evaluate(() => { const s = document.querySelector('.pg-isum'); const c = getComputedStyle(s); return [c.direction, document.querySelector('.pg-panel').getAttribute('dir'), c.whiteSpace, c.textOverflow]; }), ['ltr', 'ltr', 'nowrap', 'ellipsis'], 'summary: the line is chrome (left to right) cut with an ellipsis where it does not fit');
+  await p.evaluate(() => { window.__st.levels.vocal.name = 'A name far too long for one line of the sheet'; window.__st.levels.alt.shown = true; window.__emit('levels'); });
+  await until(() => p.evaluate(() => document.querySelector('[data-pg-index=levels] .pg-isum').textContent.includes('far too long')), 'the long name is in the summary');
+  eq(await p.evaluate(() => { const r = document.querySelector('[data-pg-index=levels]'), s = r.querySelector('.pg-isum'); return [s.scrollWidth > s.clientWidth ? 'cut' : 'whole', Math.round(r.getBoundingClientRect().height)]; }), ['cut', 56], 'summary: a line too long for the row is cut, not wrapped (the row stays two lines, 56px)');
+  await p.keyboard.press('Escape');
+  await shut(p);
+  await t.close();
+
+  /* ---- the popover is not touched: no index, one list, the old head ---- */
+  t = await open('wide', 'book');
+  p = t.page;
+  await gearBtn(p).click();
+  await p.waitForSelector('.pg-panel:not([hidden])');
+  eq(await p.evaluate(() => [window.__gear.stage(), document.querySelector('.pg-index').getClientRects().length, document.querySelector('.pg-back').getClientRects().length,
+      document.querySelector('.pg-grip').getClientRects().length, document.querySelector('.pg-sub').getClientRects().length, document.querySelector('.pg-first').getClientRects().length > 0,
+      [...document.querySelectorAll('.pg-group')].filter(g => g.getClientRects().length).length, document.querySelector('.pg-x').parentElement.className]),
+     [null, 0, 0, 0, 0, true, 7, 'pg-head'], 'popover: no stage, no index, no ‹, no grab line; the one list of every group, "Only for this page." in the body, ✕ in the head');
+  await p.evaluate(() => window.__gear.open('text'));
+  eq(await p.evaluate(() => { const g = document.querySelector('[data-pg-group=text]').getBoundingClientRect(), b = document.querySelector('.pg-body').getBoundingClientRect(); return g.top - b.top < 20 && g.top >= b.top - 1; }), true, 'popover: open(group) scrolls to the group, as it did');
+  await t.close();
+
+  /* ---- the sheet follows the layout ---- */
+  t = await open('phone', 'book');
+  p = t.page;
+  await openSheet(p);
+  await tapIndex(p, 'interface');
+  await until(async () => (await stageOf(p)) === 'interface', 'the interface theme');
   await chipsOf(p, 'mode').filter({hasText: 'Browser'}).tap();
   await until(async () => (await rect(p, '#bhost [data-parseh-gear]')) !== null, 'the button goes to the browser bar');
-  eq(await panelOf(p).evaluate(e => [e.hidden, e.classList.contains('pg-sheet')]), [false, true], 'phone: switched to the browser layout the panel stays up, still the sheet (a window of 390px)');
+  eq(await panelOf(p).evaluate(e => [e.hidden, e.classList.contains('pg-sheet')]), [false, true], 'phone: switched to the browser layout the panel stays up, still the sheet, still on its theme (a window of 390px)');
+  eq(await stageOf(p), 'interface', 'phone: and on the same stage');
   eq(await pressed(p, 'mode'), ['Browser'], 'phone: and says which is in force');
   await chipsOf(p, 'mode').filter({hasText: 'Mobile'}).tap();
   await until(async () => (await rect(p, '#mhost [data-parseh-gear]')) !== null, 'and back to the mobile bar');
   eq(await pressed(p, 'mode'), ['Mobile'], 'phone: and back in the mobile layout it says so');
+  await p.locator('.pg-back').tap();
+  await until(async () => (await stageOf(p)) === 'index', 'index');
+  await sleep(200);
+  eq(await p.evaluate(() => document.querySelector('[data-pg-index=interface] .pg-isum').textContent), 'Mobile pages', 'phone: and the index says it');
   await t.close();
 
-  // landscape: a short window keeps a floor under the sheet
+  // a sheet becoming the popover with a theme up: both entries spent, the popover scrolled to the group; and back
+  t = await open('wide', 'book', {width: 540, height: 800});
+  p = t.page;
+  await gearBtn(p).click();
+  await p.waitForSelector('.pg-panel:not([hidden])');
+  eq(await panelOf(p).evaluate(e => e.classList.contains('pg-sheet')), true, 'resize: 540px is the sheet');
+  await p.locator('.pg-irow[data-pg-index=text]').click();
+  await until(async () => (await stageOf(p)) === 'text', 'text');
+  await sleep(260);
+  const histR = await p.evaluate(() => history.length);
+  await p.setViewportSize({width: 700, height: 800});
+  await until(() => panelOf(p).evaluate(e => e.classList.contains('pg-popover')), 'the window grows into a popover');
+  await sleep(400);
+  eq([await stageOf(p), await isUp(p), await p.evaluate(() => history.state)], [null, true, null], 'resize: the sheet became the popover with a theme up: no stage, still up, both entries given back');
+  eq(await p.evaluate(() => { const g = document.querySelector('[data-pg-group=text]').getBoundingClientRect(), b = document.querySelector('.pg-body').getBoundingClientRect(); return g.top - b.top < 20 && g.top >= b.top - 1; }), true, 'resize: its one list is scrolled to the group that was on stage');
+  assert(histR >= 1, 'resize: ...');
+  await p.setViewportSize({width: 540, height: 800});
+  await until(() => panelOf(p).evaluate(e => e.classList.contains('pg-sheet')), 'and back into a sheet');
+  await sleep(300);
+  eq([await stageOf(p), typeof (await entryOf(p))], ['index', 'string'], 'resize: and into a sheet again, on the index, with its entry');
+  await p.goBack();
+  await shut(p);
+  eq(await p.evaluate(() => location.pathname), '/fx/book.html', 'resize: whose back gesture closes it');
+  await t.close();
+
+  // landscape: a short window keeps a floor under the sheet, and tall is the window less 48px
   t = await open('phone', 'book', {width: 844, height: 390});
   p = t.page;
-  await gearBtn(p).tap();
-  await p.waitForSelector('.pg-panel:not([hidden])');
-  await sleep(250);
+  await openSheet(p);
   const rl = await rect(p, '.pg-panel');
   assert(rl.h >= 239 && rl.h <= 390 - 47 && near(rl.b, 390, 1), `landscape: the sheet is 240px or half, whichever is more, and leaves room above (${Math.round(rl.h)}px of 390)`);
   assert(rl.w <= 561 && rl.w >= 559 && near(rl.l + rl.w / 2, 422, 2), `landscape: 560px wide, in the middle (${Math.round(rl.w)}px)`);
+  await p.locator('.pg-grip').tap();
+  await sleep(320);
+  const rlt = await rect(p, '.pg-panel');
+  assert(near(rlt.h, 390 - 48, 2) && rlt.h > rl.h, `landscape: tall is the window less 48px (${Math.round(rlt.h)}px of 390)`);
+  await p.locator('.pg-grip').tap();
+  await sleep(320);
   await t.close();
   // the mobile layout on a wide screen is the sheet too
   t = await open('wide', 'book', {mode: 'mobile'});
@@ -1216,7 +1584,8 @@ await sec('widths', async () => {
     for (const g of [...ids.book, 'long']) {
       await openGear(p, g);
       bad.push(...await panelOf(p).evaluate((panel, g) => {
-        const out = [], pr = panel.getBoundingClientRect(), body = panel.querySelector('.pg-body');
+        // on the sheet the pane on stage is what scrolls; on the popover the body
+        const out = [], pr = panel.getBoundingClientRect(), body = panel.querySelector('.pg-pane-on') && panel.classList.contains('pg-sheet') ? panel.querySelector('.pg-pane-on') : panel.querySelector('.pg-body');
         if (pr.left < -0.5 || pr.right > innerWidth + 0.5) out.push(g + ': the panel is off the window ' + Math.round(pr.left) + '..' + Math.round(pr.right));
         if (body.scrollWidth > body.clientWidth + 0.5) out.push(g + ': the body scrolls sideways ' + body.scrollWidth + '>' + body.clientWidth);
         body.querySelectorAll('*').forEach(e => {
@@ -1357,6 +1726,7 @@ await sec('std', async () => {
   eq([await store(p, 'parseh_mode'), await attrOf(p, 'html', 'data-mode'), await p.evaluate(() => /parseh_mode=mobile/.test(document.cookie))], ['mobile', 'mobile', true], 'interface: Mobile writes parseh_mode, <html data-mode> and the cookie (through Parseh.mode)');
   await until(async () => (await rect(p, '#mhost [data-parseh-gear]')) !== null, 'interface: the button moves to the mobile bar');
   eq([await isUp(p), await panelOf(p).evaluate(e => e.classList.contains('pg-sheet'))], [true, true], 'interface: the open panel becomes the phone\'s sheet, still open');
+  await openGear(p, 'interface');
   eq(await rowOf(p, 'mode').locator('.pg-chip').evaluateAll(a => a.map(c => c.getAttribute('aria-pressed'))), ['false', 'true'], 'interface: and says Mobile is in force');
   await chipsOf(p, 'mode').filter({hasText: 'Browser'}).click();
   eq([await store(p, 'parseh_mode'), await attrOf(p, 'html', 'data-mode')], ['browser', 'browser'], 'interface: Browser takes it back');
@@ -1385,6 +1755,7 @@ await sec('std', async () => {
   await chipsOf(p, 'mode').filter({hasText: 'Mobile'}).click();
   eq([await store(p, 'parseh_mode'), await attrOf(p, 'html', 'data-mode'), await p.evaluate(() => /(?:^|;\s*)parseh_mode=mobile(?:;|$)/.test(document.cookie)), await p.evaluate(() => window.__heard)], ['mobile', 'mobile', true, ['mobile']], 'doc interface: writes parseh_mode, <html data-mode>, the cookie and fires parseh:mode');
   await until(async () => (await rect(p, '#dmhost [data-parseh-gear]')) !== null, 'doc interface: the button is in the mobile topbar');
+  await openGear(p, 'interface');
   eq(await rowOf(p, 'mode').locator('.pg-chip').evaluateAll(a => a.map(c => c.getAttribute('aria-pressed'))), ['false', 'true'], 'doc interface: Mobile is pressed');
   await chipsOf(p, 'mode').filter({hasText: 'Browser'}).click();
   eq([await store(p, 'parseh_mode'), await attrOf(p, 'html', 'data-mode'), await p.evaluate(() => /(?:^|;\s*)parseh_mode=browser(?:;|$)/.test(document.cookie))], ['browser', 'browser', true], 'doc interface: and Browser back');
@@ -1524,6 +1895,13 @@ await sec('shots', async () => {
       for (const theme of THEMES) {
         const {page, close} = await open(kind, fixture, {theme, query: fixture === 'book' ? 'stubzoom=1&long=1&node=1' : 'stubzoom=1'});
         await openGear(page);
+        // the phone's sheet opens on the index of the themes, which is shot as well
+        if (kind === 'phone') {
+          await sleep(220);
+          await page.screenshot({path: `${SHOTS}/${fixture}-${kind}-${theme}-index.png`});
+          await page.locator('.pg-panel').screenshot({path: `${SHOTS}/${fixture}-${kind}-${theme}-index-panel.png`});
+          (strips.index = strips.index || []).push(`${fixture}-${kind}-${theme}-index-panel.png`);
+        }
         for (const g of await page.evaluate(() => [...document.querySelectorAll('.pg-group')].filter(e => !e.hidden).map(e => e.getAttribute('data-pg-group')))) {
           await openGear(page, g);
           await sleep(220);

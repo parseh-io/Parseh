@@ -128,7 +128,12 @@ def api(what, body, where, libraries=(), rename=None, used=None):
         if what == "sample":
             theme = latexthemes.clean(dict(body.get("theme") or {}, name=body.get("theme", {}).get("name") or "sample"))
             r = latexdraw.draw(body.get("tex") or SAMPLE, None, theme=theme, preview=True)
-            return 200, {"ok": True, "result": r, "preamble": latexthemes.preamble(theme)}
+            # the exact document the compile was given and the log it wrote, as kept with it (lib/latexdraw.py):
+            # said by a drawing that was made and by one that was not, where a compile took place at all
+            key = r.get("key")
+            return 200, {"ok": True, "result": r, "preamble": latexthemes.preamble(theme),
+                         "tex": latexdraw.read_text(key, "tex"), "log": latexdraw.read_text(key, "log"),
+                         "marks": r.get("marks") or []}
         if what == "save":
             t = latexthemes.save(body.get("theme") or {}, was=body.get("was"))
             return 200, {"ok": True, "theme": t}
@@ -199,7 +204,13 @@ STYLE = r"""
 .lx label.pk code{font-size:12px}
 .lx .missing{color:var(--danger,#c33);font-size:12px}
 .lx textarea{width:100%;min-height:6rem;font-family:ui-monospace,monospace}
-.lx pre.pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--boxbg);padding:8px;border-radius:6px;font-size:12px;max-height:22rem;overflow:auto}
+.lx pre.pre{position:relative;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--boxbg);padding:8px;border-radius:6px;font-size:12px;max-height:22rem;overflow:auto}
+.lx details.tex-view{margin:.6rem 0}
+.lx details.tex-view>summary{cursor:pointer;font-size:14px}
+.lx details.tex-view .row{margin:.4rem 0}
+.lx pre.pre .ln{display:block;min-height:1.25em}
+.lx pre.pre .ln.mark{background:color-mix(in srgb,var(--danger,#c33) 16%,transparent);border-inline-start:3px solid var(--danger,#c33);
+  padding-inline-start:5px;margin-inline-start:-8px}
 .lx .said{min-height:1.2em;font-size:13px}
 .lx .bar{height:6px;background:var(--rule);border-radius:3px;overflow:hidden;margin:8px 0;max-width:32rem}
 .lx .bar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .4s}
@@ -809,6 +820,53 @@ SCRIPT = r"""
     if (fl) post('fonts').then(function (r) { if (r.ok) fl.innerHTML = r.fonts.map(function (f) { return '<option value="' + esc(f) + '">'; }).join(''); });
   }
 
+  /* THE .tex THAT WAS COMPILED AND THE WHOLE LOG, on request (a0.5.4): exactly what TeX was given and what it wrote,
+     as the server kept them beside the drawing -- on a failure above all, and on a success too.  The lines the words
+     above were made from (the ! line, d.tex:N:, l.N) are marked in the log, and the log opens scrolled to the first. */
+  var lastSample = null;
+  function markedLog(log, marks) {
+    var on = {}, i;
+    (marks || []).forEach(function (n) { on[n] = true; });
+    return String(log).split('\n').map(function (l, k) {
+      return '<span class="ln' + (on[k + 1] ? ' mark' : '') + '">' + esc(l) + '</span>';
+    }).join('');
+  }
+  function compiledViews(r) {
+    if (!r.tex && !r.log) return '<p class="said">No LaTeX was run for this: there was nothing to compile (the line above says why).</p>';
+    return (r.tex ? '<details class="tex-view" data-tex-view><summary>The .tex that was compiled</summary>' +
+        '<div class="row"><button type="button" class="plain" data-copy="tex">Copy the .tex</button></div>' +
+        '<pre class="pre" data-tex-pre>' + esc(r.tex) + '</pre></details>' : '') +
+      (r.log ? '<details class="tex-view" data-log-view><summary>The whole log</summary>' +
+        '<div class="row"><button type="button" class="plain" data-copy="log">Copy the log</button></div>' +
+        '<pre class="pre" data-log-pre>' + markedLog(r.log, r.marks) + '</pre></details>' : '');
+  }
+  function copyText(text, button) {
+    function told(ok) {
+      var was = button.getAttribute('data-was') || button.textContent;
+      button.setAttribute('data-was', was);
+      button.textContent = ok ? 'Copied' : 'Could not copy: select it and copy by hand';
+      setTimeout(function () { button.textContent = was; }, 1800);
+    }
+    function old() {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+        document.body.appendChild(ta); ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        told(!!ok);
+      } catch (e) { told(false); }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { told(true); }, old);
+    else old();
+  }
+  // a log opened is scrolled to the first line the words were made from
+  document.addEventListener('toggle', function (e) {
+    var d = e.target;
+    if (!d || !d.matches || !d.matches('details[data-log-view]') || !d.open) return;
+    var pre = d.querySelector('pre'), first = pre && pre.querySelector('.mark');
+    if (pre && first) pre.scrollTop = Math.max(0, first.offsetTop - Math.round(pre.clientHeight / 3));
+  }, true);
   function say(sel, text, bad) { var el = root.querySelector(sel); if (el) { el.textContent = text || ''; el.className = 'said' + (bad ? ' bad' : ''); } }
 
   root.addEventListener('click', function (e) {
@@ -820,15 +878,21 @@ SCRIPT = r"""
     if (a('data-new') !== null) { editing = {was: null, theme: {name: q.get('make') || '', compiler: 'xelatex', packages: S.themes[0] ? S.themes[0].packages.slice() : [], languages: false, font: '', preamble: ''}}; draw(); revealEditor(); return; }
     if (a('data-edit')) { var t = S.themes.filter(function (x) { return x.name === a('data-edit'); })[0]; editing = {was: t.name, theme: JSON.parse(JSON.stringify(t))}; draw(); revealEditor(); return; }
     if (a('data-cancel') !== null) { editing = null; draw(); return; }
+    if (a('data-copy') !== null) {
+      if (lastSample && lastSample[a('data-copy')]) copyText(lastSample[a('data-copy')], b);
+      return;
+    }
     if (a('data-draw-sample') !== null) {
       say('[data-edit-said]', 'Drawing…');
       post('sample', {theme: current(), tex: root.querySelector('[data-sample]').value}).then(function (r) {
         var out = root.querySelector('[data-sample-out]');
         if (!r.ok) { say('[data-edit-said]', r.error, true); return; }
         var res = r.result;
+        lastSample = r;
         say('[data-edit-said]', res.ok ? 'Drawn.' : res.said, !res.ok);
         out.innerHTML = (res.ok ? '<img class="sample" src="' + esc(res.url) + '" alt="the sample">' : (res.detail ? '<pre class="pre">' + esc(res.detail) + '</pre>' : '')) +
-          '<details><summary>The whole preamble</summary><pre class="pre">' + esc(r.preamble) + '</pre></details>';
+          compiledViews(r) +
+          '<details class="tex-view"><summary>The whole preamble</summary><pre class="pre">' + esc(r.preamble) + '</pre></details>';
       });
       return;
     }

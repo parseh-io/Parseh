@@ -277,10 +277,19 @@ mobile mode:
   held. The recording is not moved from the header any more: ▶ leaves it (it
   stays on the page, unshown, as the button the dock presses) and the dock
   below does the moving.
-  ⚙ opens the rest as ONE sheet from the foot of the screen, half its height, the text
+  ⚙ opens the rest as ONE sheet from the foot of the screen, half its height at rest, the text
   still showing above it (a0.5.0; `lib/pagesettings.js`, filled for a reader by
   `lib/gear-reader.js`, which drives the reader's own controls from its rows, so that
-  every one of them stays in the DOM): *Levels & reading* (the levels, each with its tick
+  every one of them stays in the DOM).  **The sheet has two stages** (a0.5.4): it opens on
+  an INDEX of the page's themes -- one 56px row for each, its name and one line saying
+  what it is set to (`Group.summary`, else the toolkit joins the drawn rows' values with
+  " · "; a switch says its `Row.short` where it is on; 50px rows where seven would not
+  fit a small phone's half sheet) -- and a tap slides it to ONE theme (‹ and the back
+  gesture return: a second history entry); `gear.open('text')`, which Aa calls, lands on
+  the theme.  Half is the resting height, TALL (the window less 48px) by a drag up on
+  the head or a tap on its grab line, remembered on the device (`parseh_gear_tall`); a
+  borrowed node (the Keep buttons) stands in its row only while its theme is on stage.
+  The themes are: *Levels & reading* (the levels, each with its tick
   and its name, Diacritics, gloss, the cloud, hide the bars), *Listening* (keep going,
   repeat and the pause between repeats, wait at each new chapter, pause while a gloss is
   open, how far ↺ and ↻ move, the speed, listen on its own), *Looking a word up* (the
@@ -614,7 +623,7 @@ book's reader has one:
   ? and ⚙ (the title has no room at 320px and is left out there; it is the
   title that gives way, `flex:1 1 0`, so the line stays one line down to 320) —
   and ⚙ opens the rest as one sheet from the foot, as in a book's reader
-  (a0.5.0): *Watching & reading* (keep in view, pause while a gloss is open, the
+  (a0.5.0; the same two stages, a0.5.4): *Watching & reading* (keep in view, pause while a gloss is open, the
   reading, Diacritics, keep the video in view, the lines around), *Looking a word up*,
   *Playback* (the skip, the speed), *Text*, *Zoom*, *Colours*, *Interface* (the switch and
   *Use it without the computer*). **Aa**, the text size, is on the first line as it is
@@ -731,7 +740,9 @@ both layouts (`markdown/app/templates/*`), its head says which to draw
 `markdown/app/static/mobile.css` lays the mobile one out in the studio's own
 colour tokens, so paper, dark and sepia carry over. The mobile bar has the way
 home, the way up (the decks, the deck) and the theme — and, on a deck, ⚙, whose
-*Interface* group holds the switch (the decks' own list keeps it in its bar).
+*Interface* group holds the switch (the decks' own list keeps it in its bar).  Its
+sheet is the same two-stage one: an index of *Text*, *Exercises*, *Zoom*, *Colours* and
+*Interface*, and a theme at a time.
 
 * **The decks**: the chips in one row, filtering the decks; each deck with what
   is due in it and its two doors, *Study* and *Open*, the whole width (two decks

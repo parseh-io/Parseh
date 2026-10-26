@@ -111,6 +111,24 @@ class EveryStarter(unittest.TestCase):
                 self.assertNotIn("->", body)
                 self.assertNotIn("-\\textgreater", body)
 
+    def test_a_follow_up_shows_its_steps_in_the_words_of_its_language(self):
+        # a chain of exercises answered one after the other (a0.5.4): one in each starter, about language, of
+        # steps of different types -- drawn as a strip of steps on the page and as numbered frames on paper
+        for code, (md, blocks, html) in self.pages.items():
+            with self.subTest(code):
+                chains = [b for b in self.exercises(blocks) if b["subtype"] == "follow-up"]
+                self.assertEqual(1, len(chains), "one follow-up in the starter")
+                chain = chains[0]
+                self.assertEqual([], chain["errors"])
+                self.assertGreaterEqual(len(chain["steps"]), 2)
+                self.assertGreaterEqual(len({s["subtype"] for s in chain["steps"]}), 3, "steps of different types")
+                self.assertEqual(1, html.count('class="exercise ex-chain"'))
+                self.assertEqual(len(chain["steps"]), html.count('class="ex-step"'))
+                self.assertNotIn("ex-invalid", html)
+                tex = texgen.generate(*mdparser.parse(md), colophon=False)
+                body = tex.split("\\begin{document}", 1)[1]
+                self.assertEqual(len(chain["steps"]), body.count("\\expaperstep{"))
+
 
 if __name__ == "__main__":
     unittest.main()

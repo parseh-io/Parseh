@@ -540,13 +540,17 @@ def _count(value):
 
 # ---------------------------------------------------------------- exercise markdown
 
-def _walk(blocks):
-    """Exercise blocks in render order: a box's exercises where the box is."""
+def _walk(blocks, steps=True):
+    """Exercise blocks in render order: a box's exercises where the box is, and -- with `steps`, as the page numbers
+    them -- a follow-up's steps after it, each an exercise of the page.  A deck's exercise is the follow-up as a whole:
+    its steps are not exercises of the deck's."""
     for b in blocks:
         if b["type"] == "exercise":
             yield b
+            if steps:
+                yield from _walk(b.get("steps") or [])
         elif b["type"] == "box":
-            yield from _walk(b["blocks"])
+            yield from _walk(b["blocks"], steps)
 
 
 def exercise_blocks(markdown):
@@ -586,7 +590,7 @@ def _examine(markdown, code):
     refusal gives, None when the markdown is a single sound exercise."""
     md = _normalise(markdown)
     _fm, blocks = mdparser.parse(_front(code) + md)
-    found = list(_walk(blocks))
+    found = list(_walk(blocks, steps=False))
     if not found:
         return md, None, [NOT_AN_EXERCISE], NOT_AN_EXERCISE
     block = found[0]
@@ -744,6 +748,10 @@ def _plain(text):
 def _excerpt(block):
     if block is None:
         return ""
+    if block["primitive"] == "chain" and block.get("steps"):
+        # a follow-up's own prompt, else its first step's words: what the list says it opens with
+        own = _plain(block["fields"].get("prompt"))
+        return own or _excerpt(block["steps"][0])
     fields = block["fields"]
     keys = (("front", "target", "front-primary", "front-secondary", "prompt")
             if block["primitive"] == "flashcard" else ("prompt", "text"))
@@ -784,6 +792,7 @@ def _item_summary(item, sched, code, mates=()):
             "link": item.get("link") if mates else None, "mates": list(mates),
             "label": htmlgen.EXERCISE_LABELS.get(subtype, subtype or "Exercise"),
             "excerpt": _excerpt(block), "markdown": item["markdown"],
+            "steps": len(block.get("steps") or []) if block else 0,
             "footnotes": item["footnotes"], "errors": errors,
             "tags": _clean_tags(item.get("tags")),
             "created": item["created"], "updated": item["updated"],
@@ -1731,7 +1740,7 @@ def _ordinal(value):
 
 
 def copy_from_doc(folder, slug, doc_id, ordinal, subtype, updated, force=False, now=None,
-                  library=None, source=None):
+                  library=None, source=None, ordinals=None):
     """Copy the `ordinal`-th exercise (1-based, render order) of a studio
     document into the deck, with the footnotes it refers to and the pictures
     and recordings they name.  A flashcard written `direction: both-repeat`
@@ -1740,6 +1749,9 @@ def copy_from_doc(folder, slug, doc_id, ordinal, subtype, updated, force=False, 
 
     KeyError (unknown document) propagates.  Conflict("stale") when the page
     the request came from no longer matches the document.
+
+    `ordinals`, a list (and `ordinal` None), makes ONE follow-up of those exercises of the page, each a step, in the
+    order given: the deck gets one exercise, with the files of every step (a0.5.4).
 
     `library`: the studio library the document is in, when it is not the
     studio's own -- the notes beside a book or a video; `source` is the URL
@@ -1750,13 +1762,15 @@ def copy_from_doc(folder, slug, doc_id, ordinal, subtype, updated, force=False, 
     _need_deck(d)                       # an unknown deck is a 404, not a stale page
     if source is not None and not _source_ok(source):
         raise DeckError("those notes are not on this shelf")
+    copy = (lambda: _copy(d, doc_id, ordinal, subtype, updated, force, now, source)) if ordinals is None else \
+           (lambda: _copy_chain(d, doc_id, ordinals, updated, force, now, source))
     if library is None:
-        return _copy(d, doc_id, ordinal, subtype, updated, force, now, source)
+        return copy()
     # store.use_library is per thread: the document and its pictures are
     # read from the notes, and this thread is given back its own library
     was = store.use_library(library)
     try:
-        return _copy(d, doc_id, ordinal, subtype, updated, force, now, source)
+        return copy()
     finally:
         store.use_library(was)
 
@@ -1827,6 +1841,54 @@ def _copy(d, doc_id, ordinal, subtype, updated, force, now, prefix):
         return {"item": made[0], "items": made, "warnings": warnings}
 
 
+def _copy_chain(d, doc_id, ordinals, updated, force, now, prefix):
+    """The exercises of a page numbered `ordinals`, made the steps of ONE follow-up in the deck, in the order given.
+    Everything a single exercise's copy does is done once, for the whole: its footnotes, its pictures and recordings
+    (named by any step), the duplicate check."""
+    meta, markdown = store.get(doc_id)
+    stale = "the document has changed since the page was loaded: reload it, then copy"
+    if updated and updated != meta.get("updated"):
+        raise Conflict(stale, "stale")
+    if (not isinstance(ordinals, list) or len(ordinals) < 2 or len(ordinals) > 100
+            or len(set(map(str, ordinals))) != len(ordinals)):
+        raise DeckError("a follow-up is made of at least two different exercises of the page")
+    fm, blocks = exercise_blocks(markdown)
+    chosen = []
+    for raw in ordinals:
+        n = _ordinal(raw)
+        if not 1 <= n <= len(blocks):
+            raise Conflict(stale, "stale")
+        block = blocks[n - 1]
+        if block["errors"]:
+            raise DeckError("exercise %d needs attention: %s" % (n, "; ".join(block["errors"])))
+        if block["primitive"] == "chain":
+            raise DeckError("exercise %d is a follow-up already: a follow-up cannot be a step of another" % n)
+        chosen.append(block)
+    with _lock(d):
+        deck = _need_deck(d)
+        L = _deck_language(d)
+        if fm["target"] != L.code:
+            raise DeckError('this exercise is in %s, but the deck "%s" is for %s'
+                            % (languages.get_or_default(fm["target"]).name, deck["name"], L.name))
+        composed = ":::exercise follow-up\n" + "\n".join(mdparser.nest_step(b["source"]) for b in chosen) + "\n:::"
+        notes = _footnotes_for(composed, fm.get("_footnotes") or {})
+        (source, notes), copies, warnings = _plan_media(d, (composed, notes), _from_doc(doc_id))
+        md, made_block, _e, problem = _examine(source, L.code)
+        if problem:
+            raise DeckError(problem)
+        notes = _clean_footnotes(notes, md)
+        faces = _faces(md, made_block, L.code)
+        if not force:
+            _refuse_duplicate(d, deck, *faces)
+        _make_copies(d, copies)
+        origin = {"doc_id": meta.get("id", doc_id), "doc_uid": meta.get("uid"), "title": meta.get("title", ""),
+                  "label": "Follow-up of %d exercises" % len(chosen)}
+        if prefix is not None:
+            origin["source"] = prefix
+        made = _insert_all(d, deck, faces, notes, origin, now, meta.get("tags"))
+        return {"item": made[0], "items": made, "warnings": warnings}
+
+
 # ---------------------------------------------------------------- studying
 
 def render_item(deck, item, asset_base, preview=False, docs=None, report=None,
@@ -1888,9 +1950,23 @@ def next_card(folder, slug, now=None, skip=None):
     return out
 
 
-def review(folder, slug, item_id, rating, result=None, now=None, reps=None, by=None):
+def _clean_steps(value):
+    """What a follow-up says of how its steps went, {"right": r, "of": n}, or None: the history row keeps it beside the
+    rating.  Nothing else is taken from a client, and a count that does not add up is not kept."""
+    if not isinstance(value, dict):
+        return None
+    right, of = value.get("right"), value.get("of")
+    if (isinstance(right, int) and isinstance(of, int) and not isinstance(right, bool) and not isinstance(of, bool)
+            and 0 <= right <= of <= 1000):
+        return {"right": right, "of": of}
+    return None
+
+
+def review(folder, slug, item_id, rating, result=None, now=None, reps=None, by=None, steps=None):
     """Schedule an answer: `rating` one of srs.RATINGS, `result` whether a
-    scored exercise was right (None for a flashcard).
+    scored exercise was right (None for a flashcard).  A follow-up (a chain
+    of steps) is one exercise to the scheduler: `result` is whether every
+    scored step was right and `steps` says how many of them were.
 
     `reps`, when given, is the exercise's reps as it was shown.  An answer to
     a state the exercise has since left -- answered in another tab, or sent
@@ -1917,10 +1993,12 @@ def review(folder, slug, item_id, rating, result=None, now=None, reps=None, by=N
             raise Conflict("this exercise was already answered — showing what comes next",
                            "reviewed")
         state = srs.answer(sched["state"], rating, now, _settings(meta), seed=item["id"])
-        history = sched["history"] + [{
-            "at": _stamp(now), "rating": rating, "result": result,
-            "before": _state_name(sched["state"]), "interval": state["interval"],
-            "ease": state["ease"], "due": state["due"]}]
+        row = {"at": _stamp(now), "rating": rating, "result": result,
+               "before": _state_name(sched["state"]), "interval": state["interval"],
+               "ease": state["ease"], "due": state["due"]}
+        if _clean_steps(steps):
+            row["steps"] = _clean_steps(steps)
+        history = sched["history"] + [row]
         sched = {"state": state, "history": history}
         _write_json(d / "schedule" / (item["id"] + ".json"), sched)
         return _item_summary(item, sched, _deck_language(d).code,
@@ -2070,7 +2148,7 @@ def answers_from(folder, slug, device_id, answers):
             continue
         rows.append({"item": str(a.get("item") or ""), "rating": str(a.get("rating") or ""),
                      "result": a.get("result") if isinstance(a.get("result"), bool) else None,
-                     "at": str(a.get("at") or "")})
+                     "steps": _clean_steps(a.get("steps")), "at": str(a.get("at") or "")})
     taken = rec.get("taken_back") and str(rec.get("refuse_id") or "") == device_id
     if taken:
         keep = (rec.get("refused") or []) + [dict(r, why="the deck was taken back on this "
@@ -2089,7 +2167,7 @@ def answers_from(folder, slug, device_id, answers):
     for r in rows:
         when = _moment(r["at"]) if r["at"] else None
         try:
-            review(folder, slug, r["item"], r["rating"], r["result"], now=when, by=device_id)
+            review(folder, slug, r["item"], r["rating"], r["result"], now=when, by=device_id, steps=r["steps"])
             applied += 1
         except DeckError as e:
             refused.append(dict(r, why=str(e)))
@@ -2374,12 +2452,15 @@ def _clean_history(raw):
         if not isinstance(h, dict) or h.get("rating") not in srs.RATINGS \
                 or _iso_or(h.get("at"), None) is None:
             continue
-        out.append({"at": h["at"], "rating": h["rating"],
-                    "result": h["result"] if isinstance(h.get("result"), bool) else None,
-                    "before": _state_name({"state": h.get("before")}),
-                    "interval": _count(h.get("interval")),
-                    "ease": _clean_ease(h.get("ease")),
-                    "due": _iso_or(h.get("due"), None)})
+        row = {"at": h["at"], "rating": h["rating"],
+               "result": h["result"] if isinstance(h.get("result"), bool) else None,
+               "before": _state_name({"state": h.get("before")}),
+               "interval": _count(h.get("interval")),
+               "ease": _clean_ease(h.get("ease")),
+               "due": _iso_or(h.get("due"), None)}
+        if _clean_steps(h.get("steps")):
+            row["steps"] = _clean_steps(h.get("steps"))
+        out.append(row)
     return out
 
 

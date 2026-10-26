@@ -195,8 +195,33 @@ EXERCISE_TYPES = {
     "incorrect-part": ("choice", "single"),
     "choose-all": ("choice", "multiple"),
     "odd-one-out": ("choice", "single"),
+    # the fourteenth (a0.5.4): a CHAIN, a run of exercises answered one after the other
+    "follow-up": ("chain", "steps"),
 }
 EXERCISE_OPEN_RE = re.compile(r"^:::exercise(?:\s+([a-z][a-z0-9-]*))?\s*$", re.I)
+
+# A STEP OF A FOLLOW-UP IS AN EXERCISE WRITTEN ONE FENCE DEEPER.  The dialect's one rule for a block inside a block, the
+# one `::::latex` inside an exercise already follows, is ONE COLON MORE THAN THE FENCE AROUND IT: a follow-up is
+# `:::exercise follow-up` … `:::`, its steps `::::exercise <type>` … `::::`, and inside a step every fence has one more
+# colon than it would at the top level (a drawing is `:::::latex` … `:::::`).  A step is read by writing it out one
+# colon shallower -- _denest -- and handing it to parse_exercise as the exercise it would be on its own: nothing in
+# what a step may hold is written twice, and its `source` is the exercise as it reads at the top level.
+STEP_OPEN_RE = re.compile(r"^::::exercise(?:\s+([a-z][a-z0-9-]*))?\s*$", re.I)
+STEP_CLOSE = "::::"
+_FENCE_LINE_RE = re.compile(r"^(\s*)(:{4,})(?=\s*$|[A-Za-z])")
+
+
+def nest_step(source):
+    """An exercise as it reads on its own -> the same as a step of a follow-up: one colon more on every fence line (the
+    opening and closing lines, and a drawing's).  What _denest undoes."""
+    return "\n".join(re.sub(r"^(\s*)(:{3,})(?=\s*$|[A-Za-z])", lambda m: m.group(1) + m.group(2) + ":", line, count=1)
+                     for line in str(source).replace("\r\n", "\n").split("\n"))
+
+
+def _denest(line):
+    """One colon off a line that is a fence of four colons or more (an opening or a closing line): a step's way into
+    the grammar of an exercise written on its own."""
+    return _FENCE_LINE_RE.sub(lambda m: m.group(1) + m.group(2)[1:], line, count=1)
 
 # A FORMULA ON ITS OWN, between `:::math` and `:::`, exactly as an exercise
 # sits between `:::exercise` and `:::`.  The body is LaTeX and nothing here
@@ -229,6 +254,35 @@ def _exercise_split_pair(text):
     return clean(text[:m.start()]), clean(text[m.end():])
 
 
+def _parse_step(lines, at, limit):
+    """The step of a follow-up whose opening line is `lines[at]` (four colons), which ends at or before `limit`, the line
+    of the follow-up's own closing `:::` -> (the step as the exercise it is, the index of the line after it).  A step
+    that is never closed does not swallow the follow-up's closing line: it says so, and ends before it."""
+    end, drawing = at + 1, False
+    while end < limit:
+        s = lines[end].strip()
+        if drawing:
+            drawing = s != ":::::"
+        elif re.match(r"^:::::latex\b", s, re.I):
+            drawing = True
+        elif s == STEP_CLOSE:
+            break
+        end += 1
+    closed = end < limit
+    last = end if closed else limit - 1
+    norm = list(lines)
+    for k in range(at, min(last, len(lines) - 1) + 1):
+        norm[k] = _denest(norm[k])
+    if not closed and last + 1 < len(norm):
+        # a closing line of its own for it to find, which is not the follow-up's
+        norm = norm[:last + 1] + [":::"] + norm[last + 1:]
+    block, nxt = parse_exercise(norm, at)
+    if not closed:
+        block["errors"].append("step is missing its closing :::: line")
+        return block, last + 1
+    return block, nxt
+
+
 def parse_exercise(lines, start):
     """Normalize one ``:::exercise`` body into a primitive-driven block."""
     opening = lines[start].strip()
@@ -253,6 +307,7 @@ def parse_exercise(lines, start):
         end += 1
 
     fields, raw_fields, rows, errors = {}, {}, [], []
+    steps = []                          # a follow-up's steps, each an exercise of its own (_parse_step)
     # the line each row is written on, and each item made of one: the page
     # numbers the words of an exercise in the order they are written, not
     # the order it draws them in (htmlgen._EX_ORDER), and the studio's
@@ -286,6 +341,14 @@ def parse_exercise(lines, start):
     i = 0
     while i < len(body):
         raw, s = body[i], body[i].strip()
+        if subtype == "follow-up" and STEP_OPEN_RE.match(s):
+            # a step: its lines are its own, through its closing `::::`
+            carry_on()
+            pending = None
+            step, upto = _parse_step(lines, start + 1 + i, end)
+            steps.append(step)
+            i = upto - (start + 1)
+            continue
         if pending is not None and latexthemes.FENCE_OPEN_RE.match(s):
             # a drawing in a field written without `|`: every line of it goes
             # to the field as it is, through its closing fence
@@ -368,6 +431,16 @@ def parse_exercise(lines, start):
     elif not primitive:
         errors.append("unknown exercise type: " + subtype)
     items = []
+    if primitive == "chain":
+        if rows:
+            errors.append("follow-up has no answer rows; write its steps")
+        if len(steps) < 2:
+            errors.append("follow-up needs at least two steps")
+        for n, step in enumerate(steps, 1):
+            if step["subtype"] == "follow-up":
+                errors.append("a follow-up cannot hold a follow-up")
+                continue
+            errors.extend("step %d: %s" % (n, e) for e in step["errors"])
     if primitive in ("choice", "placement") and mode != "boolean":
         for row, line in zip(rows, row_lines):
             mm = _EX_MARKED_RE.match(row)
@@ -484,14 +557,16 @@ def parse_exercise(lines, start):
             if fields.get(key) and not exercise_audio(fields[key]):
                 errors.append(AUDIO_FIELD_ERROR % key)
 
-    return ({"type": "exercise", "subtype": subtype,
+    block = {"type": "exercise", "subtype": subtype,
              "primitive": primitive, "mode": mode, "fields": fields,
              "raw_fields": raw_fields, "_field_lines": field_lines,
              "_row_lines": row_lines, "_item_lines": item_lines,
              "items": items, "errors": errors, "_line": start,
              "_end_line": min(end, len(lines) - 1),
-             "source": "\n".join(lines[start:min(end + 1, len(lines))])},
-            min(end + 1, len(lines)))
+             "source": "\n".join(lines[start:min(end + 1, len(lines))])}
+    if primitive == "chain":
+        block["steps"] = steps
+    return block, min(end + 1, len(lines))
 
 
 _DIRECTION_WORD_RE = re.compile(r"[a-z][a-z0-9-]*")
@@ -651,6 +726,9 @@ def card_spans(text):
         for b in blocks:
             if b["type"] == "box":      # its lines count from the box's first
                 walk(b["blocks"], base + b["_line"])
+                continue
+            if b["type"] == "exercise" and b.get("steps") and not b["errors"]:
+                walk(b["steps"], base)  # a follow-up's steps are exercises of their own
                 continue
             # a card with errors draws its error list, not its fields; like
             # every exercise that needs attention, it is left as it was

@@ -402,6 +402,38 @@ prompt: Three of these words are colours. Which one is not?
 explanation-correct: [أَحْمَر]{translit:aḥmar} red, [أَزْرَق]{translit:azraq} blue and [أَخْضَر]{translit:aḫḍar} green share the pattern *afʿal*; [كَبِير]{translit:kabīr} means big.
 :::
 
+### Follow-up questions
+
+A follow-up is a chain of exercises answered one after the other: check a step, read what it says, and the next one comes under it. A step is any exercise, written inside the chain with one colon more on its fences (`::::exercise …` and `::::`). The PDF prints every step at once, numbered, so write each one so that it does not give away the one before.
+
+:::exercise follow-up
+prompt: In a café a customer says: [صَبَاحُ الْخَيْرِ! أُرِيدُ قَهْوَةً وَخُبْزًا، مِنْ فَضْلِكَ.]{tl} Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then something to eat.
+::::exercise single-choice
+prompt: What does the customer want to drink?
+- [x] [قَهْوَة]{tl}
+- [ ] [خُبْز]{tl}
+- [ ] [كِتَاب]{tl}
+explanation-correct: [قَهْوَة]{translit:qahwa} is coffee; [خُبْز]{translit:khubz} is bread.
+::::
+::::exercise true-false
+prompt: Now decide.
+- [خُبْز]{tl} is something to eat. => true
+- [مِنْ فَضْلِكَ]{tl} means *thank you*. => false
+explanation-correct: [مِنْ فَضْلِكَ]{translit:min faḍlika} is *please*; *thank you* is [شُكْرًا]{translit:shukran}.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the words you have just read. Mind the case endings.
+content-direction: target
+text: أُرِيدُ [[drink]] وَ[[food]]، مِنْ فَضْلِكَ.
+- [drink] [قَهْوَةً]{tl}
+- [food] [خُبْزًا]{tl}
+- [ ] [قَهْوَةٌ]{tl}
+explanation-correct: The thing wanted is the object of [أُرِيدُ]{tl}, so it takes the accusative ending *-an*: [قَهْوَةً]{translit:qahwatan}, [خُبْزًا]{translit:khubzan}.
+::::
+:::
+
 ### Flashcards
 
 A flashcard turns over when you click it and is not scored. A vocabulary card, whose speaker button

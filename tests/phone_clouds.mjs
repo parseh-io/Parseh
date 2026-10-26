@@ -475,6 +475,7 @@ async function switchDict(page) {
   } else if (!(await page.$('.m-rmore')) && await page.$('button.pg-gear')) {
     await tap(page, 'button.pg-gear');
     await page.waitForFunction(() => ParsehGear.mounted().isOpen());
+    await gearOpen(page, 'looking');                     // the sheet draws one theme at a time: the row's own
     await page.locator('.pg-panel [data-pg-row="dict"] .pg-switch').first().scrollIntoViewIfNeeded();
     await tap(page, '.pg-panel [data-pg-row="dict"] .pg-switch');
     assert(await page.evaluate(() => document.querySelector('#dictmode').classList.contains('on')), 'the dictionary switched on, in the gear');

@@ -24,7 +24,8 @@
 //   f) Diacritics: a Persian and an Arabic video, and one with nothing to put away
 //   g) Aa opens the gear at Text, and again to put it away
 //   h) the keys survive a reload; the person's own (the skip, the colours) cross two browsers
-//   i) the phone: no ⋯, the first line, the sheet at half height, its rows, the Keep buttons
+//   i) the phone: no ⋯, the first line, the sheet at half height on its INDEX of themes (a0.5.4) with what each is set to,
+//      a theme's rows, Aa on Text (a second press shuts it), the Keep buttons only while their theme is on stage
 //   j) the phone held sideways and its whole screen: no gear, its own small Aa, the lines around
 //   k) nothing overflows, from 320 to 1280, with the panel up and shut; the three themes
 import {chromium} from 'npm:playwright-core@1.52.0';
@@ -259,25 +260,43 @@ const PANEL = '.pg-panel[data-pg-page="video"]';
 const GROUP = g => `${PANEL} [data-pg-group="${g}"]`;
 const ROW = (g, r) => `${GROUP(g)} [data-pg-row="${r}"]`;
 const gearUp = page => page.evaluate(() => ParsehGear.mounted().isOpen());
-async function openGear(page) {
+// the gear open and, where a group is named, THAT GROUP in view: on a phone's sheet its theme entered by a tap on its row of
+// the index (‹ first where another theme is up), on a popover nothing to do (it draws every group)
+async function openGear(page, group) {
   if (!(await gearUp(page))) await tap(page, 'button.pg-gear');
   await page.waitForFunction(() => ParsehGear.mounted().isOpen());
   await sleep(120);
+  if (group) await enterTheme(page, group);
+}
+async function enterTheme(page, g) {
+  const st = await page.evaluate(() => ParsehGear.mounted().stage());
+  if (st === null || st === g) return;
+  if (st !== 'index') {
+    await tap(page, PANEL + ' .pg-back');
+    await page.waitForFunction(() => ParsehGear.mounted().stage() === 'index');
+    await sleep(240);
+  }
+  await tap(page, PANEL + ` .pg-irow[data-pg-index="${g}"]`);
+  await page.waitForFunction(x => ParsehGear.mounted().stage() === x, g);
+  await sleep(240);
 }
 async function shutGear(page) {
   if (await gearUp(page)) await page.evaluate(() => ParsehGear.mounted().close());
   await sleep(80);
 }
-// the groups drawn, and the rows drawn in each: what a person sees, not what is in the DOM
-const drawnGroups = page => page.evaluate(sel => [...document.querySelectorAll(sel + ' [data-pg-group]')]
-  .filter(g => !g.hidden && g.getClientRects().length)
-  .map(g => [g.dataset.pgGroup, g.querySelector('.pg-gtitle').textContent,
-             [...g.querySelectorAll('[data-pg-row]')].filter(r => !r.hidden && r.getClientRects().length).map(r => r.dataset.pgRow)]),
-  PANEL);
+// the groups drawn, and the rows drawn in each: what the page's spec offers, not what is in the DOM.  On a phone's sheet one
+// theme is on stage and the others are not DRAWN (they are not hidden: the index lists them), so there it is `hidden`
+// that says whether a group or a row is offered
+const drawnGroups = page => page.evaluate(sel => {
+  const sheet = document.querySelector(sel).classList.contains('pg-sheet'), seen = e => !e.hidden && (sheet || e.getClientRects().length);
+  return [...document.querySelectorAll(sel + ' [data-pg-group]')].filter(seen)
+    .map(g => [g.dataset.pgGroup, g.querySelector('.pg-gtitle').textContent,
+               [...g.querySelectorAll('[data-pg-row]')].filter(seen).map(r => r.dataset.pgRow)]);
+}, PANEL);
 const switchOn = (page, g, r) => page.evaluate(s => document.querySelector(s + ' .pg-switch').getAttribute('aria-checked') === 'true', ROW(g, r));
 async function flip(page, g, r) {
   const sel = ROW(g, r) + ' .pg-switch';
-  await openGear(page);
+  await openGear(page, g);
   await page.locator(sel).scrollIntoViewIfNeeded();
   await tap(page, sel);
   await sleep(120);
@@ -626,6 +645,7 @@ async function partD() {
   await sleep(300);
   eq(await page.evaluate(() => [document.documentElement.getAttribute('data-mode'), !document.querySelector('.m-rmore')]), ['mobile', true], 'Mobile: the page is in the mobile layout, and has no ⋯');
   assert(await gearUp(page), 'and the panel stayed up while the page changed under it');
+  await openGear(page, 'interface');                    // it became the phone's sheet, on its index: the theme again
   await page.locator(ROW('interface', 'mode') + ' button', {hasText: 'Browser'}).click();
   await page.waitForFunction(() => document.documentElement.getAttribute('data-mode') === 'browser');
   await page.context().close();
@@ -962,6 +982,23 @@ async function partI() {
   const sheet = await page.evaluate(sel => { const p = document.querySelector(sel), r = p.getBoundingClientRect();
     return {sheet: p.classList.contains('pg-sheet'), top: Math.round(r.top), h: Math.round(r.height), bottom: Math.round(r.bottom), H: innerHeight, html: document.documentElement.classList.contains('pg-sheet')}; }, PANEL);
   assert(sheet.sheet && sheet.html && Math.abs(sheet.h - sheet.H * 0.55) <= 4 && sheet.bottom === sheet.H, 'a sheet from the foot, about half the screen high: ' + JSON.stringify(sheet));
+  // -- THE INDEX it opens on: a row for each theme, what each is set to under its name
+  eq(await page.evaluate(() => ParsehGear.mounted().stage()), 'index', 'it opens on the index of the themes');
+  const idx = await page.evaluate(sel => [...document.querySelectorAll(sel + ' .pg-irow')].filter(r => r.getClientRects().length).map(r =>
+    [r.dataset.pgIndex, r.querySelector('.pg-iname').textContent, r.querySelector('.pg-isum').textContent, Math.round(r.getBoundingClientRect().height)]), PANEL);
+  console.log('  index:', JSON.stringify(idx));
+  assert(idx.length >= 6 && idx.every(r => r[3] >= 48), 'a row for each theme, each a finger high: ' + JSON.stringify(idx.map(r => [r[0], r[3]])));
+  const fits = await page.evaluate(sel => { const b = document.querySelector(sel + ' .pg-body').getBoundingClientRect();
+    return [...document.querySelectorAll(sel + ' .pg-irow')].filter(r => r.getClientRects().length).every(r => { const q = r.getBoundingClientRect(); return q.top >= b.top - 0.5 && q.bottom <= b.bottom + 0.5; }); }, PANEL);
+  eq(fits, true, 'and every one of them is inside the half sheet at once, with no scrolling');
+  const said = Object.fromEntries(idx.map(r => [r[0], r[2]]));
+  assert(/^follows\b/.test(said.watching) && /video \d+ %$/.test(said.watching), 'Watching & reading says the switches that are on and the size of the video: "' + said.watching + '"');
+  assert(/^1×, skip \d+ s$/.test(said.playback), 'Playback says its speed and its skip: "' + said.playback + '"');
+  eq(said.looking.length > 0, true, 'Looking a word up says whether a dictionary is used: "' + said.looking + '"');
+  assert(/^English text \d+(\.\d+)? px$/.test(said.text), 'Text says its first slider\'s value: "' + said.text + '"');
+  eq(said.interface, 'Mobile pages', 'Interface says Mobile pages');
+  await shot(page, 'i-sheet-index');
+  await enterTheme(page, 'watching');
   await shot(page, 'i-sheet-watching');
   const groups = await drawnGroups(page);
   const zoom = await page.evaluate(() => !!window.ParsehZoom);
@@ -973,7 +1010,7 @@ async function partI() {
   eq(rows.text, ['fa', 'sub', 'gl', 'width', 'lead', 'reset'], 'Text gains the subtitles\' size');
   assert(rows.interface[0] === 'mode' && (kp ? rows.interface[1] === 'keep' : true), 'Interface holds the Browser | Mobile choice' + (kp ? ' and the Keep buttons' : ' (no Keep buttons on this page)') + ': ' + JSON.stringify(rows.interface));
   // every drawn row is a finger's, and the page above the sheet is the page
-  const small = await page.evaluate(sel => [...document.querySelectorAll(sel + ' [data-pg-row]')].filter(r => r.getClientRects().length && r.getBoundingClientRect().height < 48).map(r => r.dataset.pgRow), PANEL);
+  const small = await page.evaluate(sel => [...document.querySelectorAll(sel + ' [data-pg-group=watching] [data-pg-row]')].filter(r => r.getClientRects().length && r.getBoundingClientRect().height < 48).map(r => r.dataset.pgRow), PANEL);
   eq(small, [], 'no row is under 48px high');
   const above = await page.evaluate(sel => { const p = document.querySelector(sel).getBoundingClientRect().top; const v = document.querySelector('#playerwrap').getBoundingClientRect(); return [Math.round(v.bottom), Math.round(p)]; }, PANEL);
   assert(above[0] <= above[1] + 1, 'the video is above the sheet, not under it: ' + JSON.stringify(above));
@@ -1007,6 +1044,7 @@ async function partI() {
   await flip(page, 'looking', 'dict');
   eq(await st().then(s => [s.dict, s.defs, s.mt]), [[false, '0'], [false, '0'], [false, '0']], 'and back');
   // the skip, the speed (the dock's chip follows it), the sizes
+  await openGear(page, 'playback');
   await page.selectOption(ROW('playback', 'skip') + ' select', {label: '15 s'});
   await sleep(150);
   eq(await page.evaluate(() => [localStorage.getItem('bk_skip'), document.querySelector('.nc-skip[data-skip="1"]').textContent]), ['15', '15 ↻'], 'the skip: kept, and the dock\'s ↻ says it');
@@ -1027,23 +1065,34 @@ async function partI() {
   await page.evaluate(() => ParsehNarr.setRate(1));
   await shot(page, 'i-sheet-playback');
   // -- Text on the sheet, and Aa
-  await page.evaluate(sel => { document.querySelector(sel + ' [data-pg-group=text]').scrollIntoView(); }, PANEL);
+  await enterTheme(page, 'text');
   await shot(page, 'i-sheet-text');
   await tap(page, 'button.pg-gear');                       // shut
   await page.waitForFunction(() => !ParsehGear.mounted().isOpen());
   await tap(page, '#typo');
   await page.waitForFunction(() => ParsehGear.mounted().isOpen());
-  await sleep(250);
-  const aa = await page.evaluate(sel => { const b = document.querySelector(sel + ' .pg-body'), g = document.querySelector(sel + ' [data-pg-group=text]');
-    return [Math.round(g.getBoundingClientRect().top - b.getBoundingClientRect().top), !document.querySelector('.parseh-typo') || document.querySelector('.parseh-typo').hidden]; }, PANEL);
-  assert(aa[0] >= 0 && aa[0] <= 14 && aa[1], 'Aa on a phone opens the sheet at Text and not the old panel: ' + JSON.stringify(aa));
+  await sleep(300);
+  const aa = await page.evaluate(sel => [ParsehGear.mounted().stage(), document.querySelector(sel + ' .pg-title').textContent, !document.querySelector('.parseh-typo') || document.querySelector('.parseh-typo').hidden], PANEL);
+  eq(aa, ['text', 'Text', true], 'Aa on a phone opens the sheet at Text (the index underneath) and not the old panel');
   await shot(page, 'i-aa-text');
+  // a second press shuts it while Text is on stage; pressed on another theme it brings Text back
+  await tap(page, '#typo');
+  await page.waitForFunction(() => !ParsehGear.mounted().isOpen());
+  assert(true, 'a second press of Aa shuts the sheet while Text is on stage');
+  await tap(page, '#typo');
+  await page.waitForFunction(() => ParsehGear.mounted().isOpen());
+  await sleep(300);
+  await enterTheme(page, 'colours');
+  await tap(page, '#typo');
+  await sleep(300);
+  eq(await page.evaluate(() => [ParsehGear.mounted().isOpen(), ParsehGear.mounted().stage()]), [true, 'text'], 'pressed while another theme is on stage, Aa brings Text and does not shut the sheet');
   await page.evaluate(sel => { const i = document.querySelector(sel + ' input[type=range]'); i.value = '30'; i.dispatchEvent(new Event('input', {bubbles: true})); }, ROW('text', 'sub'));
   eq(await page.evaluate(() => JSON.parse(localStorage.getItem('yt_typo')).sub), 30, 'the subtitles\' size, kept in yt_typo');
   // -- the Keep buttons: in the sheet's last group while it is up, and where they were when it is not
   if (kp) {
-    await page.evaluate(sel => { document.querySelector(sel + ' [data-pg-group=interface]').scrollIntoView(); }, PANEL);
-    eq(await page.evaluate(sel => [!!document.querySelector(sel + ' [data-pg-row=keep] .kp-btn'), !!document.querySelector('header .kp-btn')], PANEL), [true, false], 'the Keep buttons stand in the last group while the sheet is up');
+    eq(await page.evaluate(sel => [!!document.querySelector(sel + ' [data-pg-row=keep] .kp-btn'), !!document.querySelector('header .kp-btn')], PANEL), [false, true], 'the Keep buttons stay on the page while another theme is on stage');
+    await enterTheme(page, 'interface');
+    eq(await page.evaluate(sel => [!!document.querySelector(sel + ' [data-pg-row=keep] .kp-btn'), !!document.querySelector('header .kp-btn')], PANEL), [true, false], 'the Keep buttons stand in the last group while its theme is on stage');
     await shot(page, 'i-sheet-interface');
     await page.evaluate(() => ParsehGear.mounted().close());
     eq(await page.evaluate(() => [!!document.querySelector('.pg-panel .kp-btn'), !!document.querySelector('header .kp-btn')]), [false, true], 'and are back on the page when it is shut');
@@ -1053,6 +1102,7 @@ async function partI() {
   await page.waitForFunction(() => ParsehGear.mounted().isOpen());
   eq(await page.evaluate(sel => [...document.querySelectorAll(sel + ' [data-pg-row=mode] button')].map(b => [b.textContent, b.getAttribute('aria-pressed')]), PANEL),
      [['Browser', 'false'], ['Mobile', 'true']], 'the Browser | Mobile choice, Mobile in force');
+  eq(await page.evaluate(sel => document.querySelector(sel + ' .pg-irow[data-pg-index=interface] .pg-isum').textContent, PANEL), 'Mobile pages', 'and the index says it');
   await page.context().close();
 }
 
@@ -1154,6 +1204,7 @@ async function partK() {
       await p.waitForFunction(() => ParsehGear.mounted().isOpen());
       // the colours are chosen where a person chooses them, in the panel: they follow the person, and the toolbox
       // has already been told of the last choice made in this run
+      await enterTheme(p, 'colours');
       await tap(p, ROW('colours', 'theme') + ' [role=radio]:has-text("' + theme[0].toUpperCase() + theme.slice(1) + '")');
       await p.waitForFunction(t => document.documentElement.getAttribute('data-theme') === t, theme);
       await sleep(300);

@@ -408,6 +408,38 @@ prompt: Which word does not belong with the others?
 explanation-correct: 桌子 (zhuōzi) is a table; the others are family: father, mother and elder sister.
 :::
 
+### Follow-up questions
+
+A follow-up is a chain of exercises answered one after the other: check a step, read what it says, and the next one comes under it. A step is any exercise, written inside the chain with one colon more on its fences (`::::exercise …` and `::::`). The PDF prints every step at once, numbered, so write each one so that it does not give away the one before.
+
+:::exercise follow-up
+prompt: At a teahouse a customer says: 你好！我要一杯茶和一个包子。 Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then something to eat.
+::::exercise single-choice
+prompt: What does the customer want to drink?
+- [x] 茶
+- [ ] 包子
+- [ ] 书
+explanation-correct: 茶 (chá) is tea; 包子 (bāozi) is a steamed bun.
+::::
+::::exercise true-false
+prompt: Now decide.
+- 包子 (bāozi) is something to eat. => true
+- 谢谢 (xièxie) means *please*. => false
+explanation-correct: 请 (qǐng) is *please*; 谢谢 (xièxie) is *thank you*.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the measure words you have just seen.
+content-direction: target
+text: 我要一[[cup]]茶和一[[piece]]包子。
+- [cup] 杯
+- [piece] 个
+- [ ] 本
+explanation-correct: 杯 (bēi) counts cups of a drink, and 个 (ge) is the general measure word.
+::::
+:::
+
 ### Flashcards
 
 Flashcards turn over when clicked and are never scored. The speaker button on the back of the first

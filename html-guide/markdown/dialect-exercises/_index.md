@@ -2,7 +2,7 @@
 title: Writing exercises
 linkTitle: Exercises in the dialect
 weight: 55
-description: The :::exercise block — all thirteen exercise types, how to write them, how they are checked, printed and put into a deck.
+description: The :::exercise block — all fourteen exercise types, how to write them, how they are checked, printed and put into a deck.
 ---
 
 A studio document can hold exercises: a sentence with blanks to fill,
@@ -32,7 +32,7 @@ explanation-correct: [casa]{tl} = *house*; [libro]{tl} is a book, [acqua]{tl} is
 :::
 ```
 
-## The thirteen types
+## The fourteen types
 
 The word after `:::exercise` names the type. The types come in four
 families, and the members of a family share their machinery — how their
@@ -40,7 +40,8 @@ rows are written, how they are answered and how they are checked — while
 the type says what the exercise is *for*. The table goes family by
 family: three [placement](placement.md) types, three
 [matching](matching.md), six [choice](choice.md), and the
-[flashcard](flashcards.md). Each type leads to its own section.
+[flashcard](flashcards.md); the [follow-up](follow-up.md) is a fifth kind
+of its own, a chain of the others. Each type leads to its own section.
 
 | Type | The learner… | Its label on the page |
 |---|---|---|
@@ -57,6 +58,7 @@ family: three [placement](placement.md) types, three
 | [`choose-all`](choice.md#choose-all) | picks every right answer | Choose all correct answers |
 | [`odd-one-out`](choice.md#odd-one-out) | picks the one that does not belong | Odd one out |
 | [`flashcard`](flashcards.md) | turns a card over | Flashcard |
+| [`follow-up`](follow-up.md) | answers a chain of exercises one after the other | Follow-up questions |
 
 The PDF heads each exercise with the same label, except three that it
 shortens: **Match definitions** for `match-definitions`, **Yes / No** for
@@ -65,16 +67,18 @@ shortens: **Match definitions** for `match-definitions`, **Yes / No** for
 Twelve are **scored**: **Check exercises** marks them right or wrong and
 counts them in the page's score. A flashcard is not: the learner turns it
 and judges for themselves, and a card comes in three kinds of its own
-(`card-type: vocab`, `opposites` and `jolly`).
+(`card-type: vocab`, `opposites` and `jolly`). A follow-up is not scored
+itself either; each of its steps is, one by one.
 
 ## Three ways to write one
 
 You never have to type the Markdown yourself, although you always may.
 
 1. **The form.** In the studio's editor, **Exercises ▾ → Add exercise…**
-   opens a grid of the activities — the thirteen types, with the flashcard
+   opens a grid of the activities — the fourteen types, with the flashcard
    as its three kinds: **Embedded vocabulary flashcard**, **Embedded
-   opposites flashcard** and **Embedded Jolly flashcard**. Choose one and a
+   opposites flashcard** and **Embedded Jolly flashcard**, and, last,
+   **Follow-up questions**. Choose one and a
    form opens with every field the type takes, a live **Preview** at its
    foot, and **Insert exercise**, which writes the block into the document
    at the cursor, on lines of its own. The form checks what the parser
@@ -97,7 +101,7 @@ You never have to type the Markdown yourself, although you always may.
    whole page, exercises added after the material they test; paste that
    into the editor in place of the old text, and look it over.
 
-![The editor's “Add an exercise” grid: fifteen activities, from Fill in blanks to Embedded Jolly flashcard, each with a line saying what it is, and Paste markdown… at the foot](shots/add-exercise.png){width=90 align=center}
+![The editor's “Add an exercise” grid: sixteen activities, from Fill in blanks to Follow-up questions, each with a line saying what it is, and Paste markdown… at the foot](shots/add-exercise.png){width=90 align=center}
 
 Every text box in the form has its own **⇤ RTL** / **⇥ LTR** button, which
 turns the box to write right to left or left to right; it changes only how
@@ -109,8 +113,8 @@ field you were last in.
 **+ New**, in the studio's library, starts a document from the starter page
 of the language the toolbox is set to, and each of the eleven starters has
 a section
-*Exercises* holding every type and all three kinds of card, written in
-that language — the quickest way to see how an exercise in Arabic, Hindi
+*Exercises* holding every type and all three kinds of card, and a follow-up,
+written in that language — the quickest way to see how an exercise in Arabic, Hindi
 or Japanese is written. Several of its exercises show the starters'
 pictures, an apple and a house, and four play a chime — one with its
 question, one once it is answered, and two cards: the same files this
@@ -128,7 +132,8 @@ Keep the exercises you need and delete the rest.
 - One page per family, every type on it with its syntax, a live example,
   how it is checked, what the PDF shows and how it goes into a deck:
   [placement](placement.md), [matching](matching.md), [choice](choice.md)
-  and [flashcards](flashcards.md).
+  and [flashcards](flashcards.md); and [follow-up questions](follow-up.md),
+  a chain of exercises answered one after the other.
 - [LaTeX drawings in the exercises](latex.md): a limit, a reaction or a
   molecule drawn by LaTeX in a prompt, in the blanks and options, and on a
   Jolly card.

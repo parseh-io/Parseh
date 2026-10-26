@@ -420,6 +420,39 @@ prompt: Which word is the odd one out?
 explanation-correct: 犬 *inu* dog, 猫 *neko* cat and 鳥 *tori* bird are animals; 机 *tsukue* is a desk.
 :::
 
+### Follow-up questions
+
+A follow-up is a chain of exercises answered one after the other: check a step, read what it says, and the next one comes under it. A step is any exercise, written inside the chain with one colon more on its fences (`::::exercise …` and `::::`). The PDF prints every step at once, numbered, so write each one so that it does not give away the one before.
+
+:::exercise follow-up
+prompt: At a counter a customer says: [お茶とおにぎりをください。]{kana:おちゃとおにぎりをください translit:ocha to onigiri o kudasai} Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then something to eat.
+::::exercise single-choice
+prompt: What does the customer ask for to drink?
+- [x] [お茶]{kana:おちゃ translit:ocha}
+- [ ] [おにぎり]{kana:おにぎり translit:onigiri}
+- [ ] [本]{kana:ほん translit:hon}
+explanation-correct: お茶 *ocha* is tea; おにぎり *onigiri* is a rice ball.
+::::
+::::exercise true-false
+prompt: Now decide.
+- おにぎり *onigiri* is something to eat. => true
+- ください *kudasai* means *thank you*. => false
+explanation-correct: ください is *please give me*; *thank you* is ありがとう *arigatō*.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the particles you have just seen.
+content-direction: target
+text: お茶[[and]]おにぎり[[obj]]ください。
+- [and] と
+- [obj] を
+- [ ] は
+- [ ] に
+explanation-correct: と joins the two things, *to*, and を marks what is asked for, *o*.
+::::
+:::
+
 ### Flashcards
 
 A flashcard turns over when it is clicked and is never scored. A vocabulary card, whose speaker

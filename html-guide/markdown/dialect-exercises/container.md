@@ -216,8 +216,9 @@ An exercise in a box has no **✎ Edit** in the editor's preview: it
 cannot be reopened in the form, and is edited in the Markdown. It has its
 **+ Deck** button on the reading view like any other.
 
-An exercise cannot sit inside another exercise, nor inside a Jolly card's
-field (the card says `back-primary cannot hold an exercise`).
+An exercise cannot sit inside another exercise — except as a **step of a
+[follow-up](follow-up.md)**, written one colon deeper — nor inside a Jolly
+card's field (the card says `back-primary cannot hold an exercise`).
 
 ## When something is wrong {#needs-attention}
 
@@ -249,7 +250,7 @@ What each message means, and what to do about it:
 |---|---|
 | `exercise is missing its closing ::: line` | no `:::` line after the exercise: it ran to the end of the document |
 | `exercise type is missing` | a bare `:::exercise` and no `type:` field |
-| `unknown exercise type: …` | the type is misspelt, or is not one of the thirteen |
+| `unknown exercise type: …` | the type is misspelt, or is not one of the fourteen |
 | `unrecognized line: …` | a line that is not a field, a row, a blank line or a comment |
 | `answer row needs [ ] or an explicit position before the answer` | a choice or placement row with no mark of its own before its text |
 | `pair row needs left => right` | a matching, yes/no or true/false row without `=>`, or with nothing on one side |
@@ -276,6 +277,11 @@ What each message means, and what to do about it:
 | `a flashcard's pictures are front-image and back-image, not image` | and the same for `image-answer` |
 | `a flashcard's recordings are front-audio and back-audio, not audio` | and the same for `audio-answer` |
 | `a flashcard has no answer rows: …` | a `-` line on a card: put a list inside a field instead |
+| `follow-up needs at least two steps` | a [follow-up](follow-up.md) with fewer than two `::::exercise` steps |
+| `follow-up has no answer rows; write its steps` | a `-` row on a follow-up itself: rows belong to a step |
+| `a follow-up cannot hold a follow-up` | a step whose type is `follow-up` |
+| `step 2: …` | the second step of a follow-up is wrong: what follows is what that exercise would say on its own |
+| `step is missing its closing :::: line` | a step of a follow-up never closed with `::::` |
 
 The last one is worth a word: on a card, a line starting with `-` would be
 an answer row on any other exercise, and a card has no answers. Rather than

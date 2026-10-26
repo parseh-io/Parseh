@@ -382,7 +382,10 @@ class TheRowsAreThePlans(unittest.TestCase):
     def test_aa_opens_the_gear_at_text_and_a_second_press_shuts_it(self):
         self.assertIn('gear.open("text")', self.js)
         # what the press found is read in the capture phase: the toolkit shuts a popover on the outside click first
-        self.assertRegex(self.js, r'document\.addEventListener\("click", e => \{\s*if \(e\.target\.closest && e\.target\.closest\("#btn-typo"\)\) \{ foundUp = gear\.isOpen\(\); foundAt = at; \}\s*\}, true\);')
+        self.assertRegex(self.js, r'document\.addEventListener\("click", e => \{\s*if \(e\.target\.closest && e\.target\.closest\("#btn-typo"\)\) \{')
+        # and, on the phone's sheet, "at Text" is the theme on stage (a0.5.4): the person may have gone to another
+        self.assertIn('foundUp = gear.isOpen();', self.js)
+        self.assertIn('foundAt = st !== null && st !== undefined ? (st === "text" ? "text" : "") : at;', self.js)
         self.assertIn('if (foundUp && foundAt === "text") { if (gear.isOpen()) gear.close(); return; }', self.js)
 
     def test_the_button_stands_in_the_bar_that_is_on_the_screen(self):
@@ -393,6 +396,22 @@ class TheRowsAreThePlans(unittest.TestCase):
         head = self.raw[:self.raw.index("(function () {")]
         for said in ("a document", "the editor", "Text (four rows)", "parseh:studio", "Aa", "Browser | Mobile switch"):
             self.assertIn(said, head, said)
+
+
+class TheSheetsIndexSaysWhatEachThemeIsSetTo(unittest.TestCase):
+    """a0.5.4: the summaries of the phone's list of themes."""
+
+    def setUp(self):
+        self.js = code(text(STATIC / "gear.js"))
+
+    def test_the_switches_have_short_names(self):
+        for short in ('short: "transliterations hidden"', 'short: "drag"', 'short: "bars hidden"', 'short: "right to left"',
+                      'short: "own tab"', 'short: "justified"'):
+            self.assertIn(short, self.js, short)
+
+    def test_the_text_theme_says_its_first_slider(self):
+        self.assertIn("const summary = () => `${nameOf()} text ${T.get().fa.toFixed(2)}×`;", self.js)
+        self.assertIn('return {id: "text", title: "Text", caption: SAVED, summary, rows};', self.js)
 
 
 class TheCssBetweenThePages(unittest.TestCase):

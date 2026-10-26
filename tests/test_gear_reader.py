@@ -239,6 +239,17 @@ class TheLayer(unittest.TestCase):
         self.assertNotIn(".remove()", self.CODE)
         self.assertNotIn("removeChild", self.CODE)
 
+    def test_it_says_what_each_theme_is_set_to_for_the_sheets_index(self):
+        # a0.5.4: the summaries the phone's sheet shows under each theme's name
+        for needle in ("var SHORT = {", "short: SHORT.gloss", "short: SHORT.hover", "short: SHORT.cont", "short: SHORT.loop",
+                       "short: SHORT.dictmode", "'no glosses'", "'cloud'", "'no diacritics'", "'no dictionary'",
+                       "'get one \\u2192'", "{bdi: it.name}", "' text ' + amount(f, x.get()[f.name])"):
+            self.assertIn(needle, self.CODE, needle)
+
+    def test_aa_is_at_text_when_text_is_the_theme_on_stage(self):
+        self.assertIn("var st = typeof gear.stage === 'function' ? gear.stage() : null;", self.CODE)
+        self.assertIn("return st === 'text';", self.CODE)
+
     def test_it_drives_the_readers_own_controls(self):
         for sel in ("'cont'", "'loop'", "'stopbnd'", "'listen'", "'hovermode'", "'hoverpause'", "'dictmode'", "'defmode'",
                     "'defmt'", "'bars'", "'barsback'", "'gap'", "'lookupset'", "[data-toggle=nogloss]", "[data-toggle=no"):

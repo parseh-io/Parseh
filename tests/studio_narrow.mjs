@@ -439,7 +439,8 @@ try {
       const reach = sel => page.evaluate(sel => {
         const out = {missed: [], shown: 0};
         for (const el of document.querySelectorAll(sel)) {
-          if (el.disabled || el.closest('[hidden], .menu') || !el.getClientRects().length) continue;
+          // (a control not drawn, or the sheet's pane that is not on stage -- visibility: hidden -- is not one to reach)
+          if (el.disabled || el.closest('[hidden], .menu') || !el.getClientRects().length || getComputedStyle(el).visibility === 'hidden') continue;
           out.shown++;
           el.scrollIntoView({block: 'nearest', inline: 'nearest'});
           const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;

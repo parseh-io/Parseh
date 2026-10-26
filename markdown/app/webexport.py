@@ -129,7 +129,7 @@ SOURCE_ATTRS = frozenset((
 # buttons that mend it on the computer: the page says it could not be drawn,
 # and nothing of the source travels
 DROP_CLASSES = frozenset(("video-edit", "audio-edit", "ex-edit", "ex-to-deck",
-                          "latex-code", "latex-log", "latex-fix"))
+                          "latex-code", "latex-log", "latex-fix", "latex-views"))
 
 MEDIA_SCHEME = "parseh-media:"
 

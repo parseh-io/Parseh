@@ -3271,6 +3271,10 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._not_found()
             with open(f, "rb") as fh:
                 data = fh.read()
+            if f.endswith((".tex", ".log")):
+                # the document a compile was given and the log it wrote: text, read on the page; a failed key can be
+                # compiled again (a limit changed), so its log is asked afresh
+                return self.send_bytes(data, "text/plain; charset=utf-8", 200, {"Cache-Control": "no-cache"})
             return self.send_bytes(data, "image/svg+xml" if f.endswith(".svg") else "application/pdf",
                                    200, {"Cache-Control": "max-age=31536000, immutable"})
         if path == "/__shutdown":

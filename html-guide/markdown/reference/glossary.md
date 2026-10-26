@@ -298,10 +298,11 @@ Ease, interval, lapse
   ease and sends the exercise back to relearning.
 
 Exercise
-: A `:::exercise` block in a document, one of thirteen kinds — filling
+: A `:::exercise` block in a document, one of fourteen kinds — filling
   blanks, putting sentences in order, building a sentence from chunks,
   three kinds of matching, yes-no, true-false, single choice, finding the
-  wrong part, choosing all that apply, the odd one out, and flashcards.
+  wrong part, choosing all that apply, the odd one out, flashcards, and the
+  follow-up, a chain of the others answered one after the other.
 
 New, learning, review
 : The states of an exercise in a deck: never studied; going through its

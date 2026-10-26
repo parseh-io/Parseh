@@ -40,6 +40,16 @@ the way to see a picture on a card properly — and turning the enlarged card
 (a click, Space or Enter) turns the card and counts as showing the answer;
 Escape closes it. The window closes by itself when the next exercise comes.
 
+**A follow-up** — a chain of exercises answered one after the other
+([Follow-up questions](../dialect-exercises/follow-up.md)) — comes **a step at a time**.
+The strip says *Step 1 of 3*, and the button in the bar at the foot is **Check
+step** (**Show answer** under a card); it says *Correct* or *Not quite*, the step's
+own explanation appears between it and the next, and **Next step** (or Enter)
+brings the next one in. The four ratings come **only after the last step**, the
+focus on **Again** if any scored step was wrong and on **Good** if none was; the
+deck keeps *how many steps were right* beside the rating, and rates the chain as
+one exercise. **Skip** in the middle sets the whole chain aside.
+
 **An exercise that needs attention** — one that no longer reads as an
 exercise — shows its errors and offers only **✎ Edit** and **Skip**.
 

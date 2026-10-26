@@ -1523,8 +1523,8 @@ def api_latex_preview(h):
         return h.send_json({"ok": False, "said": "Nothing to draw yet."})
     r = latexdraw.draw(tex, theme, preview=True)
     if r.get("ok"):
-        return h.send_json({"ok": True, "url": BASE + r["url"], "w": r["w"], "h": r["h"]})
-    return h.send_json({k: r.get(k) for k in ("ok", "kind", "said", "line", "detail", "fix")})
+        return h.send_json({"ok": True, "url": BASE + r["url"], "w": r["w"], "h": r["h"], "key": r.get("key")})
+    return h.send_json({k: r.get(k) for k in ("ok", "kind", "said", "line", "detail", "fix", "key", "marks")})
 
 
 def serve_latex(h, name):
@@ -1532,7 +1532,8 @@ def serve_latex(h, name):
     path = latexdraw.file_of(name)
     if path is None:
         return h.send_json({"error": "no such drawing"}, 404)
-    return h.send_file(Path(path))
+    # the document TeX was given and the log it wrote: plain text, shown on the page and never downloaded
+    return h.send_file(Path(path), inline_type="text/plain; charset=utf-8" if path.endswith((".tex", ".log")) else None)
 
 
 def api_arasaac_search(h):
@@ -2881,7 +2882,7 @@ ROUTES = [
     ("POST",   r"^/api/latex/preview$",                   api_latex_preview),
     # a latex block's drawing, by its key (lib/latexdraw.py): one address for
     # the whole toolbox, whichever page or note shows it
-    ("GET",    r"^/latex/([0-9a-f]{64}\.(?:svg|pdf))$",   serve_latex),
+    ("GET",    r"^/latex/([0-9a-f]{64}\.(?:svg|pdf|tex|log))$", serve_latex),
     ("GET",    r"^/media/([a-z0-9\-]+)/images/([A-Za-z0-9._\-]+)$", serve_media),
     ("GET",    r"^/api/docs/([a-z0-9\-]+)/images$",       api_images_list),
     ("POST",   r"^/api/docs/([a-z0-9\-]+)/images$",       api_image_upload),

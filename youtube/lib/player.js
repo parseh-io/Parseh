@@ -6826,16 +6826,16 @@
     var watching = {
       id: 'watching', title: 'Watching & reading', caption: DEVICE,
       rows: [
-        {id: 'follow', kind: 'switch', label: 'Keep the playing caption in view',
+        {id: 'follow', kind: 'switch', label: 'Keep the playing caption in view', short: 'follows',
          help: 'Scrolls the transcript so the caption being said stays on screen; it waits a moment after you scroll yourself.',
          get: function () { return opts.follow; },
          set: function (v) { press('#follow', v, function () { return opts.follow; }); },
          watch: watchPage},
-        {id: 'hoverpause', kind: 'switch', label: 'Pause while a gloss is open',
+        {id: 'hoverpause', kind: 'switch', label: 'Pause while a gloss is open', short: 'pauses',
          help: 'While a gloss is open the video waits, and goes on a moment after it closes, so you can read at your own pace. With a mouse or a finger.',
          get: function () { return opts.hoverpause; },
          set: function (v) { press('#hoverpause', v, function () { return opts.hoverpause; }); }},
-        {id: 'aloud', kind: 'switch', label: 'Show only the reading',
+        {id: 'aloud', kind: 'switch', label: 'Show only the reading', short: 'reading only',
          help: 'Draws each phrase as its reading alone (kana, or pinyin) and keeps the text in the hover cloud.',
          when: function () { return !!L.words; },
          get: function () { return opts.aloud; },
@@ -6847,7 +6847,7 @@
          when: function () { return videoHasMarks(); },
          get: function () { return opts.marks; },
          set: setMarks},
-        {id: 'sbs', kind: 'switch', label: 'Video beside the text',
+        {id: 'sbs', kind: 'switch', label: 'Video beside the text', short: 'beside the text',
          help: 'Puts the video in a column beside the transcript instead of above it. Only on wide screens ' +
                '(860 px and up); on a phone, turning it sideways does it.',
          when: function () { return CFG.kind !== 'audio'; },
@@ -6856,7 +6856,7 @@
          disabled: function () { return mobileNow() ? 'On a phone, turning it sideways does it.' : false; },
          get: function () { return mobileNow() ? sideOn() : opts.sbs; },
          set: function (v) { press('#sbs', v, function () { return opts.sbs; }); }},
-        {id: 'pin', kind: 'switch', label: 'Keep the video in view',
+        {id: 'pin', kind: 'switch', label: 'Keep the video in view', short: 'pinned',
          help: 'The video stays at the top while the transcript scrolls under it. Not needed when the video is beside the text.',
          disabled: function () { return sideOn() ? 'The video is beside the text, so it is always in view.' : false; },
          get: function () { return opts.pin; },
@@ -6878,7 +6878,7 @@
                                                               : Math.round(r.min + p / 100 * (r.max - r.min))) + ' px';
          },
          watch: function (cb) { return videoSize.onChange(cb); }},
-        {id: 'lines', kind: 'switch', layouts: 'mobile', label: 'Show the lines around',
+        {id: 'lines', kind: 'switch', layouts: 'mobile', label: 'Show the lines around', short: 'lines around',
          help: 'On the whole-screen video, shows the caption before above and the caption after below the one being said.',
          when: function () { return !!(window.ParsehMobilePlayer && ParsehMobilePlayer.lines); },
          get: function () { return ParsehMobilePlayer.lines.get(); },
@@ -6887,23 +6887,38 @@
       ]
     };
 
+    /* what the sheet's index says of it: the switches that are ON by their short names, "no diacritics" where they
+       are off, and the size the video has */
+    watching.summary = function () {
+      var out = [];
+      watching.rows.forEach(function (r) {
+        if (r.kind !== 'switch' || !r.short) return;
+        if (r.layouts === 'mobile' && !mobileNow()) return;
+        if (typeof r.when === 'function' && !r.when()) return;
+        if (r.get()) out.push(r.short);
+      });
+      if (videoHasMarks() && !opts.marks) out.push('no diacritics');
+      if (CFG.kind !== 'audio') out.push('video ' + Math.round(sizeShare()) + ' %');
+      return out.join(' \u00b7 ');
+    };
+
     /* ---- Looking a word up: the switches only where the page's own dictionary button is there ---- */
     var looking = {
       id: 'looking', title: 'Looking a word up', caption: DEVICE,
       rows: [
-        {id: 'dict', kind: 'switch', label: 'Look words up in a dictionary',
+        {id: 'dict', kind: 'switch', label: 'Look words up in a dictionary', short: 'dictionary',
          help: 'Where a phrase has not been glossed, its cloud looks its words up in the dictionary installed for this ' +
                'language. Remembered on this device.',
          when: function () { return !$('#dictmode').hidden; },
          get: function () { return opts.dict; },
          set: function (v) { press('#dictmode', v, function () { return opts.dict; }); }},
-        {id: 'defs', kind: 'switch', indent: 1, label: 'Show the dictionary’s definitions',
+        {id: 'defs', kind: 'switch', indent: 1, label: 'Show the dictionary’s definitions', short: 'definitions',
          help: function () { return 'Under each word it finds, the dictionary’s own definition in ' + (L.name || L.code) + '.'; },
          when: function () { return !$('#dictmode').hidden && !$('#defmode').hidden; },
          disabled: function () { return $('#defmode').disabled ? 'Turn on the dictionary above first.' : false; },
          get: function () { return opts.defs; },
          set: function (v) { press('#defmode', v, function () { return opts.defs; }); }},
-        {id: 'defsmt', kind: 'switch', indent: 2,
+        {id: 'defsmt', kind: 'switch', indent: 2, short: 'translated',
          label: function () { return 'Translate the definitions into ' + G.name; },
          help: function () {
            return 'Each definition is put into ' + G.name + ' by the translation model on this computer: ' +
@@ -6920,6 +6935,16 @@
          help: 'A dictionary, a corpus of translated sentences or a translation model can read a phrase nobody has ' +
                'glossed. Setting one up takes a couple of minutes.'}
       ]
+    };
+
+    // nothing installed ("get one"), installed and not used, or what it is used for
+    looking.summary = function () {
+      if ($('#dictmode').hidden) return 'get one \u2192';
+      if (!opts.dict) return 'no dictionary';
+      var out = ['dictionary'];
+      if (opts.defs && !$('#defmode').hidden) out.push('definitions');
+      if (opts.defs && opts.defsMt && !$('#defmt').hidden) out.push('translated');
+      return out.join(' \u00b7 ');
     };
 
     /* ---- Playback: the skip is the person's (bk_skip, which ↺ ↻ and Shift+← → use); the speed is the dock's ---- */
@@ -6956,6 +6981,14 @@
          def: 1, reset: function () { narr().setRate(1); }, resetLabel: 'Back to 1×',
          watch: function (cb) { return window.ParsehPlayer && ParsehPlayer.onChange ? ParsehPlayer.onChange(cb) : function () {}; }}
       ]
+    };
+
+    // "1×, skip 10 s" (the speed only where the page has a control of its own for it)
+    playback.summary = function () {
+      var out = [], sp = playback.rows[1];
+      if (mobileNow() && sp.when()) out.push(sp.format(sp.get()));
+      out.push('skip ' + playback.rows[0].get() + ' s');
+      return out.join(', ');
     };
 
     /* ---- Text: the Aa panel's own fields, each a slider with the words the owner chose ---- */
@@ -7001,6 +7034,10 @@
       if (t.layouts) row.layouts = t.layouts;
       text.rows.push(row);
     });
+    // the transcript's own words, as the first slider says them: "Japanese text 28 px"
+    text.summary = function () {
+      return typoApi ? (L.name || L.code) + ' text ' + TEXT.fa.show(typoApi.get().fa) : '';
+    };
     if (typoApi) text.rows.push({id: 'reset', kind: 'action', label: 'Put the text back to normal',
       help: 'Sets every size, the width and the spacing above back to the usual.',
       onClick: function () { typoApi.reset(); }});
@@ -7032,6 +7069,12 @@
       var b = document.querySelector('.pg-panel[data-pg-page="video"] .pg-body');
       return b ? b.scrollTop : 0;
     }
+    // Text is where the person is: the theme on stage on the phone's sheet, the popover's scroll elsewhere
+    function atText() {
+      var st = typeof gear.stage === 'function' ? gear.stage() : null;
+      if (st !== null && st !== undefined) return st === 'text';
+      return Math.abs(bodyScroll() - aaAt) < 3;
+    }
     function paintAa() {
       var on = gear.isOpen() && aaAt !== null;
       $('#typo').classList.toggle('on', on);
@@ -7041,7 +7084,7 @@
       var a = e.target && e.target.closest ? e.target.closest('#typo') : null;
       if (!a || !gear || Gear.mounted() !== gear) return;
       e.preventDefault(); e.stopImmediatePropagation();
-      if (gear.isOpen() && aaAt !== null && Math.abs(bodyScroll() - aaAt) < 3) { gear.close(); return; }
+      if (gear.isOpen() && aaAt !== null && atText()) { gear.close(); return; }
       if (gear.open('text')) aaAt = bodyScroll();
       paintAa();
     }, true);

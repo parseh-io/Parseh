@@ -301,6 +301,28 @@ class TheVideoSizeTests(unittest.TestCase):
         self.assertNotIn("Math.max(280,", self.js.replace("Math.max(VID_MIN,", ""))
 
 
+class TheSheetsIndexTests(unittest.TestCase):
+    """a0.5.4: what each theme says it is set to, on the phone's list of themes."""
+
+    def setUp(self):
+        self.src = flat(adapter(JS.read_text(encoding="utf-8")))
+        self.code = code(self.src)
+
+    def test_every_switch_worth_a_summary_has_a_short_name(self):
+        for short in ("short: 'follows'", "short: 'pauses'", "short: 'reading only'", "short: 'beside the text'", "short: 'pinned'",
+                      "short: 'lines around'", "short: 'dictionary'", "short: 'definitions'", "short: 'translated'"):
+            self.assertIn(short, self.code, short)
+
+    def test_the_themes_say_their_own_summaries(self):
+        for needle in ("watching.summary = function", "looking.summary = function", "playback.summary = function", "text.summary = function",
+                       "'video ' + Math.round(sizeShare()) + ' %'", "'no dictionary'", "'no diacritics'", "'skip ' + playback.rows[0].get() + ' s'"):
+            self.assertIn(needle, self.code, needle)
+
+    def test_aa_is_at_text_when_text_is_the_theme_on_stage(self):
+        self.assertIn("function atText()", self.code)
+        self.assertIn("return st === 'text';", self.code)
+
+
 class ThePhoneTests(unittest.TestCase):
 
     def setUp(self):

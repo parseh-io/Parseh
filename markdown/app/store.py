@@ -864,6 +864,9 @@ def _walk_blocks(blocks, base=0):
         yield b, base
         if b["type"] == "box":
             yield from _walk_blocks(b["blocks"], base + b["_line"])
+        elif b["type"] == "exercise" and b.get("steps"):
+            # a follow-up's steps are exercises of their own, on lines of the same document
+            yield from _walk_blocks(b["steps"], base)
 
 
 def _line_starts(src):
@@ -947,6 +950,9 @@ def _undrawn_lines(blocks):
         for key, (first, last) in (b.get("_field_lines") or {}).items():
             if key in keys:
                 shown.update(range(first, last + 1))
+        # the lines of a follow-up's steps are said by the steps (they are walked as exercises too)
+        for step in b.get("steps") or ():
+            shown.update(range(step["_line"], step.get("_end_line", step["_line"]) + 1))
         out.extend(base + k for k in range(b["_line"], b.get("_end_line", b["_line"]) + 1)
                    if k not in shown)
     return out

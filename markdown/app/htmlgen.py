@@ -918,6 +918,8 @@ def latex_pairs(blocks, target=None):
         elif b["type"] == "box":
             out += latex_pairs(b["blocks"], target)
         elif b["type"] == "exercise" and not b.get("errors"):
+            # a follow-up's steps are exercises of their own, their drawings too
+            out += latex_pairs(b.get("steps") or [], target)
             if b.get("primitive") == "flashcard" and (b["fields"].get("card-type") or "").lower() == "jolly":
                 for field in mdparser.card_fields(b, target)[0].values():
                     if field and field[0] == "blocks":
@@ -1017,6 +1019,17 @@ def _latex_frame(b, r, ctx):
                      % (esc(url), esc(fix["theme"]), esc(fix["theme"])))
     if links:
         out.append('<p class="latex-fix">%s</p>' % " ".join(links))
+    # THE .tex AND THE WHOLE LOG, on request (a0.5.4): of a compile that took place, as kept with it.  A button of the
+    # studio's own page (app.js opens them in a frame on top); never of an exported page (webexport drops the class)
+    key = r.get("key")
+    if key and LATEX.get("draw"):
+        base = URL_BASE + "/latex/" + str(key)
+        marks = ",".join(str(n) for n in (r.get("marks") or []) if isinstance(n, int))
+        out.append('<p class="latex-views">'
+                   '<button type="button" class="btn latex-view" data-latex-view="tex" data-latex-url="%s.tex">'
+                   'The .tex that was compiled</button> '
+                   '<button type="button" class="btn latex-view" data-latex-view="log" data-latex-url="%s.log" '
+                   'data-latex-marks="%s">The whole log</button></p>' % (esc(base), esc(base), esc(marks)))
     if r.get("detail"):
         out.append('<details class="latex-log"><summary>What LaTeX said</summary>'
                    '<pre dir="ltr">%s</pre></details>' % esc(r["detail"]))
@@ -1125,6 +1138,7 @@ EXERCISE_LABELS = {
     "incorrect-part": "Identify the incorrect part",
     "choose-all": "Choose all correct answers",
     "odd-one-out": "Odd one out",
+    "follow-up": "Follow-up questions",
 }
 
 
@@ -1673,6 +1687,40 @@ def _render_exercise_flashcard(b, preview, ctx, cards=None):
                "front and back shown in preview" if preview else "tap to reveal"))
 
 
+def _render_exercise_chain(b, preview, ctx):
+    """A FOLLOW-UP'S BODY (a0.5.4): the strip that says where the learner is, then every step drawn exactly as its type is
+    drawn anywhere else -- the same markup, so everything an exercise does on a page comes with it -- each with its own
+    bar (Check step or Show answer, its result, Next step).  app.js (bindChain) shows one step at a time and folds the
+    older ones; drawn here whole, a page with no script shows every step."""
+    steps = b["steps"]
+    n = len(steps)
+    dots = "".join('<li class="ex-dot" data-dot="%d">%d</li>' % (k, k) for k in range(1, n + 1))
+    out = ['<div class="ex-strip"><span class="ex-strip-say" role="status">Step 1 of %d</span>'
+           '<ol class="ex-dots" aria-hidden="true">%s</ol></div>' % (n, dots),
+           '<div class="ex-steps"><details class="ex-earlier" hidden><summary>Earlier steps '
+           '(<span class="ex-earlier-n">0</span>)</summary><div class="ex-earlier-body"></div></details>']
+    was_block, was_chain = _EX_ORDER["block"], ctx.get("in_chain")
+    ctx["in_chain"] = True
+    try:
+        for k, step in enumerate(steps, 1):
+            # the runs of a step are numbered with the chain's own, in the order they are written
+            _EX_ORDER["block"] = step
+            drawn = _draw_exercise(step, ctx)
+            card = step["primitive"] == "flashcard"
+            check = ('<button type="button" class="btn ex-step-show">Show answer</button>' if card else
+                     '<button type="button" class="btn ex-step-check">Check step</button>')
+            more = ('<button type="button" class="btn primary ex-step-next" hidden>Next step</button>'
+                    if k < n else "")
+            out.append('<div class="ex-step" data-step="%d" data-kind="%s" tabindex="-1">'
+                       '<p class="ex-step-no">Step %d of %d</p>%s'
+                       '<div class="ex-step-bar">%s<span class="ex-step-result" role="status"></span>%s</div></div>'
+                       % (k, "card" if card else "scored", k, n, drawn, check, more))
+    finally:
+        _EX_ORDER["block"], ctx["in_chain"] = was_block, was_chain
+    out.append('</div><p class="ex-chain-result" role="status" hidden></p>')
+    return "".join(out)
+
+
 def _card_note(b, ctx):
     """What a `both-repeat` card says beside its kicker: that a deck asks
     both sides.  Only where the studio draws it: not in a deck, which asks
@@ -1699,6 +1747,9 @@ def exercise_drawn(b):
     keys.add("explanation-correct" if f.get("explanation-correct") else "explanation")
     keys.add("explanation-incorrect")
     if b.get("errors"):
+        return keys, False
+    # a follow-up draws its own prompt and explanations; each step is an exercise that is walked on its own
+    if b.get("primitive") == "chain":
         return keys, False
     if b.get("primitive") == "placement" and b.get("mode") == "fill":
         keys.add("text")
@@ -1736,7 +1787,8 @@ def _draw_exercise(b, ctx):
     preview = bool(ctx.get("editor_preview"))
     ctx["exercise"] += 1
     number = ctx["exercise"]
-    scored = b["primitive"] != "flashcard" and not b["errors"]
+    # a follow-up is not itself answered: each of its steps is an exercise of the page
+    scored = b["primitive"] not in ("flashcard", "chain") and not b["errors"]
     if scored:
         ctx["scored"] += 1
     attrs = ('data-exercise="%d" data-subtype="%s" data-primitive="%s" '
@@ -1744,15 +1796,24 @@ def _draw_exercise(b, ctx):
              % (number, esc(b["subtype"]), esc(b["primitive"]), scored,
                 b.get("_end_line", b.get("_line", 0)),
                 ' data-editor-preview="1"' if preview else ""))
+    chain = b["primitive"] == "chain" and not b["errors"]
+    if chain:
+        attrs += ' data-steps="%d" data-step="1"' % len(b["steps"])
     label = EXERCISE_LABELS.get(b["subtype"], b["subtype"] or "Exercise")
+    # a step is edited from its follow-up's form, never on its own, and is not a deck's exercise either
+    in_chain = bool(ctx.get("in_chain"))
     edit = ('<button type="button" class="ex-edit" title="Edit this exercise">✎ Edit</button>'
-            if preview and not ctx.get("exercise_nested") else "")
+            if preview and not ctx.get("exercise_nested") and not in_chain else "")
     # a boxed exercise is copied too: decks.exercise_blocks numbers it in
     # the same render order as data-exercise, so its ordinal finds it.
     # One with errors gets none: a deck always refuses it
     to_deck = ('<button type="button" class="ex-to-deck" '
                'title="Copy this exercise into an exercise deck">+ Deck</button>'
-               if ctx.get("deck_button") and not preview and not b["errors"] else "")
+               if ctx.get("deck_button") and not preview and not b["errors"] and not in_chain else "")
+    # the author's look at the whole chain, in the editor's preview and a solved view: every step unfolded, nothing checked
+    show_all = ('<button type="button" class="ex-showall" aria-pressed="false" '
+                'title="Unfold every step, to look the chain over">Show every step</button>'
+                if chain and preview and not in_chain else "")
     # A FLASHCARD OPENS LARGE, over the page (app.js openCardZoom): a card
     # is a column wide and its picture is shrunk to fit it, which is what
     # makes a picture card hard to see.  Wherever a card is drawn -- a
@@ -1778,8 +1839,8 @@ def _draw_exercise(b, ctx):
     drag = ('<button type="button" class="ex-drag-switch" hidden></button>'
             if b["primitive"] == "placement" and b["mode"] == "order"
             and not preview and not b["errors"] else "")
-    head = '<div class="ex-head"><span class="ex-kicker">%s</span>%s%s%s%s%s%s</div>' % (
-        esc(label), _card_note(b, ctx), drag, translit, zoom, edit, to_deck)
+    head = '<div class="ex-head"><span class="ex-kicker">%s</span>%s%s%s%s%s%s%s</div>' % (
+        esc(label), _card_note(b, ctx), drag, translit, zoom, show_all, edit, to_deck)
     cards = None
     if b["primitive"] == "flashcard" and (b["fields"].get("card-type") or "").lower() == "jolly":
         # every note written on the card is known before anything on it (or
@@ -1810,9 +1871,11 @@ def _draw_exercise(b, ctx):
         body = _render_exercise_placement(b, preview, ctx)
     elif b["primitive"] == "matching":
         body = _render_exercise_matching(b, preview, ctx)
+    elif b["primitive"] == "chain":
+        body = _render_exercise_chain(b, preview, ctx)
     else:
         body = _render_exercise_flashcard(b, preview, ctx, cards)
-    cls = "exercise" + (" correct" if preview and scored else "")
+    cls = "exercise" + (" correct" if preview and scored else "") + (" ex-chain" if chain else "")
     # the question's picture and recording between the prompt and the body;
     # the answer's above the explanations, and shown with them (app.js
     # judge(), which the study page drives too) once the exercise has been

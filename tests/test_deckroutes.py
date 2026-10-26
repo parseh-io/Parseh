@@ -439,6 +439,34 @@ class StudyRouteTests(Base):
         self.refused(call("POST", self.base + "/review",
                           {"item": "0123456789ab", "rating": "good"}), 404)
 
+    def test_a_follow_ups_review_carries_how_many_steps_were_right(self):
+        # (a0.5.4) the scheduler sees one exercise; the history row keeps {right, of}
+        chain = self.ok(call("POST", self.base + "/items", {"markdown": (
+            ":::exercise follow-up\n::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n"
+            "::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n:::")}), 201)["item"]
+        self.assertEqual(("follow-up", 2), (chain["subtype"], chain["steps"]))
+        self.ok(call("POST", self.base + "/review", {"item": chain["id"], "rating": "again", "result": False,
+                                                    "steps": {"right": 1, "of": 2}}))
+        sched = decks.deck_dir("persian", "greetings") / "schedule" / (chain["id"] + ".json")
+        row = json.loads(sched.read_text(encoding="utf-8"))["history"][0]
+        self.assertEqual(("again", False, {"right": 1, "of": 2}), (row["rating"], row["result"], row["steps"]))
+        # a count that does not add up is not kept
+        self.ok(call("POST", self.base + "/review", {"item": chain["id"], "rating": "again", "result": False,
+                                                    "steps": {"right": 9, "of": 2}}))
+        rows = json.loads(sched.read_text(encoding="utf-8"))["history"]
+        self.assertEqual([True, False], ["steps" in r for r in rows])
+
+    def test_a_page_copied_as_one_follow_up_asks_for_its_ordinals_and_the_type(self):
+        meta = store.create("---\ntitle: Two\ntarget: fa\n---\n\n:::exercise true-false\n- a => true\n:::\n\n"
+                            ":::exercise yes-no\n- b => yes\n:::\n")
+        out = self.ok(call("POST", self.base + "/copy", {"doc_id": meta["id"], "ordinals": [1, 2], "subtype": "follow-up",
+                                                         "updated": meta["updated"]}), 201)
+        self.assertEqual(("follow-up", 2), (out["item"]["subtype"], out["item"]["steps"]))
+        # ordinals go with the type follow-up, and are a list
+        self.refused(call("POST", self.base + "/copy", {"doc_id": meta["id"], "ordinals": [1, 2], "subtype": "yes-no"}), 400)
+        self.refused(call("POST", self.base + "/copy", {"doc_id": meta["id"], "ordinals": "1,2", "subtype": "follow-up"}), 400)
+        self.refused(call("POST", self.base + "/copy", {"doc_id": meta["id"], "ordinals": [1], "subtype": "follow-up"}), 400)
+
     def test_an_answer_to_a_state_already_left_is_refused(self):
         # a second tab, or a retry after a lost reply, answers with the reps
         # the page showed: scheduled again, a review's interval would be

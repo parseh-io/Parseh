@@ -104,6 +104,16 @@ come back as if they had never been studied — new, with no reviews and no
 lapses, in their place among the new exercises (the order they were first
 added in). Use it to start a chapter over after a long break.
 
+### Make a follow-up chain of these…
+
+**Make a follow-up chain of these…** takes the selected exercises, in the order
+of the list, as the steps of a new [follow-up](../dialect-exercises/follow-up.md)
+and opens its form with them already in. A box under the steps — not ticked —
+offers to take the originals out of the deck once the chain is saved (their study
+history goes with them). It needs two exercises, and one that needs attention,
+one that is a follow-up and one that is a side of a linked pair cannot be a step:
+the button says which, and nothing opens.
+
 ### Delete
 
 **Delete** asks *Delete 3 exercises?* — *Their scheduling will be deleted

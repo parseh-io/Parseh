@@ -252,7 +252,8 @@ book **↺ ▶ ↻** — the narration back ten seconds, play, on ten seconds, o
 as many as **Skip distance** in the panel says — on a line of their own
 upright and on the same line held sideways. The **⚙** opens the page's panel as a
 sheet from the foot of the screen, with everything the header does not keep in
-reach. While **listen** is on, a second
+reach: a list of themes first, each saying what it is set to, and one theme
+at a time ([The ⚙ settings of a page](../getting-started/page-settings.md#on-a-phone-the-list-of-themes-then-one-theme)). While **listen** is on, a second
 line holds **highlight**, **keep in view**, the position and the seek bar. And
 nothing on it writes the book: no book info, no
 builds, no narration panel, no folding, no timings, no pencil, no cards.

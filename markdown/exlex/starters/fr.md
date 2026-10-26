@@ -360,6 +360,38 @@ prompt: Which one is not a fruit?
 - [ ] [la cerise]{tl}
 :::
 
+### Follow-up questions
+
+A follow-up is a chain of exercises answered one after the other: check a step, read what it says, and the next one comes under it. A step is any exercise, written inside the chain with one colon more on its fences (`::::exercise …` and `::::`). The PDF prints every step at once, numbered, so write each one so that it does not give away the one before.
+
+:::exercise follow-up
+prompt: At the bakery a customer says: [Bonjour ! Je voudrais un café et une baguette, s'il vous plaît.]{tl} Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then some bread.
+::::exercise single-choice
+prompt: What does the customer want to drink?
+- [x] [un café]{tl}
+- [ ] [une baguette]{tl}
+- [ ] [un journal]{tl}
+explanation-correct: [Un café]{tl}, *a coffee*; the bread is [une baguette]{tl}.
+::::
+::::exercise true-false
+prompt: Now decide.
+- [Une baguette]{tl} is a kind of bread, and [baguette]{tl} is a feminine noun. => true
+- [S'il vous plaît]{tl} means *thank you*. => false
+explanation-correct: [S'il vous plaît]{tl} is *please*; *thank you* is [merci]{tl}.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the words you have just read.
+content-direction: target
+text: [Bonjour ! Je voudrais [[drink]] et [[bread]], s'il vous plaît.]{tl}
+- [drink] [un café]{tl}
+- [bread] [une baguette]{tl}
+- [ ] [un baguette]{tl}
+explanation-correct: [Un café]{tl} is masculine and [une baguette]{tl} feminine.
+::::
+:::
+
 ### Flashcards
 
 A flashcard turns over when you click it. A vocabulary card has the word on the front and its

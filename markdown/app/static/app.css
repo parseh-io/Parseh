@@ -706,6 +706,18 @@ body[data-live="1"] #btn-stop { display: none; }
   padding: .7rem; font: 12.5px/1.5 ui-monospace, Menlo, monospace;
 }
 .modal .row { justify-content: flex-end; margin: 0; }
+/* the .tex that was compiled and the whole log, in a frame on top (app.js, openLatexView) */
+.latex-view-modal { width: min(900px, 96vw); }
+.latex-view-pre {
+  margin: 0; min-height: 8rem; max-height: 60vh; overflow: auto; position: relative;
+  border: 1px solid var(--chrome-line); border-radius: 8px; background: var(--chrome-bg); color: var(--chrome-fg);
+  padding: .6rem .7rem; font: 12.5px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.latex-view-pre .latex-view-ln { display: block; min-height: 1.45em; }
+.latex-view-pre .latex-view-ln.mark {
+  background: color-mix(in srgb, #c33 18%, transparent); border-inline-start: 3px solid #c33;
+  padding-inline-start: 5px; margin-inline-start: -8px;
+}
 .modal-fields { display: flex; flex-direction: column; gap: .5rem; }
 .modal-field {
   display: flex; flex-direction: column; gap: .25rem;
@@ -758,6 +770,7 @@ body[data-live="1"] #btn-stop { display: none; }
   display: block; width: 100%; height: auto; max-width: calc(var(--lx-w, 100000) * 12px); max-height: 100%;
   object-fit: contain;
 }
+.lx-preview-views { width: 100%; margin: .5rem 0 0; display: flex; gap: .5rem; flex-wrap: wrap; }
 .lx-preview-detail { width: 100%; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.45 ui-monospace, Menlo, monospace; }
 .lx-editor-pane {
   grid-area: editor; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: .85rem;
@@ -1529,3 +1542,6 @@ html.pg-sheet .kp-bar{display:none}
 /* a failed build's log, shown under the buildinfo line (2.5) */
 .buildinfo .fails pre{margin:0;white-space:pre-wrap;
   font-family:ui-monospace,Menlo,monospace;font-size:.78rem}
+
+/* a follow-up studied or crammed: its steps' own bars are the page's answer bar's (decks.js syncChain, cramChain) */
+#study-stage .ex-step-bar, #cram-stage .ex-step-bar { display: none; }

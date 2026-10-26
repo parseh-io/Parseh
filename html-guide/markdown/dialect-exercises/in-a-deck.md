@@ -86,6 +86,7 @@ answered the way it is on a page:
 | [placement](placement.md), [matching](matching.md) | the blocks, dragged, tapped, chosen from a blank's cloud or moved with their arrows | **Check** or Enter: *Correct* or *Not quite*, the explanations, and — when it was wrong — **Correct answer**, the exercise shown solved underneath |
 | [choice](choice.md) | the answer buttons | **Check** or Enter: *Correct* or *Not quite*, the explanations; the answers are marked as on a page, the one it wanted included |
 | [flashcards](flashcards.md) | nothing | **Show answer**, Enter, or a click on the card — or on the enlarged card of **⤢ Enlarge** |
+| [follow-up](follow-up.md) | the steps, one after the other | **Check step**, then **Next step**; the ratings come after the last step only |
 
 After the check or the turn, a bar of four ratings appears — **Again**,
 **Hard**, **Good**, **Easy**, or the keys 1 to 4 — each saying how long the

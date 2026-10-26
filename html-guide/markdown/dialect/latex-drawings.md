@@ -162,6 +162,38 @@ called …** for a theme that is not here. In the PDF and in an export the frame
 stands where the drawing would, and the PDF's badge says how many could
 not be made.
 
+**To see what LaTeX was given, and what it said.** A frame of a block that went
+to LaTeX has two more buttons. **The .tex that was compiled** opens, in a frame
+on top of the page, the exact document LaTeX read — the theme's preamble, then
+your block, as the computer wrote it for the compile and not built again to
+show you. **The whole log** opens everything LaTeX wrote while it worked, with
+the lines the sentence above was made from marked in red and the view scrolled
+to the first. Each has its own **Copy**, and **Esc** closes it. They are kept
+with the drawing for as long as it is, and a failure is kept as long as it
+would be drawn the same way; in an export they are not there. In
+**Settings → LaTeX drawings**, **Draw the sample** shows both under the picture
+(or under the sentence, when it does not draw), above **The whole preamble**,
+so that a theme that does not work can be read to the end.
+
+**"LaTeX stopped without saying why"** used to be what a drawing said when
+LaTeX's own message came from a *package* rather than from your block —
+LaTeX writes such a message with the package's file name in front of it, where
+Parseh looked for the block's. It now reads a message from any file, and says
+which file asked: *The font "SkakNew-Diagram" is not on this computer in
+skak.sty. It comes with the TeX Live package skaknew.* A compile that ends
+*No pages of output* with no error in it is said as *LaTeX made no page*, and the
+likeliest cause. The log, which Parseh keeps up to 512 KB of, also holds what the
+programs LaTeX starts for a missing font print (kpathsea, mktextfm), which the
+compiler's own log leaves out.
+
+**A package that needs others TeX Live does not name.** A package may lean on
+fonts and packages its own TeX Live entry does not list, so that getting it
+alone leaves a drawing failing on the next missing file, one at a time. The
+catalogue has one row for such a set — **xskak**, with the chess fonts and the
+other packages it loads, among its **Games** — so that a theme that loads it
+(ticked, or by name in its preamble, `skak` and `chessboard` too) asks for all
+of them in one **Get**. For any other package, each missing file is said with
+the **Get** that would bring it.
 ## Themes {#themes}
 
 **Settings → LaTeX drawings** holds the themes, as many as you like, each
@@ -176,14 +208,18 @@ with a name of one word:
   `slashed`, `relsize`, `amsthm`), drawings and plots (`tikz`, `tikz-cd`,
   `bayesnet`, `pgfplots`, `circuitikz`), chemistry (`mhchem`, `chemfig`),
   code (`listings`, `algorithm2e`), linguistics (`forest`,
-  `tikz-dependency`), phonetics (`tipa`) and scripts and annotation
-  (`xpinyin`, pinyin over Chinese characters).
+  `tikz-dependency`), phonetics (`tipa`), scripts and annotation
+  (`xpinyin`, pinyin over Chinese characters) and games (`xskak`, chess boards
+  and games with their fonts).
 - **Text in the languages Parseh teaches**: each language's face, as
   `\textfa{…}`, `\textja{…}`, `\texthi{…}` and so on, right to left
   where it is written so.
 - **A font** of this computer's for the drawing.
 - **A preamble of its own**, after the packages.
 - **The compiler**: xelatex (a new theme's), pdflatex or lualatex.
+- **A sample**, drawn with the theme as it stands in the editor: **Draw the
+  sample** shows the picture, and **The .tex that was compiled** and **The whole
+  log** under it, as [above](#when-it-cannot-be-drawn).
 
 A fresh Parseh has three: **default**, which a block naming no theme is
 drawn with, **chemistry** and **drawing**. **Make it the default** gives

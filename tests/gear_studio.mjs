@@ -28,7 +28,8 @@ import {chromium} from 'npm:playwright-core@1.52.0';
 //             value in another browser -- <html> and <body> and the sheet, the phone's ◐ page included
 //  interface) the Browser | Mobile switch in the gear: the layout changes at once, the gear moves to the other bar
 //  phone)     the phone's bar is ONE row at 320…430 with every target 48px, ◐ and ⚙ after the way up, no switch in it
-//             (the library's and the decks' list's still have one); study and cram: the gear in the title row
+//             (the library's and the decks' list's still have one); study and cram: the gear in the title row; the sheet
+//             opens on the index of the page's themes with what each is set to (a0.5.4), a theme's rows 48px
 //  widths)    nothing overflows sideways, 320 to 1280, on any of the five pages, in either layout
 //  zoom)      with a ParsehZoom (lane Z's module is not in this tree: a stub) the Zoom group stands where the plan says
 //  alone)     the studio run alone (no toolbox): the two files of the gear are answered for, the page works, and does
@@ -193,6 +194,8 @@ async function openGear(page, group) {
   await until(() => page.evaluate(() => ParsehGear.mounted().isOpen() && !document.querySelector('.pg-panel').hidden), 'the gear is up');
   if (group) await page.evaluate(g => ParsehGear.mounted().open(g), group);
   await sleep(120);
+  // on a phone's sheet the theme slides in from the right (0.16 s): let it come to rest before anything is read or tapped
+  if (group && await page.evaluate(() => document.querySelector('.pg-panel').classList.contains('pg-sheet'))) await sleep(200);
 }
 /* the element scrolled to the middle of the strip of the page a phone's sheet leaves (under its bars, above the sheet) */
 const place = async (page, sel, y = 240) => {
@@ -742,6 +745,7 @@ try {
       assert(await page.evaluate(() => document.querySelector('.topbar').getClientRects().length === 0), `${kind}: the browser bar is gone`);
       assert(await page.evaluate(() => ParsehGear.mounted().isOpen()), `${kind}: the panel stayed up through the change`);
       eq(await pressed(), ['Browser:false', 'Mobile:true'], `${kind}: and says Mobile`);
+      await openGear(page, 'interface');                 // the popover became the phone's sheet, on its index
       await tapOrClick(page, row(page, 'interface', 'mode').locator('.pg-chip', {hasText: 'Browser'}));
       await sleep(300);
       eq(await page.evaluate(() => [document.documentElement.getAttribute('data-mode'), localStorage.getItem('parseh_mode'), document.querySelector('[data-parseh-gear]').parentElement.className]),
@@ -814,6 +818,30 @@ try {
       }
       await ctx.close();
     }
+    // THE INDEX of each page that has a phone layout: the themes it offers, each with what it is set to
+    const ictx = await context(PHONE, {theme: 'light', mode: 'mobile'});
+    const THEMES = {doc: ['text', 'exercises', 'page', 'zoom', 'colours', 'interface'], deck: ['text', 'exercises', 'zoom', 'colours', 'interface'],
+                    study: ['text', 'exercises', 'zoom', 'colours', 'interface'], cram: ['text', 'exercises', 'zoom', 'colours', 'interface']};
+    for (const kind of ['doc', 'deck', 'study', 'cram']) {
+      const page = await open(ictx, kind);
+      await tapOrClick(page, gearButton(page));
+      await until(() => page.evaluate(() => !document.querySelector('.pg-panel').hidden), `the sheet on ${kind}`);
+      await sleep(400);
+      const idx = await page.evaluate(() => [...document.querySelectorAll('.pg-panel .pg-irow')].filter(r => r.getClientRects().length).map(r =>
+        [r.dataset.pgIndex, r.querySelector('.pg-iname').textContent, r.querySelector('.pg-isum').textContent, Math.round(r.getBoundingClientRect().height)]));
+      console.log(`  ${kind} index:`, JSON.stringify(idx));
+      eq(idx.map(r => r[0]), THEMES[kind], `${kind}: the index lists the page's themes, in order`);
+      assert(idx.every(r => r[3] >= 48), `${kind}: each row a finger high`);
+      const fits = await page.evaluate(() => { const b = document.querySelector('.pg-panel .pg-body').getBoundingClientRect();
+        return [...document.querySelectorAll('.pg-panel .pg-irow')].filter(r => r.getClientRects().length).every(r => { const q = r.getBoundingClientRect(); return q.top >= b.top - 0.5 && q.bottom <= b.bottom + 0.5; }); });
+      eq(fits, true, `${kind}: and all of them are in the half sheet with no scrolling`);
+      const said = Object.fromEntries(idx.map(r => [r[0], r[2]]));
+      assert(/^\S+( \S+)* text \d\.\d\d×$/.test(said.text), `${kind}: Text says the first slider's value: "${said.text}"`);
+      eq([said.zoom, said.colours, said.interface], ['100 %', 'Light', 'Mobile pages'], `${kind}: Zoom, Colours and Interface`);
+      await shot(page, `phone-index-${kind}`);
+      await page.close();
+    }
+    await ictx.close();
     // the sheet, on the phone document page: half the screen, the text visible above it, and a tap on a row changes the page
     const ctx = await context(PHONE, {theme: 'light', mode: 'mobile'});
     const doc = await open(ctx, 'doc');
@@ -824,8 +852,8 @@ try {
     assert(sh.sheet && sh.bottom === 844 && sh.h >= 400 && sh.h <= 520, `the gear on a phone is one sheet from the foot, about half the screen (${JSON.stringify(sh)})`);
     await doc.evaluate(() => ParsehGear.mounted().open('text'));
     await sleep(200);
-    const tall = await doc.evaluate(() => [...document.querySelectorAll('.pg-panel .pg-row')].filter(r => !r.hidden).map(r => Math.round(r.getBoundingClientRect().height)).every(h => h >= 48));
-    assert(tall, 'every row of it is 48px or taller');
+    const tall = await doc.evaluate(() => [...document.querySelectorAll('.pg-panel .pg-row')].filter(r => !r.hidden && r.getClientRects().length).map(r => Math.round(r.getBoundingClientRect().height)).every(h => h >= 48));
+    assert(tall, 'every row of the theme on stage is 48px or taller');
     await setRange(doc, 'text', 'fa', 2.4);
     eq((await sheetVars(doc)).fa, 2.4, 'a slider moved on the sheet changes the text above it');
     const above = await doc.evaluate(() => { const e = document.elementFromPoint(195, 200); return !!e && !e.closest('.pg-panel'); });

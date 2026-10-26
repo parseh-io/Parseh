@@ -73,6 +73,9 @@ BORDER_PT = 2.0
 # ------------------------------------------------------------------ the fence
 FENCE_OPEN_RE = re.compile(r"^::::latex\b(.*)$", re.I)
 FENCE_CLOSE = "::::"
+# a drawing inside a step of a follow-up (mdparser.py) is one colon more, the dialect's one rule for a block inside a
+# block: `:::::latex` … `:::::`; the light scans below take a fence of four colons or more and close it with its own
+_DEEPER_OPEN_RE = re.compile(r"^(:{4,})latex\b", re.I)
 _OPENING_RE = re.compile(r'^\s*([^\s{}]+)?\s*(?:\{((?:"[^"]*"|[^{}"])*)\})?\s*$')
 NAME_MAX = 40
 
@@ -165,14 +168,17 @@ def blocks_in(markdown):
     """Every latex block the text holds, in order: [{"theme", "attrs",
     "tex", "line", "closed"}].  A light reading of the fence alone, for what
     may not import the studio's parser (lib/offline.py, a rename): a block
-    in a box, and one indented in a card's field, are found as mdparser
-    finds them."""
+    in a box, one indented in a card's field and one in a step of a follow-up
+    (a fence of five colons) are found as mdparser finds them."""
     out = []
     lines = (markdown or "").replace("\r\n", "\n").split("\n")
     i = 0
     while i < len(lines):
         quote, text = _unquote(lines[i])
-        op = opening(text.strip())
+        head = text.strip()
+        deeper = _DEEPER_OPEN_RE.match(head)
+        depth = len(deeper.group(1)) if deeper else len(FENCE_CLOSE)
+        op = opening(head[depth - len(FENCE_CLOSE):])
         if op is None:
             i += 1
             continue
@@ -181,7 +187,7 @@ def blocks_in(markdown):
         closed = False
         while i < len(lines):
             q2, t2 = _unquote(lines[i])
-            if t2.strip() == FENCE_CLOSE:
+            if t2.strip() == ":" * depth:
                 closed = True
                 i += 1
                 break
@@ -270,10 +276,11 @@ def rename_in_text(text, old, new):
     for i, line in enumerate(lines):
         quote, rest = _unquote(line)
         lead = rest[:len(rest) - len(rest.lstrip())]
-        op = opening(rest.strip())
+        deeper = _DEEPER_OPEN_RE.match(rest.strip())
+        op = opening(rest.strip()[(len(deeper.group(1)) - len(FENCE_CLOSE)) if deeper else 0:])
         if not op or not op["theme"] or name_key(op["theme"]) != want:
             continue
-        m = re.match(r"^(::::latex)(\s+)(\S+?)(\s*\{.*)?(\s*)$", rest.strip(), re.I)
+        m = re.match(r"^(:{4,}latex)(\s+)(\S+?)(\s*\{.*)?(\s*)$", rest.strip(), re.I)
         if not m:
             continue
         lines[i] = quote + lead + m.group(1) + m.group(2) + new + (m.group(4) or "") + (m.group(5) or "")
@@ -377,6 +384,15 @@ CATALOGUE = (
     ("scripts", "xpinyin", "xpinyin", "Pinyin written automatically over Chinese characters.",
      r"\pinyin{你好}", "\\usepackage{xeCJK}\n\\usepackage{xpinyin}", ("xecjk", "xpinyin"),
      "xpinyin.sty", "lppl1.3c"),
+    # A game's moves and its board (the owner's own report, 2026-10-25, a0.5.4).  ONE ROW FOR THE WHOLE SET, because
+    # TeX Live does not say what these packages lean on besides themselves: its xskak, skak, chessboard and
+    # chessfss declare no dependency, and a drawing needs the chess fonts (skaknew), the lists lambda.sty makes
+    # (lambda-lists), the conditionals (xifthen, ifmtarg) and the node macros (pst-node, pstricks) as well --
+    # found by drawing the sample from nothing, one missing file at a time.
+    ("games", "xskak", "xskak", "Chess: the moves of a game in figurine notation, and the board after them.",
+     r"\newchessgame\mainline{1.e4 e5 2.Nf3 Nc6}\chessboard[hideblack]", r"\usepackage{xskak}",
+     ("xskak", "skak", "chessfss", "chessboard", "skaknew", "lambda-lists", "xifthen", "ifmtarg",
+      "pst-node", "pstricks"), "xskak.sty", "lppl1"),
 )
 # The first line is the group heading a person sees in Settings.  The optional
 # third value is its plain-language explanation there; it is deliberately
@@ -388,12 +404,15 @@ GROUPS = (("base", "Base packages", "The basics every drawing uses: mathematics,
           ("chemistry", "Chemistry"), ("code", "Code and algorithms"),
           ("linguistics", "Linguistics", "Trees and diagrams for syntax and grammar."),
           ("phonetics", "Phonetics"),
-          ("scripts", "Scripts and annotation", "Help with a non-Latin script beyond Parseh's own faces."))
+          ("scripts", "Scripts and annotation", "Help with a non-Latin script beyond Parseh's own faces."),
+          ("games", "Games", "Boards and notation, with the fonts they need."))
 PACKAGES = {row[1]: {"group": row[0], "id": row[1], "name": row[2], "what": row[3],
                      "example": row[4], "code": row[5], "tl": row[6], "file": row[7],
                      "licence": row[8]} for row in CATALOGUE}
 ORDER = [row[1] for row in CATALOGUE]
 BASE = tuple(row[1] for row in CATALOGUE if row[0] == "base")
+# a package a preamble may load by name that is part of another row's set: loading it asks for that row's packages
+ALSO_LOADS = {"skak": "xskak", "chessboard": "xskak", "chessfss": "xskak"}
 # what every drawing needs whatever its theme: the class that crops a page to
 # its ink, and what a font or the languages' faces need
 ALWAYS = {"standalone": (("standalone",), "standalone.cls", "lppl1.3"),
@@ -761,7 +780,7 @@ def uses(theme):
     """The catalogue's packages a theme uses, in the catalogue's order: those
     it ticks, and those its own preamble loads by name."""
     ids = [p for p in ORDER if p in theme.get("packages", ())]
-    by_name = {}
+    by_name = dict(ALSO_LOADS)
     for p in ORDER:
         by_name.setdefault(p, p)
         by_name.setdefault(PACKAGES[p]["file"].rsplit(".", 1)[0], p)

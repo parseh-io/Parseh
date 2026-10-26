@@ -2821,6 +2821,8 @@ const EXERCISE_DEFINITIONS = [
    description: "A self-checked card with a word on one side and its opposite on the other."},
   {label: "Embedded Jolly flashcard", subtype: "flashcard", cardType: "jolly", editor: "flashcard",
    description: "A self-checked card with a primary and secondary field on each side."},
+  {label: "Follow-up questions", subtype: "follow-up", editor: "chain",
+   description: "A chain of exercises answered one after the other; a step may build on the one before."},
 ];
 
 const TRANSLITERATION_VISIBILITY_KEY = "parseh_exercise_hide_transliteration";
@@ -2866,8 +2868,12 @@ function bindExercises(container, opts = {}) {
   const listen = (el, type, fn, options = {}) =>
     el.addEventListener(type, fn, Object.assign({}, options, {signal: controller.signal}));
   const preview = !!opts.preview;
-  const exercises = $$(".exercise", container);
-  if (!exercises.length) return {judge: () => false, exercises: []};
+  /* A FOLLOW-UP IS AN `.exercise` HOLDING `.exercise`S (its steps).  `everything` is what the caller is given, in
+     the order of the page -- a follow-up, then its steps; `exercises` is what has answers, drops and blocks of its
+     own: every one but a follow-up, whose steps would otherwise be found twice by a search below it. */
+  const everything = $$(".exercise", container);
+  const exercises = everything.filter(ex => ex.dataset.primitive !== "chain");
+  if (!everything.length) return {judge: () => false, exercises: [], chains: []};
   $$(".ex-flashcard[data-first]", container).forEach(drawFirstSide);
 
   showTransliterationChoice();
@@ -3419,6 +3425,177 @@ function bindExercises(container, opts = {}) {
     }
   }
 
+  /* ----------------------------------------------------------- a follow-up's steps
+     One step at a time, because the next may build on -- or give away -- the one before: step 1 is shown, with its own
+     button under it, Check step (Show answer for a card); the check marks the step as the page marks any exercise, says
+     Correct or Not quite, locks the answer and shows the step's explanation right there; Next step, after it, brings the
+     next, scrolled into view and given the focus.  From the third step on the steps before the last two fold into one
+     line, "Earlier steps (n)".  At the last check the chain says its result in words, and its own explanations.  Every
+     step is an ordinary exercise of the page, so Check exercises counts each scored step; a step the learner has not come
+     to is counted and not judged.  In the editor's preview nothing is checked: Next step goes on, and "Show every step"
+     unfolds the whole chain to look it over. */
+  function bindChain(chain) {
+    const steps = $$(".ex-step", chain);
+    const n = steps.length;
+    const state = steps.map(() => ({checked: false, good: null}));
+    const say = $(".ex-strip-say", chain), dots = $$(".ex-dot", chain);
+    const earlier = $(".ex-earlier", chain), earlierBody = $(".ex-earlier-body", chain);
+    const earlierN = $(".ex-earlier-n", chain), resultEl = $(".ex-chain-result", chain);
+    const showAll = $(".ex-showall", chain);
+    let at = 0, finished = false, all = false, folded = 0;
+    const told = [];
+    const stepEx = i => $(":scope > .exercise", steps[i]);
+    const isCard = i => steps[i].dataset.kind === "card";
+    const parts = i => ({go: $(".ex-step-check, .ex-step-show", steps[i]), next: $(".ex-step-next", steps[i]),
+                         result: $(".ex-step-result", steps[i])});
+    const tell = () => told.forEach(fn => fn());
+    function paint() {
+      chain.dataset.step = String(at + 1);
+      chain.dataset.answered = String(state.filter(s => s.checked).length);
+      chain.classList.toggle("ex-chain-done", finished);
+      chain.classList.toggle("ex-chain-all", all);
+      steps.forEach((step, i) => {
+        step.hidden = !all && i > at;
+        step.classList.toggle("ex-step-current", i === at && !finished && !all);
+        step.classList.toggle("ex-step-checked", state[i].checked);
+      });
+      dots.forEach((d, i) => {
+        d.classList.toggle("on", i === at && !finished);
+        d.classList.toggle("done", state[i].checked);
+        d.textContent = state[i].checked ? "\u2713" : String(i + 1);
+      });
+      say.textContent = finished ? `All ${n} steps` : `Step ${at + 1} of ${n}`;
+      // the steps before the last two are folded, from the third on; the editor's "show every step" has none
+      const want = all ? 0 : Math.max(0, at - 1);
+      if (want > folded) {
+        for (let i = folded; i < want; i++) earlierBody.appendChild(steps[i]);
+      } else if (want < folded) {
+        // unfolded: back in their places, in order, after the fold's own line
+        let after = earlier;
+        for (let i = 0; i < n; i++) {
+          if (steps[i].parentNode === earlierBody) { after.after(steps[i]); }
+          after = steps[i].parentNode === earlierBody ? after : steps[i];
+        }
+      }
+      folded = want;
+      earlier.hidden = folded === 0;
+      earlierN.textContent = String(folded);
+      steps.forEach((step, i) => {
+        const p = parts(i);
+        if (preview) {
+          p.go.hidden = true;
+          p.result.textContent = "";
+          if (p.next) p.next.hidden = i >= n - 1;
+          return;
+        }
+        p.go.hidden = state[i].checked;
+        if (p.next) p.next.hidden = !(state[i].checked && i === at && !finished);
+      });
+      if (showAll) showAll.setAttribute("aria-pressed", all ? "true" : "false");
+    }
+    function finish() {
+      finished = true;
+      const scoredN = state.filter(s => s.good !== null).length;
+      const rights = state.filter(s => s.good === true).length;
+      resultEl.textContent = scoredN ? `${rights} of ${scoredN} steps right` : `All ${n} steps seen`;
+      resultEl.hidden = false;
+      resultEl.classList.toggle("ok", !scoredN || rights === scoredN);
+      resultEl.classList.toggle("err", !!scoredN && rights !== scoredN);
+      // the chain's own explanations, as the result of the whole: right only when every scored step was
+      const good = !scoredN || rights === scoredN;
+      $$(":scope > .ex-explanation", chain).forEach(why => {
+        const wanted = why.dataset.explanationFor;
+        why.hidden = !!wanted && wanted !== (good ? "correct" : "incorrect");
+        if (!why.hidden && why.classList.contains("ex-explanation-result"))
+          why.classList.add(good ? "success" : "error");
+      });
+    }
+    function mark(i, good) {
+      state[i] = {checked: true, good};
+      if (i === at && at === n - 1) finish();
+    }
+    // a card's turn, whoever made it (its Show answer, a click on the card, the enlarged copy): the answer is shown
+    steps.forEach((step, i) => {
+      const flash = isCard(i) && $(".ex-flashcard", step);
+      if (!flash || preview) return;
+      new MutationObserver(() => {
+        if (flash.classList.contains("flipped") && !state[i].checked) { mark(i, null); paint(); tell(); }
+      }).observe(flash, {attributes: true, attributeFilter: ["class"]});
+    });
+    function check() {
+      if (preview || finished || state[at].checked) return false;
+      const ex = stepEx(at), p = parts(at);
+      if (isCard(at)) {
+        const flash = $(".ex-flashcard", ex);
+        if (flash && !flash.classList.contains("flipped")) flipCard(flash);
+        if (!state[at].checked) mark(at, null);
+      } else {
+        const good = judge(ex);
+        const body = $(".ex-body", ex);
+        if (body) body.inert = true;
+        p.result.textContent = good ? "Correct" : "Not quite";
+        p.result.className = "ex-step-result " + (good ? "ok" : "err");
+        mark(at, good);
+      }
+      paint();
+      tell();
+      if (p.next && !p.next.hidden) p.next.focus({preventScroll: true});
+      return true;
+    }
+    function next() {
+      if (finished || at >= n - 1 || (!preview && !state[at].checked)) return false;
+      at++;
+      paint();
+      const step = steps[at];
+      step.scrollIntoView({block: "nearest", behavior: "smooth"});
+      step.focus({preventScroll: true});
+      tell();
+      return true;
+    }
+    if (showAll) listen(showAll, "click", () => { all = !all; paint(); });
+    steps.forEach((step, i) => {
+      const p = parts(i);
+      listen(p.go, "click", () => { if (i === at) check(); });
+      if (p.next) listen(p.next, "click", () => { if (i === at) next(); });
+    });
+    // Enter does what the button in view does (as on the study page); not on a control, which has its own Enter
+    if (opts.chainBar !== false) listen(chain, "keydown", e => {
+      if (e.key !== "Enter" || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.target.closest("input, textarea, select, button, a[href], summary, [contenteditable], audio, video, .ex-flashcard, .ex-item, .ex-blank, .ex-match-drop, [role=button]")) return;
+      const p = parts(at);
+      const press = [p.next, p.go].find(b => b && !b.hidden && !b.disabled);
+      if (press) { e.preventDefault(); press.click(); }
+    });
+    paint();
+    const handle = {
+      el: chain, steps, n, preview,
+      get at() { return at; },
+      get finished() { return finished; },
+      get checked() { return state[at].checked; },
+      get card() { return isCard(at); },
+      get rights() { return state.filter(s => s.good === true).length; },
+      get scored() { return state.filter(s => s.good !== null).length; },
+      get wrong() { return state.some(s => s.good === false); },
+      get wrongHere() { return state[at].good === false; },
+      get answered() { return state.filter(s => s.checked).length; },
+      check, next,
+      onChange: fn => { told.push(fn); },
+      // a step that is not the learner's yet: counted by Check exercises, and not judged
+      unreached: ex => { const i = steps.findIndex(s => s.contains(ex)); return i > at && !state[i].checked; },
+      // Check exercises, pressed: a chain left half-way says how far it got
+      pageChecked: () => {
+        if (finished) return;
+        resultEl.textContent = `${state.filter(s => s.checked).length} of ${n} steps answered`;
+        resultEl.hidden = false;
+        resultEl.classList.remove("ok", "err");
+      },
+      showAll: on => { all = !!on; paint(); },
+    };
+    chain._parsehChain = handle;
+    return handle;
+  }
+  const chains = everything.filter(ex => ex.dataset.primitive === "chain").map(bindChain);
+
   if (!preview) {
     exercises.forEach(ex => {
       if (ex.dataset.primitive === "placement" && ex.dataset.subtype !== "fill-blanks") {
@@ -3438,7 +3615,10 @@ function bindExercises(container, opts = {}) {
     const correct = $(".ex-correct-all", container);
     if (correct) listen(correct, "click", () => {
       const scored = exercises.filter(ex => ex.dataset.scored === "1");
-      const points = scored.reduce((n, ex) => n + (judge(ex) ? 1 : 0), 0);
+      // a step of a follow-up the learner has not come to is counted, as unanswered, and not judged
+      const unreached = ex => chains.some(c => c.unreached(ex));
+      const points = scored.reduce((n, ex) => n + (unreached(ex) ? 0 : judge(ex) ? 1 : 0), 0);
+      chains.forEach(c => c.pageChecked());
       const out = $(".ex-score", correct.closest("[data-exercise-results]"));
       out.textContent = `${points} / ${scored.length} correct`;
       out.hidden = false;
@@ -3451,7 +3631,7 @@ function bindExercises(container, opts = {}) {
   }
   // the study page checks one exercise at a time with the same judge the
   // "Check exercises" button uses
-  return {judge, exercises};
+  return {judge, exercises: everything, chains};
 }
 
 /* ---------------- index page ---------------- */
@@ -4478,6 +4658,7 @@ function initDoc() {
         Add again the ones this deck already has</label>
       <div class="row"><span class="ex-all-progress" data-x="progress"></span>
         <button class="btn" data-x="cancel">Cancel</button>
+        <button class="btn" data-x="chain" title="Make the ticked exercises the steps of ONE follow-up question in the deck: a chain answered one after the other">Make a follow-up chain of these…</button>
         <button class="btn primary" data-x="add">Add</button></div></div>`;
     const picker = await deckPicker(ov);
     const root = $("#modal-root"); root.innerHTML = "";
@@ -4486,7 +4667,7 @@ function initDoc() {
       + (unoffered ? ` ${unoffered} exercise${unoffered === 1 ? " that needs attention is"
                                                            : "s that need attention are"} not offered.` : "");
     const list = $('[data-x="list"]', ov), count = $('[data-x="count"]', ov);
-    const addBtn = $('[data-x="add"]', ov), again = $('[data-x="again"]', ov);
+    const addBtn = $('[data-x="add"]', ov), again = $('[data-x="again"]', ov), chainBtn = $('[data-x="chain"]', ov);
     const progress = $('[data-x="progress"]', ov);
     function addRow(kind, text, ordinal, subtype, gloss = false) {
       const row = document.createElement("label"); row.className = "ex-all-item";
@@ -4520,11 +4701,14 @@ function initDoc() {
     });
     let busy = false;
     const boxes = () => $$(".ex-all-item:not([hidden]) input[type=checkbox]", list);
+    // what can be a step: an exercise of the page, not a gloss flashcard and not a follow-up
+    const chainable = () => boxes().filter(b => b.checked && b.dataset.subtype !== "gloss-flashcard" && b.dataset.subtype !== "follow-up");
     const sync = () => {
       const n = boxes().filter(b => b.checked).length;
       count.textContent = `${n} of ${boxes().length} selected`;
       addBtn.textContent = `Add ${n} exercise${n === 1 ? "" : "s"}`;
       addBtn.disabled = busy || !n;
+      chainBtn.disabled = busy || chainable().length < 2;
     };
     list.addEventListener("change", sync);
     $('[data-x="all"]', ov).addEventListener("click", () => { boxes().forEach(b => { b.checked = true; }); sync(); });
@@ -4592,6 +4776,46 @@ function initDoc() {
           + (notes.length ? " — " + notes.join(" · ") : "")
           + (warnings.length ? " — " + warnings.join(" · ") : ""),
           refused.length > 0 || warnings.length > 0);
+      } catch (err) {
+        toast(err.message, true);
+      } finally {
+        busy = false;
+        progress.textContent = "";
+        controls.forEach(el => { el.disabled = false; });
+        sync();
+      }
+    });
+    // THE TICKED EXERCISES AS ONE FOLLOW-UP of the deck: the server makes the chain of them, in the page's order, with
+    // the files of every step; look it over, or change a step, with ✎ Edit in the deck
+    chainBtn.addEventListener("click", async () => {
+      const picked = chainable();
+      if (busy || picked.length < 2) return;
+      busy = true;
+      const controls = $$("select, input, button", ov);
+      controls.forEach(el => { el.disabled = true; });
+      let made = null, deckName = "";
+      try {
+        made = await picker.ensure();
+        const path = picker.select.value;
+        deckName = picker.name();
+        progress.textContent = "Making the follow-up…";
+        const payload = {doc_id: DOC_ID, ordinals: picked.map(b => +b.dataset.ordinal), subtype: "follow-up",
+                         updated: meta.updated, ...(notesSource ? {source: notesSource} : {})};
+        if (again.checked) payload.force = true;
+        let result;
+        try {
+          result = await decksFetch(deckUrl(path) + "/copy", {method: "POST", json: payload});
+        } catch (err) {
+          if (made) await picker.unmake(made);
+          if (err.conflict === "duplicate") throw new Error(`That follow-up is already in “${deckName}” — tick “Add again” to add it anyway`);
+          if (err.conflict === "stale") { close(); throw new Error("this page is out of date — reload it, then add"); }
+          throw err;
+        }
+        picker.remember(path);
+        close();
+        if ((result.deck || {}).name) deckName = result.deck.name;
+        toast(`Added one follow-up of ${picked.length} steps to “${deckName}”`
+              + ((result.warnings || []).length ? " — " + result.warnings.join(" · ") : ""), (result.warnings || []).length > 0);
       } catch (err) {
         toast(err.message, true);
       } finally {
@@ -5122,6 +5346,80 @@ function initPrompt() {
   // and the choice of prompt is known, where this device remembers one
   Promise.all([choices.ready(), row ? row.promptReady() : null]).then(() => load());
 }
+
+/* ---------------- the .tex that was compiled, and the whole log (a0.5.4) ----------------
+   A drawing that could not be made says why in words beside its block; these two buttons of its frame
+   (htmlgen._latex_frame) show what those words were made from -- the exact document TeX was given and the whole
+   log it wrote, as lib/latexdraw.py kept them with the compile -- in a frame on top of the page, with a Copy of its
+   own.  In the log the lines the words were read from are marked, and it opens scrolled to the first. */
+function openLatexView(btn) {
+  const kind = btn.dataset.latexView === "log" ? "log" : "tex", url = btn.dataset.latexUrl;
+  const marks = new Set((btn.dataset.latexMarks || "").split(",").filter(Boolean).map(Number));
+  const ov = document.createElement("div");
+  ov.className = "modal-overlay latex-view-overlay";
+  ov.innerHTML = `<div class="modal latex-view-modal" role="dialog" aria-modal="true" tabindex="-1">
+      <h3></h3><p class="latex-view-note"></p>
+      <pre class="latex-view-pre" dir="ltr" tabindex="0"></pre>
+      <div class="row">
+        <button type="button" class="btn" data-x="copy" disabled></button>
+        <button type="button" class="btn primary" data-x="close">Close</button></div></div>`;
+  const modal = $(".modal", ov), pre = $(".latex-view-pre", ov), copyBtn = $('[data-x="copy"]', ov);
+  const title = kind === "tex" ? "The .tex that was compiled" : "The whole log";
+  $("h3", ov).textContent = title;
+  modal.setAttribute("aria-label", title);
+  $(".latex-view-note", ov).textContent = kind === "tex"
+    ? "Exactly the document LaTeX was given for this drawing: its theme's preamble, then the block."
+    : "Everything LaTeX wrote while it compiled this drawing" + (marks.size ? ", with the lines the words above were made from marked." : ".");
+  const copyWas = kind === "tex" ? "Copy the .tex" : "Copy the log";
+  copyBtn.textContent = copyWas;
+  let text = "";
+  const close = () => { document.removeEventListener("keydown", onKey, true); ov.remove(); btn.focus && btn.focus(); };
+  const onKey = e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); } };
+  document.addEventListener("keydown", onKey, true);
+  ov.addEventListener("click", e => { if (e.target === ov) close(); });
+  $('[data-x="close"]', ov).addEventListener("click", close);
+  copyBtn.addEventListener("click", async () => {
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; }
+    catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly", ""); ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand("copy"); } catch (x) { ok = false; }
+      ta.remove();
+    }
+    copyBtn.textContent = ok ? "Copied" : "Could not copy: select it and copy by hand";
+    setTimeout(() => { copyBtn.textContent = copyWas; }, 1800);
+  });
+  document.body.appendChild(ov);
+  pre.textContent = "Reading…";
+  fetch(url, {cache: "no-store"}).then(r => r.ok ? r.text() : Promise.reject(new Error(String(r.status)))).then(t => {
+    text = t;
+    pre.textContent = "";
+    const lines = t.split("\n");
+    // the last empty piece of a file that ends with a newline is not a line
+    if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
+    lines.forEach((l, i) => {
+      const row = document.createElement("span");
+      row.className = "latex-view-ln" + (kind === "log" && marks.has(i + 1) ? " mark" : "");
+      row.textContent = l;
+      pre.appendChild(row);
+    });
+    copyBtn.disabled = false;
+    const first = pre.querySelector(".mark");
+    if (first) pre.scrollTop = Math.max(0, first.offsetTop - Math.round(pre.clientHeight / 3));
+    pre.focus({preventScroll: true});
+  }).catch(() => {
+    pre.textContent = "This was not kept: the drawing was made by an older Parseh, or what is kept was cleared. " +
+      "Change the block a little, or draw the sample again, and it is made afresh with its .tex and its log.";
+  });
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("[data-latex-view]");
+  if (!b) return;
+  e.preventDefault();
+  openLatexView(b);
+});
 
 /* ---------------- boot ---------------- */
 

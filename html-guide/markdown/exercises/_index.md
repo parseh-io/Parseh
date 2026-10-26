@@ -18,7 +18,7 @@ door, the counts follow the language chip you picked there.
 ## What a deck holds
 
 A deck holds studio exercises: the same `:::exercise` blocks a document
-holds, all thirteen kinds of them — blanks to fill, sentences to build and
+holds, all fourteen kinds of them — blanks to fill, sentences to build and
 to order, pairs to match, choices, true or false, yes or no, and flashcards
 of every kind, with their pictures and recordings. On the study page each
 one is shown **unsolved**, as a question, and you answer it as you would on

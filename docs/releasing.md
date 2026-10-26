@@ -138,7 +138,7 @@ Parseh-mine's update from GitHub; everything under *Afterwards*.
 
 ## The known-red baseline
 
-**There is none: every suite is green** (a0.5.3, 2026-10-21), **and none is
+**There is none: every suite is green** (a0.5.4, 2026-10-26), **and none is
 accepted as flaky.** A red suite in step 1 is new breakage and stops the
 release. One that is red and then green when it is run again alone is not
 "flaky, accepted": it has a cause nobody has found yet (*Flaky tests*, below).
@@ -160,17 +160,22 @@ run on this machine, were brought up to what it now does (`add_stt`,
 title bar of the transcription window was a `<header>`, which the video pages'
 stylesheet pins to the top of the screen.
 
-Measured on 2026-10-21 and 22 on the finished a0.5.3 tree (a0.5.3-rc2), one
+Measured on 2026-10-26 on the finished a0.5.4 tree (a0.5.4-rc1), one
 suite at a time, with `TMPDIR` on the main disk, on a computer doing nothing
-else; the two suites whose checks were found racing in the loop
-(`player_note`, `review_later_core`) also in a crowd of four copies at once,
-which is the stricter way (24 and 12 runs, none red):
+else. The loop's one red was `mobile_pages`, and it was a wrong TEST: its
+update part opened the gear on a video page and tapped *Keep on this phone*
+without entering the **Interface** theme the phone's sheet now keeps it in
+(a0.5.4's two-stage sheet); it was mended and the suite run again, alone, green.
+The unit run before it had found three more of the same kind, mended before the
+loop began (a duplicated `def` in `test_page_gear.py`, the deck summary's key set
+without `steps`, and a local variable called `api` in `bindChain` that made
+`webexport._runtime()` carry the studio's own `api()` into every exported page):
 
 | Suite | State | Result |
 |---|---|---|
-| unit — `python3 -m unittest discover -s tests -p "test_*.py"` | green | `Ran 3852 tests … OK (skipped=14)` |
+| unit — `python3 -m unittest discover -s tests -p "test_*.py"` | green | `Ran 3928 tests … OK (skipped=14)` |
 | `python3 tests/smoke.py` | green | `1902 passed, 0 failed, 21 skipped` |
-| the 82 `tests/*.mjs` | green | each of them; none is accepted as flaky |
+| the 86 `tests/*.mjs` | green | each of them; none is accepted as flaky |
 
 A new red is breakage: in a worktree on the previous release's tag, run the
 same suite — if it is red there too, it is old; if not, it is yours. (A worktree

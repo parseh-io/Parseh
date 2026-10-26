@@ -152,7 +152,7 @@ Water, [\ce{H2O}]{latex chemistry}, from hydrogen and oxygen:
 
 ## Exercises
 
-`:::exercise <type>` … `:::` is one of the studio's thirteen exercises,
+`:::exercise <type>` … `:::` is one of the studio's fourteen exercises,
 and it works on the page as it does in the studio: blocks to drag or tap
 into place, answers to choose, cards to turn. **Check exercises** at the
 end of the page marks them all.

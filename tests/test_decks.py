@@ -302,7 +302,7 @@ class DeckTests(Base):
 class ItemTests(Base):
     KEYS = {"id", "subtype", "primitive", "label", "excerpt", "markdown", "footnotes",
             "errors", "created", "updated", "origin", "schedule", "reps", "lapses", "tags",
-            "direction", "link", "mates"}
+            "direction", "link", "mates", "steps"}
 
     def test_validation_refusals(self):
         _, fs = self.deck()
@@ -2252,6 +2252,153 @@ class DirectionLineTests(unittest.TestCase):
         text = "# heading\n\n:::exercise flashcard\nfront: a\nback: b\n:::\n"
         self.assertEqual("# heading\n\n:::exercise flashcard\ndirection: reverse\nfront: a\nback: b\n:::\n",
                          mdparser.set_block_direction(text, "reverse"))
+
+
+CHAIN = (":::exercise follow-up\nprompt: Read, then answer.\n"
+         "::::exercise single-choice\nprompt: Where?\n- [ ] home\n- [x] station\n::::\n"
+         "::::exercise true-false\n- Late. => true\n::::\n"
+         "::::exercise flashcard\ncard-type: vocab\ntarget: [binario]{tl}\nmeaning: platform\n::::\n:::")
+
+
+class FollowUpTests(Base):
+    """A follow-up (a0.5.4) is ONE exercise of a deck: counted once, scheduled once, copied whole; its history rows
+    carry how many of its scored steps were right."""
+
+    def test_it_is_one_exercise_that_says_how_long_it_is(self):
+        s, fs = self.deck("Dialoghi", "it")
+        item = decks.add_item(*fs, CHAIN, now=NOW)
+        self.assertEqual(("follow-up", "Follow-up questions", 3, [], "Read, then answer."),
+                         (item["subtype"], item["label"], item["steps"], item["errors"], item["excerpt"]))
+        decks.add_item(*fs, CHOICE.replace("fa", "it"), now=NOW + timedelta(seconds=1))
+        self.assertEqual(2, len(decks.list_items(*fs)))
+        self.assertEqual(2, decks.next_card(*fs, now=NOW)["counts"]["new"])
+        self.assertEqual(0, decks.list_items(*fs)[1]["steps"])
+
+    def test_with_no_prompt_its_excerpt_is_its_first_steps(self):
+        s, fs = self.deck("Dialoghi", "it")
+        item = decks.add_item(*fs, CHAIN.replace("prompt: Read, then answer.\n", ""), now=NOW)
+        self.assertEqual("Where?", item["excerpt"])
+
+    def test_a_step_with_a_mistake_refuses_the_whole_exercise_and_says_which(self):
+        s, fs = self.deck("Dialoghi", "it")
+        with self.assertRaises(decks.DeckError) as e:
+            decks.add_item(*fs, CHAIN.replace("- [x] station", "- [ ] station"), now=NOW)
+        self.assertIn("step 1: single-choice exercise needs exactly one [x] answer", str(e.exception))
+        with self.assertRaises(decks.DeckError) as e:
+            decks.add_item(*fs, ":::exercise follow-up\n::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n:::", now=NOW)
+        self.assertIn("at least two steps", str(e.exception))
+        self.assertEqual([], decks.list_items(*fs))
+
+    def test_copying_from_a_page_takes_the_follow_up_whole_and_a_step_alone_if_asked(self):
+        body = (":::exercise single-choice\nprompt: A\n- [x] a\n- [ ] b\n:::\n\n" + CHAIN + "\n\n"
+                ":::exercise single-choice\nprompt: B\n- [x] a\n- [ ] b\n:::\n")
+        meta = self.doc(body, target="it")
+        # the page numbers the follow-up 2 and its three steps 3-5, so B is the sixth
+        for ordinal, subtype, steps, excerpt in ((2, "follow-up", 3, "Read, then answer."), (3, "single-choice", 0, "Where?"),
+                                                 (5, "flashcard", 0, ""), (6, "single-choice", 0, "B")):
+            s, fs = self.deck("From %d" % ordinal, "it")
+            got = decks.copy_from_doc(*fs, meta["id"], ordinal, subtype, meta["updated"], now=NOW)["item"]
+            self.assertEqual((got["subtype"], got["steps"], got["origin"]["ordinal"]), (subtype, steps, ordinal))
+            if excerpt:
+                self.assertEqual(excerpt, got["excerpt"])
+        s, fs = self.deck("Whole", "it")
+        got = decks.copy_from_doc(*fs, meta["id"], 2, "follow-up", meta["updated"], now=NOW)["item"]
+        self.assertEqual(CHAIN, got["markdown"])
+        # a type that is not the one on the page at that place is refused, as it is for any exercise
+        with self.assertRaises(decks.DeckError):
+            decks.copy_from_doc(*fs, meta["id"], 3, "follow-up", meta["updated"], now=NOW)
+
+    def test_the_history_keeps_how_many_steps_were_right(self):
+        s, fs = self.deck("Dialoghi", "it")
+        a = decks.add_item(*fs, CHAIN, now=NOW)["id"]
+        row = decks.review(*fs, a, "again", False, now=NOW, steps={"right": 1, "of": 2})
+        hist = decks._read_schedule(decks.deck_dir(*fs), a)["history"]
+        self.assertEqual([("again", False, {"right": 1, "of": 2})], [(h["rating"], h["result"], h["steps"]) for h in hist])
+        self.assertEqual("learning", row["schedule"]["state"])
+        # an exercise that is not a chain has no such field
+        b = decks.add_item(*fs, CHOICE.replace("fa", "it"), now=NOW + timedelta(seconds=1))["id"]
+        decks.review(*fs, b, "good", True, now=NOW)
+        self.assertNotIn("steps", decks._read_schedule(decks.deck_dir(*fs), b)["history"][0])
+
+    def test_a_count_that_does_not_add_up_is_not_kept(self):
+        s, fs = self.deck("Dialoghi", "it")
+        a = decks.add_item(*fs, CHAIN, now=NOW)["id"]
+        for n, bad in enumerate(({"right": 3, "of": 2}, {"right": -1, "of": 2}, {"right": "1", "of": 2}, {"right": True, "of": 2},
+                                 {"right": 1}, [1, 2], "1/2", 5, {"right": 1, "of": 5000})):
+            decks.review(*fs, a, "again", False, now=NOW + timedelta(minutes=n), steps=bad)
+        hist = decks._read_schedule(decks.deck_dir(*fs), a)["history"]
+        self.assertEqual(9, len(hist))
+        self.assertTrue(all("steps" not in h for h in hist))
+
+    def test_an_answer_made_away_carries_its_steps_to_the_computer(self):
+        s, fs = self.deck("Dialoghi", "it")
+        a = decks.add_item(*fs, CHAIN, now=NOW)["id"]
+        decks.checkout(*fs, "a phone", "phone-1", now=NOW)
+        out = decks.answers_from(*fs, "phone-1", [{"item": a, "rating": "good", "result": True, "steps": {"right": 2, "of": 2},
+                                                   "at": NOW.isoformat()}])
+        self.assertEqual((1, []), (out["applied"], out["refused"]))
+        hist = decks._read_schedule(decks.deck_dir(*fs), a)["history"]
+        self.assertEqual({"right": 2, "of": 2}, hist[0]["steps"])
+
+    def test_the_steps_travel_in_an_export_with_the_scheduling(self):
+        s, fs = self.deck("Dialoghi", "it")
+        a = decks.add_item(*fs, CHAIN, now=NOW)["id"]
+        decks.review(*fs, a, "again", False, now=NOW, steps={"right": 1, "of": 2})
+        data, _name = decks.export_zip(*fs, True)
+        got = decks.import_zip(data, scheduling=True, mode="copy")
+        deck = got.get("deck") or {}
+        fs2 = (deck.get("folder"), deck.get("slug"))
+        self.assertNotEqual(fs, fs2)
+        items = decks.list_items(*fs2)
+        self.assertEqual([("follow-up", 3)], [(i["subtype"], i["steps"]) for i in items])
+        hist = decks._read_schedule(decks.deck_dir(*fs2), items[0]["id"])["history"]
+        self.assertEqual({"right": 1, "of": 2}, hist[0]["steps"])
+
+    def test_exercises_of_a_page_become_one_follow_up_with_the_files_of_every_step(self):
+        meta = self.doc(":::exercise single-choice\nprompt: A\nimage: images/cat.png\n- [x] a\n- [ ] b\n:::\n\n"
+                        ":::exercise true-false\n- B => true\n:::\n\n"
+                        ":::exercise single-choice\nprompt: C\naudio: audio/tone.mp3\n- [x] a\n- [ ] b\n:::\n",
+                        target="it", images={"cat.png": PNG}, audio={"tone.mp3": b"ID3 not really"})
+        s, fs = self.deck("Dialoghi", "it")
+        out = decks.copy_from_doc(*fs, meta["id"], None, "follow-up", meta["updated"], now=NOW, ordinals=[3, 1, 2])
+        item = out["item"]
+        self.assertEqual(("follow-up", 3, "Follow-up of 3 exercises"), (item["subtype"], item["steps"], item["origin"]["label"]))
+        # the steps are in the order given, one fence deeper
+        self.assertEqual(["::::exercise single-choice", "::::exercise single-choice", "::::exercise true-false"],
+                         [l for l in item["markdown"].split("\n") if l.startswith("::::exercise")])
+        self.assertLess(item["markdown"].index("prompt: C"), item["markdown"].index("prompt: A"))
+        self.assertEqual((["cat.png"], ["tone.mp3"]), (self.deck_images(fs), sorted(self.deck_files(fs, "audio"))))
+        self.assertEqual(1, len(decks.list_items(*fs)))
+        # the same chain twice is refused, and a different order is a different chain
+        with self.assertRaises(decks.Conflict) as e:
+            decks.copy_from_doc(*fs, meta["id"], None, "follow-up", meta["updated"], now=NOW, ordinals=[3, 1, 2])
+        self.assertEqual("duplicate", e.exception.code if hasattr(e.exception, "code") else "duplicate")
+        # what cannot be made one
+        for bad in ([1], [1, 1], [1, 9], "1,2", [1, 2, 3, 4] * 40):
+            with self.assertRaises((decks.DeckError, decks.Conflict)):
+                decks.copy_from_doc(*fs, meta["id"], None, "follow-up", meta["updated"], now=NOW, ordinals=bad)
+
+    def test_a_follow_up_cannot_be_a_step_of_another_when_made_from_a_page(self):
+        meta = self.doc(CHAIN.replace(":::exercise follow-up", ":::exercise follow-up") + "\n\n"
+                        ":::exercise true-false\n- B => true\n:::\n", target="it")
+        s, fs = self.deck("Dialoghi", "it")
+        # the page numbers the chain 1, its three steps 2-4 and the true/false 5
+        with self.assertRaises(decks.DeckError) as e:
+            decks.copy_from_doc(*fs, meta["id"], None, "follow-up", meta["updated"], now=NOW, ordinals=[1, 5])
+        self.assertIn("a follow-up cannot be a step of another", str(e.exception))
+
+    def test_a_follow_ups_files_travel_in_an_export(self):
+        meta = self.doc(":::exercise single-choice\nprompt: A\nimage: images/cat.png\n- [x] a\n- [ ] b\n:::\n\n"
+                        ":::exercise true-false\n- B => true\n:::\n", target="it", images={"cat.png": PNG})
+        s, fs = self.deck("Dialoghi", "it")
+        decks.copy_from_doc(*fs, meta["id"], None, "follow-up", meta["updated"], now=NOW, ordinals=[1, 2])
+        data, _name = decks.export_zip(*fs, False)
+        names = zipfile.ZipFile(io.BytesIO(data)).namelist()
+        self.assertIn("images/cat.png", names)         # named by a step, so the deck keeps it and the export carries it
+        got = decks.import_zip(data, scheduling=False, mode="copy")
+        fs2 = (got["deck"]["folder"], got["deck"]["slug"])
+        self.assertEqual((["cat.png"], 1), (self.deck_images(fs2), len(decks.list_items(*fs2))))
+        self.assertEqual(2, decks.list_items(*fs2)[0]["steps"])
 
 
 if __name__ == "__main__":

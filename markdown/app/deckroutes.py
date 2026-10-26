@@ -582,9 +582,13 @@ def api_copy(h, folder, slug):
     updated = body.get("updated")
     if updated is not None and not isinstance(updated, str):
         raise decks.DeckError("updated must be the document's timestamp")
+    # `ordinals` (and the type "follow-up"): several exercises of the page, made ONE follow-up of the deck's
+    ordinals = body.get("ordinals")
+    if ordinals is not None and (not isinstance(ordinals, list) or subtype != "follow-up"):
+        raise decks.DeckError("ordinals is the list of exercises a follow-up is made of, with the type follow-up")
     out = decks.copy_from_doc(folder, slug, doc_id, body.get("ordinal"), subtype, updated,
                               force=body.get("force") is True,
-                              library=library, source=source)
+                              library=library, source=source, ordinals=ordinals)
     # a both-repeat flashcard went in as two: `item` is the first, `items` both
     for made in out["items"]:
         _own_item_latex(folder, slug, decks.get_item(folder, slug, made["id"]))
@@ -673,7 +677,7 @@ def api_review(h, folder, slug):
     # name them here as on /next, in the body or the query
     skip = _skip_ids((h.query.get("skip") or []) + _skip_ids(body.get("skip") or []))
     decks.review(folder, slug, body.get("item"), body.get("rating"), body.get("result"),
-                 reps=body.get("reps"))
+                 reps=body.get("reps"), steps=body.get("steps"))
     try:
         nxt = _next(folder, slug, skip)
     except GONE:

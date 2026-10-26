@@ -408,6 +408,38 @@ image: images/starter-house.svg {width=30 align=center}
 explanation-correct: [el río]{tl} is a river; the roof, the door and the window belong to the house.
 :::
 
+### Follow-up questions
+
+A follow-up is a chain of exercises answered one after the other: check a step, read what it says, and the next one comes under it. A step is any exercise, written inside the chain with one colon more on its fences (`::::exercise …` and `::::`). The PDF prints every step at once, numbered, so write each one so that it does not give away the one before.
+
+:::exercise follow-up
+prompt: At a café a customer says: [Buenos días. Quiero un café y una tostada, por favor.]{tl} Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then something to eat.
+::::exercise single-choice
+prompt: What does the customer want to drink?
+- [x] [un café]{tl}
+- [ ] [una tostada]{tl}
+- [ ] [un zumo]{tl}
+explanation-correct: [Un café]{tl}, *a coffee*; the toast is [una tostada]{tl}.
+::::
+::::exercise true-false
+prompt: Now decide.
+- [Tostada]{tl} is a feminine noun, so it takes [una]{tl}. => true
+- [Por favor]{tl} means *excuse me*. => false
+explanation-correct: [Por favor]{tl} is *please*; *excuse me* is [perdón]{tl}.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the words you have just read.
+content-direction: target
+text: [Buenos días. Quiero [[drink]] y [[food]], por favor.]{tl}
+- [drink] [un café]{tl}
+- [food] [una tostada]{tl}
+- [ ] [un tostada]{tl}
+explanation-correct: [Café]{tl} is masculine and [tostada]{tl} feminine.
+::::
+:::
+
 ### Flashcards
 
 A flashcard turns over when it is clicked and is never scored. A vocabulary card, whose speaker

@@ -37,6 +37,10 @@ random order, one at a time and unsolved, as on the study page:
   say how it went with **Wrong** or **Correct**, which moves on at once. The
   card plays its front's recording when it is shown and its back's when it
   is turned, as on the study page, and **⤢ Enlarge** works here too.
+- **A follow-up**: its steps come one at a time, **Check step** (or **Show
+  answer** under a card) and **Next step**. It is **right only when every scored
+  step was right**; otherwise it comes round again, whole, from its first step,
+  and the end says *2 of 3 steps right* for the last time it was done.
 - **An exercise that needs attention** has only **Next exercise**, and the
   end counts it among the skipped.
 

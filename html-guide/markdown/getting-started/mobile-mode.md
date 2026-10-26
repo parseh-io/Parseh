@@ -149,10 +149,15 @@ menus and open sheets keep their own arrow keys.
 ### The sheet {#the-sheet}
 
 **⚙** opens the page's settings as **a sheet from the
-foot of the screen, half its height**: the text stays on show above it, so a change is
-seen as it is made, and **✕**, the back gesture or a tap on the text puts it away. Every
-row is a finger high and says in a sentence what it does. The groups are the
-browser's ([The ⚙ settings of a page](page-settings.md#a-books-gear)): **Levels &
+foot of the screen**. It opens on a **list of themes**, each with a line saying what it is
+set to (*With vowels, Chunks · no glosses*, *1×, skip 10 s*, *Mobile pages*); a tap on a theme
+slides to its rows alone, and **‹** or the back gesture returns to the list. It rests
+half the screen high, so that the text stays on show above it and a change is
+seen as it is made; drag its head up, or tap the small bar on it, and it is **tall** — and
+stays so on this phone until you make it half again. **✕**, the back gesture on the list, or a swipe down
+puts it away. Every
+row is a finger high and says in a sentence what it does. The themes are the
+browser's groups ([The ⚙ settings of a page](page-settings.md#a-books-gear)): **Levels &
 reading** (the levels, **Diacritics** in Persian and Arabic, **Glosses**,
 **Glosses in a cloud** — a tap on a chunk opens its gloss —, **Hide the bars**), **Listening**
 (**Keep playing into the next line**, **Repeat this line**, **Wait at each new chapter**,
@@ -205,7 +210,7 @@ rest on a button to read what it does. Press it, then tap anything: the page
 says what that button does instead of pressing it. Press **?** again, or
 *done explaining*, and everything works as usual.
 
-**Keep a book on this phone** — in the ⚙ sheet's last group, **Away from the computer**, the
+**Keep a book on this phone** — in the ⚙ sheet's last theme, **Interface**, under **Away from the computer**, the
 button *Keep on this phone* (a video's, **Use it without the computer**). It says
 what the text costs, and lists the recordings so you pick the ones you want
 (a narrated book can be hundreds of megabytes). Each one says **where it is
@@ -384,7 +389,7 @@ gloss at a tap (with a mouse, as the pointer rests on it). Press it again
 for the one line. The choice is kept for every video on this phone.
 
 **The size of the words.** The transcript and the subtitles each have a size
-of their own. **Aa** on the header's first line opens the ⚙ sheet at its **Text** group, with the
+of their own. **Aa** on the header's first line opens the ⚙ sheet on its **Text** theme, with the
 transcript's size, the glosses', the width and the leading — and **Subtitle size**. On the whole screen the header is under the
 picture, so the same panel has an **Aa** of its own in the corner, beside the
 lines-around button, and shows only the subtitles' slider and the glosses':

@@ -559,9 +559,11 @@ async function partReader() {
       // group off that book's gear (the groups just above)
       eq(await rowDrawn(page, 'hoverpause'), code === 'en',
          `${code}: hover ⏸ ${code === 'en' ? 'is a row of the gear, "Pause while a gloss is open"' : 'is not offered: no narration to wait'}`);
-      if (code === 'en')
+      if (code === 'en') {
+        await gearOpen(page, 'levels');                  // the sheet draws one theme at a time: the row's own
         assert(await page.evaluate(() => document.querySelector('.pg-panel [data-pg-row=hoverpause]').getBoundingClientRect().height >= 48),
                `${code}: and a finger high`);
+      }
       // the sheet is inside the screen, whichever way the phone is held (half of it, and never less than 240px: a phone
       // held sideways), with the text above it still there
       const sheetBox = await page.evaluate(() => {
@@ -1253,8 +1255,9 @@ async function partVideo() {
   // the gear opens the rest, a group to a line (it took ⋯'s place; tests/gear_player.mjs drives every row)
   await tap(page, 'header > button.pg-gear');
   await settle(page);
+  // (the sheet draws one theme at a time: what the page offers is what is not `hidden`, and what its index lists)
   eq(await page.evaluate(() => [...document.querySelectorAll('.pg-panel[data-pg-page=video] [data-pg-group]')]
-       .filter(e => !e.hidden && e.getClientRects().length).map(e => e.getAttribute('data-pg-group'))),
+       .filter(e => !e.hidden).map(e => e.getAttribute('data-pg-group'))),
      ['watching', 'looking', 'playback', 'text'].concat(await page.evaluate(() => window.ParsehZoom ? ['zoom'] : []), ['colours', 'interface']),
      'the gear opens the groups this page has');
   await tap(page, 'header > button.pg-gear');
@@ -4549,11 +4552,11 @@ async function partUpdate() {
                                null, {timeout: 30000});
     await reveal(page);
     // the Keep buttons live in the last group of the gear's sheet wherever the page has a gear (a book's reader and
-    // a video's page, a0.5.0): brought into the sheet while it is up; under ⋯ where the page has none
-    if (await page.evaluate(() => document.documentElement.classList.contains('pg-reader'))) await gearOpen(page, 'interface');
-    else if (await page.$('button.pg-gear')) {
-      if (!(await page.evaluate(() => ParsehGear.mounted().isOpen()))) await tap(page, 'button.pg-gear');
-    } else if ((await page.getAttribute('.m-rmore', 'aria-expanded')) !== 'true') await tap(page, '.m-rmore');
+    // a video's page, a0.5.0): brought into the sheet while its theme is on stage (a0.5.4: the sheet opens on the
+    // index of themes, and a tap enters Interface); under ⋯ where the page has none
+    if (await page.evaluate(() => document.documentElement.classList.contains('pg-reader')) || await page.$('button.pg-gear'))
+      await gearOpen(page, 'interface');
+    else if ((await page.getAttribute('.m-rmore', 'aria-expanded')) !== 'true') await tap(page, '.m-rmore');
     await page.waitForFunction(() => { const b = document.querySelector('.kp-keep'); return !!b && !b.disabled; },
                                null, {timeout: 60000});
     await tap(page, '.kp-keep');

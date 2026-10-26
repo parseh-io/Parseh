@@ -27,6 +27,7 @@ const defaultPrompts = {
   "incorrect-part": "Select the segment containing the error.",
   "choose-all": "Choose every correct answer.",
   "odd-one-out": "Choose the item that does not belong.",
+  "follow-up": "Answer these questions one after the other.",
 };
 
 function splitExercisePair(text) {
@@ -78,12 +79,14 @@ const CARD_DIRECTIONS = [["forward", "Front"], ["reverse", "Back"],
    (mdparser.CARD_EXTRAS, CARD_SIDES) */
 const CARD_EXTRAS = ["context", "notes", "source"];
 
-function parseExerciseSource(source) {
+function parseExerciseSource(source, flat) {
   const lines = String(source || "").replaceAll("\r\n", "\n").split("\n");
   // a deck item may come with blank lines around it; the editor's slice
   // always starts on the opening line
   while (lines.length > 1 && !lines[0].trim()) lines.shift();
   const opening = (lines[0] || "").trim().match(/^:::exercise(?:\s+([a-z][a-z0-9-]*))?/i);
+  // a follow-up holds exercises of its own, one fence deeper: read it as its fields and its steps
+  if (!flat && opening && /^follow-up$/i.test(opening[1] || "")) return parseChainSource(source);
   const model = {subtype: opening && opening[1] ? opening[1].toLowerCase() : "",
                  fields: {}, rows: []};
   const rows = [];
@@ -161,6 +164,8 @@ function newExerciseModel(def) {
     model.rows = [{text: "", correct: true}, {text: "", correct: false}];
   } else if (def.editor === "order") {
     model.rows = [{text: ""}, {text: ""}, {text: ""}];
+  } else if (def.editor === "chain") {
+    model.steps = [];
   } else if (def.editor === "flashcard") {
     model.fields["card-type"] = def.cardType;
     model.fields.direction = "forward";
@@ -349,6 +354,8 @@ function exerciseSource(model, def) {
     model.rows.forEach(r => lines.push(`- [${r.correct ? "x" : " "}] ${rowText(r.text)}`));
   } else if (def.editor === "order") {
     model.rows.forEach((r, i) => lines.push(`- [${i + 1}] ${rowText(r.text)}`));
+  } else if (def.editor === "chain") {
+    // its fields are written below, and its steps after them
   } else {
     sourceField(lines, "card-type", model.cardType);
     const keys = flashcardFields(model.cardType).map(x => x[0]);
@@ -378,6 +385,8 @@ function exerciseSource(model, def) {
     sourceField(lines, "explanation-correct", f["explanation-correct"]);
     sourceField(lines, "explanation-incorrect", f["explanation-incorrect"]);
   }
+  // a follow-up's steps come last, each one fence deeper, and the chain's own closing line after them
+  if (def.editor === "chain") model.steps.forEach(step => lines.push(nestStep(step.source)));
   lines.push(":::");
   return lines.join("\n");
 }
@@ -426,6 +435,12 @@ function validateExercise(model, def) {
       if (model.subtype === "choose-all" ? correct < 1 : correct !== 1)
         throw new Error(model.subtype === "choose-all" ? "Mark at least one correct answer" : "Mark exactly one correct answer");
     }
+  } else if (def.editor === "chain") {
+    if (model.steps.length < 2) throw new Error("A follow-up needs at least two steps");
+    model.steps.forEach((step, k) => {
+      const d = describeStep(step.source);
+      if (d.error) throw new Error(`Step ${k + 1}: ${d.error}`);
+    });
   } else if (model.cardType === "jolly") {
     // one field a side is a card; the secondary ones are there when wanted
     if (!filled(model.fields["front-primary"]) && !filled(model.fields["front-secondary"]))
@@ -474,6 +489,511 @@ function validateExercise(model, def) {
         throw new Error(`The side of the ${key} must be answer or question: tick or untick its box under Text appearance`);
     }
   }
+}
+
+/* ---------------------------------------------------------------------------
+   FOLLOW-UP QUESTIONS (a0.5.4): the chain's form.
+
+   On the page a step is an exercise written ONE FENCE DEEPER (mdparser.py):
+   `::::exercise <type>` … `::::`, and inside it every fence has one more
+   colon than it would have on its own (a drawing is `:::::latex` … `:::::`).
+   Here a step is kept as the exercise it is on its own -- the ordinary
+   `:::exercise` block, which the ordinary form reads and writes -- and is
+   nested only when the chain is written (nestStep) and un-nested when one is
+   read (splitChain).  Nothing about a type is written twice.
+   ------------------------------------------------------------------------- */
+const STEP_OPEN_RE = /^::::exercise(?:\s+([a-z][a-z0-9-]*))?\s*$/i;
+const FENCE_LINE_RE = /^(\s*)(:{3,})(?=\s*$|[A-Za-z])/;
+const DEEP_FENCE_RE = /^(\s*)(:{4,})(?=\s*$|[A-Za-z])/;
+
+/* a step as the chain holds it: one colon more on every fence line */
+function nestStep(source) {
+  return String(source || "").replaceAll("\r\n", "\n").split("\n")
+    .map(l => l.replace(FENCE_LINE_RE, (m, ws, colons) => ws + colons + ":")).join("\n");
+}
+
+/* A chain's block -> {head, steps}: the lines that are the chain's own (its opening line, its fields, its closing
+   `:::`) and each step as the exercise it is on its own.  A step never closed ends where the chain does, and is
+   closed here: saving puts the missing line right. */
+function splitChain(source) {
+  const lines = String(source || "").replaceAll("\r\n", "\n").split("\n");
+  while (lines.length > 1 && !lines[0].trim()) lines.shift();
+  const head = [lines[0]], steps = [];
+  let i = 1;
+  while (i < lines.length) {
+    const s = lines[i].trim();
+    if (s === ":::") { head.push(lines[i]); break; }
+    if (!STEP_OPEN_RE.test(s)) { head.push(lines[i++]); continue; }
+    let end = i + 1, drawing = false, closed = false;
+    for (; end < lines.length; end++) {
+      const t = lines[end].trim();
+      if (drawing) { drawing = t !== ":::::"; continue; }
+      if (/^:::::latex\b/i.test(t)) { drawing = true; continue; }
+      if (t === "::::") { closed = true; break; }
+      if (t === ":::") break;                 // the chain's own closing: this step was never closed
+    }
+    const body = lines.slice(i, closed ? end + 1 : end)
+      .map(l => l.replace(DEEP_FENCE_RE, (m, ws, colons) => ws + colons.slice(1)));
+    if (!closed) body.push(":::");
+    steps.push(body.join("\n"));
+    i = closed ? end + 1 : end;
+  }
+  return {head, steps};
+}
+
+/* the words a person reads of a step in a list: marks and markup taken off */
+function plainWords(text, max = 90) {
+  const t = String(text || "")
+    .replace(/\[\[[^\[\]]*\]\]/g, "…")
+    .replace(/\[([^\[\]]*)\]\{[^{}]*\}/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/[*_`]+/g, "")
+    .replace(/\s*⏎\s*/g, " ").replace(/\s+/g, " ").trim();
+  return t.length > max ? t.slice(0, max - 1).trimEnd() + "…" : t;
+}
+
+/* What a list says of one exercise's source: its type's label, its opening words, a mark for a picture or a recording,
+   and what is wrong with it (what the type's own form would refuse to save). */
+function describeStep(source) {
+  let prepared;
+  try { prepared = prepareExerciseModel(parseExerciseSource(source)); }
+  catch (e) {
+    const open = String(source || "").match(/^\s*:::exercise\s+([a-z][a-z0-9-]*)/i);
+    return {label: open ? open[1] : "Exercise", words: "", error: e.message, picture: false, recording: false};
+  }
+  const {model, def} = prepared;
+  if (def.editor === "chain")
+    return {label: def.label, words: plainWords(model.fields.prompt), error: "A follow-up cannot hold a follow-up", chain: true,
+            picture: false, recording: false};
+  let error = "";
+  try { validateExercise(model, def); } catch (e) { error = e.message; }
+  const f = model.fields, row = model.rows[0] || {};
+  const words = [f.prompt, f.target, f.front, f["front-primary"], f["front-secondary"], f.text, row.text, row.left]
+    .map(v => plainWords(v)).find(Boolean) || "";
+  const some = re => Object.keys(f).some(k => re.test(k) && String(f[k] || "").trim());
+  const jolly = JOLLY_KEYS.map(k => String(f[k] || "")).join("\n");
+  return {label: def.label, words, error,
+          picture: some(/(^|-)image(-answer)?$/) || /!\[[^\]]*\]\(images\//.test(jolly),
+          recording: some(/(^|-)audio(-answer)?$/) || /\(audio\//.test(jolly)};
+}
+
+/* A chain's block -> the model the form edits: the chain's own fields, and its steps (each `{source}`) */
+function parseChainSource(source) {
+  const {head, steps} = splitChain(source);
+  const model = parseExerciseSource(head.join("\n"), true);
+  model.subtype = "follow-up";
+  model.steps = steps.map(source => ({source}));
+  return model;
+}
+
+/* THE STEPS OF A FOLLOW-UP, in the form: a list in which each row says its place, its type and its opening words, and
+   can be dragged, moved by arrows or by a number, edited, copied, deleted (with an Undo that stays six seconds) or put
+   back on the page as an exercise of its own; any of them can be ticked and moved or deleted together.  Two ways to
+   put one in: a new step (the type grid, then that type's own form on top of this one) and exercises the page already
+   has.  `ctx`: {inherit: the preview and uploads the steps' forms are given, schedule: redraw the chain's preview,
+   fromPage: {noun, list(), removeLabel} or null, putBackWhere}. */
+function buildChainSteps(area, model, ctx) {
+  const steps = model.steps;
+  model.putBack = model.putBack || [];
+  const mk = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+  const described = new WeakMap();
+  const about = step => {
+    let d = described.get(step);
+    if (!d || d.source !== step.source) {
+      d = Object.assign({source: step.source}, describeStep(step.source));
+      described.set(step, d);
+    }
+    return d;
+  };
+
+  const hint = mk("p", "ex-steps-hint");
+  const tools = mk("div", "ex-steps-tools");
+  const list = mk("ol", "ex-steps-list");
+  list.setAttribute("aria-label", "The steps of this follow-up, in the order they are answered");
+  const undo = mk("div", "ex-steps-undo");
+  undo.hidden = true;
+  const live = mk("span", "ex-steps-live");
+  live.setAttribute("role", "status");
+  const adding = mk("div", "row ex-add-row");
+  // steps taken from the page: whether their originals go when the chain is saved, for all of them at once
+  const originals = mk("label", "ex-steps-originals");
+  originals.hidden = true;
+  const originalsBox = mk("input");
+  originalsBox.type = "checkbox";
+  originals.append(originalsBox, mk("span", "", ctx.fromPage ? ctx.fromPage.removeLabel || "" : ""));
+  originalsBox.addEventListener("change", () => {
+    steps.forEach(s => { if (s.fromKey != null) s.remove = originalsBox.checked; });
+    render();
+  });
+  area.append(hint, tools, list, undo, live, originals, adding);
+
+  const toolButton = (x, text, title, fn) => {
+    const b = mk("button", "btn small ghost", text);
+    b.type = "button"; b.dataset.x = x; b.title = title;
+    b.addEventListener("click", fn);
+    return b;
+  };
+  const picked = mk("span", "ex-steps-picked");
+  const bulk = [
+    toolButton("up-picked", "Move up", "Move the ticked steps one place earlier", () => shift(-1)),
+    toolButton("down-picked", "Move down", "Move the ticked steps one place later", () => shift(1)),
+    toolButton("delete-picked", "Delete", "Delete the ticked steps", () =>
+      remove(steps.map((s, k) => s.picked ? k : -1).filter(k => k >= 0))),
+  ];
+  tools.append(toolButton("all", "Select all", "Tick every step", () => tick(true)),
+               toolButton("none", "Select none", "Untick every step", () => tick(false)), picked, ...bulk);
+  const say = text => { live.textContent = ""; setTimeout(() => { live.textContent = text; }, 30); };
+
+  function tick(on) { steps.forEach(s => { s.picked = on; }); render(); }
+
+  function move(from, to, focus) {
+    if (from === to || to < 0 || to >= steps.length) return;
+    const [s] = steps.splice(from, 1);
+    steps.splice(to, 0, s);
+    render({i: to, x: focus});
+    say(`Moved to place ${to + 1} of ${steps.length}`);
+  }
+  function shift(dir) {
+    if (dir < 0) { for (let k = 1; k < steps.length; k++)
+      if (steps[k].picked && !steps[k - 1].picked) [steps[k - 1], steps[k]] = [steps[k], steps[k - 1]]; }
+    else { for (let k = steps.length - 2; k >= 0; k--)
+      if (steps[k].picked && !steps[k + 1].picked) [steps[k + 1], steps[k]] = [steps[k], steps[k + 1]]; }
+    render();
+  }
+  function duplicate(i) {
+    steps.splice(i + 1, 0, {source: steps[i].source});
+    render({i: i + 1, x: "edit"});
+    say(`Step ${i + 1} copied: the copy is step ${i + 2}`);
+  }
+
+  let undoTimer = 0, removed = null;
+  function remove(indexes, note, queued) {
+    if (!indexes.length) return;
+    const gone = indexes.map(at => ({step: steps[at], at}));
+    for (const at of indexes.slice().sort((a, b) => b - a)) steps.splice(at, 1);
+    removed = {gone, queued};
+    undo.hidden = false;
+    undo.replaceChildren(mk("span", "", (note || (gone.length === 1 ? `Step ${gone[0].at + 1} removed.` : `${gone.length} steps removed.`))));
+    const back = mk("button", "btn small", "Undo");
+    back.type = "button"; back.dataset.x = "undo";
+    back.addEventListener("click", () => {
+      if (!removed) return;
+      for (const {step, at} of removed.gone) steps.splice(Math.min(at, steps.length), 0, step);
+      if (removed.queued) removed.queued.forEach(src => {
+        const k = model.putBack.lastIndexOf(src);
+        if (k >= 0) model.putBack.splice(k, 1);
+      });
+      removed = null; clearTimeout(undoTimer); undo.hidden = true;
+      render();
+      say("Put back in the chain");
+    });
+    undo.append(" ", back);
+    clearTimeout(undoTimer);
+    undoTimer = setTimeout(() => { undo.hidden = true; removed = null; }, 6000);
+    render();
+    say(undo.firstChild.textContent);
+  }
+  function putBack(i) {
+    const step = steps[i];
+    if (step.fromKey != null) {
+      // it was taken from the page and its original is still there (or was to be taken off it): leaving the chain is all
+      remove([i], `Step ${i + 1} is out of the chain; the original stays ${ctx.putBackWhere}.`);
+    } else {
+      model.putBack.push(step.source);
+      remove([i], `Step ${i + 1} goes back ${ctx.putBackWhere} as an exercise of its own, after the chain, when you save.`, [step.source]);
+    }
+  }
+
+  function editStep(i) {
+    const step = steps[i];
+    openExerciseMarkdown(step.source, Object.assign({}, ctx.inherit, {
+      mode: "edit", host: {step: i + 1, of: steps.length},
+      onSave: text => { step.source = text; render({i: steps.indexOf(step), x: "edit"}); },
+    }));
+  }
+  function newStep() {
+    openExercisePicker(Object.assign({}, ctx.inherit, {
+      host: {step: steps.length + 1, of: steps.length + 1},
+      onSave: text => { steps.push({source: text}); render({i: steps.length - 1, x: "edit"}); say(`Step ${steps.length} added`); },
+    }));
+  }
+  function fromPage() {
+    const from = ctx.fromPage;
+    openStepsFromPage({
+      noun: from.noun, items: from.list(), removeLabel: from.removeLabel,
+      taken: steps.map(s => s.fromKey).filter(k => k != null),
+      onAdd: (chosen, drop) => {
+        chosen.forEach(c => steps.push({source: c.source, fromKey: c.key, remove: drop}));
+        render({i: steps.length - 1, x: "grip"});
+        say(`${chosen.length} added`);
+      },
+    });
+  }
+
+  function row(step, i) {
+    const d = about(step), n = steps.length;
+    const li = mk("li", "ex-step-row" + (d.error ? " bad" : "") + (step.picked ? " picked" : ""));
+    li.dataset.i = String(i);
+    const pick = mk("input", "ex-step-pick");
+    pick.type = "checkbox"; pick.checked = !!step.picked;
+    pick.setAttribute("aria-label", `Tick step ${i + 1}`);
+    pick.addEventListener("change", () => {
+      step.picked = pick.checked;
+      li.classList.toggle("picked", pick.checked);
+      counts();
+    });
+    const grip = mk("button", "ex-step-grip", "⋮⋮");
+    grip.type = "button";
+    grip.title = "Drag to move this step; with the keyboard, ↑ and ↓ on this handle";
+    grip.setAttribute("aria-label", `Move step ${i + 1}: drag it, or press the up and down arrow keys`);
+    grip.addEventListener("keydown", e => {
+      if (e.key === "ArrowUp") { e.preventDefault(); move(i, i - 1, "grip"); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); move(i, i + 1, "grip"); }
+    });
+    const no = mk("input", "ex-step-no");
+    no.type = "number"; no.min = "1"; no.max = String(n); no.value = String(i + 1);
+    no.setAttribute("aria-label", `Place of step ${i + 1}: type a number to move it there`);
+    no.title = "Type a number to move this step to that place";
+    no.addEventListener("change", () => {
+      const to = Math.max(1, Math.min(n, Math.round(+no.value) || i + 1)) - 1;
+      if (to !== i) move(i, to, "no"); else no.value = String(i + 1);
+    });
+    no.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); no.blur(); } });
+
+    const main = mk("div", "ex-step-main");
+    const of = mk("div", "ex-step-of");
+    of.append(`Step ${i + 1} of ${n}`, mk("span", "ex-step-kind", d.label));
+    if (d.picture) { const m = mk("span", "ex-step-mark", "🖼"); m.title = "Has a picture"; m.setAttribute("aria-label", "has a picture"); of.append(m); }
+    if (d.recording) { const m = mk("span", "ex-step-mark", "🔊"); m.title = "Has a recording"; m.setAttribute("aria-label", "has a recording"); of.append(m); }
+    const words = mk("div", "ex-step-words", d.words || "(no words)");
+    words.dir = "auto"; words.lang = lang().code;
+    main.append(of, words);
+    if (d.error) main.append(mk("div", "ex-step-err", d.error));
+    if (step.fromKey != null) {
+      const where = "the " + (ctx.fromPage ? ctx.fromPage.noun : "page");
+      main.append(mk("div", "ex-step-from", step.remove ? `Taken from ${where}: the original goes when you save.`
+                                                         : `Copied from ${where}: the original stays.`));
+    }
+
+    const acts = mk("div", "ex-step-actions");
+    const btn = (x, text, title, fn) => {
+      const b = mk("button", "btn small ghost ex-step-" + x, text);
+      b.type = "button"; b.dataset.x = x; b.title = title;
+      b.setAttribute("aria-label", `${title}: step ${i + 1}`);
+      b.addEventListener("click", fn);
+      return b;
+    };
+    const up = btn("up", "↑", "Move earlier", () => move(i, i - 1, "up")); up.disabled = i === 0;
+    const down = btn("down", "↓", "Move later", () => move(i, i + 1, "down")); down.disabled = i === n - 1;
+    const more = mk("div", "ex-step-more");
+    more.append(btn("duplicate", "Duplicate", "Copy this step just after itself", () => duplicate(i)));
+    if (ctx.putBackWhere) more.append(btn("putback", "⤴ Put back", `Take this step out of the chain and put it back ${ctx.putBackWhere} as an exercise of its own`, () => putBack(i)));
+    more.append(btn("delete", "Delete", "Delete this step", () => remove([i])));
+    const toggle = btn("toggle", "⋯", "More for this step", () => {
+      const open = li.classList.toggle("more-open");
+      toggle.setAttribute("aria-expanded", String(open));
+    });
+    toggle.setAttribute("aria-expanded", "false");
+    acts.append(up, down, btn("edit", "✎ Edit", "Edit this step", () => editStep(i)), toggle, more);
+    li.append(pick, grip, no, main, acts);
+    return li;
+  }
+
+  function counts() {
+    const n = steps.filter(s => s.picked).length;
+    picked.textContent = n ? `${n} ticked` : "";
+    bulk.forEach(b => { b.disabled = !n; });
+  }
+  function render(focus) {
+    list.replaceChildren(...steps.map(row));
+    counts();
+    hint.textContent = steps.length >= 2 ? `${steps.length} steps, answered in this order.`
+      : steps.length ? "A follow-up needs at least two steps: add one more."
+      : "A follow-up needs at least two steps. Add them below" + (ctx.fromPage ? ", or make the chain of exercises that are already here." : ".");
+    hint.classList.toggle("short", steps.length < 2);
+    const taken = steps.filter(s => s.fromKey != null);
+    originals.hidden = !taken.length || !(ctx.fromPage && ctx.fromPage.removeLabel);
+    originalsBox.checked = taken.length > 0 && taken.every(s => s.remove);
+    if (focus) {
+      const li = list.children[focus.i];
+      const target = li && (li.querySelector(focus.x === "no" ? ".ex-step-no" : `.ex-step-${focus.x}`));
+      const usable = target && !target.disabled ? target : li && li.querySelector(".ex-step-grip");
+      if (usable) usable.focus({preventScroll: false});
+    }
+    ctx.schedule();
+  }
+
+  /* DRAGGING, by the handle alone: a finger on the rest of a row scrolls the form.  The row under the pointer is
+     where the step goes; the form's body scrolls by itself near its edges. */
+  list.addEventListener("pointerdown", e => {
+    const grip = e.target.closest(".ex-step-grip");
+    if (!grip || (e.button && e.button !== 0)) return;
+    const li = grip.closest(".ex-step-row"), from = +li.dataset.i;
+    e.preventDefault();
+    grip.setPointerCapture(e.pointerId);
+    li.classList.add("dragging");
+    const scroller = list.closest(".ex-form-body") || document.scrollingElement;
+    let to = from, y = e.clientY, raf = 0;
+    const mark = () => {
+      [...list.children].forEach((r, k) => {
+        r.classList.toggle("drop-before", k === to && to < from);
+        r.classList.toggle("drop-after", k === to && to > from);
+      });
+    };
+    const where = () => {
+      const rows = [...list.children];
+      let k = rows.findIndex(r => y < r.getBoundingClientRect().bottom);
+      to = k < 0 ? rows.length - 1 : k;
+      mark();
+    };
+    const tick = () => {
+      const box = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : {top: 0, bottom: innerHeight};
+      if (y < box.top + 36) scroller.scrollTop -= 12;
+      else if (y > box.bottom - 36) scroller.scrollTop += 12;
+      where();
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    const finish = commit => {
+      cancelAnimationFrame(raf);
+      grip.removeEventListener("pointermove", onMove);
+      grip.removeEventListener("pointerup", onUp);
+      grip.removeEventListener("pointercancel", onCancel);
+      li.classList.remove("dragging");
+      [...list.children].forEach(r => r.classList.remove("drop-before", "drop-after"));
+      if (commit && to !== from) move(from, to, "grip");
+    };
+    const onMove = ev => { y = ev.clientY; where(); };
+    const onUp = () => finish(true);
+    const onCancel = () => finish(false);
+    grip.addEventListener("pointermove", onMove);
+    grip.addEventListener("pointerup", onUp);
+    grip.addEventListener("pointercancel", onCancel);
+  });
+
+  adding.append(toolButton("new-step", "+ New step…", "Choose a type of exercise and write a new step", newStep));
+  if (ctx.fromPage) adding.append(toolButton("from-page", "+ From this " + ctx.fromPage.noun + "…",
+    `Make steps of exercises this ${ctx.fromPage.noun} already has`, fromPage));
+  render();
+}
+
+/* THE EXERCISES A PAGE OR A DECK ALREADY HAS, to make steps of: each with its type, its opening words and a tick; a
+   filter; all or none; the steps in the order the page has them or in the order they were ticked; and, where the
+   original can be taken away, a box for that (ticked: "make these five exercises a chain" is one action).  An exercise
+   that needs attention, one that is a follow-up, one already a step of this chain is listed greyed, with why.
+   `items`: an array, or a promise of one, of {key, source, disabled?}. */
+function openStepsFromPage({noun, items, removeLabel, taken = [], onAdd}) {
+  const root = $("#modal-root");
+  const ov = document.createElement("div"); ov.className = "modal-overlay";
+  ov.dataset.lang = lang().code;
+  ov.innerHTML = `<div class="modal ex-from-page" role="dialog" aria-modal="true" aria-label="Exercises from this ${noun}">
+    <h3></h3><p class="ex-from-lead"></p>
+    <div class="ex-from-tools"><input type="search" class="ex-from-filter" aria-label="Filter the exercises" placeholder="Filter…">
+      <button type="button" class="btn small ghost" data-x="all">Select all</button>
+      <button type="button" class="btn small ghost" data-x="none">Select none</button>
+      <span class="ex-from-count" role="status"></span></div>
+    <div class="ex-from-list" role="group"></div>
+    <fieldset class="ex-from-order"><legend>Put them in the chain</legend>
+      <label><input type="radio" name="ex-from-order" value="page" checked> in the order they are on the ${noun}</label>
+      <label><input type="radio" name="ex-from-order" value="ticked"> in the order I ticked them</label></fieldset>
+    <label class="ex-from-remove" hidden><input type="checkbox" checked> <span></span></label>
+    <div class="row"><button type="button" class="btn" data-x="cancel">Cancel</button>
+      <button type="button" class="btn primary" data-x="add" disabled>Add the ticked ones</button></div></div>`;
+  $("h3", ov).textContent = "Steps from this " + noun;
+  $(".ex-from-lead", ov).textContent =
+    `Tick the exercises this ${noun} already has that are to be steps of the chain. ` +
+    "An exercise that needs attention, or that is a follow-up itself, cannot be one.";
+  const list = $(".ex-from-list", ov), count = $(".ex-from-count", ov), addButton = $('[data-x="add"]', ov);
+  const removeBox = $(".ex-from-remove", ov);
+  if (removeLabel) { removeBox.hidden = false; $("span", removeBox).textContent = removeLabel; }
+  const rows = [];                    // {entry, input, li, order}
+  let ticks = 0;
+  const refresh = () => {
+    const n = rows.filter(r => r.input.checked).length;
+    count.textContent = n ? `${n} ticked` : "";
+    addButton.disabled = !n;
+  };
+  const close = () => { if (ov.parentNode) root.removeChild(ov); };
+  Promise.resolve(items).then(entries => {
+    if (!ov.isConnected) return;
+    if (!entries.length) { list.textContent = `This ${noun} has no exercise to make a step of.`; return; }
+    entries.forEach(entry => {
+      const d = describeStep(entry.source);
+      const why = taken.includes(entry.key) ? "already a step of this chain"
+        : entry.disabled ? entry.disabled
+        : d.chain ? "a follow-up cannot be a step of another"
+        : d.error ? "needs attention: " + d.error : "";
+      const li = document.createElement("label"); li.className = "ex-from-item" + (why ? " off" : "");
+      const input = document.createElement("input"); input.type = "checkbox"; input.disabled = !!why;
+      input.setAttribute("aria-label", `${d.label}: ${d.words || "(no words)"}`);
+      const kind = document.createElement("span"); kind.className = "ex-from-kind"; kind.textContent = d.label;
+      const words = document.createElement("span"); words.className = "ex-from-words"; words.dir = "auto";
+      words.lang = lang().code; words.textContent = d.words || "(no words)";
+      li.append(input, kind, words);
+      if (why) { const note = document.createElement("small"); note.className = "ex-from-note"; note.textContent = why; li.append(note); }
+      input.addEventListener("change", () => { row.order = input.checked ? ++ticks : 0; refresh(); });
+      const row = {entry, input, li, order: 0, text: (d.label + " " + d.words).toLowerCase()};
+      rows.push(row);
+      list.append(li);
+    });
+    refresh();
+  }).catch(e => { list.textContent = "Could not read the exercises: " + e.message; });
+  $(".ex-from-filter", ov).addEventListener("input", e => {
+    const q = e.target.value.trim().toLowerCase();
+    rows.forEach(r => { r.li.hidden = !!q && !r.text.includes(q); });
+  });
+  const tickAll = on => rows.forEach(r => {
+    if (r.input.disabled || r.li.hidden || r.input.checked === on) return;
+    r.input.checked = on;
+    r.order = on ? ++ticks : 0;
+  });
+  $('[data-x="all"]', ov).addEventListener("click", () => { tickAll(true); refresh(); });
+  $('[data-x="none"]', ov).addEventListener("click", () => { tickAll(false); refresh(); });
+  addButton.addEventListener("click", () => {
+    const chosen = rows.filter(r => r.input.checked);
+    if (!chosen.length) return;
+    if ($('input[name="ex-from-order"]:checked', ov).value === "ticked") chosen.sort((a, b) => a.order - b.order);
+    close();
+    onAdd(chosen.map(r => r.entry), !!removeLabel && $("input", removeBox).checked);
+  });
+  $$('[data-x="cancel"]', ov).forEach(b => b.addEventListener("click", close));
+  ov.addEventListener("click", e => { if (e.target === ov) close(); });
+  ov.addEventListener("keydown", e => { if (e.key === "Escape") { e.preventDefault(); close(); } });
+  root.appendChild(ov);
+  $(".ex-from-filter", ov).focus();
+}
+
+/* The top-level exercises of a text, found by their fences alone: [{key (the line it opens on), line, endLine,
+   source}].  A boxed one (`> :::exercise`) is not offered: the form cannot edit it either.  The text a chain's steps
+   hold is the chain's own. */
+function exerciseBlocksIn(text) {
+  const lines = String(text || "").replaceAll("\r\n", "\n").split("\n");
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const drawn = lines[i].trim().match(/^(:{4,})latex\b/i);
+    if (drawn) {                                  // a drawing of the page's own: nothing in it is an exercise
+      for (i++; i < lines.length && lines[i].trim() !== drawn[1]; i++);
+      continue;
+    }
+    if (!/^:::exercise(?:\s+[a-z][a-z0-9-]*)?\s*$/i.test(lines[i])) continue;
+    let end = i + 1, fence = "";
+    for (; end < lines.length; end++) {
+      const u = lines[end].trim();
+      if (fence) { if (u === fence) fence = ""; continue; }
+      const m = u.match(/^(:{4,})latex\b/i);
+      if (m) { fence = m[1]; continue; }
+      if (u === ":::") break;
+    }
+    if (end >= lines.length) break;
+    out.push({key: i, line: i, endLine: end, source: lines.slice(i, end + 1).join("\n")});
+    i = end;
+  }
+  return out;
 }
 
 /* What the form shows as its preview when the caller brings none: the
@@ -596,12 +1116,24 @@ function putPictogramInline(input, markup, at, to) {
    a jolly card's fields "Image…" and "Recording…" buttons that put the
    line in at the cursor.  Without them the fields are paths.  A pictogram
    (lib/pictograms.js) is stored by the same `uploadImage`, and `pictureHome`
-   names where that is, for what the frame says ("this page", "this deck"). */
+   names where that is, for what the frame says ("this page", "this deck").
+
+   A FOLLOW-UP's form is this form with a Steps list in it.  `fromPage`, when the caller can offer one, is what
+   "+ From this page…" lists: {noun ("page" / "deck"), list() -> the exercises it has, [{key, source}] or a promise of
+   them, removeLabel (the words of the box that takes the originals away, or "" when it cannot), putBackWhere ("on the
+   page" / "in the deck": where "Put back" puts a step, or "" when it cannot)}.  `onSave(markdown, extra)` is then told,
+   as `extra`, which originals to take away ({remove: [keys]}) and which steps are to become exercises of their own
+   ({putBack: [markdown]}).  `host` says this form is a STEP of a follow-up -- {step, of} -- and changes only what a
+   step must: it opens over the chain's form instead of taking its place, its title says "Step 2 — …", its button
+   says Add to the chain / Save step, and a card's "both (repeat)" is not offered. */
 function openExerciseForm({model, def, mode = "add", onSave, preview, title, saveLabel,
-                           uploadImage: upload, uploadAudio, directions, pictureHome = "this page"}) {
+                           uploadImage: upload, uploadAudio, directions, pictureHome = "this page",
+                           host = null, fromPage = null}) {
   const adding = mode !== "edit";
   const renderPreview = preview || defaultExercisePreview;
-  const root = $("#modal-root"); root.innerHTML = "";
+  const root = $("#modal-root");
+  if (!host) root.innerHTML = "";
+  if (host && !directions) directions = ["forward", "reverse", "both-random"];
   const ov = document.createElement("div"); ov.className = "modal-overlay";
   ov.dataset.lang = lang().code;
   ov.innerHTML = `<div class="modal ex-form-modal" role="dialog" aria-modal="true">
@@ -614,9 +1146,11 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
     <span class="ex-form-spacer"></span>
     <button class="btn" data-x="cancel">Cancel</button>
     <button class="btn primary" data-x="save"></button></div></div>`;
-  $("h3", ov).textContent = title || (adding ? "Add " + def.label : "Edit " + def.label);
+  $("h3", ov).textContent = title || (host ? `Step ${host.step} — ${def.label}` : adding ? "Add " + def.label : "Edit " + def.label);
   $(".ex-form-head p", ov).textContent = def.description;
-  $('[data-x="save"]', ov).textContent = saveLabel || (adding ? "Insert exercise" : "Save exercise");
+  $('[data-x="save"]', ov).textContent = saveLabel
+    || (host ? (adding ? "Add to the chain" : "Save step") : adding ? "Insert exercise" : "Save exercise");
+  if (host) ov.classList.add("ex-step-frame");
   const body = $(".ex-form-body", ov);
   let scheduleExercisePreview = () => {};
   let stopPlayer = () => {};
@@ -891,6 +1425,12 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
     };
     area.appendChild(miniButton(model.subtype === "incorrect-part" ? "+ Add segment" : "+ Add choice", "Add another option", () => { model.rows.push({text: "", correct: false}); render(); }));
     render();
+  } else if (def.editor === "chain") {
+    buildChainSteps(section("Steps"), model, {
+      schedule: () => scheduleExercisePreview(),
+      inherit: {preview, uploadImage: upload, uploadAudio, pictureHome},
+      fromPage, putBackWhere: fromPage ? fromPage.putBackWhere : "",
+    });
   } else {
     const card = section("Card content");
     const textKeys = flashcardFields(model.cardType);
@@ -1161,6 +1701,9 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
       if (exercise) previewStage.replaceChildren(exercise);
       $$(".ex-edit,.ex-to-deck", previewStage).forEach(x => x.remove());
       bindExercises(previewStage, {preview: true});
+      // a follow-up is looked over whole: every step unfolded, as Show every step does
+      const all = def.editor === "chain" ? $(".ex-showall", previewStage) : null;
+      if (all && all.getAttribute("aria-pressed") !== "true") all.click();
       previewStatus.textContent = "Correct answer shown as it will appear in the editor preview.";
     } catch (e) {
       if (previewClosed || request !== previewRequest) return;
@@ -1192,7 +1735,11 @@ function openExerciseForm({model, def, mode = "add", onSave, preview, title, sav
     saveButton.disabled = true;
     try {
       validateExercise(model, def);
-      await onSave(exerciseSource(model, def));
+      const extra = def.editor === "chain"
+        ? {remove: model.steps.filter(s => s.fromKey != null && s.remove).map(s => s.fromKey),
+           putBack: (model.putBack || []).slice()}
+        : undefined;
+      await onSave(exerciseSource(model, def), extra);
       close();
     } catch (e) { toast(e.message, true); }
     finally { saving = false; saveButton.disabled = false; }
@@ -1466,6 +2013,10 @@ function openExerciseMarkdown(markdown, opts = {}) {
     toast(e.message, true);
     return false;
   }
+  if (opts.host && prepared.def.editor === "chain") {
+    toast("A follow-up cannot hold a follow-up: use its steps one by one.", true);
+    return false;
+  }
   openExerciseForm(Object.assign({}, opts,
     {model: prepared.model, def: prepared.def, mode: opts.mode === "add" ? "add" : "edit"}));
   return true;
@@ -1496,7 +2047,8 @@ function pastedExercise(text) {
    what was pasted before the form opens (the editor brings the clips it
    names in from the clip tray, so the form's preview plays them). */
 function openExercisePicker(opts = {}) {
-  const root = $("#modal-root"); root.innerHTML = "";
+  const root = $("#modal-root");
+  if (!opts.host) root.innerHTML = "";               // a step's grid opens over the chain's form
   const ov = document.createElement("div"); ov.className = "modal-overlay";
   ov.dataset.lang = lang().code;
   // two steps in one dialog, each a set of its children (a wrapper would
@@ -1527,7 +2079,12 @@ function openExercisePicker(opts = {}) {
     step = name;
     $$("[data-step]", ov).forEach(x => { x.hidden = x.dataset.step !== name; });
   };
+  if (opts.host) {
+    $("h3", ov).textContent = "Add a step";
+    $("p", ov).textContent = "Choose the activity this step of the follow-up will be. You can edit every field in the next step.";
+  }
   EXERCISE_DEFINITIONS.forEach(def => {
+    if (opts.host && def.editor === "chain") return;      // a follow-up cannot hold a follow-up
     const b = document.createElement("button");
     b.type = "button"; b.className = "ex-type";
     const strong = document.createElement("strong"); strong.textContent = def.label;
@@ -1723,7 +2280,12 @@ function openLatexOverlay(opts) {
         stage.innerHTML = `<img class="lx-preview-image" src="${escAttr(j.url)}" alt="the drawing"${j.w ? ` style="--lx-w:${+j.w}"` : ""}>`;
       } else {
         say(j.said || j.error || "It could not be drawn.", j.fix);
-        stage.innerHTML = j.detail ? `<pre class="lx-preview-detail">${escAttr(j.detail)}</pre>` : "";
+        // and, for a compile that took place, what the words were made from (app.js, openLatexView): the document TeX
+        // was given and the whole log it wrote, each in a frame on top
+        const kept = j.key ? LATEX_BASE + "/latex/" + j.key : "";
+        stage.innerHTML = (j.detail ? `<pre class="lx-preview-detail">${escAttr(j.detail)}</pre>` : "") +
+          (kept ? `<p class="lx-preview-views"><button type="button" class="btn" data-latex-view="tex" data-latex-url="${escAttr(kept + ".tex")}">The .tex that was compiled</button> ` +
+                  `<button type="button" class="btn" data-latex-view="log" data-latex-url="${escAttr(kept + ".log")}" data-latex-marks="${escAttr((j.marks || []).join(","))}">The whole log</button></p>` : "");
       }
     } catch (e) { if (mine === asked) status.textContent = "The computer did not answer."; }
   };

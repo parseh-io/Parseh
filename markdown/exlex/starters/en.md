@@ -392,6 +392,38 @@ prompt: Which is the odd one out? [Say each word aloud.]{no-bold}
 explanation-correct: [lamp]{tl} is said just as it is spelled, /læmp/. The others hide a letter: the *k* of [knot]{tl}, the *w* of [wrong]{tl} and the *b* of [lamb]{tl}, said /læm/.
 :::
 
+### Follow-up questions
+
+A follow-up is a chain of exercises answered one after the other: check a step, read what it says, and the next one comes under it. A step is any exercise, written inside the chain with one colon more on its fences (`::::exercise …` and `::::`). The PDF prints every step at once, numbered, so write each one so that it does not give away the one before.
+
+:::exercise follow-up
+prompt: At a café a customer says: [Good morning! I'd like a coffee and a sandwich, please.]{tl} Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then something to eat.
+::::exercise single-choice
+prompt: What does the customer want to drink?
+- [x] [a coffee]{tl}
+- [ ] [a sandwich]{tl}
+- [ ] [the bill]{tl}
+explanation-correct: [A coffee]{tl}; the sandwich is something to eat.
+::::
+::::exercise true-false
+prompt: Now decide.
+- [a]{tl} stands before [sandwich]{tl}, because the word begins with a consonant sound. => true
+- [Please]{tl} means *thank you*. => false
+explanation-correct: [Please]{tl} asks politely; *thank you* is [thanks]{tl}.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the words you have just read.
+content-direction: target
+text: [Good morning! I'd like [[drink]] and [[food]], please.]{tl}
+- [drink] [a coffee]{tl}
+- [food] [a sandwich]{tl}
+- [ ] [an sandwich]{tl}
+explanation-correct: [a]{tl} before a consonant sound: [a coffee]{tl}, [a sandwich]{tl}.
+::::
+:::
+
 ### Flashcards
 
 Flashcards turn over when clicked and are never scored. A word card shows the word and its

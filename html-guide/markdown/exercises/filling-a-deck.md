@@ -106,6 +106,13 @@ removed again.
 An exercise that shows an error is not offered, and the dialog says how
 many were left out that way.
 
+**Make a follow-up chain of these…**, beside **Cancel**, makes **one**
+[follow-up](../dialect-exercises/follow-up.md) of the ticked exercises instead
+of copying each: the deck gets a single exercise whose steps are the ticked ones,
+in the page's order, with the pictures and recordings of every step. It needs two
+ticked exercises, and a follow-up or a gloss is not one of them. To look the
+chain over, or to change a step, open it in the deck and press **✎ Edit**.
+
 ### Gloss flashcards
 
 A document's **glosses** — a target word followed by its meaning, the ones

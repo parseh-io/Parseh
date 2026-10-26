@@ -11,8 +11,8 @@ family lists the rest.
 
 | Field | What it holds | On which types |
 |---|---|---|
-| `prompt` | the instruction or question above the activity | all (the form offers it on all but a flashcard) |
-| `explanation-correct` | shown after the check | all but a flashcard |
+| `prompt` | the instruction or question above the activity | all (the form offers it on all but a flashcard); on a [follow-up](follow-up.md) the text the steps are about |
+| `explanation-correct` | shown after the check | all but a flashcard; on a follow-up, after its last step, by the result of the whole chain |
 | `explanation-incorrect` | shown after a wrong answer | all but a flashcard |
 | `image`, `image-answer` | a picture with the question; one shown once it is answered | all but a flashcard |
 | `audio`, `audio-answer` | a recording with the question; one heard once it is answered | all but a flashcard |

@@ -380,6 +380,38 @@ prompt: Which word does not belong with the others?
 explanation-correct: کتاب *ketāb* is a book; the others are colours.
 :::
 
+### Follow-up questions
+
+A follow-up is a chain of exercises answered one after the other: check a step, read what it says, and the next one comes under it. A step is any exercise, written inside the chain with one colon more on its fences (`::::exercise …` and `::::`). The PDF prints every step at once, numbered, so write each one so that it does not give away the one before.
+
+:::exercise follow-up
+prompt: In a tea house a customer says: [سلام! یک چای و یک نان، لطفاً.]{tl} Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then something to eat.
+::::exercise single-choice
+prompt: What does the customer want to drink?
+- [x] چای
+- [ ] نان
+- [ ] کتاب
+explanation-correct: چای *chāy* is tea; نان *nān* is bread.
+::::
+::::exercise true-false
+prompt: Now decide.
+- نان *nān* is something to eat. => true
+- لطفاً *lotfan* means *thank you*. => false
+explanation-correct: لطفاً *lotfan* is *please*; *thank you* is ممنون *mamnun*.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the words you have just read.
+content-direction: target
+text: [یک [[drink]] و یک [[food]]، لطفاً.]{tl}
+- [drink] [چای]{tl}
+- [food] [نان]{tl}
+- [ ] [کتاب]{tl}
+explanation-correct: یک *yek*, one, before each: یک چای، یک نان.
+::::
+:::
+
 ### Flashcards
 
 A flashcard turns over when it is clicked and is never scored. The speaker button on the back of the

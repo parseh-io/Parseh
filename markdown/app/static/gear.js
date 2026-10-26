@@ -102,14 +102,16 @@ function textGroup(full) {
          min: 2.2, max: 4.6, step: 0.1, format: v => v.toFixed(1) + "×",
          get: () => T.get().voce, set: v => { T.set({voce: v}); }}));
   rows.push(
-    {id: "justify", kind: "switch", label: "Justify the text",
+    {id: "justify", kind: "switch", label: "Justify the text", short: "justified",
      help: "Straight left and right edges, with words hyphenated at line ends, the way the PDF sets it.",
      get: () => !!T.get().justify, set: v => { T.set({justify: !!v}); }, watch: T.subscribe});
   if (full) rows.push(
     {id: "reset", kind: "action", label: "Put the text back to normal",
      help: "Sets every size above back to the one the PDF starts from.",
      onClick: () => { T.reset(); toast("The text is back to the PDF’s own sizes"); }});
-  return {id: "text", title: "Text", caption: SAVED, rows};
+  // "Persian text 1.20×": the first slider's own words, with its number (the sentence is cut, not the number)
+  const summary = () => `${nameOf()} text ${T.get().fa.toFixed(2)}×`;
+  return {id: "text", title: "Text", caption: SAVED, summary, rows};
 }
 
 /* ------------------------------------------------------------- Exercises */
@@ -117,11 +119,11 @@ function textGroup(full) {
 const exercisesGroup = () => ({
   id: "exercises", title: "Exercises", caption: SAVED,
   rows: [
-    {id: "translit", kind: "switch", label: "Hide transliterations",
+    {id: "translit", kind: "switch", label: "Hide transliterations", short: "transliterations hidden",
      help: "Hides the line that spells how a word sounds in Latin letters on every exercise flashcard, so you read the script itself.",
      get: () => hideExerciseTransliterations, set: v => setTransliterationsHidden(v),
      watch: heard("transliteration")},
-    {id: "drag", kind: "switch", label: "Drag to answer",
+    {id: "drag", kind: "switch", label: "Drag to answer", short: "drag",
      help: "Lets you drag words into place in exercises that offer it. Off by default on a touch screen, where tapping is easier.",
      get: () => dragIsOn(), set: v => setDragOn(v), watch: heard("drag")},
   ]
@@ -130,7 +132,7 @@ const exercisesGroup = () => ({
 const pageGroup = () => ({
   id: "page", title: "Page", caption: SAVED,
   rows: [
-    {id: "bars", kind: "switch", label: "Hide the bars",
+    {id: "bars", kind: "switch", label: "Hide the bars", short: "bars hidden",
      help: "Puts the header away so the text has the whole window; a small ⌄ at the top corner brings it back.",
      get: () => barsAreOff(), set: v => setBarsOff(v), watch: heard("bars")},
   ]
@@ -143,13 +145,13 @@ const pageGroup = () => ({
 const editorGroup = () => ({
   id: "editor", title: "Editor", caption: "Saved on this device, for this document.",
   rows: [
-    {id: "dir", kind: "switch", label: "Write the source right to left",
+    {id: "dir", kind: "switch", label: "Write the source right to left", short: "right to left",
      help: "Which way the source text box runs, for a right-to-left language. Remembered for this document.",
      when: () => !!window.ParsehStudioEditorDir,
      get: () => window.ParsehStudioEditorDir.isRtl(),
      set: v => window.ParsehStudioEditorDir.set(!!v),
      watch: cb => window.ParsehStudioEditorDir ? window.ParsehStudioEditorDir.subscribe(cb) : () => {}},
-    {id: "tab", kind: "switch", label: "Preview in its own tab",
+    {id: "tab", kind: "switch", label: "Preview in its own tab", short: "own tab",
      help: "Gives the whole window to the text and draws the preview in another tab of the browser, as the finished page, from what you type (unsaved changes included). Double-click anything in it to land on its text. Remembered on this device.",
      when: () => !!(window.ParsehStudioLive && window.ParsehStudioLive.available),
      get: () => window.ParsehStudioLive.isOwnTab(),
@@ -219,7 +221,12 @@ const gear = G.mount(spec);
 if (aa) {
   let at = "", foundUp = false, foundAt = "";
   document.addEventListener("click", e => {
-    if (e.target.closest && e.target.closest("#btn-typo")) { foundUp = gear.isOpen(); foundAt = at; }
+    if (e.target.closest && e.target.closest("#btn-typo")) {
+      // on the phone's sheet "at Text" is the theme on stage (the person may have gone to another since)
+      const st = typeof gear.stage === "function" ? gear.stage() : null;
+      foundUp = gear.isOpen();
+      foundAt = st !== null && st !== undefined ? (st === "text" ? "text" : "") : at;
+    }
   }, true);
   gear.onToggle(open => {
     aa.setAttribute("aria-expanded", String(open));

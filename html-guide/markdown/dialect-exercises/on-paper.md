@@ -50,6 +50,7 @@ file's name and the stretch its clip plays. Then the exercise itself:
 | `yes-no`, `true-false` | **each statement in a column of its own, the marks *Yes / No* or *True / False* aligned in a column at the right** |
 | `single-choice`, `incorrect-part`, `choose-all`, `odd-one-out` | the answers as a list, a □ before each, in the order written |
 | `flashcard` | **a card to cut out and fold**: a frame with round corners, the front in its left half and the back in its right, each as the page draws it, and a dashed line between them to fold on ([Flashcards](flashcards.md#on-paper)) |
+| `follow-up` | **one exercise** under its label: its prompt and shared picture once, then **its steps numbered 1., 2., …, each in a lighter frame of its own and laid out as its type is** (a card prints its two sides one under the other, *Front* and *Back*); a chain may part between two steps at a page's foot, never inside one ([Follow-up questions](follow-up.md#on-paper)) |
 | an exercise that needs attention | *Exercise needs attention in the Markdown source.* in red |
 
 An exercise that fits the page goes to the next one whole when it does not

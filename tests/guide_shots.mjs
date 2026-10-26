@@ -48,7 +48,8 @@ const FILES = {
   'reader':            'books/shots/reader.png',                         // the header and a few chunks
   'reader-switch':     'lookup-and-languages/shots/reader-switch.png',   // gloss, hover, dictionary
   'gear-reader':       'getting-started/shots/gear-reader.png',          // the gear open on a book, wide
-  'gear-reader-phone': 'getting-started/shots/gear-reader-phone.png',    // the sheet on a phone
+  'gear-reader-phone': 'getting-started/shots/gear-reader-phone.png',    // the sheet on a phone: the list of themes
+  'gear-reader-phone-theme': 'getting-started/shots/gear-reader-phone-theme.png',  // and one theme on stage (Text)
   'gear-zoom':         'getting-started/shots/gear-zoom.png',            // the Zoom group, the page at 150 %
   'levels-names':      'books/shots/levels-names.png',                   // the Levels rows, one level renamed
   'diacritics-on':     'books/shots/diacritics-on.png',                  // a Persian line with its marks ...
@@ -62,6 +63,8 @@ const FILES = {
   'gear-deck':         'getting-started/shots/gear-deck.png',
   // the hub
   'editor':            'studio/shots/editor.png',
+  'add-exercise':      'dialect-exercises/shots/add-exercise.png',       // Exercises ▾ → Add exercise…: the grid of the sixteen activities
+  'follow-up':         'dialect-exercises/shots/follow-up.png',          // a follow-up half-way: Step 2 of 3, the first step checked and locked
   'open-file':         'studio/shots/open-file.png',                     // "Open a file…": the file browser, a Markdown file chosen
   'open-file-bar':     'studio/shots/open-file-bar.png',                 // a file's page: the bar says what the file holds
   'open-file-format':  'studio/shots/open-file-format.png',              // what a Markdown file cannot hold: the zip beside it, or the text only
@@ -219,6 +222,40 @@ context: [من هر روز به خانه می‌روم.]{tl}
 const LINKER = (title, text) => `---\ntitle: ${title}\ntarget: fa\n---\n\n${text}\n`;
 const makeDoc = async (md, tags) => (await (await post('/studio/api/docs', {markdown: md, tags})).json()).meta.id;
 const lessonId = await makeDoc(LESSON, ['grammar', 'verbs']);
+// a follow-up about a sentence at a bar (the one the guide's own page shows live), for the picture of a chain half-way
+const FOLLOW_UP = `---
+title: At the bar
+target: it
+---
+
+:::exercise follow-up
+prompt: At the bar a customer says: [Buongiorno! Un cappuccino e un cornetto, per favore.]{tl} Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then a pastry.
+::::exercise single-choice
+prompt: What does the customer ask for first?
+- [x] [un cappuccino]{tl}
+- [ ] [un cornetto]{tl}
+- [ ] [il conto]{tl}
+explanation-correct: [Un cappuccino]{tl}, a coffee with milk; the pastry comes second.
+::::
+::::exercise true-false
+prompt: Now that you know what was ordered, decide.
+- [Un cornetto]{tl} is something to eat. => true
+- [Per favore]{tl} means *thank you*. => false
+explanation-correct: [Per favore]{tl} is *please*; *thank you* is [grazie]{tl}.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the words you have just read.
+content-direction: target
+text: [Buongiorno! Un [[drink]] e un [[food]], per favore.]{tl}
+- [drink] [cappuccino]{tl}
+- [food] [cornetto]{tl}
+- [ ] [conto]{tl}
+::::
+:::
+`;
+const followUpId = await makeDoc(FOLLOW_UP, []);
 await makeDoc(LINKER('Everyday questions', 'For the verb [رفتن]{tl}, see [the verbs of motion](doc:Verbs of motion) first.'), []);
 await makeDoc(LINKER('Travel phrases', 'The verbs in these phrases are explained in [Verbs of motion](doc:Verbs of motion).'), []);
 // A PERSON'S OWN FOLDER, for the pictures of "Open a file…": notes kept where the person keeps them, not in Parseh.  Under a
@@ -421,6 +458,14 @@ const PICS = {
     await save(page, 'gear-reader-phone');
     await ctx.close();
   },
+  async 'gear-reader-phone-theme'() {
+    const ctx = await context(PHONE, {parseh_mode: 'mobile'});
+    const page = await openReader(ctx, 'fa');
+    await gearOpen(page, 'text');
+    await sleep(400);
+    await save(page, 'gear-reader-phone-theme');
+    await ctx.close();
+  },
   async 'gear-zoom'() {
     const ctx = await context(DESK(1280), {parseh_zoom: '150'});
     const page = await openReader(ctx, 'fa', {width: 1280, height: 720});
@@ -502,6 +547,35 @@ const PICS = {
     await gearOpen(page);
     await scrollGroup(page, 'text');
     await save(page, 'gear-document', {x: 640, y: 0, width: 640, height: 760});
+    await ctx.close();
+  },
+  /* the grid of activities, and a follow-up half-way (dialect-exercises/follow-up.md) */
+  async 'add-exercise'() {
+    const ctx = await context(DESK(1280));
+    const page = await newPage(ctx, {width: 1100, height: 1180});
+    await page.goto(`${B}/studio/doc/${lessonId}/edit`, {waitUntil: 'load'});
+    await page.waitForSelector('#sheet .exercise, #sheet h1', {timeout: 15000});
+    await page.evaluate(() => document.fonts.ready);
+    await page.locator('details.dropdown', {has: page.locator('#btn-exercise')}).locator('summary').click();
+    await page.locator('#btn-exercise').click();
+    await page.waitForSelector('.ex-picker .ex-type');
+    await sleep(300);
+    await save(page, 'add-exercise', page.locator('.ex-picker'));
+    await ctx.close();
+  },
+  async 'follow-up'() {
+    const ctx = await context(DESK(1280));
+    const page = await newPage(ctx, {width: 900, height: 1300});
+    await page.goto(`${B}/studio/doc/${followUpId}`, {waitUntil: 'load'});
+    await page.waitForSelector('#sheet .ex-chain', {timeout: 15000});
+    await page.evaluate(() => document.fonts.ready);
+    await page.locator('.ex-step[data-step="1"] [data-correct="1"]').click();
+    await page.locator('.ex-step[data-step="1"] .ex-step-check').click();
+    await page.locator('.ex-step[data-step="1"] .ex-step-next').click();
+    // an answer pressed on the reading view says "Copied: …"; the picture is of the chain, not of that
+    await page.evaluate(() => { const t = document.querySelector('#toast'); if (t) t.hidden = true; });
+    await sleep(500);
+    await save(page, 'follow-up', page.locator('#sheet .ex-chain'));
     await ctx.close();
   },
   async editor() {
@@ -871,8 +945,9 @@ const PICS = {
     const ctx = await context(PHONE, {parseh_mode: 'mobile'});
     const book = await openReader(ctx, 'fa');
     await book.waitForSelector('#dictmode:not([hidden])', {state: 'attached', timeout: 15000});
-    await gearOpen(book);
+    await gearOpen(book, 'looking');                 // the sheet draws one theme at a time: each row in its own
     await gearRow(book, 'dictmode').locator('button.pg-switch').tap();
+    await gearOpen(book, 'levels');
     await gearRow(book, 'hover').locator('button.pg-switch').tap();
     await sleep(300);
     await gearClose(book);
@@ -885,7 +960,7 @@ const PICS = {
     await sleep(900);
     await book.screenshot({path: `${dir}/book.png`});
     const video = await openPlayer(ctx);
-    await gearOpen(video);
+    await gearOpen(video, 'looking');
     await gearRow(video, 'dict').locator('button.pg-switch').tap();
     await sleep(300);
     await gearClose(video);

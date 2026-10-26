@@ -411,6 +411,38 @@ prompt: Which word does not belong with the others?
 explanation-correct: [Gennaio]{tl}, *January*, is a month; the others are days of the week. Italian writes both with a small letter.
 :::
 
+### Follow-up questions
+
+A follow-up is a chain of exercises answered one after the other: check a step, read what it says, and the next one comes under it. A step is any exercise, written inside the chain with one colon more on its fences (`::::exercise …` and `::::`). The PDF prints every step at once, numbered, so write each one so that it does not give away the one before.
+
+:::exercise follow-up
+prompt: At the bar a customer says: [Buongiorno! Un cappuccino e un cornetto, per favore.]{tl} Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then a pastry.
+::::exercise single-choice
+prompt: What does the customer ask for first?
+- [x] [un cappuccino]{tl}
+- [ ] [un cornetto]{tl}
+- [ ] [il conto]{tl}
+explanation-correct: [Un cappuccino]{tl}, a coffee with milk; the pastry comes second.
+::::
+::::exercise true-false
+prompt: Now that you know what was ordered, decide.
+- [Un cornetto]{tl} is something to eat. => true
+- [Per favore]{tl} means *thank you*. => false
+explanation-correct: [Per favore]{tl} is *please*; *thank you* is [grazie]{tl}.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the words you have just read.
+content-direction: target
+text: [Buongiorno! Un [[drink]] e un [[food]], per favore.]{tl}
+- [drink] [cappuccino]{tl}
+- [food] [cornetto]{tl}
+- [ ] [conto]{tl}
+explanation-correct: A drink and something to eat, then [per favore]{tl}.
+::::
+:::
+
 ### Flashcards
 
 A flashcard turns over when you click it. A vocabulary card, whose speaker button plays the

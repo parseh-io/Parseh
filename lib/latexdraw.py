@@ -39,6 +39,16 @@ A FAILURE IS SAID IN WORDS, beside the block, with the line of the block it
 happened on where TeX says one -- and the log's own line under it for
 whoever wants it.  A failure is remembered as long as its key stands, so a
 package installed since, or a theme changed, draws it again.
+
+THE .tex AND THE .log OF A COMPILE ARE KEPT WITH ITS DRAWING (a0.5.4, the
+owner, 2026-10-25): "it is difficult otherwise to understand when something
+doesn't work, why it doesn't work".  The exact document TeX was given
+(<key>.tex, what source() made, byte for byte) and the complete log it wrote
+(<key>.log, at most LOG_MAX bytes, with a line saying so where it was cut) stay
+beside the picture -- and beside a failure, which has no picture -- for as
+long as the key stands, and are asked for by their address (/latex/<key>.tex,
+/latex/<key>.log) wherever a drawing is shown.  Nothing is built a second time
+to show them: what is shown is what was compiled.
 """
 import hashlib
 import json
@@ -61,7 +71,9 @@ import latexthemes                                           # noqa: E402
 
 DRAWN = os.path.join(ROOT, "markdown", "latex")
 FONTS = os.path.join(ROOT, "lib", "fonts")
-RENDERER = 2      # 2, 2026-09-27: an inline drawing's key also carries "inline" (TO-DO §8.39's L8)
+RENDERER = 3      # 2, 2026-09-27: an inline drawing's key also carries "inline" (TO-DO §8.39's L8)
+                  # 3, 2026-10-26: the .tex and the .log are kept beside every drawing (a drawing kept before has none)
+LOG_MAX = 512 * 1024
 URL = "/latex/"
 KEY_RE = re.compile(r"^[0-9a-f]{64}$")
 DESIGN_PT = 10.0            # standalone's size: a drawing's natural width is w/10 em
@@ -151,7 +163,8 @@ def paths(key, preview=False):
     """The persistent path by default; a temporary preview path when asked."""
     d = _cache_dir(key, preview)
     return {"svg": os.path.join(d, key + ".svg"), "pdf": os.path.join(d, key + ".pdf"),
-            "meta": os.path.join(d, key + ".json"), "fail": os.path.join(d, key + ".fail.json")}
+            "meta": os.path.join(d, key + ".json"), "fail": os.path.join(d, key + ".fail.json"),
+            "tex": os.path.join(d, key + ".tex"), "log": os.path.join(d, key + ".log")}
 
 
 def _owners_path():
@@ -195,8 +208,8 @@ def url_of(key):
 
 
 def file_of(name):
-    """/latex/<key>.svg or .pdf -> the file on this disk, or None."""
-    m = re.match(r"^([0-9a-f]{64})\.(svg|pdf)$", name or "")
+    """/latex/<key>.svg, .pdf, .tex or .log -> the file on this disk, or None."""
+    m = re.match(r"^([0-9a-f]{64})\.(svg|pdf|tex|log)$", name or "")
     if not m:
         return None
     for preview in (False, True):
@@ -204,6 +217,59 @@ def file_of(name):
         if os.path.isfile(p):
             return p
     return None
+
+
+def read_text(key, kind):
+    """The .tex or the .log a drawing's compile kept (kind "tex" or "log"), as text, or None when
+    there is none: the key was drawn before they were kept, or it never reached a compile."""
+    if kind not in ("tex", "log") or not KEY_RE.match(key or ""):
+        return None
+    for preview in (False, True):
+        try:
+            with open(paths(key, preview)[kind], encoding="utf-8", errors="replace") as fh:
+                return fh.read()
+        except OSError:
+            continue
+    return None
+
+
+def _capped(log):
+    """A compile's log as it is kept: whole up to LOG_MAX bytes, then cut, with a line that says so
+    (a runaway log is a thing)."""
+    raw = log.encode("utf-8", "replace")
+    if len(raw) <= LOG_MAX:
+        return log
+    kept = raw[:LOG_MAX].decode("utf-8", "ignore")
+    kept = kept[:kept.rfind("\n") + 1] if "\n" in kept else kept
+    return (kept + "\n[Parseh kept the first %d KB of this log; it went on for %d bytes more.]\n"
+            % (LOG_MAX // 1024, len(raw) - len(kept.encode("utf-8", "replace"))))
+
+
+# what a compiler prints that its log does not hold: the helpers it starts for a font it cannot find (kpathsea, mktextfm,
+# METAFONT) and the driver xelatex ends with (xdvipdfmx).  The lines of the terminal that only repeat the log, wrapped
+# otherwise, are not these.
+_HELPER_LINE = re.compile(r"^kpathsea:|mktex[a-z]*:|/web2c/mktex|^mf-nowin|^This is METAFONT|^(?:x?dvipdfmx)\b|"
+                          r"^! |^<\*>|^Please type|^Transcript written on (?!d\.log)|^grep:", re.I)
+
+
+def _with_program_output(log, out):
+    """The log, and under it what the program printed besides it (_HELPER_LINE): where a font a document asked for is
+    looked for and not made, and what xelatex's driver could not find."""
+    seen = set(log.splitlines())
+    extra = [l for l in (out or "").splitlines() if l.strip() and l not in seen and _HELPER_LINE.search(l)]
+    if not extra:
+        return log
+    return log.rstrip("\n") + "\n\n[what the program printed besides this log]\n" + "\n".join(extra) + "\n"
+
+
+def _keep_compile(key, preview, doc, log):
+    """The document and the log of one compile, written beside where its drawing is or would be."""
+    p = paths(key, preview)
+    try:
+        _write_atomic(p["tex"], doc.encode("utf-8"))
+        _write_atomic(p["log"], _capped(log).encode("utf-8"))
+    except OSError:
+        pass
 
 
 # ------------------------------------------------------------------ drawing
@@ -513,19 +579,22 @@ def _compile(tex, resolved, info, key, limit, inline=False, preview=False):
         if rc == "spawn":
             return {"ok": False, "kind": "compiler", "said": "%s could not be started: %s"
                     % (resolved["compiler"], out), "fix": {"kind": "theme", "theme": resolved["name"]}}
+        # what TeX wrote of itself, whole: the log beside the document it read
+        try:
+            with open(os.path.join(work, "d.log"), encoding="utf-8", errors="replace") as fh:
+                log = fh.read()
+        except OSError:
+            log = out or ""
+        log = _with_program_output(log, out)
+        _keep_compile(key, preview, doc, log)
         if rc is None:
-            return {"ok": False, "kind": "timeout",
+            return {"ok": False, "kind": "timeout", "key": key,
                     "said": "The drawing did not finish in %d seconds, and was stopped. "
                             "Settings \u2192 LaTeX drawings says how long a drawing may take."
                             % limit}
         pdf = os.path.join(work, "d.pdf")
         if rc != 0 or not os.path.exists(pdf):
-            try:
-                with open(os.path.join(work, "d.log"), encoding="utf-8", errors="replace") as fh:
-                    log = fh.read()
-            except OSError:
-                log = out
-            return explain(log, first_body, tex, resolved)
+            return dict(explain(log, first_body, tex, resolved), key=key)
         try:
             import pymupdf
         except ImportError:
@@ -540,7 +609,7 @@ def _compile(tex, resolved, info, key, limit, inline=False, preview=False):
             pdf_bytes = fh.read()
         with pymupdf.open(stream=pdf_bytes, filetype="pdf") as d:
             if not d.page_count:
-                return {"ok": False, "kind": "empty", "said": "The drawing came out empty."}
+                return {"ok": False, "kind": "empty", "key": key, "said": "The drawing came out empty."}
             page = d[0]
             svg = page.get_svg_image(text_as_path=True)
             w, h = round(page.rect.width, 2), round(page.rect.height, 2)
@@ -619,36 +688,98 @@ def _where(line_no, first_body, tex):
     return n if 1 <= n <= tex.count("\n") + 1 else None
 
 
+# A MESSAGE FROM ANY FILE, in the form -file-line-error gives it: `d.tex:7: Undefined control sequence.` for the document
+# and `/…/skak.sty:1774: Font … not loadable: …` for a package it loaded.  Only the document's line is the block's.
+_FILE_LINE = re.compile(r"^(?:\./)?(?P<file>(?:[A-Za-z]:)?[^\s:][^:\n]*?\.[A-Za-z0-9]+):(?P<n>\d+): (?P<msg>.*)$")
+# the fonts a package brings that TeX Live keeps in a package of their own (a font TeX cannot make for itself here:
+# a compile runs with no shell, so nothing is made on the fly)
+FONT_PACKAGES = {"skaknew": "skaknew"}
+_STATS = re.compile(r"words of memory|multiletter control sequences|words of font info|hyphenation exceptions|"
+                    r"stack positions|strings out of|string characters out of|how much of TeX's memory", re.I)
+_NOT_LOADABLE = re.compile(r"Font\s+(?:\S+=)?(\S+?)(?:\s+at\s+[\d.]+pt)?\s+not loadable")
+
+
+def _no_message(lines, tex):
+    """What to say of a log with no error line in it.  One that ends "No pages of output." is not silent:
+    TeX ran to its end and nothing it was given made a page."""
+    kept = [l for l in lines if l.strip() and not _STATS.search(l)]
+    tail = "\n".join(kept[-6:])[:1200]
+    none = [i for i, l in enumerate(lines) if "No pages of output" in l]
+    if none:
+        if not (tex or "").strip():
+            cause = "the block is empty"
+        else:
+            cause = ("nothing in the block put anything on a page -- a command that typesets nothing, "
+                     "or a package that went quiet before it could: the whole log says which")
+        return {"kind": "empty", "said": "LaTeX made no page: %s." % cause, "detail": tail,
+                "marks": [none[0] + 1]}
+    return {"said": "LaTeX stopped without saying why.", "detail": tail}
+
+
+def _own_page_words(path):
+    return os.path.basename((path or "").replace("\\", "/"))
+
+
 def explain(log, first_body, tex, resolved):
     """LaTeX's log -> the failure in ordinary words: what went wrong, on which
-    line of the block when TeX says one, and what would mend it."""
+    line of the block when TeX says one, and what would mend it.  `marks` are the
+    lines of the log this read (1-based), which the whole log shows marked."""
     theme = resolved.get("name") or ""
     lines = log.splitlines()
-    msg, line_no, ctx = None, None, ""
+    msg, line_no, ctx, source = None, None, "", ""
+    marks = []
     for i, l in enumerate(lines):
-        m = re.match(r"^(?:\./)?d\.tex:(\d+): (.*)$", l)
+        m = _FILE_LINE.match(l)
         if m:
-            line_no, msg = int(m.group(1)), m.group(2)
+            source, msg = _own_page_words(m.group("file")), m.group("msg")
+            if source == "d.tex":
+                line_no = int(m.group("n"))
             ctx = "\n".join(lines[i:i + 4])
+            marks.append(i + 1)
+            for j, later in enumerate(lines[i + 1:i + 12]):
+                if re.match(r"^l\.(\d+) ", later):
+                    marks.append(i + j + 2)
+                    break
             break
         if l.startswith("! "):
             msg = l[2:]
             ctx = "\n".join(lines[i:i + 4])
-            for later in lines[i:i + 12]:
+            marks.append(i + 1)
+            # which file TeX was reading: the next line of the form FILE:LINE: (an "Emergency stop" carries it)
+            for later in lines[i + 1:i + 14]:
+                mf = _FILE_LINE.match(later)
+                if mf:
+                    source = _own_page_words(mf.group("file"))
+                    break
+            for j, later in enumerate(lines[i:i + 12]):
                 mm = re.match(r"^l\.(\d+) ", later)
                 if mm:
-                    line_no = int(mm.group(1))
+                    # the line TeX shows is in the file it was reading: the document's only when it was the document
+                    if source in ("", "d.tex"):
+                        line_no = int(mm.group(1))
+                    marks.append(i + j + 1)
                     break
             break
     at = _where(line_no, first_body, tex)
     where = (" on line %d of the block" % at) if at else (
-        " in the theme's preamble" if line_no else "")
+        " in the theme's preamble" if line_no else (" in %s" % source if source and source != "d.tex" else ""))
     out = {"ok": False, "kind": "latex", "line": at, "detail": ctx.strip()[:1200],
-           "theme": theme}
+           "theme": theme, "marks": marks}
     if msg is None:
-        # no error line at all: say what TeX did say, at its end
-        tail = [l for l in lines if l.strip()][-6:]
-        out.update(said="LaTeX stopped without saying why.", detail="\n".join(tail)[:1200])
+        out.update(_no_message(lines, tex))
+        return out
+    m = _NOT_LOADABLE.search(msg)
+    if m:
+        font = m.group(1)
+        pkg = next((v for k, v in FONT_PACKAGES.items() if font.lower().startswith(k)), None)
+        said = 'The font "%s" is not on this computer%s.' % (font, where)
+        if pkg:
+            said += (' It comes with the TeX Live package %s: get it in Settings → LaTeX drawings.' % pkg)
+            out.update(kind="package", fix={"kind": "install", "package": pkg})
+        else:
+            said += (" Parseh runs LaTeX with no shell, so a missing font is not made on the fly: install "
+                     "the package that has it, or choose another font.")
+        out.update(said=said)
         return out
     m = re.search(r"File [`'](.+?)' not found", msg)
     if m:
@@ -871,19 +1002,22 @@ def _mark_unowned(key):
 
 
 def prune_previews():
-    """Keep only the newest bounded preview cache; it is never in size()."""
+    """Keep only the newest bounded preview cache; it is never in size().  A key counts as one
+    entry whatever it holds -- a drawing, or the .tex and .log of a failure that has no picture."""
     root = os.path.join(DRAWN, PREVIEW_DIR)
-    rows = []
+    seen = {}
     for here, _dirs, files in os.walk(root):
         for name in files:
-            if name.endswith(".json") and not name.endswith(".fail.json") and KEY_RE.match(name[:-5]):
-                key, meta = name[:-5], os.path.join(here, name)
+            key = name.split(".")[0]
+            if KEY_RE.match(key):
                 try:
-                    rows.append((os.path.getmtime(meta), key,
-                                 sum(os.path.getsize(p) for p in paths(key, True).values()
-                                     if os.path.isfile(p))))
+                    seen[key] = max(seen.get(key, 0), os.path.getmtime(os.path.join(here, name)))
                 except OSError:
                     pass
+    rows = []
+    for key, at in seen.items():
+        rows.append((at, key, sum(os.path.getsize(p) for p in paths(key, True).values()
+                                  if os.path.isfile(p))))
     rows.sort(reverse=True)
     total, kept, gone = 0, 0, 0
     for at, key, bytes_ in rows:
@@ -1001,9 +1135,14 @@ def forget_failures():
         _FAILED.clear()
         for name in list(_TOOLS):
             _TOOLS.pop(name, None)
-    for here, _dirs, files in os.walk(DRAWN):
+    for here, dirs, files in os.walk(DRAWN):
+        if PREVIEW_DIR in dirs:
+            dirs.remove(PREVIEW_DIR)
+        have = {f[:-4] for f in files if f.endswith(".svg")}
         for f in files:
-            if f.endswith(".fail.json"):
+            key = f.split(".")[0]
+            # a failure, and the document and log that went with it -- a key with a drawing keeps its own
+            if f.endswith(".fail.json") or (f.endswith((".tex", ".log")) and key not in have):
                 try:
                     os.unlink(os.path.join(here, f))
                 except OSError:

@@ -79,6 +79,28 @@ class TheFence(unittest.TestCase):
         b, = latexthemes.blocks_in("> ::::latex drawing\n> x\n> ::::\n")
         self.assertEqual((b["theme"], b["tex"], b["closed"]), ("drawing", "x", True))
 
+    def test_a_drawing_in_a_step_of_a_follow_up_has_one_colon_more(self):
+        # a0.5.4: a step is one fence deeper, so its drawing is `:::::latex` … `:::::`, closed by its own colons --
+        # a `::::` inside it does not end it, and the four-colon block after it is a block of its own
+        md = (":::exercise follow-up\n::::exercise single-choice\nprompt: |\n  Which?\n"
+              "  :::::latex chemistry {width=40}\n  \\ce{H2O}\n  ::::\n  \\ce{CO2}\n  :::::\n"
+              "- [x] a\n- [ ] b\n::::\n:::\n\n::::latex\n$x$\n::::\n")
+        deep, plain = latexthemes.blocks_in(md)
+        self.assertEqual((deep["theme"], deep["attrs"], deep["tex"], deep["closed"]),
+                         ("chemistry", "width=40", "\\ce{H2O}\n::::\n\\ce{CO2}", True))
+        self.assertEqual((plain["theme"], plain["tex"], plain["closed"]), ("", "$x$", True))
+        self.assertEqual([], deep["errors"])
+
+    def test_the_page_does_not_load_mathjax_for_what_a_deeper_drawing_holds(self):
+        import offline
+        inside = ("::::exercise single-choice\nprompt: |\n  :::::latex\n  [x^2]{math}\n  :::::\n- [x] a\n- [ ] b\n::::\n")
+        self.assertFalse(offline._maths_in(":::exercise follow-up\n" + inside + inside + ":::\n"))
+        self.assertTrue(offline._maths_in(":::exercise follow-up\n" + inside + inside + ":::\n\n[y]{math}\n"))
+
+    def test_a_deeper_fence_that_is_never_closed_says_so(self):
+        b, = latexthemes.blocks_in(":::::latex\nx\n::::\n")
+        self.assertEqual((b["tex"], b["closed"]), ("x\n::::", False))
+
 
 def _drawn(calls=None, w=99.0):
     def draw(tex, theme, **kw):
@@ -227,6 +249,12 @@ class Rename(unittest.TestCase):
         self.assertIn("> ::::latex chem\n", out)
         self.assertIn("\\ce{chemistry}", out)
         self.assertIn("::::latex drawing", out)
+
+    def test_a_drawing_in_a_step_is_renamed_too(self):
+        md = ":::exercise follow-up\n::::exercise single-choice\nprompt: |\n  :::::latex Chemistry {width=40}\n  x\n  :::::\n::::\n:::\n"
+        out, n = latexthemes.rename_in_text(md, "chemistry", "chem")
+        self.assertEqual(n, 1)
+        self.assertIn("  :::::latex chem {width=40}\n", out)
 
     def test_an_editor_catches_up(self):
         mark = latexthemes.rename_mark()
@@ -897,6 +925,273 @@ class ForgetWhatWasDeleted(Store):
                          "deleting one book's note leaves the other's drawings owned")
         self.assertEqual(self.forget()["drawings"], len(keys_a))
         self.assertEqual(latexdraw.size()["drawings"], len(keys_b))
+
+
+FIXTURES = ROOT / "tests" / "fixtures" / "latex"
+
+
+class TheDocumentAndTheLogAreKept(Store):
+    """a0.5.4 (the owner, 2026-10-25): what TeX was given and what it wrote stay beside the drawing -- and beside a
+    failure, which has no picture -- and are asked for by their address.  TeX is not run: `_run_tex` is
+    replaced by one that writes the log a compile would have."""
+
+    SAMPLE = "\\newchessgame\\mainline{1.e4 e5}\\chessboard"
+
+    def compile(self, log, rc=1, make_pdf=False, out="terminal"):
+        resolved = latexthemes.resolve("default")
+        key = "ab" * 32
+
+        def fake(work, filename, info, limit):
+            with open(os.path.join(work, "d.log"), "w", encoding="utf-8") as fh:
+                fh.write(log)
+            if make_pdf:
+                import pymupdf
+                doc = pymupdf.open()
+                doc.new_page(width=80, height=40)
+                doc.save(os.path.join(work, "d.pdf"))
+            return rc, out, 0.1
+
+        with mock.patch.object(latexdraw, "_run_tex", fake):
+            r = latexdraw._compile(self.SAMPLE, resolved, {"path": "/x", "version": "v"}, key, 30,
+                                   preview=True)
+        return r, key, resolved
+
+    def test_a_failure_keeps_the_document_exactly_as_source_made_it_and_the_log_whole(self):
+        log = "This is XeTeX\n(./d.tex\n./d.tex:12: Undefined control sequence.\nl.12 \\newchessgame\n"
+        r, key, resolved = self.compile(log)
+        self.assertFalse(r["ok"])
+        self.assertEqual(r["key"], key, "a failure says which compile it was")
+        self.assertEqual(latexdraw.read_text(key, "tex"), latexdraw.source(self.SAMPLE, resolved),
+                         "byte for byte the document TeX was given")
+        self.assertEqual(latexdraw.read_text(key, "log"), log, "and the whole log it wrote")
+        self.assertTrue(os.path.isfile(latexdraw.file_of(key + ".tex")))
+        self.assertTrue(os.path.isfile(latexdraw.file_of(key + ".log")))
+        self.assertEqual([r["marks"][0]], [3], "the line the words were made from is marked in it")
+
+    def test_a_success_keeps_them_too(self):
+        try:
+            import pymupdf  # noqa: F401
+        except ImportError:
+            self.skipTest("PyMuPDF is not here")
+        r, key, resolved = self.compile("Output written on d.pdf (1 page).\n", rc=0, make_pdf=True)
+        self.assertTrue(r["ok"])
+        self.assertEqual(latexdraw.read_text(key, "tex"), latexdraw.source(self.SAMPLE, resolved))
+        self.assertIn("Output written", latexdraw.read_text(key, "log"))
+
+    def test_the_address_names_a_key_and_one_of_four_kinds_and_nothing_else(self):
+        self.assertIsNone(latexdraw.file_of("../../etc/passwd"))
+        self.assertIsNone(latexdraw.file_of("ab" * 32 + ".txt"))
+        self.assertIsNone(latexdraw.file_of("ab" * 32 + ".tex"), "nothing kept under that key")
+        self.assertIsNone(latexdraw.read_text("nonsense", "tex"))
+        self.assertIsNone(latexdraw.read_text("ab" * 32, "svg"))
+
+    def test_a_log_over_the_cap_is_cut_and_says_so(self):
+        long = "a line of a runaway log\n" * 40000
+        self.assertGreater(len(long.encode()), latexdraw.LOG_MAX)
+        kept = latexdraw._capped(long)
+        self.assertLessEqual(len(kept.encode()), latexdraw.LOG_MAX + 200)
+        self.assertIn("kept the first 512 KB of this log", kept)
+        self.assertTrue(kept.startswith("a line of a runaway log\n"))
+        self.assertEqual(latexdraw._capped("short\n"), "short\n", "a log under the cap is whole")
+
+    def test_what_a_font_helper_printed_is_kept_beside_the_log_and_the_terminal_echo_is_not(self):
+        out = ("(./d.tex (/a/b/skak.sty\nkpathsea: Running mktextfm SkakNew-Diagram\n"
+               "mktextfm: `mf-nowin ...' failed to make SkakNew-Diagram.tfm.\n"
+               "(/x/pgfsys-dvipdfmx.def (/x/y.def))\nTranscript written on d.log.\n")
+        r, key, resolved = self.compile("This is XeTeX\n(./d.tex\n", out=out)
+        log = latexdraw.read_text(key, "log")
+        self.assertIn("[what the program printed besides this log]", log)
+        self.assertIn("kpathsea: Running mktextfm SkakNew-Diagram", log)
+        self.assertIn("failed to make SkakNew-Diagram.tfm", log)
+        self.assertNotIn("pgfsys-dvipdfmx", log, "the terminal's copy of the open files is not what it printed besides")
+        self.assertNotIn("Transcript written on d.log", log)
+
+    def test_forgetting_failures_takes_a_failures_document_and_log_and_leaves_a_drawing_its_own(self):
+        failed = "cd" * 32
+        drawn = "ef" * 32
+        for key, kinds in ((failed, ("tex", "log", "fail")), (drawn, ("tex", "log", "svg", "pdf", "meta"))):
+            for kind in kinds:
+                latexdraw._write_atomic(latexdraw.paths(key)[kind], b"x")
+        latexdraw.forget_failures()
+        got = lambda key, kind: os.path.exists(latexdraw.paths(key)[kind])
+        self.assertFalse(got(failed, "fail") or got(failed, "tex") or got(failed, "log"))
+        self.assertTrue(got(drawn, "tex") and got(drawn, "log") and got(drawn, "svg"))
+
+    def test_the_bounded_cache_of_previews_counts_a_failure_that_has_no_picture(self):
+        with mock.patch.object(latexdraw, "PREVIEW_MAX_DRAWINGS", 2):
+            for i in range(4):
+                key = ("%02d" % i) * 32
+                for kind in ("tex", "log"):
+                    latexdraw._write_atomic(latexdraw.paths(key, True)[kind], b"x")
+                os.utime(latexdraw.paths(key, True)["tex"], (1000 + i, 1000 + i))
+                os.utime(latexdraw.paths(key, True)["log"], (1000 + i, 1000 + i))
+            self.assertEqual(latexdraw.prune_previews(), 2)
+        left = {k for k in ("%02d" % i * 32 for i in range(4)) if os.path.exists(latexdraw.paths(k, True)["tex"])}
+        self.assertEqual(left, {"02" * 32, "03" * 32}, "the newest two stay")
+
+    def test_the_renderer_number_was_raised_so_that_every_drawing_is_made_with_its_document_and_log(self):
+        self.assertGreaterEqual(latexdraw.RENDERER, 3)
+
+
+class WhatTheLogOfAFailureSays(unittest.TestCase):
+    """explain() on the logs TeX really writes.  The first is the owner's, kept (paths made neutral): xskak with
+    the chess fonts not installed -- a message from skak.sty, which -file-line-error writes as FILE:LINE:, not as
+    `! ` and not as d.tex:N:, so it was read as nothing and the log's memory statistics were the whole answer."""
+
+    RESOLVED = {"name": "chess"}
+
+    def explain(self, log, tex="x"):
+        return latexdraw.explain(log, 11, tex, self.RESOLVED)
+
+    def test_a_message_from_a_package_file_is_read(self):
+        log = (FIXTURES / "font-not-loadable.log").read_text(encoding="utf-8")
+        tex = (FIXTURES / "font-not-loadable.tex").read_text(encoding="utf-8")
+        r = self.explain(log, tex)
+        self.assertEqual(r["kind"], "package")
+        self.assertNotIn("without saying why", r["said"])
+        self.assertIn('"SkakNew-Diagram"', r["said"])
+        self.assertIn("skak.sty", r["said"], "it says which file asked for it")
+        self.assertIn("skaknew", r["said"])
+        self.assertEqual(r["fix"], {"kind": "install", "package": "skaknew"})
+        self.assertIsNone(r["line"], "a line of skak.sty is no line of the block")
+        self.assertIn("not loadable", r["detail"])
+        self.assertNotIn("words of memory", r["detail"], "the memory statistics are not the finding")
+        lines = log.splitlines()
+        self.assertTrue(any("not loadable" in lines[n - 1] for n in r["marks"]))
+        self.assertTrue(any(lines[n - 1].startswith("l.1774") for n in r["marks"]))
+
+    def test_the_whole_kept_log_is_there_with_what_the_helpers_printed(self):
+        log = (FIXTURES / "font-not-loadable.log").read_text(encoding="utf-8")
+        self.assertIn("kpathsea: Running mktextfm SkakNew-Diagram", log)
+        self.assertIn("failed to make SkakNew-Diagram.tfm", log)
+
+    def test_a_missing_file_asked_for_by_a_package_is_that_packages_and_not_a_line_of_the_block(self):
+        log = ("(./d.tex\n! LaTeX Error: File `xifthen.sty' not found.\n\nType X to quit or <RETURN> to proceed,\n"
+               "or enter new name. (Default extension: sty)\n\nEnter file name: \n"
+               "/p/texmf/tex/latex/xskak/xskak.sty:41: Emergency stop.\n<read *> \n\nl.41 \\RequirePackage\n"
+               "                    {etoolbox}^^M\n")
+        r = self.explain(log)
+        self.assertEqual(r["fix"], {"kind": "install", "file": "xifthen.sty", "package": "xifthen"})
+        self.assertIsNone(r["line"], "line 41 is xskak.sty's, not the block's")
+        self.assertIn("in xskak.sty", r["said"])
+        self.assertNotIn("of the block", r["said"])
+
+    def test_an_error_in_the_document_is_still_the_blocks_line_and_marks_both_lines(self):
+        log = "This is XeTeX\n(./d.tex\n./d.tex:12: Undefined control sequence.\n<recently read> \\foo \n\nl.12 \\foo\n"
+        r = latexdraw.explain(log, 10, "a\nb\n\\foo", self.RESOLVED)
+        self.assertEqual(r["line"], 3, "line 12 of the file is the block's third line")
+        self.assertEqual(r["marks"], [3, 6])
+        self.assertIn("on line 3 of the block", r["said"])
+
+    def test_a_log_that_made_no_page_and_has_no_error_says_so_and_names_no_memory(self):
+        # TeX ran to its end and nothing put anything on a page (a log made by hand: there is no way to make
+        # TeX say this on purpose with an error in it)
+        log = ("This is XeTeX\n(./d.tex\n\nHere is how much of TeX's memory you used:\n 9119 strings out of 469739\n"
+               " 555642 words of memory out of 5000000\n 38036 multiletter control sequences out of 15000+600000\n"
+               "No pages of output.\n")
+        r = self.explain(log, "\\relax")
+        self.assertEqual(r["kind"], "empty")
+        self.assertTrue(r["said"].startswith("LaTeX made no page: "))
+        self.assertNotIn("without saying why", r["said"])
+        self.assertNotIn("words of memory", r["detail"])
+        self.assertEqual(r["marks"], [log.splitlines().index("No pages of output.") + 1])
+        self.assertIn("the block is empty", self.explain(log, "  ")["said"])
+
+    def test_a_log_with_no_message_and_pages_is_still_the_old_answer(self):
+        r = self.explain("This is XeTeX\n(./d.tex\nsomething\n")
+        self.assertEqual(r["said"], "LaTeX stopped without saying why.")
+
+    def test_a_font_tex_could_not_make_is_named_with_the_package_that_has_it(self):
+        log = "(./d.tex\n! Font \\x=SkakNew-DiagramT at 20pt not loadable: Metric (TFM) file not found.\n<to be read again> \nl.5 \\foo\n"
+        r = self.explain(log)
+        self.assertEqual(r["fix"], {"kind": "install", "package": "skaknew"})
+        other = self.explain("(./d.tex\n! Font \\x=Zzz at 10pt not loadable: Metric (TFM) file not found.\nl.5 x\n")
+        self.assertIn("Zzz", other["said"])
+        self.assertNotIn("fix", other)
+        self.assertIn("no shell", other["said"])
+
+
+class TheChessSetIsOneRow(Store):
+    """TeX Live declares no dependency for xskak, skak, chessboard or chessfss, and a drawing needs the chess fonts and
+    five packages besides (found by drawing the sample from nothing): one catalogue row, so that a theme that loads
+    any of them asks for all of them at once."""
+
+    NEED = ("xskak", "skak", "chessfss", "chessboard", "skaknew", "lambda-lists", "xifthen", "ifmtarg", "pst-node", "pstricks")
+
+    def theme(self, preamble):
+        return latexthemes.clean({"name": "chess", "compiler": "xelatex", "packages": ["amsmath"], "preamble": preamble})
+
+    def test_the_row_names_the_whole_set(self):
+        self.assertEqual(tuple(latexthemes.PACKAGES["xskak"]["tl"]), self.NEED)
+        self.assertEqual(latexthemes.PACKAGES["xskak"]["code"], "\\usepackage{xskak}")
+        self.assertIn("games", [g[0] for g in latexthemes.GROUPS])
+
+    def test_loading_any_of_the_four_by_name_is_the_one_row(self):
+        for name in ("xskak", "skak", "chessboard", "chessfss"):
+            t = self.theme("\\usepackage{%s}" % name)
+            self.assertEqual(latexthemes.own_packages(t), ["xskak"], name)
+
+    def test_a_drawing_asks_for_the_whole_set_in_one_button(self):
+        import texpackages
+        with mock.patch.object(texpackages, "_KIND", ["texlive"]), \
+                mock.patch.object(texpackages, "manifest", lambda: {"packages": {}}):
+            p = latexdraw.plan("\\chessboard", None, theme=self.theme("\\usepackage{xskak}"))
+        self.assertFalse(p["ok"])
+        self.assertEqual(p["fix"], {"kind": "install", "package": ",".join(self.NEED)})
+
+    def test_and_draws_once_every_one_of_them_is_got(self):
+        import texpackages
+        with mock.patch.object(texpackages, "_KIND", ["texlive"]), \
+                mock.patch.object(texpackages, "manifest", lambda: {"packages": {n: {} for n in self.NEED}}), \
+                mock.patch.object(latexdraw, "compiler", lambda name, fresh=False: {"path": "/x", "version": "v"}), \
+                mock.patch.object(latexdraw, "tex_state", lambda c: "s"):
+            self.assertTrue(latexdraw.plan("\\chessboard", None, theme=self.theme("\\usepackage{xskak}"))["ok"])
+
+
+class TheDoorAndTheStudioOfferThem(unittest.TestCase):
+    """The door's sample answers with the document and the log; the studio's frame has the two buttons and an
+    exported page has none."""
+
+    def test_the_sample_answer_carries_tex_log_and_marks(self):
+        import latexpage
+        key = "12" * 32
+        r = {"ok": False, "kind": "latex", "said": "x", "key": key, "marks": [3]}
+        with mock.patch.object(latexdraw, "draw", lambda *a, **k: r), \
+                mock.patch.object(latexdraw, "read_text", lambda k, kind: {"tex": "DOC", "log": "LOG"}[kind] if k == key else None):
+            status, answer = latexpage.api("sample", {"theme": {"name": "chess", "compiler": "xelatex", "packages": []}, "tex": "x"}, "computer")
+        self.assertEqual(status, 200)
+        self.assertEqual((answer["tex"], answer["log"], answer["marks"]), ("DOC", "LOG", [3]))
+        self.assertIn("documentclass", answer["preamble"], "the whole preamble is still there, beside the .tex")
+
+    def test_the_door_draws_the_two_views_and_a_copy_each(self):
+        src = (ROOT / "lib" / "latexpage.py").read_text(encoding="utf-8")
+        for needle in ("The .tex that was compiled", "The whole log", 'data-copy="tex"', 'data-copy="log"', "markedLog",
+                       "The whole preamble"):
+            self.assertIn(needle, src, needle)
+
+    def test_the_studios_failure_frame_has_the_two_buttons_where_there_is_a_compile(self):
+        b = {"tex": "\\foo", "theme": "", "errors": []}
+        r = {"ok": False, "kind": "latex", "said": "x", "key": "34" * 32, "marks": [5, 8]}
+        with mock.patch.dict(htmlgen.LATEX, {"draw": lambda *a, **k: r}):
+            html = htmlgen._latex_frame(b, r, {})
+        base = htmlgen.URL_BASE + "/latex/" + "34" * 32
+        self.assertIn('data-latex-view="tex" data-latex-url="%s.tex"' % base, html)
+        self.assertIn('data-latex-view="log" data-latex-url="%s.log" data-latex-marks="5,8"' % base, html)
+        self.assertIn("The .tex that was compiled", html)
+        self.assertIn("The whole log", html)
+        none = htmlgen._latex_frame(b, {"ok": False, "kind": "package", "said": "y"}, {})
+        self.assertNotIn("data-latex-view", none, "no compile, nothing to show")
+
+    def test_an_exported_page_carries_no_such_buttons(self):
+        import webexport
+        self.assertIn("latex-views", webexport.DROP_CLASSES)
+
+    def test_both_servers_send_the_text_as_text(self):
+        server_src = (ROOT / "markdown" / "app" / "server.py").read_text(encoding="utf-8")
+        self.assertIn(r"\.(?:svg|pdf|tex|log))$", server_src)
+        serve_src = (ROOT / "serve.py").read_text(encoding="utf-8")
+        self.assertIn('f.endswith((".tex", ".log"))', serve_src)
+        self.assertIn("text/plain; charset=utf-8", serve_src)
 
 
 if __name__ == "__main__":

@@ -618,6 +618,42 @@ function deckUpload(deck, kind = "images") {
 }
 const uploads = deck => ({uploadImage: deckUpload(deck), uploadAudio: deckUpload(deck, "audio"), pictureHome: "this deck"});
 
+/* WHAT A FOLLOW-UP'S FORM CAN OFFER OF A DECK (exform.js, "+ From this deck…"): the deck's exercises, to make steps of.
+   One that is one side of a linked pair, or a follow-up already, cannot be a step.  `except`: the chain being edited. */
+function deckFromPage(deck, except) {
+  return {
+    noun: "deck",
+    list: async () => {
+      const data = await call(deckApi(deck));
+      return (data.items || []).filter(it => it.id !== except).map(it => ({
+        key: it.id, source: it.markdown,
+        disabled: (it.mates || []).length ? "one side of a linked card" : it.steps ? "a follow-up" : ""}));
+    },
+    removeLabel: "Remove them from the deck once they are in the chain (their study history goes with them)",
+    putBackWhere: "in the deck",
+  };
+}
+
+/* What the form says of the deck besides the chain itself: the exercises it was made of, to be taken out of the deck,
+   and the steps put back as exercises of their own.  -> whether anything changed. */
+async function applyChainExtras(deck, extra) {
+  if (!extra) return false;
+  const base = deckApi(deck), problems = [];
+  let added = 0, removed = 0;
+  for (const markdown of extra.putBack || []) {
+    try { await call(base + "/items", {method: "POST", json: {markdown, force: true}}); added++; }
+    catch (e) { problems.push(e.message); }
+  }
+  for (const id of extra.remove || []) {
+    try { await call(`${base}/items/${id}`, {method: "DELETE"}); removed++; }
+    catch (e) { problems.push(e.message); }
+  }
+  if (problems.length) toast("The chain is saved, but: " + problems.join("; "), true);
+  else if (added || removed) toast([added && `${plural(added, "step")} put back as exercises`,
+                                     removed && `${plural(removed, "exercise")} taken out of the deck`].filter(Boolean).join("; "));
+  return !!(added || removed);
+}
+
 /* An exercise is saved even when a picture or a recording it names is not
    in the deck.  The answer says so, and the toast passes it on. */
 function savedToast(what, data) {
@@ -651,9 +687,14 @@ function fixSide() {
 /* Open an exercise in the form; a shape the form cannot show (an exercise
    saved with errors, say) opens as its markdown instead, so it can still be
    put right from here. */
-function editExercise(deck, item, onSave) {
-  const opts = Object.assign({preview: formPreview(deck, item.id), onSave, saveLabel: "Save exercise",
-                              directions: editDirections(item)}, uploads(deck));
+function editExercise(deck, item, onSave, after) {
+  // a follow-up's form may also take exercises off the deck, or put steps back in it: once the chain is saved
+  const saved = async (markdown, extra) => {
+    await onSave(markdown);
+    if (await applyChainExtras(deck, extra) && after) after();
+  };
+  const opts = Object.assign({preview: formPreview(deck, item.id), onSave: saved, saveLabel: "Save exercise",
+                              directions: editDirections(item), fromPage: deckFromPage(deck, item.id)}, uploads(deck));
   if (openExerciseMarkdown(item.markdown, opts)) {
     if ((item.mates || []).length) fixSide();
     return;
@@ -1318,7 +1359,7 @@ function initDeck() {
     try { sessionStorage.setItem(selectionKey, JSON.stringify([...selected])); }
     catch (e) { /* page-local selection still works */ }
     $("#browse-selected").textContent = `${n} selected`;
-    ["copy", "move", "add-tag", "remove-tag", "new", "delete"].forEach(x => {
+    ["copy", "move", "add-tag", "remove-tag", "new", "chain", "delete"].forEach(x => {
       $(`#btn-bulk-${x}`).disabled = n === 0;
     });
     $("#btn-cram").disabled = n === 0;
@@ -1401,7 +1442,9 @@ function initDeck() {
         <button type="button" class="btn small danger ghost" data-x="delete">Delete</button>
       </div>
       <div class="dk-row-preview" hidden></div>`;
-    $(".ex-kicker", row).textContent = it.label || it.subtype || "Exercise";
+    // a follow-up is ONE exercise of the deck, and says how long it is
+    $(".ex-kicker", row).textContent = (it.label || it.subtype || "Exercise") +
+      (it.steps ? ` · ${plural(it.steps, "step")}` : "");
     if ((it.mates || []).length) {
       // the two sides of a pair look alike: this says which one a row is
       const pair = el("span", "badge dk-linked", `↔ linked · ${sideOf(it)} first`);
@@ -1416,7 +1459,7 @@ function initDeck() {
     }
     $(".dk-excerpt", row).textContent = it.excerpt || "(no text)";
     $(".dk-select", row).setAttribute("aria-label",
-      `Select ${it.label || it.subtype || "exercise"}: ${(it.excerpt || "no text").slice(0, 100)}`);
+      `Select ${it.label || it.subtype || "exercise"}${it.steps ? `, ${plural(it.steps, "step")}` : ""}: ${(it.excerpt || "no text").slice(0, 100)}`);
     $(".dk-select", row).title = "Shift-click to select or deselect a range";
     $(".dk-state", row).textContent = s.state === "relearning" ? "relearning" : bucket(it);
     $(".dk-when", row).textContent = bucket(it) === "new" ? "not studied yet"
@@ -1475,7 +1518,7 @@ function initDeck() {
       editExercise(deck, it, async markdown => {
         savedToast("Exercise saved", await saveEdited(deck, it, markdown));
         reload();
-      }));
+      }, reload));
     $('[data-x="duplicate"]', row).addEventListener("click", async e => {
       const b = e.currentTarget;
       b.disabled = true;
@@ -1797,8 +1840,34 @@ function initDeck() {
     reload();
   }
 
+  // (a follow-up's form hands over, besides its markdown, the exercises to take out of the deck and the steps to put back)
+  const addWithExtras = async (markdown, extra) => {
+    await addExercise(markdown);
+    if (await applyChainExtras(deck, extra)) reload();
+  };
   $("#btn-add-exercise").addEventListener("click", () => openExercisePicker(Object.assign({
-    onSave: addExercise, preview: formPreview(deck), saveLabel: "Add to deck"}, uploads(deck))));
+    onSave: addWithExtras, preview: formPreview(deck), saveLabel: "Add to deck",
+    fromPage: deckFromPage(deck)}, uploads(deck))));
+
+  /* "MAKE A FOLLOW-UP CHAIN OF THESE…": the ticked exercises, in the order the list has them, already steps in a new
+     follow-up's form.  What cannot be a step is said, and nothing opens. */
+  $("#btn-bulk-chain").addEventListener("click", () => {
+    const picked = items.filter(it => selected.has(it.id));
+    const why = it => (it.errors || []).length ? "needs attention" : it.steps ? "is a follow-up already"
+      : (it.mates || []).length ? "is one side of a linked card" : "";
+    const bad = picked.filter(why);
+    if (picked.length < 2) { toast("Tick at least two exercises to make a follow-up chain of them", true); return; }
+    if (bad.length) {
+      toast(`Cannot be steps: ${bad.map(it => `“${(it.excerpt || it.label || "exercise").slice(0, 40)}” ${why(it)}`).join("; ")}`, true);
+      return;
+    }
+    const def = EXERCISE_DEFINITIONS.find(d => d.editor === "chain");
+    const model = newExerciseModel(def);
+    model.steps = picked.map(it => ({source: it.markdown, fromKey: it.id, remove: false}));
+    openExerciseForm(Object.assign({
+      model, def, mode: "add", onSave: addWithExtras, preview: formPreview(deck), saveLabel: "Add to deck",
+      fromPage: deckFromPage(deck)}, uploads(deck)));
+  });
 
   $("#btn-rename").addEventListener("click", async () => {
     const input = textInput(deck.name, {maxlength: "200"});
@@ -1903,7 +1972,7 @@ function initStudy() {
   const base = deckApi(deck);
   const stage = $("#study-stage"), actions = $("#study-actions");
   const result = $("#study-result"), bar = $("#rating-bar"), done = $("#study-done");
-  const btnCheck = $("#btn-check"), btnShow = $("#btn-show");
+  const btnCheck = $("#btn-check"), btnShow = $("#btn-show"), btnStep = $("#btn-step");
   const btnEdit = $("#btn-edit-card"), btnSkip = $("#btn-skip");
   // the mobile layout's Next (study.html): the rating the answer suggests
   const btnNext = $("#btn-next");
@@ -2054,7 +2123,8 @@ function initStudy() {
     if (cannot) cannot.hidden = true;
     bar.hidden = result.hidden = btnNext.hidden = true;
     stage.hidden = false;
-    btnCheck.hidden = btnShow.hidden = btnEdit.hidden = btnSkip.hidden = true;
+    btnCheck.hidden = btnShow.hidden = btnStep.hidden = btnEdit.hidden = btnSkip.hidden = true;
+    btnCheck.textContent = "Check";
   }
 
   /* A DECK THAT WAS NOT TAKEN OUT CANNOT BE STUDIED AWAY FROM THE COMPUTER,
@@ -2145,6 +2215,8 @@ function initStudy() {
     bar.hidden = true;
     btnNext.hidden = true;
     btnNext.disabled = false;
+    btnStep.hidden = true;
+    btnCheck.textContent = "Check";
     clearSolution();
     pointed = null;
     if (next.done || !next.item) {
@@ -2175,14 +2247,18 @@ function initStudy() {
     // one exercise, checked here: the page's own "Check exercises" goes
     $$(".exercise-correction, .ex-edit, .ex-to-deck", stage).forEach(x => x.remove());
     applyTypo(loadTypo(null));
-    const run = bindExercises(stage);
+    // a follow-up's own bar (Check step, Next step) is the answer bar's here: the chain is driven from this page
+    const run = bindExercises(stage, {chainBar: false});
     const ex = run.exercises[0] || null;
+    const chain = run.chains[0] || null;
     const kind = !ex || $(".ex-invalid", ex) ? "invalid"
+      : chain ? "chain"
       : ex.dataset.primitive === "flashcard" ? "flashcard"
       : ex.dataset.scored === "1" ? "scored" : "invalid";
-    card = {item: next.item, intervals: next.intervals || {}, run, ex, kind,
-            revealed: false, result: null};
+    card = {item: next.item, intervals: next.intervals || {}, run, ex, kind, chain,
+            revealed: false, result: null, steps: null};
     watchTurn(card);
+    if (kind === "chain") chain.onChange(() => syncChain(card));
     btnCheck.hidden = kind !== "scored";
     btnShow.hidden = kind !== "flashcard";
     btnEdit.hidden = btnSkip.hidden = false;
@@ -2190,7 +2266,8 @@ function initStudy() {
     btnEdit.disabled = btnSkip.disabled = false;
     const keys = $(".dk-keys", actions);
     keys.textContent = kind === "scored" ? "Enter checks · 1–4 rate"
-      : kind === "flashcard" ? "Enter shows the answer · 1–4 rate" : "";
+      : kind === "flashcard" ? "Enter shows the answer · 1–4 rate"
+      : kind === "chain" ? "Enter checks a step, then goes on · 1–4 rate" : "";
     keys.hidden = kind === "invalid";
     RATINGS.forEach((r, i) => {
       const b = $(`[data-rating="${r}"]`, bar);
@@ -2200,9 +2277,48 @@ function initStudy() {
       b.disabled = false;
     });
     if (stage.getBoundingClientRect().top < 0) stage.scrollIntoView({block: "start"});
-    const first = kind === "scored" ? btnCheck : kind === "flashcard" ? btnShow : btnEdit;
+    if (kind === "chain") syncChain(card);
+    const first = kind === "scored" ? btnCheck : kind === "flashcard" ? btnShow
+      : kind === "chain" ? (chain.card ? btnShow : btnCheck) : btnEdit;
     first.focus({preventScroll: true});
     if (kind === "flashcard") playSide(card, "front");
+  }
+
+  /* A FOLLOW-UP IS ONE EXERCISE OF THE DECK, answered a step at a time (app.js, bindChain): the answer bar's one button
+     is Check step (Show answer for a card), then Next step; the four ratings come only after the LAST step, with the
+     focus on Again when any scored step was wrong and on Good when none was.  The deck rates the chain as a whole. */
+  function syncChain(shown) {
+    if (card !== shown || shown.kind !== "chain") return;
+    const c = shown.chain;
+    if (c.finished) {
+      if (shown.revealed) return;
+      shown.revealed = true;
+      shown.result = c.scored ? c.rights === c.scored : null;
+      shown.steps = c.scored ? {right: c.rights, of: c.scored} : null;
+      btnCheck.hidden = btnShow.hidden = btnStep.hidden = true;
+      result.textContent = c.scored ? `${c.rights} of ${c.scored} steps right` : `All ${c.n} steps seen`;
+      result.className = "dk-result " + (shown.result === false ? "err" : "ok");
+      result.hidden = false;
+      showBar(shown.result === false ? "again" : "good");
+      if (isMobile()) result.scrollIntoView({block: "nearest", behavior: "smooth"});
+      return;
+    }
+    result.hidden = true;
+    if (!c.checked) {
+      btnStep.hidden = true;
+      btnCheck.hidden = c.card;
+      btnShow.hidden = !c.card;
+      btnCheck.textContent = "Check step";
+    } else {
+      btnCheck.hidden = btnShow.hidden = true;
+      btnStep.hidden = false;
+      // what the step earned, said under the step's own explanation
+      const ok = !c.wrongHere;
+      result.textContent = c.card ? "" : (c.wrongHere ? "Not quite" : "Correct");
+      result.className = "dk-result " + (ok ? "ok" : "err");
+      result.hidden = c.card;
+      btnStep.focus({preventScroll: true});
+    }
   }
 
   function showBar(focus) {
@@ -2222,6 +2338,7 @@ function initStudy() {
   }
 
   function check() {
+    if (card && card.kind === "chain") { card.chain.check(); return; }
     if (!card || card.kind !== "scored" || card.revealed) return;
     const good = card.run.judge(card.ex);
     card.revealed = true;
@@ -2271,6 +2388,7 @@ function initStudy() {
   }
 
   function reveal() {
+    if (card && card.kind === "chain") { card.chain.check(); return; }
     if (!card || card.kind !== "flashcard" || card.revealed) return;
     const flash = $(".ex-flashcard", card.ex);
     if (flash) flash.click();             // bindExercises turns it; watchTurn notes it
@@ -2294,7 +2412,8 @@ function initStudy() {
           // through its own scheduler when it hears from this device
           const queue = answerQueue(deck);
           queue.push({item: rated.item.id, rating: r,
-                      result: rated.kind === "scored" ? rated.result : null,
+                      result: rated.kind === "scored" || rated.kind === "chain" ? rated.result : null,
+                      steps: rated.kind === "chain" ? rated.steps : null,
                       at: new Date().toISOString()});
           writeJsonKey(ANS_KEY(deck), queue);
           sendAnswers(deck).catch(() => {});
@@ -2303,7 +2422,8 @@ function initStudy() {
           return;
         }
         data = await call(base + "/review", {method: "POST", json: {
-          item: rated.item.id, rating: r, result: rated.kind === "scored" ? rated.result : null,
+          item: rated.item.id, rating: r, result: rated.kind === "scored" || rated.kind === "chain" ? rated.result : null,
+          steps: rated.kind === "chain" ? rated.steps : null,
           // the state the labels were worked out for: an exercise answered
           // since (in another tab, or before this page came back from
           // history) is refused, not scheduled a second time
@@ -2331,6 +2451,7 @@ function initStudy() {
 
   btnCheck.addEventListener("click", check);
   btnShow.addEventListener("click", reveal);
+  btnStep.addEventListener("click", () => { if (card && card.kind === "chain") card.chain.next(); });
   bar.addEventListener("click", e => {
     const b = e.target.closest("button[data-rating]");
     if (b) rate(b.dataset.rating);
@@ -2360,7 +2481,7 @@ function initStudy() {
       savedToast("Exercise saved: its scheduling is unchanged",
                  await saveEdited(deck, item, markdown));
       load();                    // the queue has not moved: the same exercise, as edited
-    });
+    }, load);
   });
 
   document.addEventListener("keydown", e => {
@@ -2377,8 +2498,9 @@ function initStudy() {
     if (e.key !== "Enter") return;
     // a button of the page itself (Check, Skip, Edit, a rating) does what it
     // says; so does a control of the exercise reached from the keyboard
+    // (a follow-up's step takes the focus when it is brought in, and is not a control: Enter there checks it)
     const control = t.closest && t.closest(CONTROL);
-    if (control && (!stage.contains(control) || control !== pointed)) return;
+    if (control && !control.matches(".ex-step") && (!stage.contains(control) || control !== pointed)) return;
     if (card.kind === "scored" && !card.revealed) {
       // Enter just after a click on an answer: it checks, and does not
       // toggle the answer the click left the focus on
@@ -2387,6 +2509,10 @@ function initStudy() {
     } else if (card.kind === "flashcard" && !card.revealed) {
       e.preventDefault();
       reveal();
+    } else if (card.kind === "chain" && !card.revealed) {
+      // a step: Enter checks it (turns the card), and once it is checked goes on to the next
+      e.preventDefault();
+      if (card.chain.checked) card.chain.next(); else card.chain.check();
     }
   });
 
@@ -2498,13 +2624,16 @@ function initCram() {
     stage.innerHTML = card.html;
     $$(".exercise-correction, .ex-edit, .ex-to-deck", stage).forEach(x => x.remove());
     applyTypo(loadTypo(null));
-    const run = bindExercises(stage);
+    // a follow-up's own bar is the page's own here (cramChain): Check step, Show answer, Next step
+    const run = bindExercises(stage, {chainBar: false});
     const ex = run.exercises[0] || null;
+    const chain = run.chains[0] || null;
     const kind = !ex || $(".ex-invalid", ex) ? "invalid"
+      : chain ? "chain"
       : ex.dataset.primitive === "flashcard" ? "flashcard"
       : ex.dataset.scored === "1" ? "scored" : "invalid";
-    current = {card, run, ex, kind, checked: false};
-    const flash = $(".ex-flashcard", stage);
+    current = {card, run, ex, kind, chain, checked: false};
+    const flash = kind === "chain" ? null : $(".ex-flashcard", stage);
     if (flash) {
       turnObserver = new MutationObserver(() => {
         const flipped = flash.classList.contains("flipped");
@@ -2518,7 +2647,10 @@ function initCram() {
     $("#cram-show").hidden = kind !== "flashcard";
     $("#cram-show").disabled = false;
     $("#cram-wrong").hidden = $("#cram-correct").hidden = true;
+    $("#cram-step").hidden = true;
+    $("#cram-check").textContent = "Check";
     $("#cram-next").hidden = kind !== "invalid";
+    if (kind === "chain") { chain.onChange(() => cramChain(current)); cramChain(current); }
     // until it is answered; an exercise that cannot be shown has Next
     $("#cram-skip").hidden = kind === "invalid";
     // as studying does: a long exercise, or the end's lists, may have left
@@ -2563,7 +2695,7 @@ function initCram() {
       b.setAttribute("aria-expanded", "false");
       const excerpt = el("span", "dk-excerpt", it.excerpt || "(no text)");
       excerpt.dir = "auto";
-      b.append(el("span", "ex-kicker", it.label || it.subtype || "Exercise"), excerpt);
+      b.append(el("span", "ex-kicker", (it.label || it.subtype || "Exercise") + (it.steps ? ` · ${plural(it.steps, "step")}` : "")), excerpt);
       const meta = says(card);
       if (meta) b.append(el("span", "dk-cram-meta", meta));
       const box = el("div", "dk-cram-solved");
@@ -2620,7 +2752,47 @@ function initCram() {
     applyTypo(loadTypo(null));
     bindExercises(solutionSheet, {preview: true});
   }
+  /* A FOLLOW-UP, CRAMMED: the steps one after the other, Check step (Show answer for a card), Next step; it is right
+     only when every scored step was right, and a chain that was not comes round again whole, like any exercise. */
+  function cramChain(shown) {
+    if (current !== shown || shown.kind !== "chain") return;
+    const c = shown.chain, check = $("#cram-check"), show = $("#cram-show"), step = $("#cram-step");
+    if (c.finished) {
+      if (shown.checked) return;
+      shown.checked = true;
+      const good = !c.scored || c.rights === c.scored;
+      judged(shown.card, good);
+      if (!good) order.push(shown.card);
+      check.hidden = show.hidden = step.hidden = true;
+      $("#cram-skip").hidden = true;
+      result.textContent = c.scored ? `${c.rights} of ${c.scored} steps right` : `All ${c.n} steps seen`;
+      result.className = "dk-result " + (good ? "ok" : "err");
+      result.hidden = false;
+      progress.textContent = `${index + 1} of ${order.length}`;
+      $("#cram-next").hidden = false;
+      $("#cram-next").textContent = index === order.length - 1 ? "Finish" : "Next exercise";
+      if (isMobile()) result.scrollIntoView({block: "nearest", behavior: "smooth"});
+      return;
+    }
+    result.hidden = true;
+    show.disabled = false;
+    if (!c.checked) {
+      step.hidden = true;
+      check.hidden = c.card;
+      show.hidden = !c.card;
+      check.textContent = "Check step";
+    } else {
+      check.hidden = show.hidden = true;
+      step.hidden = false;
+      result.textContent = c.card ? "" : (c.wrongHere ? "Not quite" : "Correct");
+      result.className = "dk-result " + (c.wrongHere ? "err" : "ok");
+      result.hidden = c.card;
+      step.focus({preventScroll: true});
+    }
+  }
+  $("#cram-step").addEventListener("click", () => { if (current && current.kind === "chain") current.chain.next(); });
   $("#cram-check").addEventListener("click", () => {
+    if (current && current.kind === "chain") { current.chain.check(); return; }
     if (!current || current.kind !== "scored" || current.checked) return;
     const good = current.run.judge(current.ex);
     current.checked = true;
@@ -2642,6 +2814,7 @@ function initCram() {
       showSolution(current);
   });
   $("#cram-show").addEventListener("click", () => {
+    if (current && current.kind === "chain") { current.chain.check(); return; }
     const flash = $(".ex-flashcard", stage);
     if (flash && !flash.classList.contains("flipped")) flash.click();
     $("#cram-show").disabled = true;

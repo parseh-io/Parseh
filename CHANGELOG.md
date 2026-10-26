@@ -1,5 +1,14 @@
 ## [a0.5.4] - unreleased
 ### Added
+- Follow-up questions, a fourteenth exercise type: a chain of exercises answered one after the other, with a form for its steps, and the same in a deck (study and cram) and on paper
+- LaTeX drawings: The .tex that was compiled and The whole log, on request, beside a drawing that cannot be made and under Settings → LaTeX drawings → Draw the sample, each with a Copy
+- LaTeX drawings: the xskak set (its fonts and the packages it leans on) is one package row, got in one go
+
+### Changed
+- The phone's ⚙ sheet opens on a list of themes, each saying what it is set to, and a tap opens one theme; it rests half the screen high and can be made tall, which is remembered
+
+### Fixed
+- LaTeX drawings: an error in a package's file was said to be "LaTeX stopped without saying why"; it now says what and in which file, and a compile that makes no page says so
 
 ## [a0.5.3] - 2026-10-22
 ### Added

@@ -418,6 +418,38 @@ prompt: Which word does not belong with the others?
 explanation-correct: [ocak]{tl} is *January*, a month; the others are days of the week: Monday, Tuesday, Wednesday and Friday.
 :::
 
+### Follow-up questions
+
+A follow-up is a chain of exercises answered one after the other: check a step, read what it says, and the next one comes under it. A step is any exercise, written inside the chain with one colon more on its fences (`::::exercise …` and `::::`). The PDF prints every step at once, numbered, so write each one so that it does not give away the one before.
+
+:::exercise follow-up
+prompt: At a tea house a customer says: [Merhaba! Bir çay ve bir simit lütfen.]{tl} Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then something to eat.
+::::exercise single-choice
+prompt: What does the customer want to drink?
+- [x] [çay]{tl}
+- [ ] [simit]{tl}
+- [ ] [kitap]{tl}
+explanation-correct: [Çay]{tl} is *tea*; [simit]{tl} is a ring of bread covered with sesame.
+::::
+::::exercise true-false
+prompt: Now decide.
+- [Simit]{tl} is something to eat. => true
+- [Lütfen]{tl} means *thank you*. => false
+explanation-correct: [Lütfen]{tl} is *please*; *thank you* is [teşekkürler]{tl}.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the words you have just read.
+content-direction: target
+text: [Merhaba! Bir [[drink]] ve bir [[food]] lütfen.]{tl}
+- [drink] [çay]{tl}
+- [food] [simit]{tl}
+- [ ] [kitap]{tl}
+explanation-correct: [Bir]{tl}, *one*, comes before each: [bir çay]{tl}, [bir simit]{tl}.
+::::
+:::
+
 ### Flashcards
 
 A flashcard turns over when it is clicked. A vocabulary card, whose speaker button plays the

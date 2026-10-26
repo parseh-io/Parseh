@@ -69,27 +69,83 @@ function initEdit() {
     },
   };
 
+  /* WHAT A FOLLOW-UP'S FORM CAN OFFER OF THIS PAGE (exform.js, "+ From this page…"): the exercises the source has,
+     found by their fences in the text itself, which is what will be written to -- the preview may be a moment
+     behind.  `own`: the line of the follow-up being edited, which is not one of them. */
+  const pageOffer = own => ({
+    noun: "page",
+    list: () => exerciseBlocksIn(src.value).filter(b => b.line !== own)
+      .map(b => ({key: b.line, source: b.source})),
+    removeLabel: "Remove them from the page once they are in the chain",
+    putBackWhere: "on the page",
+  });
+
+  /* What the form hands over besides the chain: the exercises it was made of, to leave the page, and the steps to
+     become exercises of their own after it.  Both are written with the chain in ONE undoable step. */
+  function removedBlocks(extra) {
+    const keys = new Set((extra && extra.remove) || []);
+    return exerciseBlocksIn(src.value).filter(b => keys.has(b.key));
+  }
+  const withPutBack = (text, extra) => [text].concat((extra && extra.putBack) || []).join("\n\n");
+  // two blank lines where a block was taken off are one too many
+  const tidyAt = (lines, at) => {
+    if (at < lines.length && !lines[at].trim() && (at === 0 || !lines[at - 1].trim())) lines.splice(at, 1);
+  };
+
   function editExerciseAt(line, endLine) {
     const lines = src.value.split("\n");
     openExerciseMarkdown(lines.slice(line, endLine + 1).join("\n"), Object.assign({
-      onSave: text => {
+      fromPage: pageOffer(line),
+      onSave: (text, extra) => {
         const current = src.value.split("\n");
-        current.splice(line, Math.max(1, endLine - line + 1), ...text.split("\n"));
+        // from the bottom up, so that every line number still means what it did when the form was opened
+        const ops = removedBlocks(extra).filter(b => b.line < line || b.line > endLine)
+          .map(b => ({from: b.line, to: b.endLine, text: null}));
+        ops.push({from: line, to: Math.max(line, endLine), text: withPutBack(text, extra)});
+        for (const op of ops.sort((x, y) => y.from - x.from)) {
+          current.splice(op.from, op.to - op.from + 1, ...(op.text === null ? [] : op.text.split("\n")));
+          if (op.text === null) tidyAt(current, op.from);
+        }
         setSource(current.join("\n"));
         if (pictogramsUsed(text)) ensureArasaacCredit();
       },
     }, formUploads));
   }
 
+  /* The source with some blocks taken off, the cursor kept where it was in the text (or, if it was inside one that
+     went, at the place it left). */
+  function takeOff(blocks) {
+    const mark = "\u0001", text = src.value, at = src.selectionStart;
+    const lines = (text.slice(0, at) + mark + text.slice(at)).split("\n");
+    const cursorLine = text.slice(0, at).split("\n").length - 1;
+    let lost = null;
+    for (const b of blocks.slice().sort((x, y) => y.line - x.line)) {
+      if (b.line <= cursorLine && cursorLine <= b.endLine)
+        lost = b.line - blocks.filter(o => o.endLine < b.line).reduce((n, o) => n + o.endLine - o.line + 1, 0);
+      lines.splice(b.line, b.endLine - b.line + 1);
+      tidyAt(lines, b.line);
+    }
+    let value = lines.join("\n");
+    let k = value.indexOf(mark);
+    if (k >= 0) value = value.slice(0, k) + value.slice(k + 1);
+    else k = lost === null ? value.length : value.split("\n").slice(0, lost).join("\n").length + (lost ? 1 : 0);
+    src.value = value;
+    src.setSelectionRange(k, k);
+  }
+
   // a pasted exercise names its clips; they come into the document before
   // the form opens, so its preview plays them (a document not saved yet
   // brings them in when it is saved)
   function chooseExercise() {
-    openExercisePicker(Object.assign({onSave: text => {
-                                        insertStandaloneLine(text);
+    openExercisePicker(Object.assign({onSave: (text, extra) => {
+                                        // the exercises a new follow-up was made of leave the page in the same step that writes it
+                                        const gone = removedBlocks(extra);
+                                        insertStandaloneLine(withPutBack(text, extra), undefined,
+                                                             gone.length ? () => takeOff(gone) : undefined);
                                         // a pictogram the form's own Pictogram… put in: the document is to credit ARASAAC
                                         if (pictogramsUsed(text)) ensureArasaacCredit();
                                       },
+                                      fromPage: pageOffer(-1),
                                       onPaste: text => adoptFromTray(text)}, formUploads));
   }
 
@@ -1569,9 +1625,11 @@ function initEdit() {
     const end = m ? m[0].length : 0;
     if (src.selectionStart < end) src.setSelectionRange(end, end);
   }
-  function insertStandaloneLine(line, selectWord) {
+  function insertStandaloneLine(line, selectWord, prepare) {
     // the dialect wants embeds on a line of their own
     pushHistory(true);
+    // `prepare`: what is to be done to the source in the same undoable step (taking exercises off the page)
+    if (prepare) prepare();
     const last = lastEmbed;
     lastEmbed = null;
     if (last && src.selectionStart === last.word[0] && src.selectionEnd === last.word[1]

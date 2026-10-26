@@ -744,6 +744,47 @@ html[data-mode=mobile] .exercise[data-primitive="matching"] .ex-match-drop:empty
 }
 .ex-score { font: 700 .95em var(--sans); color: var(--danger); }
 .ex-score.perfect { color: var(--ok); }
+
+/* ---------- a follow-up: exercises answered one after the other ------- */
+/* The strip says where the learner is -- Step 2 of 5, a dot for each, the done ones ticked -- and the steps are
+   ordinary exercises, one box inside the chain's own, a little lighter than the chain is.  A step not yet come to is
+   `hidden` by app.js (bindChain); drawn without it, every step shows. */
+.ex-strip { display: flex; align-items: center; gap: .75em; flex-wrap: wrap; margin: 0 0 .7em; font: .8em/1.2 var(--sans); color: var(--graytx); }
+.ex-strip-say { font-weight: 700; color: var(--ink); }
+.ex-dots { display: flex; gap: .35em; margin: 0; padding: 0; list-style: none; }
+.ex-dot {
+  min-width: 1.7em; height: 1.7em; padding: 0 .3em; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--rulec); border-radius: 99px; background: var(--sheet-bg); color: var(--graytx);
+  font: 700 .85em/1 var(--sans); box-sizing: border-box;
+}
+.ex-dot.on { border-color: var(--accent); color: var(--accent); }
+.ex-dot.done { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 9%, var(--sheet-bg)); }
+.ex-chain .ex-steps { display: flex; flex-direction: column; gap: .5em; }
+.ex-chain .ex-step { outline: none; scroll-margin-block: 1em; }
+.ex-chain .ex-step[hidden], .ex-chain .ex-earlier[hidden], .ex-chain .ex-chain-result[hidden] { display: none; }
+.ex-step-no { margin: .2em 0 .1em; font: 700 .72em/1.2 var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--graytx); }
+.sheet .ex-chain .ex-step > .exercise {
+  margin: .3em 0 .5em; background: transparent; border-color: color-mix(in srgb, var(--rulec) 70%, transparent);
+}
+.ex-step-bar { display: flex; align-items: center; gap: .6em; flex-wrap: wrap; margin: 0 0 .4em; }
+.ex-step-bar .btn { font: 700 .82em/1.2 var(--sans); cursor: pointer; }
+.ex-step-result { font: 700 .9em/1.2 var(--sans); }
+.ex-step-result.ok { color: var(--ok); }
+.ex-step-result.err { color: var(--danger); }
+.ex-step-next { margin-inline-start: auto; }
+.ex-earlier { margin: 0 0 .2em; border: 1px dashed var(--rulec); border-radius: 8px; padding: .35em .7em; }
+.ex-earlier > summary { cursor: pointer; font: 700 .8em/1.4 var(--sans); color: var(--graytx); }
+.ex-earlier-body { margin-top: .5em; display: flex; flex-direction: column; gap: .4em; }
+.ex-chain-result { margin: .8em 0 0; font: 700 1em/1.3 var(--sans); }
+.ex-chain-result.ok { color: var(--ok); }
+.ex-chain-result.err { color: var(--danger); }
+.ex-showall {
+  margin-left: auto; padding: .18em .5em; border: 1px solid var(--rulec); border-radius: 5px;
+  background: var(--sheet-bg); color: var(--graytx); font: .72em/1.2 var(--sans); cursor: pointer;
+}
+.ex-showall:hover, .ex-showall[aria-pressed=true] { color: var(--accent); border-color: var(--accent); }
+.ex-showall ~ .ex-edit { margin-left: 0; }
+@media print { .ex-step-bar, .ex-strip { display: none; } }
 .ex-flashcard {
   position: relative; width: min(100%, 34em); min-height: 12em; margin: .2em auto;
   display: flex; align-items: center; justify-content: center; padding: 1.2em;
@@ -990,6 +1031,92 @@ body[data-page="edit"] .ex-flashcard figure.img:hover img { outline: none; }
 }
 .sheet.ex-form-preview .exercise { margin: 0; }
 .sheet.ex-form-preview .ex-edit, .sheet.ex-form-preview .ex-to-deck { display: none; }
+/* ---------- the steps of a follow-up, in the form (exform.js, a0.5.4) ---------- */
+.ex-steps-hint { margin: 0; color: var(--chrome-mut); font-size: .8rem; }
+.ex-steps-hint.short { color: var(--danger, #b3261e); }
+.ex-steps-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; }
+.ex-steps-picked { margin-inline: .3rem auto; color: var(--chrome-mut); font-size: .78rem; }
+.ex-steps-list { display: flex; flex-direction: column; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+.ex-step-row {
+  position: relative; display: grid; align-items: center; gap: .35rem .5rem;
+  grid-template-columns: auto auto 3.4rem minmax(0, 1fr);
+  padding: .5rem .6rem; border: 1px solid var(--chrome-line); border-radius: 9px; background: var(--chrome-bg);
+}
+.ex-step-row.picked { border-color: var(--accent); }
+.ex-step-row.bad { border-color: var(--danger, #b3261e); }
+.ex-step-row.dragging { opacity: .55; }
+.ex-step-row.drop-before::before, .ex-step-row.drop-after::after {
+  content: ""; position: absolute; inset-inline: 0; height: 3px; border-radius: 2px; background: var(--accent);
+}
+.ex-step-row.drop-before::before { top: -3px; }
+.ex-step-row.drop-after::after { bottom: -3px; }
+.ex-step-pick { width: 1.15rem; height: 1.15rem; margin: 0; }
+.ex-step-grip {
+  width: 2rem; min-height: 2.2rem; padding: 0; border: 0; border-radius: 6px; background: transparent;
+  color: var(--chrome-mut); font: 700 1rem/1 var(--sans); letter-spacing: -.2em; cursor: grab; touch-action: none;
+}
+.ex-step-grip:hover, .ex-step-grip:focus-visible { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.ex-step-row.dragging .ex-step-grip { cursor: grabbing; }
+.modal.ex-form-modal .ex-step-no {
+  width: 3.4rem; padding: .3rem .25rem; text-align: center; border: 1px solid var(--chrome-line); border-radius: 7px;
+  background: var(--chrome-bg); color: var(--chrome-fg); font: 700 .9rem/1.2 var(--sans);
+}
+.ex-step-main { min-width: 0; }
+.ex-step-of { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .45rem; color: var(--chrome-mut); font-size: .74rem; }
+.ex-step-kind { color: var(--accent); font-weight: 650; }
+.ex-step-kind::before { content: "· "; color: var(--chrome-mut); font-weight: 400; }
+.ex-step-mark { font-size: .8rem; }
+.ex-step-words { margin-top: .1rem; color: var(--chrome-fg); font-size: .9rem; overflow-wrap: anywhere; }
+.ex-step-err { margin-top: .2rem; color: var(--danger, #b3261e); font-size: .78rem; }
+.ex-step-from { margin-top: .2rem; color: var(--chrome-mut); font-size: .74rem; }
+/* the words have the row's width; what can be done with the step is on the line under them */
+.ex-step-actions { grid-column: 4; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: .2rem; }
+.ex-step-more { display: contents; }
+.ex-step-actions .ex-step-more > .ex-step-delete { color: var(--danger, #b3261e); }
+.ex-step-actions .ex-step-toggle { display: none; }
+.ex-steps-undo {
+  display: flex; align-items: center; gap: .5rem; padding: .4rem .6rem; border-radius: 8px;
+  border: 1px dashed var(--chrome-line); color: var(--chrome-fg); font-size: .82rem;
+}
+.ex-steps-undo[hidden] { display: none; }
+.ex-steps-originals { display: flex; align-items: flex-start; gap: .45rem; color: var(--chrome-fg); font-size: .84rem; }
+.ex-steps-originals[hidden] { display: none; }
+.ex-steps-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+html[data-mode=mobile] .ex-step-row { grid-template-columns: auto auto 3.2rem minmax(0, 1fr); min-height: 48px; }
+html[data-mode=mobile] .ex-step-actions { grid-column: 1 / -1; }
+html[data-mode=mobile] .ex-step-actions .btn { min-height: 44px; min-width: 44px; }
+html[data-mode=mobile] .ex-step-actions .ex-step-toggle { display: inline-flex; align-items: center; justify-content: center; }
+html[data-mode=mobile] .ex-step-more { display: none; }
+html[data-mode=mobile] .ex-step-row.more-open .ex-step-more { display: flex; flex-wrap: wrap; gap: .2rem; flex-basis: 100%; }
+/* the frames over the chain's form: a step's own form, the types' grid, the page's exercises */
+.modal-overlay.ex-step-frame .ex-form-modal { box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+.ex-from-page { width: min(680px, 96vw); max-height: 90vh; display: flex; flex-direction: column; gap: .6rem; }
+.ex-from-lead { margin: 0; color: var(--chrome-mut); font-size: .84rem; }
+.ex-from-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+.ex-from-filter {
+  flex: 1 1 10rem; min-width: 0; padding: .4rem .55rem; border: 1px solid var(--chrome-line); border-radius: 8px;
+  background: var(--chrome-bg); color: var(--chrome-fg); font: .88rem var(--sans);
+}
+.ex-from-count { margin-inline-start: auto; color: var(--chrome-mut); font-size: .78rem; }
+.ex-from-list {
+  display: flex; flex-direction: column; gap: .3rem; min-height: 4rem; overflow-y: auto; padding: .4rem;
+  border: 1px solid var(--chrome-line); border-radius: 8px; background: var(--chrome-bg);
+}
+.ex-from-item {
+  display: grid; grid-template-columns: auto minmax(0, 11rem) minmax(0, 1fr); align-items: baseline; gap: .1rem .6rem;
+  padding: .4rem .45rem; border-radius: 7px; cursor: pointer;
+}
+.ex-from-item:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.ex-from-item[hidden] { display: none; }
+.ex-from-item.off { cursor: default; opacity: .6; }
+.ex-from-item input { margin: 0; align-self: center; }
+.ex-from-kind { color: var(--accent); font-size: .76rem; font-weight: 650; }
+.ex-from-words { color: var(--chrome-fg); font-size: .88rem; overflow-wrap: anywhere; }
+.ex-from-note { grid-column: 2 / -1; color: var(--chrome-mut); font-size: .74rem; }
+.ex-from-order { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin: 0; padding: 0; border: 0; font-size: .84rem; }
+.ex-from-order legend { padding: 0; margin-bottom: .2rem; color: var(--chrome-fg); font-weight: 650; font-size: .8rem; }
+.ex-from-remove { display: flex; align-items: flex-start; gap: .45rem; font-size: .84rem; }
+.ex-from-remove[hidden] { display: none; }
 .ex-prompt-modal { width: min(650px, 96vw); }
 .ex-decks {
   display: flex; flex-direction: column; gap: .35rem; max-height: 42vh;
@@ -1001,6 +1128,16 @@ body[data-page="edit"] .ex-flashcard figure.img:hover img { outline: none; }
 .ex-copy-status { margin-right: auto; }
 
 @media (max-width: 620px) {
+  .ex-step-row { grid-template-columns: auto auto 3.2rem minmax(0, 1fr); min-height: 48px; }
+  .ex-step-actions { grid-column: 1 / -1; }
+  .ex-step-actions .btn { min-height: 44px; min-width: 44px; }
+  .ex-step-actions .ex-step-toggle { display: inline-flex; align-items: center; justify-content: center; }
+  .ex-step-more { display: none; }
+  .ex-step-row.more-open .ex-step-more { display: flex; flex-wrap: wrap; gap: .2rem; flex-basis: 100%; }
+  .ex-step-pick { width: 1.4rem; height: 1.4rem; }
+  .ex-from-item { grid-template-columns: auto minmax(0, 1fr); }
+  .ex-from-kind { grid-column: 2; }
+  .ex-from-words { grid-column: 2; }
   .ex-pair-row { grid-template-columns: 1fr; gap: .2em; }
   .ex-type-grid { grid-template-columns: 1fr; }
   .ex-field-cols { grid-template-columns: 1fr; }
@@ -1389,3 +1526,4 @@ body[data-theme="dark"] .lx-preview-image { filter: invert(.9) hue-rotate(180deg
 .latex-fail pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85em; margin: .4em 0 0;
   direction: ltr; text-align: left; }
 .latex-fail .latex-log summary { cursor: pointer; font-size: .9em; }
+.latex-fail .latex-views { margin: .4rem 0 0; display: flex; gap: .5em; flex-wrap: wrap; }

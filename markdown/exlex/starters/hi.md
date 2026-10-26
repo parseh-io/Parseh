@@ -357,6 +357,38 @@ prompt: Which word is not a fruit?
 explanation-correct: सेब, आम and केला are an apple, a mango and a banana; a कुर्सी is a chair.
 :::
 
+### Follow-up questions
+
+A follow-up is a chain of exercises answered one after the other: check a step, read what it says, and the next one comes under it. A step is any exercise, written inside the chain with one colon more on its fences (`::::exercise …` and `::::`). The PDF prints every step at once, numbered, so write each one so that it does not give away the one before.
+
+:::exercise follow-up
+prompt: At a stall a customer says: [नमस्ते! एक चाय और एक समोसा, कृपया।]{tl} Answer about it, one question at a time.
+explanation-correct: You followed the whole order.
+explanation-incorrect: Read the sentence once more, slowly: a drink first, then something to eat.
+::::exercise single-choice
+prompt: What does the customer want to drink?
+- [x] चाय
+- [ ] समोसा
+- [ ] किताब
+explanation-correct: चाय *chāy* is tea; समोसा *samosā* is a samosa.
+::::
+::::exercise true-false
+prompt: Now decide.
+- समोसा *samosā* is something to eat. => true
+- कृपया *kripayā* means *thank you*. => false
+explanation-correct: कृपया *kripayā* is *please*; *thank you* is धन्यवाद *dhanyavād*.
+::::
+::::exercise fill-blanks
+prompt: Order for yourself, with the words you have just read.
+content-direction: target
+text: [नमस्ते! एक [[drink]] और एक [[food]], कृपया।]{tl}
+- [drink] चाय
+- [food] समोसा
+- [ ] किताब
+explanation-correct: एक *ek*, one, before each: एक चाय, एक समोसा.
+::::
+:::
+
 ### Flashcards
 
 A flashcard turns over when it is clicked, and it is never marked. The speaker button on the back of
