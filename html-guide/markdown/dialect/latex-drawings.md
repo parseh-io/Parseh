@@ -127,6 +127,9 @@ it looks like changes: the block, its theme's packages, preamble or
 compiler, the TeX installation, or Parseh's way of drawing. Renaming a
 theme redraws nothing.
 
+**Many documents at once.** The library's **Make drawings of N shown** makes the drawings of the documents it shows without
+opening them, on the toolbox's Working bar ([Documents in and out](../studio/documents-in-and-out.md#make-drawings-of-n-shown)).
+
 **A page never waits for its drawings.** A document or a note opens at
 once: a drawing already made is there, and one not made yet stands as its
 LaTeX while a bar at the top says how many are being made — *Making the

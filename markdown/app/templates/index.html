@@ -66,6 +66,17 @@
       <input type="hidden" id="download-shape" name="shape" value="md">
     </form>
     <iframe name="download-sink" id="download-sink" title="Download" hidden></iframe>
+    <!-- THE LATEX DRAWINGS OF THE DOCUMENTS SHOWN, made in the background without opening them (a0.5.6): the same set
+         "Download N shown" takes.  The work shows on the bar every page of the toolbox has (lib/activity.js) and on
+         the hub; this page's own bar and number stand in for it only where there is no hub (a studio run on its own) -->
+    <button type="button" class="btn" id="btn-make-drawings"
+            title="Make every LaTeX drawing the documents shown need, in the background, without opening them">Make drawings of 0 shown</button>
+    <span class="make-state" id="make-drawings-state" hidden>
+      <progress id="make-drawings-bar" max="100" value="0" aria-label="LaTeX drawings being made" hidden></progress>
+      <span id="make-drawings-say" class="make-say" hidden></span>
+      <button type="button" class="btn ghost" id="btn-make-stop"
+              title="Begin no new drawing: the ones under way finish, and what was made stays made">Stop</button>
+    </span>
     <a class="btn primary" href="{{BASE}}/new">+ New</a>
     <button class="btn danger ghost" id="btn-stop">Stop server</button>
   </div>

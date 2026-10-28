@@ -3661,9 +3661,14 @@ function initIndex() {
      into a hidden frame: a zip is saved and leaves the frame as it was,
      so the frame only ever loads a refusal (its JSON), which is told in a
      toast while the library, its search and its filters stay put. */
+  // the button that makes the drawings of the same set (below) is counted with it: declared first, for refreshDownloadShown
+  const btnMake = $("#btn-make-drawings"), makeState = $("#make-drawings-state");
+  const makeBar = $("#make-drawings-bar"), makeSay = $("#make-drawings-say"), btnMakeStop = $("#btn-make-stop");
+  let makeShown = 0, makeTimer = 0, makeWatching = false;
   const btnDownload = $("#btn-download-shown");
   const dlBox = $("#download-shown");
   function refreshDownloadShown(n) {
+    refreshMakeShown(n);
     if (!btnDownload) return;
     btnDownload.textContent = `Download ${n} shown`;
     btnDownload.title = `Download the ${n} document${n === 1 ? "" : "s"} shown`;
@@ -3713,6 +3718,96 @@ function initIndex() {
   const dlShownMd = $("#dl-shown-md"), dlShownZip = $("#dl-shown-zip");
   if (dlShownMd) dlShownMd.addEventListener("click", () => sendDownload("md"));
   if (dlShownZip) dlShownZip.addEventListener("click", () => sendDownload("zip"));
+
+  /* THE LATEX DRAWINGS OF THE DOCUMENTS SHOWN, made without opening them (a0.5.6, lib/latexbatch.py).  The same set
+     "Download N shown" takes.  The server counts what those documents show that is not drawn yet, and makes it in the
+     background; what is shown of it is the server's own entry on the activity list -- the pill every page has and the
+     hub's panel, a bar that is a true share of the drawings to make, moved by each one that is over -- and this page
+     asks for the job's status every second, to say how it ended (and, with no hub to draw the bar, to draw one).  The
+     job outlives the page: opened again, the library picks it up where it is. */
+  function refreshMakeShown(n) {
+    makeShown = n;
+    if (!btnMake || makeWatching) return;
+    btnMake.textContent = `Make drawings of ${n} shown`;
+    btnMake.title = `Make every LaTeX drawing the ${n} document${n === 1 ? "" : "s"} shown need, in the background, without opening ${n === 1 ? "it" : "them"}`;
+    btnMake.disabled = n === 0;
+  }
+  function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
+  function makeTold(st) {
+    // the page's own bar only where nothing else draws it
+    const own = !window.ParsehActivity;
+    if (makeBar) { makeBar.hidden = !own; makeBar.value = st.total ? Math.floor(100 * st.done / st.total) : 0; }
+    if (makeSay) { makeSay.hidden = !own; makeSay.textContent = `${st.done} of ${st.total}`; }
+    if (btnMake) btnMake.textContent = `Making drawings… ${st.done} of ${st.total}`;
+  }
+  function makeEnded(st, handle) {
+    makeWatching = false;
+    clearTimeout(makeTimer);
+    if (makeState) makeState.hidden = true;
+    if (btnMake) btnMake.disabled = false;
+    refreshMakeShown(makeShown);
+    const who = [...new Set((st.problems || []).map(p => p.doc).filter(Boolean))];
+    const named = who.length ? ` — open ${who.slice(0, 3).map(w => `“${w}”`).join(", ")}${who.length > 3 ? ` and ${who.length - 3} more` : ""} to see why` : "";
+    if (st.stopped) toast(`Stopped: ${st.made} of ${plural(st.total, "LaTeX drawing", "LaTeX drawings")} made.`);
+    else if (st.failed) toast(`Made ${st.made} of ${plural(st.total, "LaTeX drawing", "LaTeX drawings")}; ${st.failed} could not be made${named}.`, true);
+    else toast(`Made ${plural(st.made, "LaTeX drawing", "LaTeX drawings")} for ${plural(st.docs, "document", "documents")}.`);
+  }
+  function makeWatch(st, handle) {
+    makeWatching = true;
+    if (makeState) makeState.hidden = false;
+    if (btnMakeStop) { btnMakeStop.disabled = false; btnMakeStop.textContent = "Stop"; }
+    if (btnMake) btnMake.disabled = true;
+    makeTold(st);
+    const again = async () => {
+      let now;
+      try { now = await api("/api/latex/make"); }
+      catch (e) { makeTimer = setTimeout(again, 3000); return; }          // the server is busy or away: ask again
+      if (now.running) { makeTold(now); makeTimer = setTimeout(again, 700); }
+      else makeEnded(now, handle);
+    };
+    clearTimeout(makeTimer);
+    makeTimer = setTimeout(again, 700);
+  }
+  async function makeDrawings() {
+    const ids = $$(".card:not([hidden])", cards).map(c => c.dataset.id).filter(Boolean);
+    if (!ids.length || makeWatching) return;
+    btnMake.disabled = true;
+    // on the activity list at once, under the name the server's entry will carry
+    const A = window.ParsehActivity;
+    const handle = A && A.expect ? A.expect(`Making the LaTeX drawings of ${plural(ids.length, "document", "documents")}`) : null;
+    try {
+      const st = await api(handle ? handle.url("/api/latex/make") : "/api/latex/make", {method: "POST", json: {ids}});
+      if (!st.total) {
+        if (handle) handle.end(false);
+        refreshMakeShown(makeShown);
+        const bad = st.known_failed || 0;
+        if (!st.wanted) toast(`No document shown holds a LaTeX drawing.`);
+        else toast(`Every LaTeX drawing of the ${plural(st.found, "document", "documents")} shown is made already${bad ? `; ${plural(bad, "cannot be drawn", "cannot be drawn")} — open the document to see why` : ""}.`, !!bad);
+        return;
+      }
+      makeWatch(st, handle);
+    } catch (e) {
+      if (e.status === 409 && e.data && e.data.running) {
+        // another batch is going: this page follows that one
+        if (handle) handle.end(false);
+        toast("The LaTeX drawings of some documents are being made already: here is how far it has got.");
+        return makeWatch(e.data, null);
+      }
+      if (handle) handle.end(false);
+      refreshMakeShown(makeShown);
+      toast("Could not make the drawings: " + e.message, true);
+    }
+  }
+  if (btnMake) {
+    btnMake.addEventListener("click", makeDrawings);
+    if (btnMakeStop) btnMakeStop.addEventListener("click", async () => {
+      btnMakeStop.disabled = true;
+      btnMakeStop.textContent = "Stopping…";
+      try { await api("/api/latex/make/stop", {method: "POST"}); } catch (e) { toast("Could not stop: " + e.message, true); }
+    });
+    // a batch begun from an earlier visit (or another tab) is picked up where it is
+    api("/api/latex/make").then(st => { if (st && st.running) makeWatch(st, null); }, () => {});
+  }
 
   /* A backup put back — the other half of the Backup button.  The documents
      already here are KEPT and counted first, and replacing them is offered

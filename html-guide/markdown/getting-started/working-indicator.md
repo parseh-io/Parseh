@@ -22,6 +22,7 @@ any other page of Parseh open in any tab or on any device.
 | a book's narration: a recording uploaded, aligned, spread over its stretch, moved, taken off or put back, a transcript or hand-set times saved | *Aligning the narration of “Momotarō”* |
 | the timings of a book or a video estimated by the sound | *Estimating the timings of “Momotarō” by the sound*, *Estimating a video's timings by the sound* |
 | a studio document's PDF | *Building the PDF of “Greetings”* |
+| the LaTeX drawings of the studio's documents shown, made without opening them | *Making the LaTeX drawings of 12 documents*, counted in drawings: *41 of 63* ([Make drawings of N shown](../studio/documents-in-and-out.md#make-drawings-of-n-shown)) |
 | a video added, from YouTube or from a file on the computer, and its prompt prepared | *Adding a video from a file on this machine* |
 | text added to a book, a new empty book | *Adding text to “Momotarō”* |
 | an Anki deck built; an Anki export uploaded, synced or brought in | *Syncing an Anki export with the card store* |

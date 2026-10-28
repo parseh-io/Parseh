@@ -1,5 +1,6 @@
 ## [a0.5.6] - unreleased
 ### Added
+- The library's Make drawings of N shown: every LaTeX drawing the documents shown need, made in the background without opening them, on the Working bar of every page and the hub, which counts drawings and moves with each one
 - The exercises' prompt and the skill teach where a LaTeX drawing goes in an exercise, with an example: inside `prompt: |`, every line of the prompt indented under it
 
 ### Fixed

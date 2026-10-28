@@ -142,6 +142,7 @@ import prompts            # noqa: E402  the prompts a person wrote for a chatbot
 import promptkit          # noqa: E402  the choices a person makes for one prompt (lib/promptkit.py OPTIONS)
 import promptspage        # noqa: E402  Settings -> Your prompts
 import getarasaac         # noqa: E402  the ARASAAC pictograms: their words and their pictures (§8.40, W9)
+import latexbatch          # noqa: E402  the LaTeX drawings of many documents, made in the background (a0.5.6)
 import arasaacpage        # noqa: E402  Settings -> Pictograms (ARASAAC)
 import arasaacsearch      # noqa: E402  a word looked for among them, and a picture served (a0.5.3)
 import languages            # noqa: E402  the registry: names, folders, the CSS tokens
@@ -2659,6 +2660,8 @@ def activity_now():
     extra.extend(sttjobs.activity_entries(activity.entry, activity.KEEP, now))
     # THE PICTOGRAMS' DOWNLOAD (lib/getarasaac.py), one job: kept in that module and not in a table of this one
     extra.extend(getarasaac.activity_entries(activity.entry, activity.KEEP, now))
+    # THE LATEX DRAWINGS OF MANY DOCUMENTS (lib/latexbatch.py), counted in drawings: kind `compile`, unit `items`
+    extra.extend(latexbatch.activity_entries(activity.entry, activity.KEEP, now))
     return dict(activity.snapshot(extra), ok=True)
 
 

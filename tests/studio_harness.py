@@ -17,7 +17,10 @@ tree.  Never touches markdown/library/, exercises/ or clips/.
     --pictograms           an INSTALLED set of ARASAAC pictograms (tests/pictogram_world.py) in the temporary
     --pictograms=partial   arasaac/ -- or a download that was stopped; without the flag the folder is empty, and
                            either way it is the temporary one: the checkout's own is never read or written
-                           (its path is in READY, so a suite may take the folder away and put it back)"""
+                           (its path is in READY, so a suite may take the folder away and put it back)
+    --latex-slow=SECONDS   every drawing the BATCH makes (lib/latexbatch.py: "Make drawings of N shown") waits this long
+                           first, then is made for real: the work lasts long enough to be looked at, as
+                           tests/activity.mjs makes its doors slow"""
 import json
 import os
 import shutil
@@ -25,6 +28,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -32,6 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MODE = sys.argv[1] if len(sys.argv) > 1 else "studio"
 FORCE_LATEX_MISSING = "--latex-missing" in sys.argv[2:]
 FORCE_LATEX_COMPILER_STATES = "--latex-compiler-states" in sys.argv[2:]
+LATEX_SLOW = next((float(a.partition("=")[2]) for a in sys.argv[2:] if a.split("=")[0] == "--latex-slow"), 0.0)
 PICTOGRAMS = next((a.partition("=")[2] or "complete" for a in sys.argv[2:] if a.split("=")[0] == "--pictograms"), "")
 
 if MODE == "parseh":
@@ -83,6 +88,13 @@ latexthemes.STORE = str(tmp / "config" / "latex.json")
 import prompts
 prompts.STORE = str(tmp / "config" / "prompts.json")
 latexdraw.DRAWN = str(tmp / "latex-drawn")
+if LATEX_SLOW:
+    _made_for_real = latexdraw.draw
+
+    def _slow_draw(*args, **kwargs):
+        time.sleep(LATEX_SLOW)
+        return _made_for_real(*args, **kwargs)
+    latexdraw.draw = _slow_draw
 texpackages.TREE = str(tmp / "texmf")
 # what the themes add to the base, as if Parseh had got it: unless the suite is
 # about the packages themselves (tests/texmf_fixture.py); a suite may empty the

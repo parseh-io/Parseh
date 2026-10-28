@@ -17,6 +17,18 @@ guide and rebuilds the readers by itself.
 
 ## a0.5.6 — not yet released
 
+### Make the drawings of many documents at once
+
+A document with LaTeX drawings made the drawings it lacked while you looked at it, a few at a time, under a bar of its own
+that lost its way beyond forty or so. The library has a new button, **Make drawings of N shown**, beside **Download N
+shown**: it makes **every drawing the documents shown need, without opening one**. The server counts the distinct drawings
+not made yet — one that two documents share, once — and makes them in the background, side by side. The bar is the
+**Working** list every page has and the hub shows in its panel (*Making the LaTeX drawings of 12 documents · Gamma 6 · 41
+of 63*): it counts **drawings, not bytes**, so it is a true share of the work however much there is, and it moves with each
+drawing that is over. **Stop** begins no new one and keeps what was made; a page opened while it runs picks it up; a drawing
+that cannot be made is counted, and said with its document when it is over
+([Make drawings of N shown](../studio/documents-in-and-out.md#make-drawings-of-n-shown)).
+
 ### A drawing's place in an exercise, said clearly
 
 A chatbot that took the rule for a document into an exercise wrote a LaTeX drawing on lines of its own **after a one-line

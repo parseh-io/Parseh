@@ -29,6 +29,8 @@ moment of asking, in the shape entry() makes, so nothing is kept twice.
     id        this entry's name, unique while the server runs
     kind      build, upload, download, backup, restore, narration, install,
               compile, lookup -- what the page may draw beside it
+    unit      only where `done` and `total` do not count bytes: "items" (a share
+              of work, in drawings made; lib/latexbatch.py)
     label     what is happening, in words: "Building the PDF of ..."
     started   when, in the server's seconds (time.time())
     done      bytes so far, or None where nothing is counted
@@ -118,11 +120,16 @@ def size(n):
 
 
 def entry(id, kind, label, started, done=None, total=None, stage=None,
-          page=None, job=None, finished=None, ok=None):
+          page=None, job=None, finished=None, ok=None, unit=None):
     """One entry in the shape the list is drawn from: a finished one has
-    `finished` (a time) and `ok`, a running one has neither."""
+    `finished` (a time) and `ok`, a running one has neither.  `unit` is what
+    `done` and `total` count where it is not bytes (`"items"`: drawings made, a
+    share of work to do, drawn as "12 of 41" and a bar); an entry that counts
+    bytes has no `unit` key at all."""
     out = {"id": id, "kind": kind, "label": label, "started": started,
            "done": done, "total": total, "stage": stage, "page": page, "job": job}
+    if unit:
+        out["unit"] = unit
     if finished is not None:
         out["finished"] = finished
         out["ok"] = bool(ok)

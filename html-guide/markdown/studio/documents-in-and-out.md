@@ -2,7 +2,7 @@
 title: Bringing documents in and out
 linkTitle: Documents in and out
 weight: 2
-description: Paste LLM answer, Upload .md / .zip and its header dialog, Download N shown, Backup and Load from backup.
+description: Paste LLM answer, Upload .md / .zip and its header dialog, Download N shown, Make drawings of N shown, Backup and Load from backup.
 ---
 
 Five buttons on the library's bar move documents across the studio's
@@ -16,6 +16,7 @@ away — and two take them out.
 | **Upload .md / .zip** | new documents from Markdown files, or from zips of them with their pictures and recordings |
 | **Load from backup** | the documents of a **Backup** zip put back as they were |
 | **Download N shown** | the documents the library is showing, in one zip |
+| **Make drawings of N shown** | every [LaTeX drawing](../dialect/latex-drawings.md) those documents need, made in the background without opening them |
 | **Backup** | the whole library, in one zip |
 
 A document's own page has **Download ▾** too, for that one document: see
@@ -149,6 +150,27 @@ two a single document's **Download ▾** offers:
 
 Either one can be uploaded again with **Upload .md / .zip**. The button is
 greyed out when nothing is shown.
+
+## Make drawings of N shown
+
+A document holding LaTeX drawings is opened at once, and the drawings it has not got yet are made while you look at it,
+a few at a time. With a library of such documents, **Make drawings of N shown** makes them **all, without opening
+one**: the same set **Download N shown** takes — what the search, the tags and the language chip show — and the button
+says how many documents that is. Press it and the server reads what those documents show (blocks and inline marks, in
+the text and in the exercises), counts the **distinct** drawings not made yet — one two documents share is counted
+once — and makes them in the background, as many side by side as the computer has cores for.
+
+The bar is the toolbox's own **Working** list ([the working indicator](../getting-started/working-indicator.md)): the
+pill in the corner of every page and the panel on the hub, saying *Making the LaTeX drawings of 12 documents*, with the
+document the last drawing was for and **how many of how many** (*41 of 63*). The bar is a true share of the drawings to
+make, whether they are four or four hundred, and moves each time one is over; the number on the button follows it. The
+work belongs to the server: close the page, or open the library again, and it is picked up where it is. **Stop** begins
+no new drawing — the ones under way finish, and what was made stays made.
+
+When it is over a note says what was made, and, where a drawing could not be (a command LaTeX does not know, a theme
+that is gone), **how many and in which documents** — open one to see what LaTeX said, as always. Pressed again, the
+button says that everything is made already, and starts nothing. A run on its own, with no hub, draws the bar and the
+number on the page itself.
 
 ## Backup
 

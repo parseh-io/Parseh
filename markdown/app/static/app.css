@@ -1545,3 +1545,9 @@ html.pg-sheet .kp-bar{display:none}
 
 /* a follow-up studied or crammed: its steps' own bars are the page's answer bar's (decks.js syncChain, cramChain) */
 #study-stage .ex-step-bar, #cram-stage .ex-step-bar { display: none; }
+
+/* THE LATEX DRAWINGS OF THE DOCUMENTS SHOWN (a0.5.6): the page's own number and bar, for where no hub draws them */
+.make-state { display: inline-flex; align-items: center; gap: 8px; }
+.make-state progress { width: 120px; height: 10px; accent-color: var(--accent); }
+.make-state .make-say { font-size: 13px; color: var(--chrome-mut, var(--dim, #635358)); }
+.make-state [hidden] { display: none !important; }

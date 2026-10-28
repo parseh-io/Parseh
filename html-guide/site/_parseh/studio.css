@@ -1820,3 +1820,7 @@ html.pg-sheet :is(.pz,.modal-overlay) .kp-bar{display:none}
 :is(.pz,.modal-overlay) .buildinfo .fails pre{margin:0;white-space:pre-wrap;
   font-family:ui-monospace,Menlo,monospace;font-size:.78rem}
 :is(.pz,.modal-overlay) #study-stage .ex-step-bar,:is(.pz,.modal-overlay) #cram-stage .ex-step-bar{display: none;}
+:is(.pz,.modal-overlay) .make-state{display: inline-flex; align-items: center; gap: 8px;}
+:is(.pz,.modal-overlay) .make-state progress{width: 120px; height: 10px; accent-color: var(--accent);}
+:is(.pz,.modal-overlay) .make-state .make-say{font-size: 13px; color: var(--chrome-mut, var(--dim, #635358));}
+:is(.pz,.modal-overlay) .make-state [hidden]{display: none !important;}
