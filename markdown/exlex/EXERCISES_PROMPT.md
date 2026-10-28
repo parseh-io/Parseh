@@ -15,9 +15,25 @@ explanation-incorrect: Optional different explanation for an incorrect answer.
 
 Explanations are optional. With only `explanation-correct`, that text is used neutrally after either result. When `explanation-incorrect` is included, the two texts are result-specific. You may provide only the incorrect explanation when nothing needs to be said after success.
 
-Inside prompts, answers, pairs, and explanations use the same inline marks as the rest of the page, and only ones you are taught: keep target-language text in `[text]{tl}` when the page's conventions require a marked run.{{?lang_rtl}} `content-direction: target` remains available for an exercise whose body should follow the learned language's direction as a whole, and `content-direction: rtl` / `content-direction: ltr` for an explicitly mixed-direction activity; a fill sentence needs none, and an explicit setting is not overridden.{{/lang_rtl}}{{?exercising}}{{?lang_rtl}} For a right-to-left target, follow the page-specific mixed-direction section appended to this prompt. It distinguishes text inside one RTL run, which always stays in natural logical order, from several isolated RTL component boxes inside an LTR question, answer, formula, or explanation, whose Markdown source must follow their intended left-to-right visual order. Apply that distinction everywhere in an exercise, not only to sentence-construction rows.{{/lang_rtl}}{{/exercising}}{{?math}} A formula (`[a^2+b^2=c^2]{math}`) may go in a prompt, in a fill sentence, in an answer row, in a pair or on a card: anywhere prose goes.{{/math}}{{?colourparts}} A word coloured in parts (`[[ab[cd]{teal}ef]]`) may go in a prompt, an answer row, a pair, a fill sentence or a card's field.{{/colourparts}}{{?latex}} A LaTeX drawing may go in an exercise too, by the page's rules for drawings: in a line, `[\ce{H2O}]{latex chemistry}`, anywhere prose goes (a prompt, an answer row, a pair, a fill sentence, an explanation), and as a block in a prompt written `prompt: |` with the block's lines indented under it, or in a field of a jolly card. In a row, a pair, a fill sentence or an explanation it is only the line.{{/latex}}
+Inside prompts, answers, pairs, and explanations use the same inline marks as the rest of the page, and only ones you are taught: keep target-language text in `[text]{tl}` when the page's conventions require a marked run.{{?lang_rtl}} `content-direction: target` remains available for an exercise whose body should follow the learned language's direction as a whole, and `content-direction: rtl` / `content-direction: ltr` for an explicitly mixed-direction activity; a fill sentence needs none, and an explicit setting is not overridden.{{/lang_rtl}}{{?exercising}}{{?lang_rtl}} For a right-to-left target, follow the page-specific mixed-direction section appended to this prompt. It distinguishes text inside one RTL run, which always stays in natural logical order, from several isolated RTL component boxes inside an LTR question, answer, formula, or explanation, whose Markdown source must follow their intended left-to-right visual order. Apply that distinction everywhere in an exercise, not only to sentence-construction rows.{{/lang_rtl}}{{/exercising}}{{?math}} A formula (`[a^2+b^2=c^2]{math}`) may go in a prompt, in a fill sentence, in an answer row, in a pair or on a card: anywhere prose goes.{{/math}}{{?colourparts}} A word coloured in parts (`[[ab[cd]{teal}ef]]`) may go in a prompt, an answer row, a pair, a fill sentence or a card's field.{{/colourparts}}
 
-The types you may use are these; spell the type exactly as shown:
+{{?latex}}**A LaTeX drawing in an exercise.** In a line, `[\ce{H2O}]{latex chemistry}` goes anywhere prose goes: a prompt, an answer row, a pair, a fill sentence, an explanation. A drawing on lines of its own, a block, goes **only inside the prompt** (or inside a field of a jolly card), because an exercise's own lines are fields (`name: value`) and rows (`- …`) and nothing else. So the prompt is written `prompt: |`, and **every line of it is indented two spaces under it: the words, the drawing's fences and its LaTeX**:
+
+```markdown
+:::exercise single-choice
+prompt: |
+  Which reaction does the drawing show?
+  ::::latex chemistry {width=40 align=center}
+  \ce{2H2 + O2 -> 2H2O}
+  ::::
+- [x] water forming from hydrogen and oxygen
+- [ ] water splitting
+:::
+```
+
+A block written between the fields (straight after a one-line `prompt: …`, or among the rows) belongs to no field: the exercise is refused with "a LaTeX drawing goes inside the prompt, not between the fields". An answer row, a pair, a fill sentence and an explanation never hold a block, only the line mark.
+
+{{/latex}}The types you may use are these; spell the type exactly as shown:
 
 {{?type_fill_blanks}}`fill-blanks` — `text:` contains `[[slot]]`; rows give each answer and optional distractors: `- [slot] answer` and `- [ ] distractor`. **A blank may sit inside a target-language mark.** Write a fill sentence as ONE marked sentence, blanks and all — the mark is spread over the pieces round each blank when the document is parsed, and the sentence is then laid out as a whole in the target language's own direction, so the blanks fall where they are read. This is the form to use:
 

@@ -22,7 +22,13 @@ drawings](../dialect/latex-drawings.md) of the dialect, in two forms.
   **prompt** (`prompt: |`) and in the four fields of a **Jolly card**, and
   has four colons so that the exercise does not end where the drawing
   does. Anywhere else — an option, an explanation, the sentence of a
-  fill-in — its lines stay as text: write those with a mark.
+  fill-in — its lines stay as text: write those with a mark. A block is
+  **part of the prompt, not a field of its own**: written on its own lines
+  between the fields, straight after a one-line `prompt: …` or among the
+  rows, it belongs to no field and the exercise is refused (*a LaTeX drawing
+  goes inside the prompt, not between the fields*). Write `prompt: |` and put
+  every line of the prompt under it, indented, the drawing's fences and its
+  LaTeX too.
 
 In a step of a [follow-up](follow-up.md#how-it-is-written) a block has one colon
 more, like every fence in it: `:::::latex chemistry` … `:::::`. In the editor's

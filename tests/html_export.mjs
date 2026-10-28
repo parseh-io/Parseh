@@ -780,7 +780,16 @@ async function deckFile(browser, file, t) {
     eq(await page.locator('#cram-wrong-list li').count(), wrongOnce.size, 'the wrong ones listed');
     eq(await page.locator('#cram-skipped-list li').count(), skipped.size, 'the skipped ones listed');
     await page.locator('#cram-wrong-list .dk-cram-item').first().click();
-    assert(await page.locator('#cram-wrong-list .dk-cram-solved:not([hidden]) .exercise').count() === 1, 'one of them opens solved');
+    // the wrong ones come in the order the cram shuffled them, so the first may be the follow-up: ONE exercise, whose steps
+    // are exercises inside it -- it opens solved with every step in it, as any other opens solved
+    const solvedOpen = await page.evaluate(() => {
+      const all = [...document.querySelectorAll('#cram-wrong-list .dk-cram-solved:not([hidden]) .exercise')];
+      const top = all.filter(e => !e.parentElement.closest('.exercise'));
+      return {top: top.map(e => e.dataset.subtype), inside: all.length - top.length,
+              steps: top.length === 1 ? top[0].querySelectorAll('.ex-step').length : 0};
+    });
+    assert(solvedOpen.top.length === 1 && (solvedOpen.top[0] === 'follow-up' ? solvedOpen.steps >= 2 && solvedOpen.inside === solvedOpen.steps : solvedOpen.inside === 0),
+           'one of them opens solved, a follow-up with its steps in it (opened: ' + JSON.stringify(solvedOpen) + ')');
     if (SHOTS) await page.screenshot({path: `${SHOTS}/${mode}-deck-done.png`, fullPage: true});
 
     // the foot, with the end of the cram in place

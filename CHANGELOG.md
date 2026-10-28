@@ -1,5 +1,9 @@
 ## [a0.5.6] - unreleased
 ### Added
+- The exercises' prompt and the skill teach where a LaTeX drawing goes in an exercise, with an example: inside `prompt: |`, every line of the prompt indented under it
+
+### Fixed
+- A LaTeX drawing written between an exercise's fields was refused with one "unrecognized line" for each of its lines; it is now one message that says where a drawing goes
 
 ## [a0.5.5] - 2026-10-28
 ### Added

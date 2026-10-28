@@ -198,6 +198,12 @@ EXERCISE_TYPES = {
     # the fourteenth (a0.5.4): a CHAIN, a run of exercises answered one after the other
     "follow-up": ("chain", "steps"),
 }
+# what is said of a LaTeX drawing written between the fields of an exercise -- the mistake a model makes when it takes
+# the rule for a document (a block on lines of its own) into an exercise
+DRAWING_PLACE = ("a LaTeX drawing goes inside the prompt, not between the fields: write `prompt: |` and put every line "
+                 "of the prompt, the drawing's fences and its LaTeX too, indented under it")
+DRAWING_PLACE_CARD = ("a LaTeX drawing goes inside a field of a Jolly card, not between the fields: write `front-primary: |` "
+                      "(or another of its four fields) and put the drawing's lines indented under it")
 EXERCISE_OPEN_RE = re.compile(r"^:::exercise(?:\s+([a-z][a-z0-9-]*))?\s*$", re.I)
 
 # A STEP OF A FOLLOW-UP IS AN EXERCISE WRITTEN ONE FENCE DEEPER.  The dialect's one rule for a block inside a block, the
@@ -374,6 +380,20 @@ def parse_exercise(lines, start):
                 pending[2].append(body[i])
                 i += 1
                 if body[i - 1].strip() == latexthemes.FENCE_CLOSE:
+                    break
+            continue
+        if latexthemes.FENCE_OPEN_RE.match(s):
+            # A DRAWING BETWEEN THE FIELDS belongs to no field: an exercise's lines are fields (`name: value`) and rows
+            # (`- …`).  It is said once, with where a drawing goes, and its lines (the LaTeX is no field, no row) are
+            # passed over to its closing fence, so that the list of what is wrong is not one line per line of it
+            errors.append(DRAWING_PLACE_CARD if subtype == "flashcard" else DRAWING_PLACE)
+            carry_on()
+            pending = None
+            i += 1
+            while i < len(body):
+                shut = body[i].strip() == latexthemes.FENCE_CLOSE
+                i += 1
+                if shut:
                     break
             continue
         if not s or s.startswith("<!--"):

@@ -252,6 +252,7 @@ What each message means, and what to do about it:
 | `exercise type is missing` | a bare `:::exercise` and no `type:` field |
 | `unknown exercise type: …` | the type is misspelt, or is not one of the fourteen |
 | `unrecognized line: …` | a line that is not a field, a row, a blank line or a comment |
+| `a LaTeX drawing goes inside the prompt, not between the fields` | a `::::latex` block on lines of its own between an exercise's fields or among its rows; write `prompt: |` and indent the prompt, the drawing included, under it (on a card, in one of its four fields: *a LaTeX drawing goes inside a field of a Jolly card…*) |
 | `answer row needs [ ] or an explicit position before the answer` | a choice or placement row with no mark of its own before its text |
 | `pair row needs left => right` | a matching, yes/no or true/false row without `=>`, or with nothing on one side |
 | `choice exercise has no alternatives` | a choice exercise with no rows |

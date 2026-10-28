@@ -83,10 +83,30 @@ class ThePromptsTeachThemesAndDrawingsInExercises(WithThemes):
 
     def test_the_exercise_prompt_says_where_a_drawing_may_stand_only_when_its_box_is_ticked(self):
         on = " ".join(self.exercise_text(["latex"], ["single-choice"]).split())
-        self.assertIn("A LaTeX drawing may go in an exercise too", on)
-        self.assertIn("as a block in a prompt written `prompt: |` with the block's lines indented under it", on)
+        self.assertIn("**A LaTeX drawing in an exercise.**", on)
+        self.assertIn("goes **only inside the prompt**", on)
+        self.assertIn("**every line of it is indented two spaces under it: the words, the drawing's fences and its LaTeX**", on)
+        self.assertIn("A block written between the fields", on)
         off = " ".join(self.exercise_text([], ["single-choice"]).split())
-        self.assertNotIn("A LaTeX drawing may go in an exercise too", off)
+        self.assertNotIn("A LaTeX drawing in an exercise", off)
+
+    def test_the_example_of_a_drawing_in_a_prompt_is_the_dialect_and_a_drawing_between_the_fields_is_the_mistake_it_names(self):
+        # the prompt's example, as a chatbot copies it, is read by the real parser: no mistake, the drawing in the prompt
+        text = self.exercise_text(["latex"], ["single-choice"])
+        at = text.index(":::exercise single-choice\nprompt: |")
+        example = text[at:text.index("\n```", at)]
+        _fm, blocks = mdparser.parse("---\ntitle: T\ntarget: it\n---\n\n" + example + "\n")
+        self.assertEqual([], blocks[0]["errors"])
+        self.assertIn("::::latex chemistry {width=40 align=center}\n  \\ce{2H2 + O2 -> 2H2O}\n  ::::", blocks[0]["source"])
+        # and what the prompt says is refused is refused, in the words it quotes
+        wrong = example.replace("prompt: |\n  Which reaction does the drawing show?\n  ::::latex chemistry {width=40 align=center}\n"
+                                "  \\ce{2H2 + O2 -> 2H2O}\n  ::::",
+                                "prompt: Which reaction does the drawing show?\n::::latex chemistry {width=40 align=center}\n"
+                                "\\ce{2H2 + O2 -> 2H2O}\n::::")
+        self.assertNotEqual(example, wrong)
+        refused = mdparser.parse("---\ntitle: T\ntarget: it\n---\n\n" + wrong + "\n")[1][0]["errors"]
+        self.assertEqual([mdparser.DRAWING_PLACE], refused)
+        self.assertIn("a LaTeX drawing goes inside the prompt, not between the fields", " ".join(text.split()))
 
     def test_a_follow_up_is_told_the_steps_drawing_takes_five_colons_when_the_box_is_ticked(self):
         on = self.exercise_text(["latex"], ["follow-up", "single-choice"])
@@ -118,7 +138,7 @@ class ThePromptsTeachThemesAndDrawingsInExercises(WithThemes):
         self.assertIn(promptboxes.latex_themes(), latex)
         self.assertIn("`chess` (adds xskak", latex)
         self.assertIn("⟦if feature latex⟧A LaTeX drawing in a step", files["references/exercises/follow-up.md"])
-        self.assertIn("⟦if feature latex⟧ A LaTeX drawing may go in an exercise too", files["references/features/exercises.md"])
+        self.assertIn("⟦if feature latex⟧**A LaTeX drawing in an exercise.**", files["references/features/exercises.md"])
         # and what the skill tells a model to read for a request is what the prompt road makes of it
         L = languages.get("it")
         boxes, types = ["latex"], ["follow-up", "single-choice"]

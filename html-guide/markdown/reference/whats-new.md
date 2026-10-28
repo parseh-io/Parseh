@@ -17,6 +17,16 @@ guide and rebuilds the readers by itself.
 
 ## a0.5.6 — not yet released
 
+### A drawing's place in an exercise, said clearly
+
+A chatbot that took the rule for a document into an exercise wrote a LaTeX drawing on lines of its own **after a one-line
+prompt**, and the exercise came back refused with one *unrecognized line* for every line of the drawing, none of which said
+what to do. A drawing in an exercise is **part of the prompt**: the prompt is written `prompt: |`, and every line of it,
+the drawing's fences and its LaTeX too, is indented under it. The exercises' prompt and the skill now say so, with an
+example, and a drawing found between the fields is **one message** that says it: *a LaTeX drawing goes inside the prompt,
+not between the fields* (on a Jolly card, inside one of its four fields)
+([LaTeX in exercises](../dialect-exercises/latex.md), [what each message means](../dialect-exercises/container.md#needs-attention)).
+
 ## a0.5.5 — 28 October 2026
 
 ### A drawing in a follow-up, and a chatbot that knows the themes

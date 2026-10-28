@@ -622,6 +622,61 @@ class ExerciseDialectTests(unittest.TestCase):
             self.assertNotIn(secret, preview)
 
 
+class DrawingInAnExerciseTests(unittest.TestCase):
+    """Where a LaTeX drawing may stand in an exercise: inside a field written `key: |`, never between the fields.  A model
+    that took the rule for a document (a block on lines of its own) into an exercise wrote it after a one-line prompt, and
+    was told four lines of `unrecognized line` for what is one mistake."""
+    FRONT = "---\ntitle: T\ntarget: en\n---\n\n"
+    ROWS = "- [x] 7.Bg5\n- [ ] 7.Be2\nexplanation-correct: Good.\n:::\n"
+    FEN = "r1bqkb1r/pp3ppp w KQkq - 3 7"
+
+    def errors(self, body):
+        return mdparser.parse(self.FRONT + body)[1][0]["errors"]
+
+    def test_a_drawing_after_a_one_line_prompt_is_one_mistake_that_says_where_it_goes(self):
+        # what the model wrote, as it was, with the lines of the drawing at the head of the line
+        wrong = (":::exercise single-choice\nprompt: What do you play? FEN: `%s` · [analyse](https://lichess.org/analysis/x)\n"
+                 "::::latex chess {width=40 align=center}\n\\newchessgame\n\\chessboard[setfen=%s]\n::::\n" % (self.FEN, self.FEN)
+                 + self.ROWS)
+        self.assertEqual([mdparser.DRAWING_PLACE], self.errors(wrong))
+        self.assertIn("goes inside the prompt", mdparser.DRAWING_PLACE)
+        self.assertIn("`prompt: |`", mdparser.DRAWING_PLACE)
+        html = htmlgen.render_document(self.FRONT + wrong)["html"]
+        self.assertIn("a LaTeX drawing goes inside the prompt, not between the fields", html)
+        self.assertNotIn("unrecognized line", html)
+        self.assertNotIn("ex-chain", html)
+
+    def test_the_drawing_between_the_rows_or_after_them_is_the_same_mistake_once(self):
+        among = (":::exercise single-choice\nprompt: Pick\n- [x] a\n::::latex\n\\x\n::::\n- [ ] b\n:::\n")
+        self.assertEqual([mdparser.DRAWING_PLACE], self.errors(among))
+        twice = (":::exercise single-choice\nprompt: Pick\n::::latex\n\\x\n::::\n- [x] a\n- [ ] b\n::::latex\n\\y\n::::\n:::\n")
+        self.assertEqual([mdparser.DRAWING_PLACE, mdparser.DRAWING_PLACE], self.errors(twice))
+
+    def test_a_card_that_has_no_prompt_is_told_the_field_of_its_own(self):
+        card = ":::exercise flashcard\ncard-type: vocab\ntarget: a\nmeaning: b\n::::latex\n\\x\n::::\n:::\n"
+        self.assertEqual([mdparser.DRAWING_PLACE_CARD], self.errors(card))
+        self.assertIn("`front-primary: |`", mdparser.DRAWING_PLACE_CARD)
+
+    def test_a_step_that_makes_it_is_named_by_its_number(self):
+        chain = (":::exercise follow-up\n::::exercise single-choice\nprompt: Pick\n:::::latex\n\\x\n:::::\n- [x] a\n- [ ] b\n::::\n"
+                 "::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n:::\n")
+        block = mdparser.parse(self.FRONT + chain)[1][0]
+        self.assertEqual(["step 1: " + mdparser.DRAWING_PLACE], block["errors"])
+
+    def test_inside_the_prompt_it_is_right_whether_or_not_every_line_is_indented(self):
+        # the form a person wrote (the fences' lines at the head of the line after an indented opening) is read as well
+        for body in ("  ::::latex chess {width=40 align=center}\n  \\chessboard[setfen=%s]\n  ::::\n" % self.FEN,
+                     "  ::::latex chess {width=40 align=center}\n\\chessboard[setfen=%s]\n::::\n" % self.FEN):
+            md = ":::exercise single-choice\nprompt: |\n  What do you play?\n" + body + self.ROWS
+            self.assertEqual([], self.errors(md), body)
+            html = htmlgen.render_document(self.FRONT + md)["html"]
+            self.assertIn('data-latex-src="\\chessboard[setfen=%s]"' % self.FEN, html)
+
+    def test_a_stray_line_is_still_the_error_it_was(self):
+        self.assertEqual(["unrecognized line: stray line"],
+                         self.errors(":::exercise single-choice\nprompt: Pick\nstray line\n- [x] a\n- [ ] b\n:::\n"))
+
+
 class DeckButtonTests(unittest.TestCase):
     BUTTON = 'class="ex-to-deck"'
     BOXED = ("---\ntitle: Boxed\ntarget: fa\n---\n\n"
