@@ -1,4 +1,4 @@
-## [a0.5.5] - unreleased
+## [a0.5.5] - 2026-10-28
 ### Added
 - The prompts and the skill say what each LaTeX theme's packages are for, including the ones its own lines load, and teach choosing the theme by the commands a drawing needs; the exercise prompt says where a drawing may stand in an exercise and how a follow-up's step writes one
 

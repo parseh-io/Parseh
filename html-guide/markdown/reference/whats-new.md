@@ -15,7 +15,7 @@ change. A new version comes in from **Settings → Updating Parseh**
 ([Updating Parseh](../getting-started/updating.md)), which compiles this
 guide and rebuilds the readers by itself.
 
-## a0.5.5 — not yet released
+## a0.5.5 — 28 October 2026
 
 ### A drawing in a follow-up, and a chatbot that knows the themes
 
