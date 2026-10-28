@@ -1,3 +1,6 @@
+## [a0.5.7] - unreleased
+### Added
+
 ## [a0.5.6] - 2026-10-28
 ### Added
 - The library's Make drawings of N shown: every LaTeX drawing the documents shown need, made in the background without opening them, on the Working bar of every page and the hub, which counts drawings and moves with each one
