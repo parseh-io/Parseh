@@ -230,6 +230,8 @@ async function suite(mode) {
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.querySelector('#modal-root .modal-overlay'));
     await page.click('#btn-skip');
+    // the chain's own first step is a single-choice too: waiting for one would be satisfied by the card that is being left
+    await page.waitForFunction(() => !document.querySelector('#study-stage .ex-chain'));
     await page.waitForSelector('#study-stage .exercise[data-subtype="single-choice"]');
     assert(await page.locator('#study-stage .ex-chain').count() === 0 && await page.locator('#rating-bar').isHidden(),
            'Skip, half-way, leaves the chain unrated and goes to the next exercise');
