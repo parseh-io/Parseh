@@ -11,6 +11,9 @@
 //      (It never appeared for a whole week of a0.4.0's work -- it reused the
 //      RTL pencil's class, which is `display: none`, and only set `hidden` --
 //      because no test had ever opened the sheet: found by driving, 2026-09-25.)
+//   c2) THE PENCIL ON A DRAWING INSIDE AN EXERCISE, and inside a step of a follow-up: it rewrites that drawing's own
+//      lines, indented as they were and fenced as they were (five colons in a step) -- it used to be told a line number
+//      counted from the start of the prompt, and rewrote the front matter of the page and the exercise's first lines
 //   d) (parseh) Settings -> LaTeX drawings: its themes, the bar of its doors,
 //      and a page that never scrolls sideways on a phone
 // Two modes, each a tests/studio_harness.py:
@@ -211,6 +214,76 @@ async function suite(mode) {
     assert(/::::latex chemistry \{width=45( align=center)?\}\n\\ce\{2H2 \+ O2 -> 2H2O\}\n% edited\n::::\n/.test(text),  // centred is the default, so the sheet may leave it unsaid
            'saving puts the edit back over the block it came from, its fence and layout kept');
       eq((text.match(/::::latex/g) || []).length, 4, 'and no block was lost or doubled');
+
+      /* ---------------- c2) the pencil inside an exercise ---------------- */
+      console.log('c2) the pencil on a drawing inside an exercise, and inside a step');
+      const INSIDE = `---
+target: it
+title: Drawings inside exercises
+---
+
+Intro.
+
+:::exercise single-choice
+prompt: |
+  Which one?
+  ::::latex
+  \\textbf{PLAIN}
+  ::::
+- [x] a
+- [ ] b
+:::
+
+:::exercise follow-up
+prompt: Look.
+::::exercise single-choice
+prompt: |
+  And this?
+  :::::latex
+  \\textbf{STEP}
+  :::::
+- [x] a
+- [ ] b
+::::
+::::exercise true-false
+prompt: Decide.
+- yes => true
+::::
+:::
+`;
+      const inside = await api('POST', '/api/docs', {markdown: INSIDE});
+      await page.goto(url(`/doc/${inside.meta.id}/edit`));
+      await page.waitForSelector('#sheet figure.latex img', {timeout: 30000});
+      await until(async () => (await page.locator('#sheet figure.latex[data-latex-src]').count()) === 2, 'both drawings are drawn');
+      eq(JSON.stringify(await page.evaluate(() => [...document.querySelectorAll('#sheet figure.latex[data-src-line]')].map(f => +f.dataset.srcLine))),
+         '[10,22]', 'each drawing is told the line of the document it opens on, not a number counted from its prompt');
+      const pencilOn = async (which, to) => {
+        const figure = page.locator('#sheet figure.latex[data-latex-src]').nth(which);
+        await figure.scrollIntoViewIfNeeded();
+        // the pencil sits at the drawing's top right: a short drawing is hovered at its other corner
+        await figure.hover({position: {x: 2, y: 2}});
+        const pen = page.locator('button.rtl-edit-btn').filter({hasText: '✎'});
+        await until(async () => (await pen.count()) && await pen.first().isVisible(), 'the pencil appears on the drawing');
+        await pen.first().click();
+        await page.waitForSelector('.latex-overlay .lx-src');
+        await page.fill('.latex-overlay .lx-src', to);
+        await page.click('.latex-overlay [data-x="ok"]');
+        await page.waitForSelector('.latex-overlay', {state: 'detached'});
+        await page.mouse.move(5, 5);
+        await until(async () => !(await pen.first().isVisible()), 'the pencil goes away again', 3000);
+      };
+      await pencilOn(0, '\\textbf{EDITED-PLAIN}');
+      eq(await source(), INSIDE.replace('\\textbf{PLAIN}', '\\textbf{EDITED-PLAIN}'),
+         'the pencil on a drawing in a prompt rewrites that drawing alone, still indented under its field');
+      await until(() => page.evaluate(() => !!document.querySelector('#sheet .ex-chain') && !document.querySelector('#sheet .ex-invalid')
+        && document.querySelectorAll('#sheet figure.latex[data-latex-src]').length === 2), 'the preview draws the page again');
+      await pencilOn(1, '\\textbf{EDITED-STEP}');
+      eq(await source(), INSIDE.replace('\\textbf{PLAIN}', '\\textbf{EDITED-PLAIN}').replace('\\textbf{STEP}', '\\textbf{EDITED-STEP}'),
+         'and on a drawing in a step: its five colons and its indent kept, every other line as it was');
+      await until(() => page.evaluate(() => !!document.querySelector('#sheet .ex-chain') && !document.querySelector('#sheet .ex-invalid')),
+                  'and the follow-up is still a follow-up');
+      assert(true, 'the follow-up is still drawn as one after the edit');
+      eq(errors.join(';'), '', 'no page error');
     }
 
     /* ---------------- d) Settings ---------------- */

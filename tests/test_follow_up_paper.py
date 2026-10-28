@@ -160,6 +160,15 @@ class FollowUpPdfTests(unittest.TestCase):
         self.check(pdf)
         self.assertIn("latex/", tex)
 
+    def test_a_drawing_written_as_on_its_own_in_a_step_is_drawn_too(self):
+        # four colons, as a drawing is written everywhere else: its closing line used to end the step
+        md = chain("en").replace("prompt: STEPONE which one is it? uno",
+                                 "prompt: |\n  STEPONE a drawing, then a choice.\n  ::::latex\n  \\textbf{ciao} $E=mc^2$\n  ::::")
+        pdf, tex = self.build(md)
+        self.check(pdf)
+        self.assertIn("latex/", tex)
+        self.assertEqual(5, tex[tex.index("\\begin{document}"):].count("\\expaperstep{"), "all five steps, none lost at the drawing")
+
 
 if __name__ == "__main__":
     unittest.main()

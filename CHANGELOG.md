@@ -1,5 +1,14 @@
 ## [a0.5.5] - unreleased
 ### Added
+- The prompts and the skill say what each LaTeX theme's packages are for, including the ones its own lines load, and teach choosing the theme by the commands a drawing needs; the exercise prompt says where a drawing may stand in an exercise and how a follow-up's step writes one
+
+### Changed
+- Follow-up questions: a drawing in a step may be written with four colons, as a drawing is written everywhere else; one colon deeper, as the other fences of a step, is still how a page writes it
+
+### Fixed
+- A drawing inside an exercise or a step of a follow-up: its ✎ rewrote lines at the top of the page instead of the drawing, and now rewrites the drawing in place, indented and fenced as it was
+- A follow-up that needs attention made the page script stop, and the form's preview say "Preview unavailable"; it is drawn as the exercise that needs attention, with what is wrong
+- A page whose only drawings are inside exercises, or inside a follow-up's steps, now has the LaTeX box ticked in the prompt dialogs, and the steps' types are the page's
 
 ## [a0.5.4] - 2026-10-26
 ### Added

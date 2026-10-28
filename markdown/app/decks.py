@@ -727,6 +727,9 @@ def _clean_origin(origin):
 _MEDIA_MARKUP_RE = re.compile(r"[!@]\[[^\[\]]*\]\(\s*[^()\s]*\s*\)(?:\{[^{}]*\})?")
 # what starts a line of block content: a heading, a box, a list item
 _BLOCK_MARK_RE = re.compile(r"^(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)")
+# a LaTeX drawing is a picture: its fence (four colons, or more in a step of a follow-up) and its line mark say no words
+_DRAWING_FENCE_RE = re.compile(r"^(:{4,})latex\b", re.I)
+_LATEX_MARK_RE = re.compile(r"\[[^\[\]]*\]\{\s*latex\b[^{}]*\}", re.I)
 
 
 def _plain(text):
@@ -734,8 +737,20 @@ def _plain(text):
     what it says, without the pictures and recordings it shows."""
     t = _MEDIA_MARKUP_RE.sub(" ", text or "")
     t = mdparser.MEDIA_REF_RE.sub(lambda m: " " if "." in m.group(2).rstrip(".") else m.group(0), t)
-    if "⏎" in t:                    # a `key: |` field: its lines, less their block marks
-        t = " ".join(_BLOCK_MARK_RE.sub("", part.strip()) for part in t.split("⏎"))
+    if "⏎" in t:                    # a `key: |` field: its lines, less their block marks and the drawings it holds
+        parts, fence = [], ""
+        for part in t.split("⏎"):
+            s = part.strip()
+            if fence:
+                fence = "" if s == fence else fence
+                continue
+            drawing = _DRAWING_FENCE_RE.match(s)
+            if drawing:
+                fence = drawing.group(1)
+                continue
+            parts.append(_BLOCK_MARK_RE.sub("", s))
+        t = " ".join(parts)
+    t = _LATEX_MARK_RE.sub("…", t)                              # [\ce{H2O}]{latex}: a picture, not words
     t = htmlgen.FN_INLINE_RE.sub("", t)
     t = htmlgen.FN_REF_RE.sub("", t)
     t = mdparser.SLOT_RE.sub("___", t)                          # fill-blanks slots

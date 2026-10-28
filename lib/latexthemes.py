@@ -792,6 +792,19 @@ def uses(theme):
     return sorted(ids, key=ORDER.index)
 
 
+def other_packages(theme):
+    """The packages a theme's own preamble loads by name that the catalogue has no row for, in the order it loads them:
+    what a person said of the theme in its free lines, which `uses` cannot name."""
+    known = set(PACKAGES) | set(ALSO_LOADS) | {PACKAGES[p]["file"].rsplit(".", 1)[0] for p in ORDER}
+    out = []
+    for m in _USES.finditer(theme.get("preamble") or ""):
+        for name in m.group(1).split(","):
+            name = name.strip()
+            if name and name not in known and name not in out:
+                out.append(name)
+    return out
+
+
 def own_packages(theme):
     """The packages a theme uses beyond the base.  They are Parseh's own (the
     owner, 2026-09-28): drawn only once Parseh has got them into its texmf/,

@@ -208,6 +208,11 @@ EXERCISE_OPEN_RE = re.compile(r"^:::exercise(?:\s+([a-z][a-z0-9-]*))?\s*$", re.I
 # what a step may hold is written twice, and its `source` is the exercise as it reads at the top level.
 STEP_OPEN_RE = re.compile(r"^::::exercise(?:\s+([a-z][a-z0-9-]*))?\s*$", re.I)
 STEP_CLOSE = "::::"
+# A DRAWING IN A STEP is `:::::latex` … `:::::`, one colon more like every fence in it.  One written as it would be on
+# its own, `::::latex` … `::::`, is read as the drawing it plainly is: its closing line is a line of four colons, which
+# it would otherwise share with the step's own, and the chain would end at the drawing (what a step's text is taught
+# elsewhere: four colons for a drawing).  The drawing's lines are then not denested, they are already the drawing's.
+_DRAWING_OPEN_RE = re.compile(r"^(:{4,})latex\b", re.I)
 _FENCE_LINE_RE = re.compile(r"^(\s*)(:{4,})(?=\s*$|[A-Za-z])")
 
 
@@ -258,21 +263,29 @@ def _parse_step(lines, at, limit):
     """The step of a follow-up whose opening line is `lines[at]` (four colons), which ends at or before `limit`, the line
     of the follow-up's own closing `:::` -> (the step as the exercise it is, the index of the line after it).  A step
     that is never closed does not swallow the follow-up's closing line: it says so, and ends before it."""
-    end, drawing = at + 1, False
+    end, fence, plain = at + 1, "", set()
     while end < limit:
         s = lines[end].strip()
-        if drawing:
-            drawing = s != ":::::"
-        elif re.match(r"^:::::latex\b", s, re.I):
-            drawing = True
-        elif s == STEP_CLOSE:
-            break
+        if fence:
+            if s == fence:
+                if len(fence) == len(STEP_CLOSE):
+                    plain.add(end)
+                fence = ""
+        else:
+            drawing = _DRAWING_OPEN_RE.match(s)
+            if drawing:
+                fence = drawing.group(1)
+                if len(fence) == len(STEP_CLOSE):
+                    plain.add(end)
+            elif s == STEP_CLOSE:
+                break
         end += 1
     closed = end < limit
     last = end if closed else limit - 1
     norm = list(lines)
     for k in range(at, min(last, len(lines) - 1) + 1):
-        norm[k] = _denest(norm[k])
+        if k not in plain:
+            norm[k] = _denest(norm[k])
     if not closed and last + 1 < len(norm):
         # a closing line of its own for it to find, which is not the follow-up's
         norm = norm[:last + 1] + [":::"] + norm[last + 1:]
@@ -317,6 +330,9 @@ def parse_exercise(lines, start):
     # key's own line for a one-line value, the lines under `key: |` for a
     # block (card_spans reads it)
     field_lines = {}
+    # the line of the document a `key: |` field's own text begins on (its blank lines before it left out): the first
+    # line of raw_fields[key], which the blocks a field is drawn as number their lines from
+    field_text = {}
     if end >= len(lines):
         errors.append("exercise is missing its closing ::: line")
     # A JOLLY CARD'S FIELD MAY SIMPLY GO ON.  Its four fields hold blocks of
@@ -387,6 +403,7 @@ def parse_exercise(lines, start):
                     more.append(body[i])
                     i += 1
                 field_lines[key] = (start + 1 + first, start + i)
+                field_text[key] = start + 1 + first + next((n for n, x in enumerate(more) if x.strip()), 0)
                 # the inline renderers read the lines joined by ⏎; a field
                 # that holds blocks (a jolly card's list, table or picture)
                 # needs them as written, the indentation that nests a list
@@ -559,7 +576,7 @@ def parse_exercise(lines, start):
 
     block = {"type": "exercise", "subtype": subtype,
              "primitive": primitive, "mode": mode, "fields": fields,
-             "raw_fields": raw_fields, "_field_lines": field_lines,
+             "raw_fields": raw_fields, "_field_lines": field_lines, "_field_text": field_text,
              "_row_lines": row_lines, "_item_lines": item_lines,
              "items": items, "errors": errors, "_line": start,
              "_end_line": min(end, len(lines) - 1),

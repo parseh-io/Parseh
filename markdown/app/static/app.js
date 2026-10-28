@@ -2872,7 +2872,10 @@ function bindExercises(container, opts = {}) {
      the order of the page -- a follow-up, then its steps; `exercises` is what has answers, drops and blocks of its
      own: every one but a follow-up, whose steps would otherwise be found twice by a search below it. */
   const everything = $$(".exercise", container);
-  const exercises = everything.filter(ex => ex.dataset.primitive !== "chain");
+  /* a follow-up that needs attention (a step wrong, a fence lost) is drawn as any exercise that does: its list of
+     what is wrong, with none of a chain's markup, so it has nothing to bind */
+  const isChain = ex => ex.dataset.primitive === "chain" && ex.classList.contains("ex-chain");
+  const exercises = everything.filter(ex => !isChain(ex));
   if (!everything.length) return {judge: () => false, exercises: [], chains: []};
   $$(".ex-flashcard[data-first]", container).forEach(drawFirstSide);
 
@@ -3594,7 +3597,7 @@ function bindExercises(container, opts = {}) {
     chain._parsehChain = handle;
     return handle;
   }
-  const chains = everything.filter(ex => ex.dataset.primitive === "chain").map(bindChain);
+  const chains = everything.filter(isChain).map(bindChain);
 
   if (!preview) {
     exercises.forEach(ex => {

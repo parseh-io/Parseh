@@ -524,16 +524,23 @@ function splitChain(source) {
     const s = lines[i].trim();
     if (s === ":::") { head.push(lines[i]); break; }
     if (!STEP_OPEN_RE.test(s)) { head.push(lines[i++]); continue; }
-    let end = i + 1, drawing = false, closed = false;
+    // a drawing is closed by the fence that opened it; one of four colons is the drawing of an exercise on its own
+    // (what mdparser._parse_step reads too): it shares its closing line with the step's, and is not un-nested
+    let end = i + 1, fence = "", closed = false;
+    const plain = new Set();
     for (; end < lines.length; end++) {
       const t = lines[end].trim();
-      if (drawing) { drawing = t !== ":::::"; continue; }
-      if (/^:::::latex\b/i.test(t)) { drawing = true; continue; }
+      if (fence) {
+        if (t === fence) { if (fence.length === 4) plain.add(end); fence = ""; }
+        continue;
+      }
+      const d = t.match(/^(:{4,})latex\b/i);
+      if (d) { fence = d[1]; if (fence.length === 4) plain.add(end); continue; }
       if (t === "::::") { closed = true; break; }
       if (t === ":::") break;                 // the chain's own closing: this step was never closed
     }
     const body = lines.slice(i, closed ? end + 1 : end)
-      .map(l => l.replace(DEEP_FENCE_RE, (m, ws, colons) => ws + colons.slice(1)));
+      .map((l, k) => plain.has(i + k) ? l : l.replace(DEEP_FENCE_RE, (m, ws, colons) => ws + colons.slice(1)));
     if (!closed) body.push(":::");
     steps.push(body.join("\n"));
     i = closed ? end + 1 : end;
@@ -541,10 +548,26 @@ function splitChain(source) {
   return {head, steps};
 }
 
+/* a text without its LaTeX drawings (a fence of four colons or more, closed by its own): what a person reads in a
+   list is the words, never a drawing's source */
+function withoutDrawings(text) {
+  const out = [];
+  let fence = "";
+  for (const line of String(text || "").split(/\n|⏎/)) {
+    const t = line.trim();
+    if (fence) { if (t === fence) fence = ""; continue; }
+    const open = t.match(/^(:{4,})latex\b/i);
+    if (open) { fence = open[1]; continue; }
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
 /* the words a person reads of a step in a list: marks and markup taken off */
 function plainWords(text, max = 90) {
-  const t = String(text || "")
+  const t = withoutDrawings(text)
     .replace(/\[\[[^\[\]]*\]\]/g, "…")
+    .replace(/\[[^\[\]]*\]\{\s*latex\b[^{}]*\}/gi, "…")
     .replace(/\[([^\[\]]*)\]\{[^{}]*\}/g, "$1")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
     .replace(/[*_`]+/g, "")

@@ -144,7 +144,7 @@ that a language cannot use is not shown.
 | **colour marks** | the five named colours and a hex value | every language |
 | **colour inside a word** | `[[ab[cd]{teal}ef]]`: part of one word in colour, its stem against its ending | every language |
 | **formulas** | `[…]{math}`, `:::math` | every language |
-| **LaTeX drawings** | `::::latex`, `[…]{latex}`, and the themes this computer has | every language |
+| **LaTeX drawings** | `::::latex`, `[…]{latex}`, and the themes this computer has, each with what its packages are for | every language |
 | **exercises** | the `:::exercise` blocks, of every type | every language |
 | **keep what a pasted document has** | marks a reader wrote, pictures, recordings and links a document you paste already holds | every language |
 
@@ -155,6 +155,16 @@ glosses](../dialect/colours-and-pronunciation.md) shows what a reader sees).
 The model is told to reach for it only when a lesson is about how a word is
 built, to keep the word whole and on one line, and not to write it in a
 note written in place.
+
+**LaTeX drawings** teaches the model the themes this computer has — each with the packages it
+adds, the ones ticked in it and the ones its own lines load, and what each package is for
+(*xskak: chess moves and boards*) — and to **choose the theme by the commands a drawing needs**:
+`\ce` is mhchem's, a `tikzpicture` is TikZ's, so the drawing names the theme that has the
+package, writes no `\usepackage` of its own and uses no command that none of the themes has. In
+the prompt that adds exercises, it also says where a drawing may stand in an exercise (a mark
+anywhere prose goes, a block in a prompt written `prompt: |` or on a Jolly card) and, when a
+follow-up is asked for, that a drawing in one of its steps has [one colon
+more](../dialect-exercises/follow-up.md#how-it-is-written).
 
 Where two features say something to each other — a colour beside a
 transliteration, a list inside a vocabulary entry, a formula in an

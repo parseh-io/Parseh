@@ -52,7 +52,9 @@ written inside it**, each **one colon more** on its fences: a step opens with
 rule for a block inside a block — the rule a `::::latex` drawing in an exercise
 already follows — and it goes down with the step: inside a step every fence has
 one colon more than it would have on its own, so a drawing in a step is
-`:::::latex` … `:::::`.
+`:::::latex` … `:::::`. A drawing written as it is on a page of its own, with four colons, is read as the
+drawing it is and does not end the step; five is how the page writes it, and what
+[Parseh's prompts](../studio/llm-prompt.md) teach a chatbot.
 
 ```markdown
 :::exercise follow-up

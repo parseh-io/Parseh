@@ -17,6 +17,24 @@ guide and rebuilds the readers by itself.
 
 ## a0.5.5 — not yet released
 
+### A drawing in a follow-up, and a chatbot that knows the themes
+
+A LaTeX drawing written in a step of a follow-up the way a drawing is written everywhere else, with four colons, ended the
+step at its closing line and the whole follow-up was refused (*unrecognized line: ::::*). It is read as the drawing it is now;
+one colon more, like every other fence of a step, is still how a page writes it. Three other faults went with it. **✎** on a
+drawing inside an exercise, or inside a step, rewrote lines at the top of the page — the front matter among them — instead of
+the drawing: it now rewrites the drawing where it stands, indented and fenced as it was. A follow-up the parser refuses
+made the page's script stop, and the form's preview said *Preview unavailable* rather than what was wrong. And a page whose
+only drawings are inside exercises had the **LaTeX drawings** box unticked in the prompt dialogs
+([LaTeX in exercises](../dialect-exercises/latex.md), [Follow-up questions](../dialect-exercises/follow-up.md#how-it-is-written)).
+
+What a chatbot is taught of themes changed too: each theme is said with its packages and **what each is for** — the ones it
+ticks and the ones its own lines load, so a theme of yours that loads `xskak` is a theme for chess boards, not a bare name — and
+the model is told to choose the theme by the commands a drawing needs, to write no `\usepackage` of its own, and to use no
+command that none of the themes has. The exercises' prompt says where a drawing may stand in an exercise and, for a follow-up,
+that a step's drawing has five colons. A theme made, changed or removed after you downloaded the skill makes the skill *older
+than this Parseh* ([Skills for your chatbot](../studio/skills.md)).
+
 ## a0.5.4 — 26 October 2026
 
 ### The ⚙ sheet on a phone, in themes

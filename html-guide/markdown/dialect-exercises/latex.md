@@ -24,6 +24,11 @@ drawings](../dialect/latex-drawings.md) of the dialect, in two forms.
   does. Anywhere else — an option, an explanation, the sentence of a
   fill-in — its lines stay as text: write those with a mark.
 
+In a step of a [follow-up](follow-up.md#how-it-is-written) a block has one colon
+more, like every fence in it: `:::::latex chemistry` … `:::::`. In the editor's
+preview, **✎** on a block in a prompt or in a step opens it again and rewrites it
+where it stands, indented and fenced as it was.
+
 Both are drawn once, by LaTeX, and the page, the PDF and a deck show the
 same picture. What the learner drags, chooses or matches is the option's
 own LaTeX, never its picture: **Check exercises** compares what was

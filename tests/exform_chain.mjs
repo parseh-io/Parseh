@@ -12,6 +12,8 @@
 //  preview)  the chain's preview draws every step unfolded and follows each change
 //  insert)   Insert writes the fences one colon deeper; the editor's preview draws the chain; one undo takes it back
 //  edit)     ✎ Edit on the chain in the preview reopens it with its steps; a step is edited from the list
+//  draw)     a drawing in a step -- written as a page writes it (four colons) or one colon deeper (five) -- is a drawing
+//            on the page, the form lists such a step with its words and not its LaTeX, and saving writes it one colon deeper
 //  page)     + From this page… lists the page's exercises, greys what cannot be a step, adds them in page order or
 //            the order ticked; the originals leave the page in the same undoable step as the chain is written;
 //            ⤴ Put back makes a step an exercise of the page again
@@ -119,6 +121,37 @@ prompt: One
 ::::
 :::`;
 
+// a drawing is TeX's: with no xelatex on this computer the draw) section says so and is left out, a fresh clone stays green
+const hasTeX = await new Deno.Command('xelatex', {args: ['--version'], stdout: 'null', stderr: 'null'}).output()
+  .then(r => r.success, () => false);
+// the first step's drawing is written as a drawing is on a page of its own, the second's one colon deeper
+const DRAWN = `---
+title: Chain with drawings
+target: it
+---
+
+:::exercise follow-up
+prompt: Look at the two drawings, then answer about them.
+::::exercise single-choice
+prompt: |
+  Which one is it?
+  ::::latex
+  \\textbf{ciao} $E=mc^2$
+  ::::
+- [x] ciao
+- [ ] addio
+::::
+::::exercise true-false
+prompt: |
+  Decide.
+  :::::latex
+  \\textit{arrivederci}
+  :::::
+- It is a greeting. => true
+::::
+:::
+`;
+
 const browser = await chromium.launch({executablePath: Deno.env.get('CHROME_BIN'), headless: true});
 
 async function suite(mode) {
@@ -154,7 +187,13 @@ async function suite(mode) {
       r.querySelector('.ex-step-of').firstChild.textContent, r.querySelector('.ex-step-kind').textContent, r.querySelector('.ex-step-words').textContent]));
     const words = () => page.locator('.ex-step-row .ex-step-words').allTextContents();
     const chainForm = () => page.locator('#modal-root .ex-form-modal').first();
-    const previewDone = () => until(() => page.evaluate(() => /Correct answer shown/.test(document.querySelector('#modal-root .ex-form-modal:not(.x) .ex-form-preview-status')?.textContent || '')), 'the form\'s preview is drawn');
+    // the preview of a chain with fewer than two steps is drawn too (as an exercise that needs attention), so it is the
+    // preview of the chain with its `n` steps that is waited for, not the first one with a status
+    const previewDone = n => until(() => page.evaluate(n => {
+      const form = '#modal-root .ex-form-modal:not(.x) ';
+      return /Correct answer shown/.test(document.querySelector(form + '.ex-form-preview-status')?.textContent || '')
+        && document.querySelectorAll(form + '.ex-form-preview .ex-chain .ex-step').length === n;
+    }, n), `the form's preview is drawn with its ${n} steps`);
     const addStep = async (type, fill) => {
       await page.click('.ex-steps-tools ~ .ex-add-row [data-x="new-step"], .ex-add-row [data-x="new-step"]');
       await page.locator('.ex-picker .ex-type', {hasText: type}).click();
@@ -235,7 +274,7 @@ async function suite(mode) {
     await page.waitForFunction(() => !document.querySelector('.ex-step-frame'));
     eq(await rowTexts(), [['Step 1 of 3', 'Choose one answer', 'Where are the two speakers?'], ['Step 2 of 3', 'True / False questions', 'Decide whether each statement is True or False.'],
                           ['Step 3 of 3', 'Embedded vocabulary flashcard', 'binario']], 'three steps, each with its place, its type and its opening words (a card\'s front)');
-    await previewDone();
+    await previewDone(3);
     eq(await page.locator('#modal-root .ex-form-preview .ex-chain .ex-step').count(), 3, 'the preview draws the three steps');
     eq(await page.evaluate(() => [...document.querySelectorAll('#modal-root .ex-form-preview .ex-step')].map(s => getComputedStyle(s).display !== 'none' && !s.hidden)), [true, true, true], 'every step unfolded');
     if (ART) await page.screenshot({path: `${ART}/exform-chain-${mode}.png`});
@@ -316,7 +355,7 @@ async function suite(mode) {
     assert(/2 steps removed/.test(await undo.textContent()), 'with one Undo for both');
     await undo.locator('[data-x="undo"]').click();
     eq(await words(), [C, T, K], 'which puts both back where they were');
-    await previewDone();
+    await previewDone(3);
     eq(await page.locator('#modal-root .ex-form-preview .ex-chain .ex-step').count(), 3, 'the form\'s preview follows every change');
 
     /* ---------------- insert ---------------- */
@@ -399,6 +438,41 @@ meaning: platform
     await page.locator('#btn-undo').click();
     eq(await source(), D2.replace('prompt: Decide.', 'prompt: Decide now.'), 'one Undo puts it all back');
 
+    /* ---------------- draw ---------------- */
+    console.log('draw) a drawing in a step');
+    if (!hasTeX) console.log('  SKIP: no xelatex on this computer -- a drawing is made by TeX');
+    else {
+      const made4 = await (await ctx.request.post(url(S + '/api/docs'), {data: {markdown: DRAWN}})).json();
+      const id4 = made4.id || (made4.doc && made4.doc.id) || (made4.meta && made4.meta.id);
+      await openDoc(id4);
+      await until(() => page.evaluate(() => !!document.querySelector('#sheet .ex-chain')), 'the chain is drawn');
+      assert(await page.locator('#sheet .ex-invalid').count() === 0,
+             'a drawing written with four colons in a step does not end the step: the follow-up needs no attention');
+      eq(await page.locator('#sheet .ex-chain .ex-step').count(), 2, 'it has its two steps');
+      await page.locator('#sheet .ex-chain .ex-showall').click();
+      await until(() => page.evaluate(() => [...document.querySelectorAll('#sheet .ex-chain .ex-step figure.latex img')]
+        .filter(i => i.complete && i.naturalWidth > 20).length === 2), 'both drawings are drawn, one in each step');
+      assert(true, 'one drawing in each step, the four-colon one and the five-colon one, both really drawn');
+      await page.locator('#sheet .ex-chain > .ex-head .ex-edit').click();
+      await page.waitForSelector('#modal-root .ex-form-modal');
+      eq(await page.locator('.ex-step-row .ex-step-kind').allTextContents(), ['Choose one answer', 'True / False questions'].map(s => s),
+         'the form lists both steps by their types');
+      const said = await words();
+      assert(said.length === 2 && said.every(w => !/latex|textbf|textit/i.test(w)) && said[0].startsWith('Which one is it?'),
+             'and by their words, not their LaTeX: ' + JSON.stringify(said));
+      await page.locator('#modal-root [data-x="save"]').click();
+      await page.waitForFunction(() => !document.querySelector('#modal-root .ex-form-modal'));
+      const rewritten = await source();
+      // a drawing's fences are the indented ones: it sits under its field's `prompt: |`
+      eq(rewritten.split('\n').filter(l => /^\s+:{4,}(latex\b.*)?$/.test(l)).map(l => l.trim().replace(/latex.*/, 'latex')),
+         [':::::latex', ':::::', ':::::latex', ':::::'], 'saved: every drawing is one colon deeper, as the page says it is written in a step');
+      await until(() => page.evaluate(() => !!document.querySelector('#sheet .ex-chain') && !document.querySelector('#sheet .ex-invalid')), 'the preview draws the chain again');
+      await page.locator('#sheet .ex-chain .ex-showall').click();
+      await until(() => page.evaluate(() => [...document.querySelectorAll('#sheet .ex-chain .ex-step figure.latex img')]
+        .filter(i => i.complete && i.naturalWidth > 20).length === 2), 'both drawings are still drawn');
+      assert(true, 'and the rewritten chain still shows both drawings');
+    }
+
     /* ---------------- page ---------------- */
     console.log('page) a chain made of exercises the page already has');
     const D3 = DOC2.replace('title: Chain form', 'title: Chain form, from the page');
@@ -432,7 +506,7 @@ meaning: platform
     eq(await words(), ['Is the platform the second?', 'Where are the speakers?'], 'Add the ticked ones: in the order they were ticked');
     assert(/Taken from the page: the original goes when you save/.test(await row(0).locator('.ex-step-from').textContent()), 'each row says the original goes');
     assert(await page.locator('.ex-steps-originals').isVisible() && await page.locator('.ex-steps-originals input').isChecked(), 'and the chain\'s form has the box, ticked');
-    await previewDone();
+    await previewDone(2);
     await page.locator('#modal-root [data-x="save"]').click();
     await page.waitForFunction(() => !document.querySelector('#modal-root .ex-form-modal'));
     written = await source();

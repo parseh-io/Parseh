@@ -39,7 +39,8 @@ download ([From a phone or another computer](../getting-started/other-devices.md
 There is **no install button**: installing is always your own step, in the chatbot.
 
 The page remembers on this device which skill you downloaded last. When Parseh would
-make another one now — you updated Parseh, or changed a language — it says *your skill
+make another one now — you updated Parseh, changed a language, or made, changed or removed a
+[LaTeX theme](../dialect/latex-drawings.md#themes), whose name and packages the skill carries — it says *your skill
 may be older than this Parseh — download it again*.
 
 ## Installing it, tool by tool

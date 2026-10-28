@@ -2279,6 +2279,18 @@ class FollowUpTests(Base):
         item = decks.add_item(*fs, CHAIN.replace("prompt: Read, then answer.\n", ""), now=NOW)
         self.assertEqual("Where?", item["excerpt"])
 
+    def test_a_drawing_is_a_picture_and_not_the_words_of_its_excerpt(self):
+        # the row says what the exercise opens with: a drawing's LaTeX, a block's or a mark's, is not that
+        s, fs = self.deck("Dialoghi", "it")
+        item = decks.add_item(*fs, ":::exercise follow-up\nprompt: |\n  Look at [\\textbf{x}]{latex} first.\n"
+                                   "  ::::latex\n  \\textbf{ciao} $E=mc^2$\n  ::::\n  Then answer.\n"
+                                   "::::exercise single-choice\nprompt: |\n  Which?\n  :::::latex\n  \\textbf{y}\n  :::::\n"
+                                   "- [x] a\n- [ ] b\n::::\n::::exercise single-choice\n- [x] a\n- [ ] b\n::::\n:::", now=NOW)
+        self.assertEqual("Look at … first. Then answer.", item["excerpt"])
+        alone = decks.add_item(*fs, ":::exercise single-choice\nprompt: |\n  ::::latex\n  \\textbf{ciao}\n  ::::\n  Which one?\n"
+                                    "- [x] a\n- [ ] b\n:::", now=NOW + timedelta(seconds=1))
+        self.assertEqual("Which one?", alone["excerpt"])
+
     def test_a_step_with_a_mistake_refuses_the_whole_exercise_and_says_which(self):
         s, fs = self.deck("Dialoghi", "it")
         with self.assertRaises(decks.DeckError) as e:

@@ -15,7 +15,7 @@ explanation-incorrect: Optional different explanation for an incorrect answer.
 
 Explanations are optional. With only `explanation-correct`, that text is used neutrally after either result. When `explanation-incorrect` is included, the two texts are result-specific. You may provide only the incorrect explanation when nothing needs to be said after success.
 
-Inside prompts, answers, pairs, and explanations use the same inline marks as the rest of the page, and only ones you are taught: keep target-language text in `[text]{tl}` when the page's conventions require a marked run.{{?lang_rtl}} `content-direction: target` remains available for an exercise whose body should follow the learned language's direction as a whole, and `content-direction: rtl` / `content-direction: ltr` for an explicitly mixed-direction activity; a fill sentence needs none, and an explicit setting is not overridden.{{/lang_rtl}}{{?exercising}}{{?lang_rtl}} For a right-to-left target, follow the page-specific mixed-direction section appended to this prompt. It distinguishes text inside one RTL run, which always stays in natural logical order, from several isolated RTL component boxes inside an LTR question, answer, formula, or explanation, whose Markdown source must follow their intended left-to-right visual order. Apply that distinction everywhere in an exercise, not only to sentence-construction rows.{{/lang_rtl}}{{/exercising}}{{?math}} A formula (`[a^2+b^2=c^2]{math}`) may go in a prompt, in a fill sentence, in an answer row, in a pair or on a card: anywhere prose goes.{{/math}}{{?colourparts}} A word coloured in parts (`[[ab[cd]{teal}ef]]`) may go in a prompt, an answer row, a pair, a fill sentence or a card's field.{{/colourparts}}
+Inside prompts, answers, pairs, and explanations use the same inline marks as the rest of the page, and only ones you are taught: keep target-language text in `[text]{tl}` when the page's conventions require a marked run.{{?lang_rtl}} `content-direction: target` remains available for an exercise whose body should follow the learned language's direction as a whole, and `content-direction: rtl` / `content-direction: ltr` for an explicitly mixed-direction activity; a fill sentence needs none, and an explicit setting is not overridden.{{/lang_rtl}}{{?exercising}}{{?lang_rtl}} For a right-to-left target, follow the page-specific mixed-direction section appended to this prompt. It distinguishes text inside one RTL run, which always stays in natural logical order, from several isolated RTL component boxes inside an LTR question, answer, formula, or explanation, whose Markdown source must follow their intended left-to-right visual order. Apply that distinction everywhere in an exercise, not only to sentence-construction rows.{{/lang_rtl}}{{/exercising}}{{?math}} A formula (`[a^2+b^2=c^2]{math}`) may go in a prompt, in a fill sentence, in an answer row, in a pair or on a card: anywhere prose goes.{{/math}}{{?colourparts}} A word coloured in parts (`[[ab[cd]{teal}ef]]`) may go in a prompt, an answer row, a pair, a fill sentence or a card's field.{{/colourparts}}{{?latex}} A LaTeX drawing may go in an exercise too, by the page's rules for drawings: in a line, `[\ce{H2O}]{latex chemistry}`, anywhere prose goes (a prompt, an answer row, a pair, a fill sentence, an explanation), and as a block in a prompt written `prompt: |` with the block's lines indented under it, or in a field of a jolly card. In a row, a pair, a fill sentence or an explanation it is only the line.{{/latex}}
 
 The types you may use are these; spell the type exactly as shown:
 
@@ -94,6 +94,20 @@ prompt: Where are the two speakers?
 :::
 ```
 
-{{/type_follow_up}}Every exercise but a flashcard may also carry two pictures of its own (`image:` and `image-answer:`) and two recordings (`audio:` and `audio-answer:`). They name files the person adds by hand in the studio: **never write any of these fields yourself**, and keep unchanged the ones an exercise already has.
+{{?latex}}A LaTeX drawing in a step is written one colon deeper too, like every block in it: `:::::latex` … `:::::` (**five** colons), with its theme after `latex` as on a page of its own:
+
+```markdown
+::::exercise single-choice
+prompt: |
+  Which reaction does the drawing show?
+  :::::latex chemistry {width=40}
+  \ce{2H2 + O2 -> 2H2O}
+  :::::
+- [x] water forming from hydrogen and oxygen
+- [ ] water splitting
+::::
+```
+
+{{/latex}}{{/type_follow_up}}Every exercise but a flashcard may also carry two pictures of its own (`image:` and `image-answer:`) and two recordings (`audio:` and `audio-answer:`). They name files the person adds by hand in the studio: **never write any of these fields yourself**, and keep unchanged the ones an exercise already has.
 
 Correct answers must always be explicit. Keep exercises answerable from the page. Vary types when that helps learning, avoid trivial repetition, and include concise explanations when they teach something useful.{{?type_pairs}} Do not place `=>` inside either side of a matching row unless escaped as `\=>`.{{/type_pairs}}{{/exercise_blocks}}

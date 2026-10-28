@@ -173,8 +173,9 @@ OWN_CHARS = {"arabic": "،؛؟", "japanese": "。、「」",
 
 
 def latex_themes():
-    """The themes this machine has, as a prompt says them: the name, and what each adds to the
-    default's packages.  Nothing at all if the store cannot be read: the rule still stands."""
+    """The themes this machine has, as a prompt says them: the name, and for each package it adds to the default's
+    -- the ones it ticks and the ones its own lines load -- what the package is for, so that a drawing's commands can
+    be matched to the theme that has them.  Nothing at all if the store cannot be read: the rule still stands."""
     try:
         import latexthemes
         found = latexthemes.themes()
@@ -183,8 +184,19 @@ def latex_themes():
         return "`default`"
     out = []
     for t in found:
-        extra = [p for p in t["packages"] if p not in base]
-        out.append("`%s`%s" % (t["name"], " (adds %s)" % ", ".join(extra) if extra else ""))
+        extra = []
+        for p in latexthemes.uses(t):
+            if p in base:
+                continue
+            what = str(latexthemes.PACKAGES[p]["what"]).split(". ")[0].rstrip(".")
+            if what[1:2].islower():
+                what = what[:1].lower() + what[1:]
+            extra.append("%s — %s" % (p, what))
+        extra += latexthemes.other_packages(t)
+        said = "adds %s" % "; ".join(extra) if extra else ""
+        if t.get("languages"):
+            said += ("; and " if said else "") + "sets words in the languages Parseh teaches"
+        out.append("`%s`%s" % (t["name"], " (%s)" % said if said else ""))
     return ", ".join(out)
 
 
@@ -399,7 +411,8 @@ _USES = (
     ("links", re.compile(r"\]\(\s*(?:https?://|mailto:)")),
     ("emphasis", re.compile(r"\*\*[^*\s][^*]*\*\*|(?<![*\w])\*[^*\s][^*]*\*")),
     ("math", re.compile(r"\]\{\s*math\s*\}")),
-    ("latex", re.compile(r"\]\{\s*latex\b")),
+    # a mark, or a drawing's fence at the head of a line of a field (an exercise's prompt written `|`, a card's field)
+    ("latex", re.compile(r"\]\{\s*latex\b|(?:^|⏎|\n)\s*:{4,}latex\b")),
     ("revise", re.compile(r"\]\(\s*doc:")),
 )
 
@@ -442,6 +455,8 @@ def page_uses(markdown):
                 kinds.append(TYPE_ALIASES.get(b["subtype"], b["subtype"]))
                 texts.extend(b["fields"].values())
                 texts.extend(str(v) for item in b["items"] for v in item.values())
+                # a follow-up's steps are exercises of their own: their types, their marks and their drawings count
+                walk(b.get("steps") or [])
 
     walk(blocks)
     if fm.get("_footnotes"):

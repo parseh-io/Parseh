@@ -13,6 +13,8 @@
 //  count)    Check exercises counts every scored step as an exercise of the page and a step not come to as unanswered
 //            (counted, not judged), and a chain left half-way says "2 of 4 steps answered"; the chain is not scored
 //  preview)  the editor's preview shows the stored answers, Next step goes on unchecked and Show every step unfolds all
+//  attention) a follow-up that needs attention (fewer than two steps) is drawn as the exercise that needs it, the page script
+//            binds nothing in it and raises no error (it used to throw, and the form's preview said "Preview unavailable")
 //  paper...  (tests/follow_up_paper.py: the TeX)
 import {chromium} from 'npm:playwright-core@1.52.0';
 
@@ -69,9 +71,9 @@ prompt: An exercise of its own, after the chain.
 :::
 `;
 
-async function render(preview = false) {
+async function render(preview = false, doc = DOC) {
   const code = `import sys,json;sys.path[:0]=['markdown/exlex','markdown/app','lib'];import htmlgen;print(json.dumps(htmlgen.render_document(sys.argv[1],editor_preview=${preview ? 'True' : 'False'})['html']))`;
-  const out = await new Deno.Command(python, {args: ['-c', code, DOC], stdout: 'piped', stderr: 'piped'}).output();
+  const out = await new Deno.Command(python, {args: ['-c', code, doc], stdout: 'piped', stderr: 'piped'}).output();
   if (!out.success) throw Error(new TextDecoder().decode(out.stderr));
   return JSON.parse(new TextDecoder().decode(out.stdout));
 }
@@ -79,11 +81,11 @@ const appScript = (await Deno.readTextFile(root + '/markdown/app/static/app.js')
 const appCss = (await Deno.readTextFile(root + '/markdown/app/static/sheet.css')) + '\n' + (await Deno.readTextFile(root + '/markdown/app/static/app.css'));
 
 const browser = await chromium.launch({executablePath: Deno.env.get('CHROME_BIN'), headless: true});
-async function open(preview = false) {
+async function open(preview = false, doc = DOC) {
   const page = await browser.newPage({viewport: {width: 900, height: 900}});
   page.errors = [];
   page.on('pageerror', e => page.errors.push(e.message));
-  await page.setContent(`<body data-page="noop"><article id="sheet" class="sheet" data-lang="it">${await render(preview)}</article><div id="modal-root"></div></body>`);
+  await page.setContent(`<body data-page="noop"><article id="sheet" class="sheet" data-lang="it">${await render(preview, doc)}</article><div id="modal-root"></div></body>`);
   await page.addStyleTag({content: appCss});
   await page.addScriptTag({content: appScript});
   await page.evaluate(p => { window.__run = bindExercises(document.querySelector('#sheet'), {preview: p}); }, preview);
@@ -213,6 +215,22 @@ try {
   eq((await look(p)).shown, [true, true, false, false], 'pressed again it goes back to where the chain was');
   eq(p.errors, [], 'no page error');
   await p.close();
+
+  /* ---------------- a follow-up that needs attention ---------------- */
+  console.log('attention) a follow-up the parser refuses');
+  const ONE = `---\ntarget: it\n---\n\n:::exercise follow-up\nprompt: Only one.\n::::exercise single-choice\nprompt: Where?\n- [x] here\n- [ ] there\n::::\n:::\n\n:::exercise single-choice\nprompt: After it.\n- [x] yes\n- [ ] no\n:::\n`;
+  for (const preview of [false, true]) {
+    p = await open(preview, ONE);
+    eq(await p.evaluate(() => [document.querySelectorAll('.ex-chain').length, document.querySelectorAll('.ex-invalid').length]), [0, 1],
+       `${preview ? 'the editor\'s preview' : 'the page'} draws it as an exercise that needs attention, with no chain markup`);
+    assert(/follow-up needs at least two steps/.test(await p.evaluate(() => document.querySelector('.ex-invalid').textContent)), 'and says why');
+    eq(p.errors, [], `${preview ? 'the preview' : 'the page'} raises no error`);
+    // what is after it still works: the exercise after the chain is checked as any is
+    eq(await p.evaluate(() => window.__run.chains.length), 0, 'no chain is bound');
+    await click(p, '.exercise[data-subtype="single-choice"][data-scored="1"] .ex-option');
+    eq(p.errors, [], 'and the exercise after it answers to a click');
+    await p.close();
+  }
 
   console.log(`\nfollow-up questions, on the page: ${passed} checks passed`);
 } finally {

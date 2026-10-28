@@ -1456,6 +1456,55 @@ class FollowUpDialectTests(unittest.TestCase):
         html = htmlgen.render_document(FRONT + src)["html"]
         self.assertIn('data-latex-src="\\ce{H2O}"', html)
 
+    def test_a_drawing_written_as_on_its_own_does_not_end_the_step(self):
+        # four colons are what a drawing is taught everywhere else; its closing line is the step's own, and used to end
+        # the step at the drawing ("unrecognized line: ::::", "choice exercise has no alternatives")
+        src = (":::exercise follow-up\n::::exercise single-choice\nprompt: |\n  Which?\n  ::::latex chemistry {width=40}\n"
+               "  \\ce{H2O}\n  ::::\n- [x] a\n- [ ] b\n::::\n::::exercise true-false\nprompt: |\n  Then?\n  :::::latex\n"
+               "  \\textbf{x}\n  :::::\n- yes => true\n::::\n:::\n\n" + AFTER)
+        chain, after = self.parse(src)
+        self.assertEqual(([], [[], []]), (chain["errors"], [s["errors"] for s in chain["steps"]]))
+        self.assertEqual(["single-choice", "true-false"], [s["subtype"] for s in chain["steps"]])
+        # each step is the exercise as it reads on its own, whichever way its drawing was written
+        for step in chain["steps"]:
+            self.assertEqual(1, step["source"].count("::::latex"))
+            self.assertNotIn(":::::", step["source"])
+        self.assertIn("  ::::latex chemistry {width=40}\n  \\ce{H2O}\n  ::::\n", chain["steps"][0]["source"])
+        self.assertEqual([], after["errors"])
+        html = htmlgen.render_document(FRONT + src)["html"]
+        self.assertIn('data-latex-src="\\ce{H2O}"', html)
+        self.assertIn('data-latex-src="\\textbf{x}"', html)
+        self.assertNotIn("ex-invalid", html)
+
+    def test_a_drawing_never_closed_in_a_step_is_refused_and_ends_with_the_follow_up(self):
+        # its closing line is taken for the drawing's, so the step swallows the one after it: the follow-up says it
+        # has fewer than two steps, and what comes after the follow-up is still an exercise of its own
+        md = (":::exercise follow-up\n::::exercise single-choice\nprompt: |\n  ::::latex\n  \\x\n- [x] a\n- [ ] b\n::::\n"
+              "::::exercise true-false\n- yes => true\n::::\n:::\n\n" + AFTER)
+        chain, after = self.parse(md)
+        self.assertTrue(chain["errors"])
+        self.assertEqual([], after["errors"])
+        self.assertEqual("single-choice", after["subtype"])
+
+    def test_a_drawing_in_an_exercise_knows_its_place_in_the_document(self):
+        # the editor's pencil rewrites the lines the drawing is on: it used to be told a number counted from the start
+        # of the prompt it sits in, and rewrote the front matter of the page
+        plain = ":::exercise single-choice\nprompt: |\n\n  Which?\n  ::::latex\n  \\x\n  ::::\n- [x] a\n- [ ] b\n:::\n"
+        deep = (":::exercise follow-up\n::::exercise single-choice\nprompt: |\n  Which?\n  :::::latex\n  \\x\n  :::::\n- [x] a\n"
+                "- [ ] b\n::::\n::::exercise true-false\n- yes => true\n::::\n:::\n")
+        for src, fence in ((plain, "::::latex"), (deep, ":::::latex")):
+            md = FRONT + "Intro.\n\n" + src
+            lines = md.split("\n")
+            at = next(i for i, l in enumerate(lines) if l.strip().startswith(fence))
+            html = htmlgen.render_document(md)["html"]
+            self.assertEqual([str(at)], re.findall(r'data-latex-src="[^"]*"[^>]*data-src-line="(\d+)"', html), fence)
+
+    def test_a_block_in_a_prompt_is_not_given_a_line_it_has_not(self):
+        md = FRONT + ":::exercise single-choice\nprompt: |\n  - one\n  - two\n- [x] a\n- [ ] b\n:::\n"
+        html = htmlgen.render_document(md)["html"]
+        prompt = html[html.index('class="ex-prompt"'):html.index('class="ex-body"')]
+        self.assertNotIn("data-src-line", prompt)
+
     def test_the_page_draws_one_step_to_a_wrapper_and_numbers_every_exercise(self):
         out = htmlgen.render_document(FRONT + CHAIN + "\n" + AFTER)
         html = out["html"]

@@ -1428,8 +1428,14 @@ function initEdit() {
     function reopen(el) {
       const at = +el.dataset.srcLine;
       const lines = src.value.split("\n");
+      /* The block is found by its own opening line, as it stands in the text NOW: a drawing in an exercise is
+         indented under its field, and in a step of a follow-up its fence has one colon more.  Both come back as they
+         were; the sheet writes the block as it stands on a page of its own. */
+      const open = (lines[at] || "").match(/^(\s*)(:{4,})latex\b/i);
+      if (!open) { toast("The text has changed since this was drawn: wait for the preview, then try again.", true); return; }
+      const indent = open[1], fence = open[2];
       let end = at + 1;
-      while (end < lines.length && lines[end].trim() !== "::::") end++;
+      while (end < lines.length && lines[end].trim() !== fence) end++;
       const w = el.dataset.width ? +el.dataset.width : null;
       openLatexOverlay({backTo: src, okLabel: "Save", tex: el.dataset.latexSrc,
                         theme: el.dataset.latexTheme,
@@ -1439,7 +1445,9 @@ function initEdit() {
                         onSave: text => {
                           pushHistory(true);
                           const cur = src.value.split("\n");
-                          cur.splice(at, Math.min(end, cur.length - 1) - at + 1, ...text.split("\n"));
+                          const put = text.split("\n").map(l => !l.trim() ? l
+                            : indent + (/^::::(latex\b.*)?$/i.test(l) ? fence + l.slice(4) : l));
+                          cur.splice(at, Math.min(end, cur.length - 1) - at + 1, ...put);
                           src.value = cur.join("\n");
                           dirty = true;
                           pushHistory(true);

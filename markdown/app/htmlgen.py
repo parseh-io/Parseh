@@ -1783,6 +1783,22 @@ def _render_exercise(b, ctx):
     return _number_exercise_runs(html, runs)
 
 
+def _blocks_in_field(blocks, first):
+    """The blocks a `key: |` field is drawn as (mdparser.card_field), each told the line of the DOCUMENT it is on.  They
+    were numbered from the field's own first line, and a block tagged with that number (data-src-line) sent the editor
+    to the wrong place: a drawing's pencil rewrote the lines at the top of the document, the front matter's among
+    them.  A drawing has its place, which is all the pencil needs (the editor reopens it indented as it was and
+    fenced as it was); a block that is anything else is left untagged, the exercise's own tag standing for it."""
+    for b in blocks:
+        if b["type"] == "latex" and first is not None and b.get("_line") is not None:
+            b["_line"] += first
+            if b.get("_end_line") is not None:
+                b["_end_line"] += first
+        else:
+            b.pop("_line", None)
+    return blocks
+
+
 def _draw_exercise(b, ctx):
     preview = bool(ctx.get("editor_preview"))
     ctx["exercise"] += 1
@@ -1859,7 +1875,8 @@ def _draw_exercise(b, ctx):
             field = mdparser.card_field(b, "prompt", cur_lang().code)
             if field and field[0] == "blocks":
                 _FN["defs"].update(field[2])
-                prompt_html = '<div class="ex-prompt">%s</div>' % render_blocks(field[1], ctx)
+                prompt_html = '<div class="ex-prompt">%s</div>' % render_blocks(
+                    _blocks_in_field(field[1], (b.get("_field_text") or {}).get("prompt")), ctx)
             else:
                 prompt_html = '<div class="ex-prompt">%s</div>' % _ex_prompt(prompt, ctx)
     if b["errors"]:
