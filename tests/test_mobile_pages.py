@@ -1338,7 +1338,9 @@ class AppTests(unittest.TestCase):
         self.assertIn("waiting.splice(0).forEach(function (port) { port.postMessage({state: 'there'}); });", act)
         self.assertIn("navigator.serviceWorker.addEventListener('message', questioned);", act)
         # and an ask that ended just before the question came must not cost the answer
-        self.assertIn('return waiting.length ? 0 : busy() ? FAST : SLOW;', act)
+        # (the question comes first; after it, work counted in items is asked at its own faster pace, a0.5.6)
+        self.assertIn('return waiting.length ? 0 : counting() ? COUNTED : busy() ? FAST : SLOW;', act)
+        self.assertIn("return server.running.some(function (e) { return e.unit === 'items'; });", act)
 
     def test_the_app_shell_is_kept_with_the_worker(self):
         """The start address of the app -- /?mode=mobile, which the manifest
