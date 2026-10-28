@@ -167,6 +167,13 @@ make, whether they are four or four hundred, and moves each time one is over; th
 work belongs to the server: close the page, or open the library again, and it is picked up where it is. **Stop** begins
 no new drawing — the ones under way finish, and what was made stays made.
 
+It is done by **a helper program of its own, at the lowest priority your computer has** — and so is the TeX it starts —
+so the browser, the hub and everything else go first, and nothing you do meanwhile is slowed or waits for it. It
+begins at once: the button answers at the click, and the bar first counts the documents it is looking through (*Looking
+through 12 documents for LaTeX drawings*, 5 of 12), then the drawings (*Making the LaTeX drawings of 12 documents*, 41 of
+63, and how many are being made). It makes as many side by side as half your computer's cores, four at most, and fewer
+when little memory is free: it waits for memory rather than make the computer swap. It ends when Parseh does.
+
 When it is over a note says what was made, and, where a drawing could not be (a command LaTeX does not know, a theme
 that is gone), **how many and in which documents** — open one to see what LaTeX said, as always. Pressed again, the
 button says that everything is made already, and starts nothing. A run on its own, with no hub, draws the bar and the

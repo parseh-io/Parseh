@@ -14,28 +14,40 @@ A theme with `\usepackage{xskak}` and the sample `\newchessgame\mainline{1.e4 e5
 
 **What it got.** The TeX Live entries of `xskak`, `skak`, `chessboard` and `chessfss` declare no dependency, so getting them (and `collection-plaingeneric`, which brings `lambda-lists`) leaves a compile failing on the next missing file, one at a time: `chessfss.sty`, the fonts `skaknew`, `xifthen.sty` (which wants `ifmtarg`), `pst-node.sty` (which wants `pstricks`). A compile runs with no shell and `openout_any=p`, so a font that is not installed is not made on the fly (`mktextfm` is tried and fails, and the log now shows it). The skaknew fonts come as Type 1, TFM and OpenType: once they are there nothing has to be generated, and the board draws under xelatex, in the PDF that paper includes. The catalogue (`latexthemes.CATALOGUE`) therefore has one row, **xskak**, that names the whole set (`xskak, skak, chessfss, chessboard, skaknew, lambda-lists, xifthen, ifmtarg, pst-node, pstricks`); a theme that ticks it, or loads `xskak`, `skak`, `chessboard` or `chessfss` by name (`ALSO_LOADS`), is *Parseh's own* package like the others, and a drawing that lacks any of them asks for all of them in one **Get**. The set was found by drawing the sample from nothing; it is checked by `tests/test_latex.py` (`TheChessSetIsOneRow`), and the log of the font failure, with its paths made neutral, is kept as `tests/fixtures/latex/font-not-loadable.log`.
 
-## The drawings of many documents, made in the background (a0.5.6)
+## The drawings of many documents, made by a helper process (a0.5.6; a helper since a0.5.7)
 
 A page opened before its drawings are made has them made by `static/latexwait.js` through `/api/docs/<id>/drawings`: four at a
 time, each round answered with the whole page rendered again, under a bar that is that page's own. The library's **Make drawings of N
 shown** (`#btn-make-drawings`, `static/app.js`) makes those of the documents it shows **without opening one**, and its work is a job of the
 server, not of a page: `lib/latexbatch.py`.
 
-- `POST /api/latex/make {ids}` reads each saved document (`htmlgen.latex_wanted`: blocks and inline marks, in the text and in the
-  exercises, steps of a follow-up included), `latexbatch.sort_out` keeps the **distinct** drawings (by `latexdraw.peek`'s key, so a
-  drawing two documents share is one) that are not made and not known to fail, and `latexbatch.start` makes them in a thread. The answer
-  is the job's status; `total` 0 is "nothing to make" and starts no thread. `GET /api/latex/make` is the status a page asks every
-  700 ms, `POST /api/latex/make/stop` begins no new drawing. One batch at a time (`Busy`, answered 409 with how far the first has got).
-- The batch keeps **only as many compiles in `latexdraw._POOL` as the pool has workers** (a sliding window, not a queue of every drawing):
-  a page opened meanwhile, whose own drawings go through the same pool, waits for one compile and never for the rest of the batch.
-  A drawing that fails, or raises, is over and kept as a problem with its document; the batch goes on. Nothing is written but where
-  `latexdraw` keeps its drawings, and a document's ownership of them (`owners.json`) is what saving it already recorded.
-- **The bar is the activity list's** (`lib/activity.py`, `lib/activity.js`, `serve.py`'s `activity_now`): `latexbatch.activity_entries`
-  gives one entry, kind `compile`, with the page's `?job=` token so that the page shows it once from the first moment
-  (`ParsehActivity.expect(...).url(...)`), and the new `unit` field `"items"`: `done` and `total` count drawings, not bytes, so
-  `activity.js` draws the share (`pct`) and "41 of 63" (`meta`) at every moment, where for bytes it draws a percentage only while they are
-  moving; while an entry of that unit runs the list is asked every 600 ms (`COUNTED`) instead of 1500, so the bar goes on in small steps.
-  An entry of bytes has no `unit` key at all. A studio run on its own has no activity list: the page then draws its own `<progress>` and number.
-- Tests: `tests/test_latex_batch.py` (the job with the TeX left out, the entry, the routes, the hub's list) and `tests/latex_batch.mjs`
-  (63 drawings made for real, `studio_harness.py --latex-slow=0.12` to give the bar time to be looked at, the pill, the hub's panel,
-  Stop, a failure, a reload, a studio with no hub).
+**a0.5.6 did it in threads of the server, and the server paid for it** (the owner: the bar was worse than the other one, and going to the hub
+meanwhile gave slowdowns): the POST read and planned every document before it answered (1.6 s for 150 documents, the page saying nothing),
+the scan, the planning and the PDF-to-SVG step took the GIL from the threads that answer pages (requests up to 0.6 s on two cores, five times
+their usual time), the bookkeeping of each finished drawing rewrote `owners.json` under the lock every page's lookups take, and the TeX ran at
+the same priority as the browser. a0.5.7 moved all of it out:
+
+- `POST /api/latex/make {ids}` validates the ids, writes `spec.json` into `drawn/.batch/<pid>-<n>/` and starts
+  `python lib/latexbatch.py --worker <spec>`; it answers at once with the status (`starting`). **Nothing is read in the request.**
+  `GET /api/latex/make` is the status (the file `status.json`, read by its time and size), `POST /api/latex/make/stop` writes the file `stop`.
+  One batch at a time (`Busy`, 409 with the first one's status).
+- **The helper** (`latexbatch.work`) runs at **nice 19** (the idle class on Windows) and so does every TeX it starts. It looks through the documents
+  one at a time yielding between two (`phase` `scanning`, a count of documents), works out the distinct drawings not made yet by
+  `latexdraw.peek`'s key (`planning`), and makes them (`making`, a count of drawings) with `workers()` side by side: half the cores, four at most,
+  and as many as the free memory holds (900 MB each after 900 MB are kept); with little memory free it begins no new run beside those under way
+  (`waiting`). It writes `status.json` whole, at most every 0.2 s, and never touches `owners.json` (`latexdraw.BOOKKEEPING = False`). It watches its
+  parent every two seconds and ends, with its TeX, when the server is gone (not `PR_SET_PDEATHSIG`: Linux sends that when the *thread* that started the
+  child ends, and that thread is the request's).
+- `latexdraw._mark_unowned` rewrites the books only when it changes them (it rewrote the whole file for every drawing made); `drawn/.batch` is
+  never a drawing (`_persistent_keys`, `prune`) and is removed at the server's start.
+- **The bar is the activity list's** (`lib/activity.py`, `lib/activity.js`, `serve.py`'s `activity_now`): `latexbatch.activity_entries` gives one entry,
+  kind `compile`, with the page's `?job=` token (`ParsehActivity.expect(...).url(...)`), whose label and counts follow the stage (*Looking through N
+  documents*, then *Making the LaTeX drawings of N documents*), and the `unit` field `"items"`: `done` and `total` count documents and then drawings, not
+  bytes, so `activity.js` draws the share (`pct`) and "41 of 63" (`meta`) at every moment; while an entry of that unit runs the list is asked every 600 ms
+  (`COUNTED`). The stage line says how many are being made and for which document. An entry of bytes has no `unit` key.
+- The page answers at the click ("Starting…", before the POST returns), asks for the status once a second (0.7 s where there is no activity list)
+  and draws its own `<progress>` only there.
+- Tests: `tests/test_latex_batch.py` (the helper's work with the TeX left out; the server's side with a stand-in process; the routes; the books; and the
+  REAL helper: nice 19 for it and its TeX, killed with its parent) and `tests/latex_batch.mjs` (63 drawings made for real, the pill, the hub's
+  panel, Stop, a failure, a reload, a studio with no hub, and a library of 120 more documents: the answer in a moment, the hub quick meanwhile,
+  pages opened to and fro with no failed request). `studio_harness.py --latex-slow=SECONDS` gives the bar time to be looked at.

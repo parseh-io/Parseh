@@ -1,5 +1,9 @@
 ## [a0.5.7] - unreleased
 ### Added
+- Check as I answer: a document page's ⚙ → Exercises switch that checks an exercise the moment it is answered, instead of at Check exercises (a button of its own for choose-all and orderings)
+
+### Changed
+- Make drawings of N shown is done by a helper program at the lowest priority: it begins at once, looks through the documents under a count of its own, and no longer slows the rest of Parseh
 
 ## [a0.5.6] - 2026-10-28
 ### Added

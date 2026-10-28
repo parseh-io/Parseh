@@ -17,6 +17,28 @@ guide and rebuilds the readers by itself.
 
 ## a0.5.7 — not yet released
 
+### Check as I answer
+
+A document's page checked its exercises when you pressed **Check exercises** at the foot. **⚙ → Exercises → Check as I
+answer** now checks each **the moment you have answered it**, with its explanation: a single choice when you pick an
+option, a true/false exercise when its last question is answered, a fill-in when every blank is filled, a matching when
+every place is. An exercise with no end of its own — *choose all*, an ordering, a sentence to build — has a **Check this
+exercise** button instead; a follow-up keeps **Check step**. Changing an answer checks again, and the score under **Check
+exercises** follows each check (*3 / 8 correct · 5 not checked yet*). It is off to begin with, and a choice of the device
+([how](../getting-started/page-settings.md#check-as-i-answer)).
+
+### Make drawings of N shown, without getting in the way
+
+The library's **Make drawings of N shown** (a0.5.6) did its work inside Parseh's server: the click waited while every
+document was read, the drawings were made at the same priority as the browser, and a large library slowed the rest of
+Parseh. It is now done by **a helper program of its own at the lowest priority** your computer has, with the TeX it starts.
+The button answers at the click and the bar says *Looking through the documents* (a count of documents) before it says
+*Making the LaTeX drawings* (a count of drawings), each moving as it goes and saying how many are being made; it makes as
+many side by side as half your cores (four at most) and waits for memory when little is free; it ends when Parseh does. In
+a trial with 3,000 drawings in 150 documents on two cores the click was answered in a few milliseconds instead of 1.6
+seconds, and the slowest request of the rest of Parseh went from 0.6 s to 0.03 s
+([Make drawings of N shown](../studio/documents-in-and-out.md#make-drawings-of-n-shown)).
+
 ## a0.5.6 — 28 October 2026
 
 ### Make the drawings of many documents at once

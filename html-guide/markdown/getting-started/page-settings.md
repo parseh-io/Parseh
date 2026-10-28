@@ -195,6 +195,7 @@ panel. [The reader](../books/reader.md) lists the header.
 | | **Put the text back to normal** | every size goes back to the one the PDF starts from |
 | **Exercises** | **Hide transliterations** | hides the line that spells how a word sounds in Latin letters on every flashcard |
 | | **Drag to answer** | lets you drag words into place where an exercise offers it; off to begin with on a touch screen |
+| | **Check as I answer** | a document's page only: an exercise is checked the moment you have answered it, not when you press **Check exercises** ([below](#check-as-i-answer)); off to begin with |
 | **Page** | **Hide the bars** | the three bars away, a small **⌄** in the corner to bring them back |
 | **Zoom**, **Colours**, **Interface** | | as a book's |
 
@@ -204,6 +205,24 @@ source box, for a right-to-left language, remembered for this document —
 **Preview in its own tab**, and **Open the preview tab**
 ([the preview in its own tab](../studio/editor.md#own-tab)). It has no phone
 layout, so no **Interface**.
+
+## Check as I answer {#check-as-i-answer}
+
+On a document's page, **⚙ → Exercises → Check as I answer** has the page check an exercise **the moment you have
+answered it**, and say whether it is right with its explanation, instead of waiting for **Check exercises** at the foot.
+It is off to begin with, a choice of this device, and it follows the switch at once.
+
+- **A choice** is checked as soon as every question of it has its answer — a single choice when you pick an option, a
+  true/false exercise (which asks several questions) when the last of them is answered.
+- **A fill-in** is checked when every blank holds a block, and **a matching** when every place does.
+- **An exercise with no end of its own** — *choose all*, where any number of answers may be right, and an ordering or a
+  sentence to build — cannot tell when you are done, so it gets a **Check this exercise** button of its own.
+- **A follow-up's steps** keep **Check step**, and a flashcard is nothing to check.
+- Change an answer and it is checked again at once. The score under **Check exercises** follows each check and says
+  what is not checked yet (*3 / 8 correct · 5 not checked yet*); **Check exercises** is still there for what is left.
+
+The editor's preview and the pages of an exercise deck are not changed: a deck's cards are checked one at a time, with
+the button each has.
 
 ## An exercise deck's gear
 

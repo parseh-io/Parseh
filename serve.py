@@ -8155,6 +8155,7 @@ def main():
 
     def _stop_drawings(*_a):
         latexdraw.stop_all()
+        latexbatch.shutdown()          # the helper that makes many documents' drawings, and its TeX
         try:
             import texpackages
             texpackages.stop()

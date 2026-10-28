@@ -75,8 +75,9 @@ painted in the toolbox's colours — ◐, or **Colours → Colour scheme** in th
 and follows them at once.
 
 The panel's other groups: **Exercises** has **Hide transliterations**, which hides the
-line that spells a word in Latin letters on every flashcard, and **Drag to answer**, for
-the exercises whose blocks are put in order; **Zoom** makes the whole page larger or
+line that spells a word in Latin letters on every flashcard, **Drag to answer**, for
+the exercises whose blocks are put in order, and **Check as I answer**, which checks an exercise the moment
+you have answered it ([how](../getting-started/page-settings.md#check-as-i-answer)); **Zoom** makes the whole page larger or
 smaller; **Colours** and **Interface** are the toolbox's own.
 
 **⌃ hide bars**, in the toolbar — **Hide the bars**, in the panel's **Page** group —

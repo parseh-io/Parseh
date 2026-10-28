@@ -1824,3 +1824,4 @@ html.pg-sheet :is(.pz,.modal-overlay) .kp-bar{display:none}
 :is(.pz,.modal-overlay) .make-state progress{width: 120px; height: 10px; accent-color: var(--accent);}
 :is(.pz,.modal-overlay) .make-state .make-say{font-size: 13px; color: var(--chrome-mut, var(--dim, #635358));}
 :is(.pz,.modal-overlay) .make-state [hidden]{display: none !important;}
+:is(.pz,.modal-overlay) .ex-check-row{margin: 10px 0 2px;}

@@ -1551,3 +1551,6 @@ html.pg-sheet .kp-bar{display:none}
 .make-state progress { width: 120px; height: 10px; accent-color: var(--accent); }
 .make-state .make-say { font-size: 13px; color: var(--chrome-mut, var(--dim, #635358)); }
 .make-state [hidden] { display: none !important; }
+
+/* CHECK AS I ANSWER (a0.5.7): the Check button of an exercise that has no end of its own */
+.ex-check-row { margin: 10px 0 2px; }

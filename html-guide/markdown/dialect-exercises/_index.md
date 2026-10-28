@@ -17,7 +17,8 @@ rest of the page, and each is drawn three ways from that one text:
   in Anki.
 
 This section is the reference for that block. Every example in it is
-live: answer it, then press **Check exercises** at the foot of the page.
+live: answer it, then press **Check exercises** at the foot of the page — or turn on **Check as I answer** in the page's ⚙
+panel, and each exercise is checked the moment it is answered ([how](../getting-started/page-settings.md#check-as-i-answer)).
 
 ```parseh-example
 ---

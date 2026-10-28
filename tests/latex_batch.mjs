@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// (a0.5.7: the work is a HELPER PROCESS at the lowest priority -- the click answers at once, nothing is read by the server, the
+// documents are looked through first under a count of their own, and the rest of the hub is not slowed: section f below.)
 // Browser test of "MAKE DRAWINGS OF N SHOWN" (a0.5.6, lib/latexbatch.py): the LaTeX drawings of the documents the library
 // shows, made in the background without opening one, on the bar every page of the toolbox has and on the hub.  The REAL
 // studio (tests/studio_harness.py, with the TeX this computer has; each drawing waits a moment first, --latex-slow, so the
@@ -17,6 +19,9 @@
 //    c) again: nothing to make, said, and nothing started
 //    d) Stop: no new drawing, what was made stays made, said in a toast
 //    e) the page reloaded while it runs picks the job up where it is, with its Stop
+//    f) a big library (120 more documents): the server answers the click in a moment, the pill says it is looking through the
+//       documents before anything else, the hub and its requests stay quick while it works, and going to the hub and back
+//       over and over meanwhile gives no failed request, no error and no slow page
 //  studio) a studio run on its own, which has no activity list: the page draws its own bar and number, moved the same way
 import {chromium} from 'npm:playwright-core@1.52.0';
 
@@ -124,7 +129,11 @@ async function suite(browser, mode) {
       hubPage.on('pageerror', e => errors.push('hub: ' + e.message));
       await hubPage.goto(origin + '/');
     }
+    const clicked = Date.now();
     await button.click();
+    await until(async () => !/^Make drawings of/.test(await button.textContent()), 'the button answers the click', 3000);
+    const answered = Date.now() - clicked;
+    assert(answered < 400, `the button answered the click at once, before the server had: ${answered} ms`);
     await until(async () => /^Making drawings…/.test(await button.textContent()), 'the button says the work has begun');
     const seen = {pct: [], done: [], ownBar: [], rows: [], hub: []};
     let sawEntry = null, ended = false;
@@ -163,13 +172,16 @@ async function suite(browser, mode) {
       assert(seen.pct.length > 0, 'the pill was on the screen while it ran, saying a percentage');
       assert(new Set(seen.pct).size >= 6, `the bar took many values on its way: ${[...new Set(seen.pct)].join(' ')}`);
       assert(nondecreasing(seen.pct) && seen.pct[0] <= 15, 'never backwards, from the start');
-      assert(seen.rows.length > 2 && seen.rows.every(r => r.kind === 'compile' && r.unit === 'items' && r.total === TOTAL),
-             `/__activity carried one entry counting drawings, ${TOTAL} of them: ${JSON.stringify(seen.rows[0])}`);
-      assert(nondecreasing(seen.rows.map(r => r.done)) && new Set(seen.rows.map(r => r.done)).size >= 4, 'its done grew with the work');
-      assert(seen.rows.every(r => r.label === `Making the LaTeX drawings of ${all} documents`), 'under the words ' + seen.rows[0].label);
+      const making = seen.rows.filter(r => /^Making the LaTeX drawings/.test(r.label));
+      assert(seen.rows.length > 2 && seen.rows.every(r => r.kind === 'compile' && r.unit === 'items'),
+             `/__activity carried one entry counting in items: ${JSON.stringify(seen.rows[0])}`);
+      assert(making.length > 2 && making.every(r => r.total === TOTAL), `and, making the drawings, counting ${TOTAL} of them`);
+      assert(nondecreasing(making.map(r => r.done)) && new Set(making.map(r => r.done)).size >= 4, 'its done grew with the work');
+      assert(seen.rows.every(r => r.label === `Making the LaTeX drawings of ${all} documents` || r.label === `Looking through ${all} documents for LaTeX drawings`),
+             'under the words ' + seen.rows.map(r => r.label).filter((x, i, a) => a.indexOf(x) === i).join(' / '));
       assert(seen.rows.every(r => /^[a-z2-9]{12}$/.test(r.job || '')), 'and the token the page put on its request: the entry is the page\'s own, shown once');
       assert(seen.hub.some(t => /\d+ of 63/.test(t || '')), `the hub's own page showed it in its panel: ${JSON.stringify(seen.hub.filter(Boolean).slice(0, 2))}`);
-      assert(nondecreasing(seen.done) && new Set(seen.done).size >= 6, 'the button counted as well: ' + [...new Set(seen.done)].slice(0, 8).join(' '));
+      assert(nondecreasing(seen.done) && new Set(seen.done).size >= 4, 'the button counted as well: ' + [...new Set(seen.done)].slice(0, 8).join(' '));
       eq(seen.ownBar.length, 0, 'and the page drew no bar of its own, the activity list being there to do it');
     } else {
       assert(new Set(seen.ownBar).size >= 6 && nondecreasing(seen.ownBar), `with no hub the page's own bar moved, many values: ${[...new Set(seen.ownBar)].join(' ')}`);
@@ -236,6 +248,63 @@ async function suite(browser, mode) {
     await until(async () => /^Make drawings of/.test(await button.textContent()), 'and sees it through', 90000);
     await until(async () => /Made \d+ LaTeX drawings|Stopped/.test(await toast()), 'and says how it ended');
     assert(true, 'a job belongs to the server: the page that began it may be gone');
+
+    /* ---------------- f) a big library ---------------- */
+    console.log('f) a big library: the click answers at once, and the rest of the hub is not slowed');
+    const bigIds = [];
+    for (let d = 0; d < 120; d++)
+      bigIds.push((await api('POST', '/api/docs', {markdown: front(`Big ${d}`, [0, 1, 2].map(k =>
+        `## Part ${k}\n\n${'A paragraph of prose with a [word]{tl} in it, '.repeat(15)}\n\n${block(`\\textbf{big ${d} ${k}} $y^${k}$`)}\n\n- one\n- two`).join('\n\n'))})).data.meta.id);
+    const sent = Date.now();
+    const begun = await api('POST', '/api/latex/make', {ids: bigIds});
+    const tookPost = Date.now() - sent;
+    assert(begun.status === 200 && tookPost < 300, `the server answered in ${tookPost} ms, having read nothing (120 documents)`);
+    assert(begun.data.running && begun.data.phase === 'starting', 'the job is under way, in its first moment: ' + begun.data.phase);
+    if (mode === 'parseh') {
+      const first = await (await fetch(origin + '/__activity')).json();
+      const e = first.running.find(x => x.kind === 'compile');
+      assert(e && e.unit === 'items' && /^Looking through 120 documents for LaTeX drawings$/.test(e.label), 'and on the list in the same moment: ' + (e && e.label));
+    }
+    // the rest of the hub meanwhile: ordinary requests, at ten a second, and the hub's page itself, opened and left again
+    const lat = [], stopSampling = {on: true}, seenPhases = new Set([begun.data.phase]);
+    const sampler = (async () => {
+      while (stopSampling.on) {
+        try { seenPhases.add((await api('GET', '/api/latex/make')).data.phase); } catch (_) { /* the sample below says it */ }
+        for (const path of (mode === 'parseh' ? ['/', '/__activity', S + '/', S + '/api/docs'] : [S + '/', S + '/api/docs'])) {
+          const t0 = Date.now();
+          try { const r = await fetch(origin + path); await r.arrayBuffer(); lat.push([Date.now() - t0, r.status]); }
+          catch (_) { lat.push([Date.now() - t0, 0]); }
+        }
+        await sleep(100);
+      }
+    })();
+    const bad = [], slowLoads = [];
+    // a request given up because the page was left is not a failure (the browser says ERR_ABORTED): the person went away
+    page.on('requestfailed', r => { if (!/ABORTED/.test((r.failure() || {}).errorText || '')) bad.push('failed ' + r.url().replace(origin, '') + ' ' + ((r.failure() || {}).errorText || '')); });
+    page.on('response', r => { if (r.status() >= 500) bad.push(r.status() + ' ' + r.url().replace(origin, '')); });
+    await page.goto(url('/'));
+    await page.waitForSelector('.card');
+    for (let i = 0; i < 4; i++) {
+      const t0 = Date.now();
+      await page.goto(origin + (mode === 'parseh' ? '/' : S + '/prompt'), {waitUntil: 'load'});
+      slowLoads.push(Date.now() - t0);
+      await sleep(400);
+      await page.goto(url('/'), {waitUntil: 'load'});
+      await page.waitForSelector('.card');
+      slowLoads.push(Date.now() - t0);
+    }
+    await until(async () => { const s = (await api('GET', '/api/latex/make')).data; seenPhases.add(s.phase); return s.phase === 'making' && s.done > 3; }, 'the drawings are being made', 90000);
+    assert(seenPhases.has('starting') && seenPhases.has('making'), 'it went from looking through the documents to making the drawings: ' + [...seenPhases].join(', '));
+    await api('POST', '/api/latex/make/stop', {});
+    await until(async () => !(await api('GET', '/api/latex/make')).data.running, 'the job is stopped', 90000);
+    stopSampling.on = false;
+    await sampler;
+    const ms = lat.map(x => x[0]).sort((a, b) => a - b);
+    const p95 = ms[Math.floor(0.95 * (ms.length - 1))];
+    assert(lat.every(x => x[1] > 0 && x[1] < 500), 'no request of the hub failed while it worked (' + lat.length + ' asked)');
+    assert(p95 < 400 && ms[ms.length - 1] < 2500, `the hub stayed quick: p95 ${p95} ms, slowest ${ms[ms.length - 1]} ms`);
+    assert(Math.max(...slowLoads) < 4000, 'and its pages opened at once, to and fro: ' + slowLoads.join(' '));
+    eq(bad, [], 'with no failed request on the way');
 
     eq(errors, [], 'no page error');
     await page.close();

@@ -1892,33 +1892,28 @@ def api_doc_drawings(h, doc_id):
 
 
 def api_latex_make(h):
-    """THE LATEX DRAWINGS OF SEVERAL DOCUMENTS, made without opening them (a0.5.6).  The body is {ids: [...]}: what
-    those documents show -- blocks and inline marks, in their text and in their exercises -- is read from the saved
-    documents, the distinct drawings not made yet are counted, and a job (lib/latexbatch.py) makes them in the
-    background, one share of the work at a time, on every page's activity bar.  The answer is the job's status, which
-    the page asks again every second (GET); where there was nothing to make it is `total` 0, over at once."""
+    """THE LATEX DRAWINGS OF SEVERAL DOCUMENTS, made without opening them (a0.5.6).  The body is {ids: [...]}.  Nothing is read
+    here and nothing waits: a helper process of the lowest priority (lib/latexbatch.py) is started, and it reads those
+    documents, counts the distinct drawings not made yet, and makes them, on every page's activity bar.  The answer is the job's
+    status, which the page asks again every second (GET)."""
     try:
         body = h._json_body() or {}
     except ValueError:
         return h.send_json({"error": "That was not JSON."}, 400)
     ids = body.get("ids")
-    if not isinstance(ids, list) or not ids or not all(isinstance(i, str) for i in ids):
+    if not isinstance(ids, list) or not ids or not all(isinstance(i, str) and store.ID_RE.match(i) for i in ids):
         return h.send_json({"error": "Say which documents."}, 400)
-    wanted, found = [], 0
-    for doc_id in dict.fromkeys(ids):
-        try:
-            meta, markdown = store.get(doc_id)
-        except (KeyError, OSError, ValueError):
-            continue                                    # gone since the page was drawn: nothing to make for it
-        found += 1
-        title = (meta.get("title") or doc_id) if isinstance(meta, dict) else doc_id
-        wanted.extend((tex, theme, inline, title) for tex, theme, inline in htmlgen.latex_wanted(markdown))
+    import languages
+    import latexthemes
+    import texpackages
+    env = {"library": str(store.lib()), "drawn": latexdraw.DRAWN, "themes": latexthemes.STORE,
+           "tex_tree": texpackages.TREE, "languages": languages.PERSONAL}
     token = activity.clean_job((h.query.get("job") or [None])[0])
     try:
-        status = latexbatch.start(wanted, docs=found, page=base() + "/", job=token)
+        status = latexbatch.start(list(dict.fromkeys(ids)), env, page=base() + "/", job=token)
     except latexbatch.Busy as e:
         return h.send_json(dict(latexbatch.status(), error=str(e)), 409)
-    h.send_json(dict(status, shown=len(ids), found=found, wanted=len(wanted)))
+    h.send_json(dict(status, shown=len(ids)))
 
 
 def api_latex_make_status(h):
@@ -3018,6 +3013,7 @@ def main():
     finally:
         srv.server_close()
         openfile.shutdown()                     # the working copies with nothing unsaved go with the server
+        latexbatch.shutdown()                   # and the helper that makes many documents' drawings, with its TeX
     print("exlex studio stopped.")
 
 

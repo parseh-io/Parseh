@@ -126,6 +126,14 @@ const exercisesGroup = () => ({
     {id: "drag", kind: "switch", label: "Drag to answer", short: "drag",
      help: "Lets you drag words into place in exercises that offer it. Off by default on a touch screen, where tapping is easier.",
      get: () => dragIsOn(), set: v => setDragOn(v), watch: heard("drag")},
+    // a document's page only: the pages of exercises check one card at a time with a button of their own
+    ...(kind !== "doc" ? [] : [
+      {id: "autocheck", kind: "switch", label: "Check as I answer", short: "checked at once",
+       help: "Checks an exercise the moment you have answered it, and says whether it is right with its explanation, instead of waiting " +
+             "for Check exercises at the foot of the page. An exercise that has no end of its own (several right answers, a sentence to put " +
+             "in order) gets a Check button of its own.",
+       get: () => autocheckIsOn(), set: v => setAutocheck(v), watch: heard("autocheck")},
+    ]),
   ]
 });
 

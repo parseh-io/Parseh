@@ -1442,6 +1442,23 @@ function setDragOn(v) {
   document.dispatchEvent(new CustomEvent("parseh:studio", {detail: {what: "drag"}}));
 }
 
+/* CHECK AS I ANSWER (a0.5.7): an exercise on a document's page is checked the moment it has been answered, instead of
+   when "Check exercises" is pressed at the foot of the page.  A setting of the reader on this device, off unless turned on:
+   the gear's Exercises group has the switch (gear.js), and a page follows it at once (`parseh:studio`, "autocheck"). */
+const AUTOCHECK_KEY = "parseh_exercise_autocheck";
+let autocheckChoice = null;
+function autocheckIsOn() {
+  if (autocheckChoice !== null) return autocheckChoice;
+  let v = null;
+  try { v = localStorage.getItem(AUTOCHECK_KEY); } catch (e) { /* private mode */ }
+  return (autocheckChoice = v === "1");
+}
+function setAutocheck(v) {
+  autocheckChoice = !!v;
+  try { localStorage.setItem(AUTOCHECK_KEY, v ? "1" : "0"); } catch (e) { /* private mode */ }
+  document.dispatchEvent(new CustomEvent("parseh:studio", {detail: {what: "autocheck"}}));
+}
+
 const BARS_KEY = "parseh_bars_off";
 function barsAreOff() {
   try { return localStorage.getItem(BARS_KEY) === "1"; } catch (e) { return false; }
@@ -2914,7 +2931,59 @@ function bindExercises(container, opts = {}) {
       $$("audio", box).forEach(a => { if (!a.paused) a.pause(); });
     });
     const score = $("[data-exercise-results] .ex-score", container);
-    if (score) { score.hidden = true; score.textContent = "Answers changed — check again"; }
+    if (score && autoOn()) liveScore();
+    else if (score) { score.hidden = true; score.textContent = "Answers changed — check again"; }
+  }
+
+  /* ----------------------------------------------------------- check as I answer (a0.5.7)
+     On a document's page, with the gear's "Check as I answer" on, an exercise is checked the moment it is answered: a choice
+     as soon as every question of it has its answer (one question or several, each with one right answer), a fill-in once
+     every blank holds a block, a matching once every place does.  An exercise that has no end of its own -- several answers
+     right, a sentence to put in order -- cannot be told to be finished, so it gets a Check button of its own.  The page's
+     "Check exercises" stays for what is left, and the score under it follows each check.  Not in the editor's preview, not on
+     the study pages (they have a button of their own), and not in a follow-up's steps (Check step is theirs). */
+  const autoOn = () => !preview && document.body.dataset.page === "doc" && autocheckIsOn();
+  const inStep = ex => !!ex.closest(".ex-step");
+  function finishesItself(ex) {
+    if (ex.dataset.primitive === "choice") {
+      const groups = $$(".ex-choice-group", ex);
+      return groups.length > 0 && groups.every(g => g.dataset.choice === "single");
+    }
+    if (ex.dataset.primitive === "matching") return $$(".ex-match-drop", ex).length > 0;
+    return ex.dataset.primitive === "placement" && ex.dataset.subtype === "fill-blanks" && $$(".ex-blank", ex).length > 0;
+  }
+  function answered(ex) {
+    if (ex.dataset.primitive === "choice") return $$(".ex-choice-group", ex).every(g => $(".ex-option.selected", g));
+    return $$(".ex-match-drop, .ex-blank", ex).every(d => $(".ex-item", d));
+  }
+  function maybeCheck(ex) {
+    if (!autoOn() || ex.dataset.scored !== "1" || inStep(ex) || !finishesItself(ex) || !answered(ex)) return;
+    judge(ex);
+    liveScore();
+  }
+  function liveScore() {
+    const out = $("[data-exercise-results] .ex-score", container);
+    if (!out) return;
+    const scored = exercises.filter(e => e.dataset.scored === "1");
+    const right = scored.filter(e => e.classList.contains("correct")).length;
+    const checked = scored.filter(e => e.classList.contains("correct") || e.classList.contains("incorrect")).length;
+    out.hidden = !checked;
+    if (!checked) return;
+    out.textContent = `${right} / ${scored.length} correct` + (checked < scored.length ? ` · ${scored.length - checked} not checked yet` : "");
+    out.classList.toggle("perfect", right === scored.length);
+  }
+  // the Check button of an exercise with no end of its own: there while the switch is on, gone when it is off
+  function syncOwnChecks() {
+    exercises.forEach(ex => {
+      if (ex.dataset.scored !== "1" || inStep(ex) || finishesItself(ex)) return;
+      let row = $(":scope > .ex-check-row", ex);
+      if (!autoOn()) { if (row) row.remove(); return; }
+      if (row) return;
+      row = document.createElement("div");
+      row.className = "ex-check-row";
+      row.innerHTML = '<button type="button" class="btn ex-check-one">Check this exercise</button>';
+      ex.appendChild(row);
+    });
   }
 
   function bankFor(ex) { return $(".ex-bank[data-bank]", ex); }
@@ -2934,6 +3003,7 @@ function bindExercises(container, opts = {}) {
     item.classList.remove("picked");
     clearFeedback(ex);
     $$(".ex-sequence", ex).forEach(markEnds);
+    maybeCheck(ex);
   }
 
   /* THE ARROWS: a box moved one place, without dragging it.  Dragging is
@@ -3225,6 +3295,8 @@ function bindExercises(container, opts = {}) {
     if (cloudClick(e)) return;
     const sw = e.target.closest(".ex-drag-switch");
     if (sw) { setDragOn(!dragIsOn()); applyDrag(); sw.focus(); return; }
+    const own = e.target.closest(".ex-check-one");
+    if (own) { judge(own.closest(".exercise")); liveScore(); return; }
     const arrow = e.target.closest(".ex-move");
     if (arrow) {
       // the box keeps the focus for the next press; where the arrow it was
@@ -3245,6 +3317,7 @@ function bindExercises(container, opts = {}) {
       option.classList.toggle("selected");
       option.setAttribute("aria-pressed", option.classList.contains("selected") ? "true" : "false");
       clearFeedback(option.closest(".exercise"));
+      maybeCheck(option.closest(".exercise"));
       return;
     }
     const item = e.target.closest(".ex-item");
@@ -3611,9 +3684,15 @@ function bindExercises(container, opts = {}) {
       $$(".ex-bank", ex).forEach(shuffleInto);
     });
     applyDrag();
+    syncOwnChecks();
     // a sheet taken out of the page and not bound again has nothing to apply it to
     listen(document, "parseh:studio", e => {
       if (e.detail && e.detail.what === "drag" && container.isConnected) applyDrag();
+      if (e.detail && e.detail.what === "autocheck" && container.isConnected) {
+        syncOwnChecks();
+        // turned on: what is already answered is checked now; turned off: the marks stay as they are
+        if (autoOn()) exercises.forEach(maybeCheck);
+      }
     });
     const correct = $(".ex-correct-all", container);
     if (correct) listen(correct, "click", () => {
@@ -3733,12 +3812,16 @@ function initIndex() {
     btnMake.disabled = n === 0;
   }
   function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
+  /* WHAT THE JOB SAYS OF ITSELF, in the two stages it has: the documents looked through (a count of documents), then the
+     drawings made (a count of drawings).  Both are a true share of what there is to do, and both move the bar. */
   function makeTold(st) {
+    const reading = st.phase !== "making" && st.phase !== "over";
+    const done = reading ? st.docs_done : st.done, total = reading ? (st.docs_total || st.docs) : st.total;
     // the page's own bar only where nothing else draws it
     const own = !window.ParsehActivity;
-    if (makeBar) { makeBar.hidden = !own; makeBar.value = st.total ? Math.floor(100 * st.done / st.total) : 0; }
-    if (makeSay) { makeSay.hidden = !own; makeSay.textContent = `${st.done} of ${st.total}`; }
-    if (btnMake) btnMake.textContent = `Making drawings… ${st.done} of ${st.total}`;
+    if (makeBar) { makeBar.hidden = !own; makeBar.value = total ? Math.floor(100 * done / total) : 0; }
+    if (makeSay) { makeSay.hidden = !own; makeSay.textContent = `${done} of ${total}`; }
+    if (btnMake) btnMake.textContent = reading ? `Looking through the documents… ${done} of ${total}` : `Making drawings… ${done} of ${total}`;
   }
   function makeEnded(st, handle) {
     makeWatching = false;
@@ -3746,9 +3829,16 @@ function initIndex() {
     if (makeState) makeState.hidden = true;
     if (btnMake) btnMake.disabled = false;
     refreshMakeShown(makeShown);
+    if (handle) handle.end(!!st.total && !st.failed && !st.stopped && !st.error);
     const who = [...new Set((st.problems || []).map(p => p.doc).filter(Boolean))];
     const named = who.length ? ` — open ${who.slice(0, 3).map(w => `“${w}”`).join(", ")}${who.length > 3 ? ` and ${who.length - 3} more` : ""} to see why` : "";
-    if (st.stopped) toast(`Stopped: ${st.made} of ${plural(st.total, "LaTeX drawing", "LaTeX drawings")} made.`);
+    if (st.error) toast("The LaTeX drawings could not be made: " + st.error, true);
+    else if (!st.total && !st.stopped) {
+      const bad = st.known_failed || 0;
+      if (!st.wanted) toast("No document shown holds a LaTeX drawing.");
+      else toast(`Every LaTeX drawing of the ${plural(st.docs, "document", "documents")} shown is made already${bad ? `; ${bad} cannot be drawn — open the document to see why` : ""}.`, !!bad);
+    }
+    else if (st.stopped) toast(`Stopped: ${st.made} of ${plural(st.total, "LaTeX drawing", "LaTeX drawings")} made.`);
     else if (st.failed) toast(`Made ${st.made} of ${plural(st.total, "LaTeX drawing", "LaTeX drawings")}; ${st.failed} could not be made${named}.`, true);
     else toast(`Made ${plural(st.made, "LaTeX drawing", "LaTeX drawings")} for ${plural(st.docs, "document", "documents")}.`);
   }
@@ -3758,42 +3848,42 @@ function initIndex() {
     if (btnMakeStop) { btnMakeStop.disabled = false; btnMakeStop.textContent = "Stop"; }
     if (btnMake) btnMake.disabled = true;
     makeTold(st);
+    // one question a second where the activity list is there to show the work (and asks every 0.6 s itself),
+    // a faster one where this page is all there is
+    const pace = window.ParsehActivity ? 1000 : 700;
     const again = async () => {
       let now;
       try { now = await api("/api/latex/make"); }
       catch (e) { makeTimer = setTimeout(again, 3000); return; }          // the server is busy or away: ask again
-      if (now.running) { makeTold(now); makeTimer = setTimeout(again, 700); }
+      if (now.running) { makeTold(now); makeTimer = setTimeout(again, pace); }
       else makeEnded(now, handle);
     };
     clearTimeout(makeTimer);
-    makeTimer = setTimeout(again, 700);
+    makeTimer = setTimeout(again, 400);
   }
   async function makeDrawings() {
     const ids = $$(".card:not([hidden])", cards).map(c => c.dataset.id).filter(Boolean);
     if (!ids.length || makeWatching) return;
+    // THE BUTTON ANSWERS AT ONCE, before the server has: the click is the moment that must be seen
+    makeWatching = true;
     btnMake.disabled = true;
+    btnMake.textContent = "Starting…";
+    if (makeState) { makeState.hidden = false; if (btnMakeStop) btnMakeStop.disabled = true; }
     // on the activity list at once, under the name the server's entry will carry
     const A = window.ParsehActivity;
-    const handle = A && A.expect ? A.expect(`Making the LaTeX drawings of ${plural(ids.length, "document", "documents")}`) : null;
+    const handle = A && A.expect ? A.expect(`Looking through ${plural(ids.length, "document", "documents")} for LaTeX drawings`) : null;
     try {
       const st = await api(handle ? handle.url("/api/latex/make") : "/api/latex/make", {method: "POST", json: {ids}});
-      if (!st.total) {
-        if (handle) handle.end(false);
-        refreshMakeShown(makeShown);
-        const bad = st.known_failed || 0;
-        if (!st.wanted) toast(`No document shown holds a LaTeX drawing.`);
-        else toast(`Every LaTeX drawing of the ${plural(st.found, "document", "documents")} shown is made already${bad ? `; ${plural(bad, "cannot be drawn", "cannot be drawn")} — open the document to see why` : ""}.`, !!bad);
-        return;
-      }
       makeWatch(st, handle);
     } catch (e) {
+      if (handle) handle.end(false);
+      makeWatching = false;
+      if (makeState) makeState.hidden = true;
       if (e.status === 409 && e.data && e.data.running) {
         // another batch is going: this page follows that one
-        if (handle) handle.end(false);
         toast("The LaTeX drawings of some documents are being made already: here is how far it has got.");
         return makeWatch(e.data, null);
       }
-      if (handle) handle.end(false);
       refreshMakeShown(makeShown);
       toast("Could not make the drawings: " + e.message, true);
     }

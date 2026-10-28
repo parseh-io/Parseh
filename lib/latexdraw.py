@@ -81,6 +81,11 @@ DESIGN_PT = 10.0            # standalone's size: a drawing's natural width is w/
 # own small LRU cache under the derived drawings folder and vanishes when the
 # server next starts.  A saved source promotes its exact key into DRAWN.
 PREVIEW_DIR = ".preview"
+BATCH_DIR = ".batch"        # the files of the helper that makes many documents' drawings (lib/latexbatch.py): never a drawing
+# WHETHER A DRAWING MADE IS WRITTEN INTO THE BOOKS OF WHO OWNS WHICH (owners.json).  The helper of lib/latexbatch.py turns it
+# off: the documents it makes drawings for recorded them when they were saved, and a second process rewriting a file
+# the server rewrites could undo a save
+BOOKKEEPING = True
 PREVIEW_MAX_DRAWINGS = 32
 PREVIEW_MAX_BYTES = 16 * 1024 * 1024
 OWNERS_FILE = "owners.json"
@@ -876,8 +881,9 @@ def _persistent_keys():
         return set()
     out = set()
     for here, dirs, files in os.walk(DRAWN):
-        if PREVIEW_DIR in dirs:
-            dirs.remove(PREVIEW_DIR)
+        for skip in (PREVIEW_DIR, BATCH_DIR):
+            if skip in dirs:
+                dirs.remove(skip)
         for name in files:
             if name.endswith(".svg") and KEY_RE.match(name[:-4]):
                 out.add(name[:-4])
@@ -994,11 +1000,17 @@ def repair_owners(used, force=False):
 
 
 def _mark_unowned(key):
-    """A kept result made outside a save is eligible after the grace period."""
+    """A kept result made outside a save is eligible after the grace period.  The books are rewritten only when this
+    changes them: a drawing a document already owns (nearly every one) changes nothing, and used to rewrite the whole file,
+    under the lock every page's lookups take, once for each drawing made."""
+    if not BOOKKEEPING:
+        return
     with _LOCK:
         doc = _owner_doc()
+        before = dict(doc.get("unowned") or {})
         _reconcile_owners(doc, (key,))
-        _save_owner_doc(doc)
+        if dict(doc.get("unowned") or {}) != before:
+            _save_owner_doc(doc)
 
 
 def prune_previews():
@@ -1060,6 +1072,7 @@ def prune(days=PRUNE_DAYS):
     only as a conservative fallback for old caches with no ownership record.
     """
     shutil.rmtree(os.path.join(DRAWN, PREVIEW_DIR), ignore_errors=True)
+    shutil.rmtree(os.path.join(DRAWN, BATCH_DIR), ignore_errors=True)         # no job outlives the server that began it
     with _LOCK:
         doc = _owner_doc()
         _reconcile_owners(doc, _persistent_keys())
@@ -1069,8 +1082,9 @@ def prune(days=PRUNE_DAYS):
     cut = time.time() - days * 86400
     gone = 0
     for here, dirs, files in os.walk(DRAWN):
-        if PREVIEW_DIR in dirs:
-            dirs.remove(PREVIEW_DIR)
+        for skip in (PREVIEW_DIR, BATCH_DIR):
+            if skip in dirs:
+                dirs.remove(skip)
         for f in files:
             if not f.endswith(".json") or f.endswith(".fail.json"):
                 continue
