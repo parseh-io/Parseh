@@ -15,7 +15,7 @@ change. A new version comes in from **Settings → Updating Parseh**
 ([Updating Parseh](../getting-started/updating.md)), which compiles this
 guide and rebuilds the readers by itself.
 
-## a0.5.6 — not yet released
+## a0.5.6 — 28 October 2026
 
 ### Make the drawings of many documents at once
 
