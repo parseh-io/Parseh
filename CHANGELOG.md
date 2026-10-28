@@ -1,4 +1,4 @@
-## [a0.5.7] - unreleased
+## [a0.5.7] - 2026-10-28
 ### Added
 - Check as I answer: a document page's ⚙ → Exercises switch that checks an exercise the moment it is answered, instead of at Check exercises (a button of its own for choose-all and orderings)
 
