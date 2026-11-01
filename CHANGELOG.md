@@ -1,3 +1,6 @@
+## [a0.6.0] - unreleased
+### Added
+
 ## [a0.5.8] - 2026-11-01
 ### Added
 - Glosses below the line: the video player draws each phrase's gloss as text in a row under its line, as a book's chunks level does, in place of the hover cloud (⚙ page → Watching & reading); the cloud becomes the phrase's tools
