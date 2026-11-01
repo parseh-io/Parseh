@@ -15,7 +15,7 @@ change. A new version comes in from **Settings → Updating Parseh**
 ([Updating Parseh](../getting-started/updating.md)), which compiles this
 guide and rebuilds the readers by itself.
 
-## a0.5.8 — not yet released
+## a0.5.8 — 1 November 2026
 
 ### Glosses below the line
 

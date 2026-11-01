@@ -1,4 +1,4 @@
-## [a0.5.8] - unreleased
+## [a0.5.8] - 2026-11-01
 ### Added
 - Glosses below the line: the video player draws each phrase's gloss as text in a row under its line, as a book's chunks level does, in place of the hover cloud (⚙ page → Watching & reading); the cloud becomes the phrase's tools
 - Move text: a mode of the video player that moves words from one line to the line before or after it, so that lines end where sentences do, on a video already added — a click on a word, a card with the two choices, the new start worked out from the words, hear the join, fine-tune in the timings, and Undo
