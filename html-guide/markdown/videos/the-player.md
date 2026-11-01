@@ -59,6 +59,38 @@ A few lines look different on purpose:
   ([Editing a phrase](editing-a-phrase.md)) or looked up
   ([Reading help](reading-help.md)).
 
+## Glosses below the line {#glosses-below-the-line}
+
+![A Persian video with its glosses below the line: under the sentence, a row for each phrase, the phrase at the right and its transliteration, vocabulary and meaning at the left](shots/player-below.png)
+
+A cloud that opens when you point is the way to read a transcript once it is
+familiar. To **work through** the glosses, as in a book's chunks level, turn on
+**Glosses below the line**, in the ⚙ panel's *Watching & reading*: under each line, a **row for each phrase** that has a
+gloss — the phrase on one side and, beside it, what the cloud holds, set the
+same way: the reading (Japanese), the transliteration, the vocabulary line, the
+meaning and the note. The phrase stands on the side the language reads from, so a
+Persian row has its text at the right and its gloss at the left. A phrase
+nobody has glossed says *nothing glossed yet* in its row; a run drawn bare
+(an English aside) has none.
+
+The rest of the page works as it did:
+
+- **a click** on a line, or on its row, plays the line from its beginning, and
+  the lines fade and light with the video as they always do (the rows fade with
+  their line);
+- **pointing at a phrase of the line** opens no cloud, since the gloss is on the
+  page — it lights that phrase's row;
+- **pointing at the phrase in its row** opens the cloud, which is now the
+  phrase's **tools**: **+ card**, **⧉ copy**, **✎ edit**, **review later**, the
+  four colours and, under a phrase nobody glossed, the dictionary — and not the
+  gloss, which the row already says;
+- **Shift-click** copies, **Alt-click** makes a card of a word, and the colour,
+  the flag and the ✱ notes mark the phrase in its row as in its line;
+- **writing a phrase** with ✎ changes its row and its line together.
+
+The choice is kept on this device and holds for every video. It is not drawn on a
+phone, whose interface reads a gloss with a tap and a sheet.
+
 ## A sound instead of a video {#a-sound}
 
 A video whose media is a **sound** — a recording added by its path or sent
@@ -110,6 +142,7 @@ watching; the rest is in the **⚙ page** panel, at the right end
 | the title | the title in the video's language, then in Latin letters, and the channel |
 | **video info** | the title, the channel, the level and the blurb, edited ([Video info](video-info-and-drafts.md)) |
 | **the timings** | moves where each caption starts, opening at the caption you are on ([The timings](the-timings.md)) |
+| **move text** | moves words from one line to the line before or after it, so that lines end where sentences do ([Moving text between lines](moving-text.md)); drawn in a window 1480 pixels wide or more — below that it is the ⚙ panel's row and the **M** key; not on a phone |
 | **gloss with an LLM** | a panel that copies a prompt for a run of captions you pick, and fills in the answer where nobody has glossed ([Glossing captions with an LLM](glossing-with-an-llm.md)) |
 | `0:14 / 0:40` | where the video is, and how long it is |
 | **keep in view** | keeps the spoken line in view (on until you turn it off) |

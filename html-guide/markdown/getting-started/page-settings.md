@@ -167,6 +167,8 @@ panel. [The reader](../books/reader.md) lists the header.
 |---|---|---|
 | **Watching & reading** — this device | **Keep the playing caption in view** | the transcript scrolls so that the caption being said stays on screen; it waits a moment after you scroll yourself |
 | | **Pause while a gloss is open** | the video waits while a cloud is open, and goes on a moment after it closes |
+| | **Glosses below the line** | each phrase's gloss drawn as text in a row under its line, as a book does, instead of in a cloud when you point ([The video player](../videos/the-player.md#glosses-below-the-line)); not on a phone |
+| | **Move text between lines** | the mode in which a click on a word moves the words after it down to the next line, or the words before it up to the line above ([Moving text between lines](../videos/moving-text.md)); not kept, and not on a phone |
 | | **Show only the reading** | Japanese and Chinese: each phrase drawn as its kana or pinyin alone, the text in the cloud |
 | | **Diacritics** | drawn only when the video's lines hold vowel marks (Persian, Arabic): shows or hides them |
 | | **Video beside the text** | the video in a column beside the transcript; on a screen 860 pixels wide or more, and not for a sound. On a phone it rests, and says that turning the phone sideways does it |

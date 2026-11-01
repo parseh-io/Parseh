@@ -78,6 +78,13 @@
        transcript editor of the add page does this before a video is added,
        and this is the one door that does it afterwards (youtube/lib/captimes.py) -->
   <button id="captimes" title="move where each caption starts, by ear: it opens at the caption you are on">the timings</button>
+  <!-- the other half of where a line goes: the words at its end and its start.  A click on a word asks where a
+       line should end or begin and moves what is after it to the next line, or what is before it to the line
+       above (youtube/lib/reflow.py).  The header is as full as a window of 1280px holds it, so the button is
+       drawn only where there is room (1480px, style.css); everywhere it is the gear's row (Watching & reading)
+       and the M key.  Not on a phone, which writes nothing -->
+  <button id="reflow" aria-pressed="false"
+    title="move text: move words from one line to the line before or after it, so that lines end where sentences do — click a word, then choose where a line ends or begins (the M key; also the ⚙ page's Move text between lines)">move text</button>
   <!-- a run of captions glossed by an LLM: the panel below (#rgpanel) makes
        the prompt and puts the answer back, through lib/glossregion.py -->
   <button id="rgn" aria-expanded="false" aria-controls="rgpanel"
@@ -90,6 +97,12 @@
        the gear presses them -->
   <button id="follow" title="keep the playing caption in view">keep in view</button>
   <button id="hoverpause" title="pause the video while a gloss is open">hover&nbsp;⏸</button>
+  <!-- the glosses as a book's chunks level sets them: under each line, a row for each phrase with its
+       transliteration, vocabulary and meaning beside it, in place of a cloud that opens on a hover.  It is the
+       gear's row (Watching & reading) and the stylesheet puts the button away under html.pg-player, as it does
+       hover ⏸ -- the header holds no more at 1280px; the gear presses it.  Not on a phone, which keeps its tap and
+       its sheet -->
+  <button id="below" title="show each phrase's gloss as text under the line, as a book does, instead of in a cloud when you point at it">gloss below</button>
   <!-- every phrase that carries a note, lit and counted, and ‹ › to walk from one
        to the next: to see where a model flagged a problem.  It writes nothing,
        asks nothing and is off on every visit; the mobile mode, which has no
@@ -157,6 +170,24 @@
     <button type="button" id="ntread" hidden title="back to the note as it reads">read</button>
     <button type="button" id="ntclose" title="close (Esc)">&#10005;</button></div>
   <iframe id="ntframe" title="a note beside this video"></iframe>
+</div>
+
+<!-- MOVING TEXT BETWEEN LINES: the card that opens by the word that was clicked, and the dock that says what was
+     done and keeps Undo in reach (player.js; youtube/lib/reflow.py is the door) -->
+<div id="rfpop" hidden role="dialog" aria-label="where a line ends or begins">
+  <div id="rfq" dir="auto"></div>
+  <button type="button" class="rfgo" data-edge="end"><b>End the line here</b><small></small></button>
+  <button type="button" class="rfgo" data-edge="start"><b>Start a line here</b><small></small></button>
+</div>
+<div id="rfdock" hidden role="region" aria-label="moving text between lines">
+  <div id="rfsay" aria-live="polite"></div>
+  <div class="rfbtns">
+    <button type="button" id="rfundo" disabled title="put the two lines back as they were (Ctrl+Z)">Undo</button>
+    <button type="button" id="rfplay" disabled title="hear the second before the new start of that line and the second after it">▶ hear the join</button>
+    <button type="button" id="rftune" disabled title="open the timings sheet at that line, to put its start right by ear">fine-tune the start</button>
+    <button type="button" id="rfnext" title="scroll to the next line that stops in the middle of a sentence">next open line</button>
+    <button type="button" id="rfdone" title="leave this mode (Esc)">Done</button>
+  </div>
 </div>
 
 <div id="dvback" hidden></div>

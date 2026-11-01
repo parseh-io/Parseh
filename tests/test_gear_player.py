@@ -116,6 +116,12 @@ class ThePageItselfTests(unittest.TestCase):
         for ident in ("hoverpause", "defmode", "defmt", "lookupset"):
             self.assertIn('id="%s"' % ident, self.html, "the gear presses it, so it stays in the page")
         self.assertIn("html.pg-player header :is(#hoverpause,#defmode,#defmt,#lookupset){display:none}", self.css)
+        # a0.5.8: the glosses below the line are the gear's row alone, and moving text between lines is the gear's
+        # row, the M key and -- only where the header has room -- a button
+        self.assertIn('id="below"', self.html)
+        self.assertIn("html.pg-player header #below{display:none}", self.css)
+        self.assertIn('id="reflow"', self.html)
+        self.assertIn("@media (max-width:1479px){\n  header #reflow{display:none}", self.css)
 
     def test_the_bar_under_the_video_has_a_handle_and_says_what_it_does(self):
         self.assertIn('id="grip" title="drag to make the video bigger or smaller — double-click for its usual size"', self.html)

@@ -34,6 +34,12 @@ together or not at all:
 It runs the checker before and after, and refuses whatever its own move
 would break, in the checker's words.
 
+> **Words between two lines are a second door.** A start is the only thing
+> *this* door moves. Putting the last words of a line at the front of the next
+> one moves a boundary as well, in both files and by the same amount, and has
+> its own sheet: [Moving text between lines](moving-text.md). The line whose
+> start moves with it is the one you open here, to put the new start right by ear.
+
 > **The notes move with it.** A [note](notes-in-the-seam.md) names its
 > caption by that caption's start, so a start that moved without it left
 > the note pointing at nothing — it kept the old number and was shown

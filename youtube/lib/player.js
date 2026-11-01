@@ -129,6 +129,8 @@
   var reorders = false;
   var player = null, ready = false, active = -1;
   var lastUserScroll = 0;
+  // MOVING TEXT BETWEEN LINES (below): on, a request in flight, what can be taken back, the word picked
+  var rf = { on: false, busy: false, stops: false, undo: [], pick: null, last: null, fire: [] };
 
   /* ---------------- settings, remembered like the reader's ---------------- */
   var store = function (k, d) {
@@ -155,7 +157,11 @@
     // THE SMALL MARKS A LINE IS DRAWN WITH (the gear's «Diacritics», yt_marks):
     // shown unless the person put them away, on this device, for every video
     // of a language whose record has marks to put away (its `strip`)
-    marks: store('yt_marks', true)
+    marks: store('yt_marks', true),
+    // THE GLOSSES BELOW THE LINE, as a book's chunks level sets them (yt_below): each phrase of a line
+    // with its transliteration, vocabulary and meaning beside it, under the sentence, in place of a
+    // cloud that opens when a phrase is pointed at.  Off, which is the player as it always was
+    below: store('yt_below', false)
   };
   // what the switch has behind it, filled by the question asked once at the
   // foot of this file
@@ -194,6 +200,9 @@
     if (mobileMode()) return window.matchMedia(WIDE_M).matches;
     return opts.sbs && window.matchMedia(WIDE).matches;
   }
+  // the glosses are drawn under the line only where there is room for a book's rows: the phone's
+  // interface has its own way to read a gloss (a tap, a sheet) and keeps it
+  function belowOn() { return !!opts.below && !mobileMode(); }
   // the theme (light / dark / sepia) is the toolbox's own, one preference
   // for every page: /lib/parseh.js keeps it and wires the ◐ button
   function paintButtons() {
@@ -210,6 +219,8 @@
     $('#defmt').hidden = !(DICT.defines && MT.ready);
     $('#defmt').disabled = !(opts.dict && opts.defs);
     $('#aloud').classList.toggle('on', opts.aloud);
+    $('#below').classList.toggle('on', opts.below);
+    document.body.classList.toggle('glossbelow', belowOn());
     document.body.classList.toggle('aloud', aloudOn());
     document.body.classList.toggle('nopin', !opts.pin);
     // in the mobile mode the phone's own orientation decides it
@@ -242,6 +253,14 @@
   $('#dictmode').onclick = function () {
     opts.dict = !opts.dict; localStorage.setItem('yt_dict', opts.dict ? '1' : '0');
     paintButtons(); refillCloud();
+  };
+  /* THE GLOSSES BELOW THE LINE: pressed, every line is drawn again with its rows (or without them), and the
+     page stays where it was read -- a line is taller with its glosses under it, and the caption being read
+     must not slide out of view. */
+  $('#below').onclick = function () {
+    opts.below = !opts.below; localStorage.setItem('yt_below', opts.below ? '1' : '0');
+    paintButtons();
+    if (!editing) redrawAll();
   };
   /* ENGLISH, EXPLAINED IN ENGLISH -- the book reader's two switches
      (lib/tex2html.py), for its reason: every dictionary here is the English
@@ -291,8 +310,9 @@
   $('#aloud').onclick = function () {
     opts.aloud = !opts.aloud; localStorage.setItem('yt_aloud', opts.aloud ? '1' : '0');
     paintButtons();
-    Array.prototype.forEach.call($('#segs').querySelectorAll('.seg .fa .w'), function (w) {
-      var sg = segs[+w.parentNode.parentNode.dataset.i];
+    Array.prototype.forEach.call($('#segs').querySelectorAll('.seg .w'), function (w) {
+      var line = w.closest('.seg');
+      var sg = line && segs[+line.dataset.i];
       var ch = sg && sg.chunks && sg.chunks[+w.dataset.j];
       if (ch) paintWords(w, ch);
     });
@@ -791,6 +811,11 @@
         if (e.classList.contains('bare')) e.textContent = asDrawn(ch.fa);
         else paintWords(e, ch);
       });
+      // with the glosses below the line, the phrase in each row follows the line
+      Array.prototype.forEach.call(d.querySelectorAll('.row .w'), function (w) {
+        var ch = sg.chunks[+w.dataset.j];
+        if (ch) paintWords(w, ch);
+      });
     });
     if (held) {
       var d = held.getBoundingClientRect().top - was;
@@ -857,21 +882,28 @@
     });
     return h + '</div><div class="cstat"></div>';
   }
-  function fillCloud(ch) {
-    var h = '<div class="arrow"></div>';
-    // with the transcript showing the reading alone, the text is here
-    if (aloudOn()) h += '<div class="ctext" lang="' + L.code + '">' + esc(asDrawn(ch.fa)) + '</div>';
-    // the reading (kana) sits above the transliteration, in the target face;
-    // a language without a reading ignores the field (a stray key copied
-    // from another language's template must not become a line)
+  /* THE LINES A GLOSS IS, drawn once for the two places that show them: the cloud, and the rows under a
+     line (belowOn).  The reading (kana) sits above the transliteration, in the target face; a language
+     without a reading ignores the field (a stray key copied from another language's template must not
+     become a line).  The transliteration is a romanisation of the TARGET and belongs to no gloss language,
+     so it takes no lang of its own -- the three lines under it are prose the reader reads, and take the
+     gloss's. */
+  function glossLines(ch) {
+    var h = '';
     if (L.reading && ch.kana) h += '<div class="kana" lang="' + L.code + '">' + esc(ch.kana) + '</div>';
-    // the transliteration is a romanisation of the TARGET and belongs to
-    // no gloss language, so it takes no lang of its own -- the three lines
-    // under it are prose the reader reads, and take the gloss's
     if (ch.tr) h += '<div class="tr">' + esc(ch.tr) + '</div>';
     if (ch.voc) h += '<div class="voc"' + GATTRS + '>' + vocHTML(ch.voc) + '</div>';
     if (ch.en) h += '<div class="en"' + GATTRS + '>' + glossHTML(ch.en) + '</div>';
     if (ch.note) h += '<div class="note"' + GATTRS + '>' + glossHTML(ch.note) + '</div>';
+    return h;
+  }
+  function fillCloud(ch) {
+    var h = '<div class="arrow"></div>';
+    // with the transcript showing the reading alone, the text is here
+    if (aloudOn()) h += '<div class="ctext" lang="' + L.code + '">' + esc(asDrawn(ch.fa)) + '</div>';
+    // WITH THE GLOSSES BELOW THE LINE the cloud is the phrase's TOOLS and nothing it already shows: the
+    // gloss is in the row it was opened from, and said twice it would only hide the row it is over
+    if (!belowOn()) h += glossLines(ch);
     // a chunk nobody has glossed yet -- a phrase all the same, hoverable and
     // writable (segEl() says why): say so, rather than opening a cloud that
     // looks broken.  THE GLOSS ALONE decides, as it does for the checker
@@ -880,7 +912,7 @@
     // just been deleted keeps its note -- whose cloud showed that note alone,
     // reading as if it were the meaning, with nothing to say the gloss was gone
     if (!hasGloss(ch)) {
-      h += '<div class="unwritten">nothing glossed yet</div>';
+      if (!belowOn()) h += '<div class="unwritten">nothing glossed yet</div>';
       // NOTHING SET UP AT ALL, and the reader is looking at an empty phrase:
       // this is the moment they want to know the feature exists, so say so
       // here rather than only in a header they have not read
@@ -1564,8 +1596,10 @@
      moment of the click, from the phrase the cloud is open on. */
   function coords() {
     var w = cloudFor;
-    if (!w || !w.parentNode || !w.parentNode.parentNode) return null;
-    var si = +w.parentNode.parentNode.dataset.i;   // .w -> .fa -> .seg
+    // .w -> .fa -> .seg, or -- with the glosses below the line -- .w -> .rfa -> .row -> .rows -> .seg
+    var line = w && w.closest ? w.closest('.seg') : null;
+    if (!w || !line) return null;
+    var si = +line.dataset.i;
     var ci = +w.dataset.j;
     if (isNaN(si) || isNaN(ci)) return null;
     var sg = segs[si];
@@ -1621,8 +1655,7 @@
       // old words and all, and come back filled (rgForget, below)
       rgForget();
       if (done) done(ch);
-      paintWords(at.w, ch);
-      paintCol(at.w, ch);
+      repaintChunk(at.si, at.ci, ch, at.w);
       // a note written, changed or taken off lights or dims its phrase now (with
       // ✱ notes on), and the count follows
       pnPaint();
@@ -1648,6 +1681,16 @@
       }
       stat(msg, true);
     });
+  }
+  /* A PHRASE DRAWN AGAIN WHEREVER IT STANDS: in the line, and with the glosses below the line in its
+     row too, whose gloss is written again from the chunk as it now is. */
+  function repaintChunk(si, ci, ch, w) {
+    var line = els[si];
+    var all = line ? Array.prototype.slice.call(line.querySelectorAll('.w[data-j="' + ci + '"]')) : [];
+    if (w && all.indexOf(w) < 0) all.push(w);
+    all.forEach(function (e) { paintWords(e, ch); paintCol(e, ch); });
+    var gl = line && line.querySelector('.row[data-j="' + ci + '"] .rgl');
+    if (gl) fillRow(gl, ch);
   }
   function setColour(col) {
     var at = coords();
@@ -2843,6 +2886,7 @@
   });
   function openCloud(span, ch, sg) {
     if (editing) return;      // a form is open in there, half typed into
+    if (rf.on) return;        // text is being moved between lines: a click picks a word, a cloud would hide it
     clearTimeout(hideTimer);
     if (cloudFor && cloudFor !== span) cloudFor.classList.remove('hot');
     cloudFor = span; span.classList.add('hot');
@@ -3671,6 +3715,68 @@
     pnPaint();
     laterPaint();
   }
+  // WHAT IS DRAWN BARE -- text, not a target: see segEl.  A chunk marked plain, or a run of the video's
+  // own framing: a chunk with nothing written on it, of a language with a script of its own, holding none
+  // of that script.  Where the language has a reading, the kana alone is something written.
+  function isWritten(ch) { return !!(ch.tr || ch.en || ch.voc || ch.note || (L.reading && ch.kana)); }
+  function isBare(ch) { return !!(ch.plain || (!isWritten(ch) && L.chars && !hasScript(ch.fa))); }
+  /* A PHRASE'S LISTENERS: the same for the phrase in the line and, with the glosses below the line, in its
+     row.  Wired always, and deciding per event rather than per device: a screen that claims a hover it
+     never delivers still glosses a tap.  With the glosses below, the line's phrases open nothing -- the
+     gloss is on the page -- and light their row instead; it is the phrase in the ROW that opens the
+     cloud, now the phrase's tools (fillCloud). */
+  function bindPhrase(w, ch, sg, inLine) {
+    var viaRow = inLine && belowOn();
+    w.addEventListener('mouseenter', function () {
+      if (!hoverPointer()) return;        // a tap's synthetic hover: not one
+      if (viaRow) rowLit(w, true); else openCloud(w, ch, sg);
+    });
+    w.addEventListener('mouseleave', function () {
+      if (viaRow) rowLit(w, false); else scheduleClose();
+    });
+    w.addEventListener('click', function (e) {     // touch: tap = gloss
+      if (hoverPointer()) return;                  // a mouse: replay
+      // picking a stretch: the tap is the line's, and picks it below
+      if (rgPicking()) return;
+      if (viaRow) return;                          // the line is replayed, as a click replays it
+      e.stopPropagation();
+      if (cloudFor === w) closeCloud(); else openCloud(w, ch, sg);
+    });
+  }
+  function rowLit(w, on) {
+    var line = w.closest('.seg'), row = line && line.querySelector('.row[data-j="' + w.dataset.j + '"]');
+    if (row) row.classList.toggle('lit', on);
+  }
+  /* THE ROWS under a line: one for each phrase that has a gloss to show (a run drawn bare has none),
+     the phrase on one side and, beside it, what a book's chunks level sets there -- the reading, the
+     transliteration, the vocabulary, the meaning, the note.  Which side follows the language's direction. */
+  function fillRow(gl, ch) {
+    gl.innerHTML = hasGloss(ch) || hasNote(ch) ? glossLines(ch)
+                 : '<div class="unwritten">nothing glossed yet</div>';
+  }
+  function rowsEl(sg) {
+    var rows = document.createElement('div');
+    rows.className = 'rows';
+    (sg.chunks || []).forEach(function (ch, j) {
+      if (isBare(ch)) return;
+      var row = document.createElement('div');
+      row.className = 'row'; row.dataset.j = j;
+      var rfa = document.createElement('div');
+      rfa.className = 'rfa'; rfa.setAttribute('dir', L.dir); rfa.lang = L.code;
+      var w = document.createElement('span');
+      w.className = 'w'; w.dataset.j = j;
+      paintWords(w, ch);
+      paintCol(w, ch);
+      bindPhrase(w, ch, sg, false);
+      rfa.appendChild(w);
+      var gl = document.createElement('div');
+      gl.className = 'rgl';
+      fillRow(gl, ch);
+      row.appendChild(rfa); row.appendChild(gl);
+      rows.appendChild(row);
+    });
+    return rows.childNodes.length ? rows : null;
+  }
   /* ONE CAPTION'S LINE, whole: its time, its phrases, and every listener the
      line and its phrases carry.  A function of its own because two things
      draw it -- render(), for the whole transcript, and redrawSeg(), for the
@@ -3725,8 +3831,7 @@
         // legal in every video (check_annotations), so nothing about the
         // video decides this: its cloud says "nothing glossed yet" and offers
         // the ✎, whatever is or is not installed.
-        var written = !!(ch.tr || ch.en || ch.voc || ch.note || (L.reading && ch.kana));
-        if (ch.plain || (!written && L.chars && !hasScript(ch.fa))) {
+        if (isBare(ch)) {
           var bare = document.createElement('span');
           // target text left unglossed (ch.plain, from an import) reads
           // as the text around it, in the language's face (.tl); a run
@@ -3746,24 +3851,16 @@
         w.className = 'w'; w.dataset.j = j;
         paintWords(w, ch);
         paintCol(w, ch);
-        w.addEventListener('mouseenter', function () {
-          if (!hoverPointer()) return;    // a tap's synthetic hover: not one
-          openCloud(w, ch, sg);
-        });
-        w.addEventListener('mouseleave', scheduleClose);
-        // wired always, and deciding per event rather than per device: a
-        // screen that claims a hover it never delivers still glosses a tap
-        w.addEventListener('click', function (e) {     // touch: tap = gloss
-          if (hoverPointer()) return;                  // a mouse: replay
-          // picking a stretch: the tap is the line's, and picks it below
-          if (rgPicking()) return;
-          e.stopPropagation();
-          if (cloudFor === w) closeCloud(); else openCloud(w, ch, sg);
-        });
+        bindPhrase(w, ch, sg, true);
         fa.appendChild(w);
       });
     }
     d.appendChild(fa);
+    // THE GLOSSES BELOW THE LINE, and the mark on a line that stops in the middle of a sentence while text
+    // is being moved between lines.  Neither is on the page otherwise, so a line is what it always was
+    var under = !sg.plain && belowOn() ? rowsEl(sg) : null;
+    if (under) d.appendChild(under);
+    if (rf.on && rf.stops && !sg.plain && !rfEnds(sg.text)) d.classList.add('rf-open');
     // clicking a sentence replays it from its own beginning -- including
     // a click on a phrase (the gloss is already open from the hover) --
     // unless a stretch is being picked for an LLM, when it picks the line
@@ -3775,6 +3872,27 @@
       seek(sg.start);
     });
     return d;
+  }
+  /* EVERY CAPTION DRAWN AGAIN, the page held where it was read: for what changes the shape of every line
+     (the glosses below the line, or put back in the cloud), where redrawText's words alone are not enough.
+     The caption at the top of what is being read keeps its place on the screen, the one on air stays lit,
+     and a cloud open on a phrase that is gone is closed. */
+  function redrawAll() {
+    var from = pnReadFrom(), held = -1, was = 0;
+    for (var k = 0; k < els.length; k++) {
+      var r = els[k].getBoundingClientRect();
+      if (r.bottom > from) { held = k; was = r.top; break; }
+    }
+    closeCloud();
+    render();
+    if (active >= 0 && els[active]) {
+      els[active].classList.add('on-air');
+      [active - 1, active + 1].forEach(function (k) { if (els[k]) els[k].classList.add('near'); });
+    }
+    if (held >= 0 && els[held]) {
+      var d = els[held].getBoundingClientRect().top - was;
+      if (Math.abs(d) > 0.5) window.scrollBy(0, d);
+    }
   }
   /* One caption drawn again where it stands, from segs[i] as it now is: the
      line the answer wrote to, and nothing around it -- the seams, the notes,
@@ -3828,8 +3946,8 @@
     var t = e.target.closest ? e.target.closest('.wd') : null;
     if (!t) return;
     e.preventDefault(); e.stopPropagation();
-    var wEl = t.parentNode, segEl = wEl.parentNode.parentNode;
-    var sg = segs[+segEl.dataset.i];
+    var wEl = t.parentNode, segEl = wEl.closest('.seg');
+    var sg = segEl && segs[+segEl.dataset.i];
     var ch = sg && sg.chunks[+wEl.dataset.j];
     if (!ch) return;
     // where the card's text is, for the cut editor: this caption, this
@@ -3885,6 +4003,417 @@
     document.body.classList.remove('altdown');
   });
 
+  /* ---------------- moving text between lines ----------------
+     A line is cut where YouTube, or the speech model, chose to cut it, and that is often in the middle of a
+     sentence.  Somebody who reads the transcript to learn from it wants lines that end where sentences do,
+     and this is how they are made so, on a video that is already on the shelf (guide: videos/moving-text.md;
+     the door is youtube/lib/reflow.py, which says why the transcript may be moved this way and writes every
+     file it lives in together).
+
+     THE MODE: the "move text" button.  While it is on, a plain click on a WORD of a line does not replay the
+     line -- it asks where a line should END or BEGIN: a small card by the word with the two choices, each
+     saying how many words it moves and to which line, and lighting those words while it is pointed at.  The
+     choice is made on the server, which cuts a phrase at a space when the word is inside one, and answers
+     the two lines as they now are; they are drawn where they stand.  Nothing else on the page moves.
+
+     WHAT IT DOES NOT KNOW IS WHEN.  The line that gains or loses its first words starts somewhere else, and
+     nothing here hears the sound: the answer says it was worked out from the words, and the dock offers to
+     play across the join and to open the timings sheet at that line, where it is put right by ear.
+
+     AND IT IS TAKEN BACK: every move keeps the two lines as they were, Undo (or Ctrl+Z) puts them back --
+     only while nothing was written to them since, which the server checks. */
+  var RF_END = /[.!?…؟۔。！？]["'”»)\]]*\s*$/;
+  var RF_HINT = 'Click a word to choose where a line ends or begins.';
+  var RF = { btn: $('#reflow'), dock: $('#rfdock'), say: $('#rfsay'), pop: $('#rfpop'), q: $('#rfq'),
+             undo: $('#rfundo'), play: $('#rfplay'), tune: $('#rftune'), next: $('#rfnext'), done: $('#rfdone') };
+  function rfEnds(text) { return RF_END.test(String(text || '')); }
+  // a transcript with no stops in it (auto-captions as YouTube leaves Persian and Arabic) has nothing to
+  // judge a line's end by, and marking every line would say nothing
+  function rfHasStops() {
+    var n = 0, m = 0;
+    segs.forEach(function (sg) { if (!sg.plain) { m++; if (rfEnds(sg.text)) n++; } });
+    return m > 0 && n >= 2 && n >= m * 0.15;
+  }
+  function rfSay(text, bad) {
+    RF.say.textContent = text || '';
+    RF.say.classList.toggle('bad', !!bad);
+  }
+  function rfMarkOpen() {
+    els.forEach(function (d, i) {
+      var sg = segs[i];
+      d.classList.toggle('rf-open', !!(rf.on && rf.stops && sg && !sg.plain && !rfEnds(sg.text)));
+    });
+  }
+  function rfPaintDock() {
+    RF.undo.disabled = rf.busy || !rf.undo.length;
+    RF.play.disabled = rf.busy || !rf.last;
+    RF.tune.disabled = rf.busy || !rf.last;
+    RF.next.disabled = !rf.stops;
+    RF.next.title = rf.stops ? 'scroll to the next line that stops in the middle of a sentence'
+                             : 'this transcript has no full stops to tell where a sentence ends';
+  }
+  function rfSet(on) {
+    on = !!on;
+    if (on === rf.on) return;
+    if (on) {
+      if (!segs.length) { capSay('this video has no captions to move text between', true); return; }
+      if (editing) closeEditor();
+      closeCloud();
+      rgShut();
+      rf.on = true; rf.stops = rfHasStops();
+    } else {
+      rf.on = false; rf.pick = null;
+      rfPopShut();
+    }
+    document.body.classList.toggle('reflowing', rf.on);
+    RF.btn.classList.toggle('on', rf.on);
+    RF.btn.setAttribute('aria-pressed', rf.on ? 'true' : 'false');
+    RF.dock.hidden = !rf.on;
+    rfMarkOpen();
+    if (rf.on) {
+      rf.last = null;
+      rfSay(RF_HINT + (rf.stops ? ' A line marked ⋯ stops in the middle of a sentence.' : ''));
+      rfPaintDock();
+    }
+    // the gear's row says what the page is doing, whoever turned the mode on or off
+    rf.fire.forEach(function (f) { try { f(); } catch (e) { /* a row that is gone */ } });
+  }
+  RF.btn.onclick = function () { rfSet(!rf.on); };
+  // M turns the mode on and off from anywhere on the page but a box being typed in, a sheet, or the editor
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'm' && e.key !== 'M') return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat || mobileMode()) return;
+    var t = e.target, typing = t && (t.isContentEditable || /^(input|textarea|select)$/i.test(t.tagName || ''));
+    if (typing || editing || dvOn || document.querySelector('.tl-root')) return;
+    e.preventDefault();
+    rfSet(!rf.on);
+  });
+  RF.done.onclick = function () { rfSet(false); };
+
+  /* THE WORDS OF A LINE, in the order they are said: the unit a click lands on.  A phrase drawn a word at a
+     time offers its words; a phrase drawn whole (a run left bare, the reading alone, a language written
+     without spaces) is one unit and moves as a phrase -- the door cuts nothing it was not asked to. */
+  function rfUnits(fa, sg) {
+    var out = [];
+    var kids = Array.prototype.filter.call(fa.children, function (e) {
+      return e.classList.contains('w') || e.classList.contains('bare');
+    });
+    kids.forEach(function (e, j) {
+      var ch = sg.chunks && sg.chunks[j];
+      if (!ch) return;
+      var wds = e.classList.contains('w') ? Array.prototype.slice.call(e.querySelectorAll('.wd')) : [];
+      if (L.word_sep && !aloudOn() && wds.length > 1 && wds.length === wordsOf(ch.fa).length)
+        wds.forEach(function (wd, k) { out.push({ el: wd, j: j, k: k, ch: ch }); });
+      else out.push({ el: e, j: j, k: L.word_sep && wordsOf(ch.fa).length === 1 ? 0 : null, ch: ch });
+    });
+    return out;
+  }
+  function rfWordsIn(list) {
+    return list.reduce(function (n, u) {
+      return n + (u.k === null ? (L.word_sep ? wordsOf(u.ch.fa).length : 1) : 1);
+    }, 0);
+  }
+  function rfNoun(n) {
+    return L.word_sep ? (n === 1 ? 'word' : 'words') : (n === 1 ? 'phrase' : 'phrases');
+  }
+  function rfNearest(units, x) {
+    var best = null, gap = 1e9;
+    units.forEach(function (u) {
+      var r = u.el.getBoundingClientRect(), d = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
+      if (d < gap) { gap = d; best = u; }
+    });
+    return best;
+  }
+  $('#segs').addEventListener('click', function (e) {
+    if (!rf.on || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    var t = e.target;
+    var fa = t && t.closest ? t.closest('.seg .fa') : null;
+    if (!fa) return;                         // beside the words, a click replays the line, as ever
+    var i = +fa.parentNode.dataset.i, sg = segs[i];
+    if (!sg || sg.plain) return;
+    e.preventDefault(); e.stopPropagation();
+    if (rf.busy) return;
+    var units = rfUnits(fa, sg);
+    var hit = null;
+    units.forEach(function (u) { if (!hit && (u.el === t || u.el.contains(t))) hit = u; });
+    // a click between two words of a phrase lands on the phrase, not on a word: the nearest word is meant
+    if (!hit) {
+      var w = t.closest('.w, .bare');
+      hit = rfNearest(units.filter(function (u) { return w && w.contains(u.el); }), e.clientX)
+         || rfNearest(units, e.clientX);
+    }
+    if (!hit) return;
+    rf.pick = { i: i, units: units, at: units.indexOf(hit) };
+    rfPop();
+  }, true);
+
+  /* THE CARD BY THE WORD: what each choice does, or why it cannot be made. */
+  function rfWhy(edge, i, before, after) {
+    if (edge === 'end') {
+      if (i + 1 >= segs.length) return 'this is the last line';
+      if (!after) return 'the line already ends here';
+      if (segs[i + 1].plain) return 'the line after it is not glossed';
+      if (segs[i + 1].chapter) return 'a chapter begins at the next line';
+    } else {
+      if (i < 1) return 'this is the first line';
+      if (!before) return 'the line already begins here';
+      if (segs[i - 1].plain) return 'the line before it is not glossed';
+      if (segs[i].chapter) return 'a chapter begins at this line';
+    }
+    if (segs[i].chunks.some(function (c) { return c.free; }) ||
+        segs[edge === 'end' ? i + 1 : i - 1].chunks.some(function (c) { return c.free; }))
+      return 'a phrase of these lines is marked as departing from the transcript';
+    return '';
+  }
+  function rfPop() {
+    var p = rf.pick, u = p.units[p.at];
+    var before = p.units.slice(0, p.at), after = p.units.slice(p.at + 1);
+    RF.q.textContent = '';
+    var word = document.createElement('bdi');
+    word.setAttribute('dir', L.dir); word.lang = L.code;
+    word.textContent = window.Parseh && Parseh.baseText ? Parseh.baseText(u.el) : u.el.textContent;
+    RF.q.appendChild(document.createTextNode('At “'));
+    RF.q.appendChild(word);
+    RF.q.appendChild(document.createTextNode('”'));
+    Array.prototype.forEach.call(RF.pop.querySelectorAll('.rfgo'), function (b) {
+      var edge = b.dataset.edge, n = rfWordsIn(edge === 'end' ? after : before);
+      var why = rfWhy(edge, p.i, before.length, after.length);
+      b.disabled = !!why;
+      b.querySelector('small').textContent = why
+        ? why
+        : edge === 'end' ? 'moves the ' + n + ' ' + rfNoun(n) + ' after it down to the start of the next line'
+                         : 'moves the ' + n + ' ' + rfNoun(n) + ' before it up to the end of the line above';
+    });
+    document.querySelectorAll('.rf-pick').forEach(function (e) { e.classList.remove('rf-pick'); });
+    u.el.classList.add('rf-pick');
+    RF.pop.hidden = false;
+    // under the word, or over it where there is no room under; and inside the window
+    var r = u.el.getBoundingClientRect(), vw = document.documentElement.clientWidth, vh = window.innerHeight;
+    var w = RF.pop.offsetWidth, h = RF.pop.offsetHeight;
+    var top = r.bottom + 8 + h > vh - 8 ? Math.max(8, r.top - h - 8) : r.bottom + 8;
+    RF.pop.style.left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, vw - w - 8)) + 'px';
+    RF.pop.style.top = top + 'px';
+  }
+  function rfClear() {
+    document.querySelectorAll('.rf-moving').forEach(function (e) { e.classList.remove('rf-moving'); });
+  }
+  function rfPopShut() {
+    RF.pop.hidden = true;
+    rfClear();
+    document.querySelectorAll('.rf-pick').forEach(function (e) { e.classList.remove('rf-pick'); });
+  }
+  // the words a choice would move, lit while it is pointed at
+  function rfPreview(edge) {
+    rfClear();
+    var p = rf.pick;
+    if (!p) return;
+    (edge === 'end' ? p.units.slice(p.at + 1) : p.units.slice(0, p.at)).forEach(function (u) {
+      u.el.classList.add('rf-moving');
+    });
+  }
+  Array.prototype.forEach.call(RF.pop.querySelectorAll('.rfgo'), function (b) {
+    b.addEventListener('mouseenter', function () { if (!b.disabled) rfPreview(b.dataset.edge); });
+    b.addEventListener('focus', function () { if (!b.disabled) rfPreview(b.dataset.edge); });
+    b.addEventListener('mouseleave', rfClear);
+    b.addEventListener('blur', rfClear);
+    b.addEventListener('click', function () { if (!b.disabled) rfGo(b.dataset.edge); });
+  });
+  // a click anywhere but on a word of a line or on the card puts the card away
+  document.addEventListener('click', function (e) {
+    if (!rf.on || RF.pop.hidden) return;
+    if (RF.pop.contains(e.target) || (e.target.closest && e.target.closest('.seg .fa'))) return;
+    rfPopShut();
+  });
+
+  /* THE ANSWER TO ONE MOVE, or to taking one back. */
+  function rfPost(body) {
+    return fetch('/youtube/api/reflow', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ video: CFG.id }, body))
+    }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (j) {
+        if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || 'the server did not answer');
+        return j;
+      });
+    });
+  }
+  // the seams between lines are named by the line's start, which has moved
+  function rfFixGaps(i) {
+    var el = els[i], g = el && el.previousElementSibling;
+    while (g && !g.classList.contains('gap')) g = g.previousElementSibling;
+    if (g) g.dataset.at = String(segs[i].start);
+    var n = el && el.nextElementSibling;
+    while (n && !n.classList.contains('gap')) n = n.nextElementSibling;
+    if (n) n.dataset.after = String(segs[i].start);
+  }
+  function rfApply(res) {
+    var a = res.pair, olds = [segs[a], segs[a + 1]];
+    segs[a] = res.segments[0]; segs[a + 1] = res.segments[1];
+    laterMigrate(olds, [segs[a], segs[a + 1]]);
+    redrawSeg(a); redrawSeg(a + 1);
+    rfFixGaps(a + 1);
+    // the notes anchored to the line that started elsewhere were moved with it, on disk
+    if (res.notes) loadNotes();
+  }
+  function rfFlash(m) {
+    var d = els[m.to], sg = segs[m.to];
+    var fa = d && d.querySelector('.fa');
+    if (!fa || !sg) return;
+    var kids = Array.prototype.filter.call(fa.children, function (e) {
+      return e.classList.contains('w') || e.classList.contains('bare');
+    });
+    var lit = m.direction === 'next' ? kids.slice(0, m.phrases) : kids.slice(kids.length - m.phrases);
+    lit.forEach(function (e) { e.classList.add('rf-flash'); });
+    clearTimeout(rf.flash);
+    rf.flash = setTimeout(function () {
+      document.querySelectorAll('.rf-flash').forEach(function (e) { e.classList.remove('rf-flash'); });
+    }, 2200);
+    d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  // a start to a tenth of a second, which is what a line's start is moved to
+  function rfClock(t) {
+    var m = Math.floor(t / 60), sec = t - m * 60;
+    return m + ':' + (sec < 10 ? '0' : '') + sec.toFixed(1);
+  }
+  function rfClip(text) {
+    var a = String(text || '').split(/\s+/);
+    return a.length > 7 ? a.slice(0, 3).join(' ') + ' … ' + a.slice(-3).join(' ') : a.join(' ');
+  }
+  /* THE START, SETTLED INTO THE NEAREST PAUSE where the sound can be read (a film on this machine, a YouTube
+     video whose sound has been drawn): the words put the new start somewhere in a line, and a line begins in
+     the silence before its first word, not in the middle of the one before.  The same finder as the timings
+     sheet's `into the quiet`, within three seconds of the estimate; then the start is moved the way the
+     timings move it (/youtube/api/times), in every file that carries it.  Null where there is nothing to
+     settle it by -- no picture of the sound, no pause near, or a pause that is not between the two lines. */
+  function rfTimes(i, from, to) {
+    return fetch('/youtube/api/times', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ video: CFG.id, moves: [{ i: i, from: from, to: to }] })
+    }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (j) {
+        if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || 'the start could not be moved');
+        return j;
+      });
+    });
+  }
+  function rfSettle(res) {
+    var t = res.start.now, i = res.start.i;
+    if (!res.estimated || !window.ParsehTimeline || !ParsehTimeline.quiet || !player || !ready)
+      return Promise.resolve(null);
+    var lo = segs[i - 1] ? +segs[i - 1].start : 0, hi = segs[i + 1] ? +segs[i + 1].start : Infinity;
+    var dur = 0;
+    try { dur = player.getDuration ? player.getDuration() : 0; } catch (e) {}
+    var a = Math.max(0, t - 3), b = dur > 0 ? Math.min(t + 3, dur) : t + 3;
+    if (!(b > a)) return Promise.resolve(null);
+    return Promise.resolve(capPeaks(a, b, 600)).then(function (r) {
+      var at = ParsehTimeline.quiet(r, t);
+      if (at == null) return null;
+      at = Math.round(at * 10) / 10;
+      if (!(at > lo && at < hi) || Math.abs(at - t) < 0.05 || Math.abs(at - t) > 3) return null;
+      return rfTimes(i, t, at).then(function () {
+        // the flags of the line are kept under its start, which has moved again
+        var was = { start: t, text: segs[i].text, chunks: segs[i].chunks };
+        segs[i].start = at;
+        laterMigrate([was], [segs[i]]);
+        rfFixGaps(i);
+        loadNotes();
+        return { i: i, from: t, to: at };
+      });
+    }).catch(function () { return null; });
+  }
+  function rfGo(edge) {
+    var p = rf.pick;
+    if (!p || rf.busy) return;
+    var u = p.units[p.at], sg = segs[p.i];
+    var body = { action: 'move', seg: p.i, edge: edge, chunk: u.j, word: u.k,
+                 expect: { text: sg.text, chunk: u.ch.fa } };
+    rfPopShut();
+    rf.busy = true; RF.dock.classList.add('busy'); rfSay('moving…'); rfPaintDock();
+    rfPost(body).then(function (res) {
+      rfApply(res);
+      var entry = { pair: res.pair, after: JSON.parse(JSON.stringify(res.segments)), before: res.before, nudge: null };
+      rf.undo.push(entry);
+      rf.last = { i: res.start.i, t: res.start.now };
+      var m = res.moved;
+      var msg = 'Moved \u201c' + rfClip(m.text) + '\u201d (' + m.units + ' ' + rfNoun(m.units) + ') to ' +
+                (m.direction === 'next' ? 'the start of the next line' : 'the end of the line above') + '.';
+      var tail = m.cut ? ' A phrase was cut in two: the second half has its meaning still to write (\u270e edit).' : '';
+      rfFlash(m);
+      if (!res.estimated) { rfSay(msg + tail); return; }
+      rfSay(msg + ' Working out where that line begins\u2026');
+      return rfSettle(res).then(function (n) {
+        if (n) { entry.nudge = n; rf.last = { i: n.i, t: n.to }; }
+        rfSay(msg + ' That line now begins at ' + rfClock(n ? n.to : res.start.now) + ' \u2014 worked out from the words, ' +
+              (n ? 'then settled in the nearest pause of the sound.' : 'not heard.') + tail);
+      });
+    }, function (err) {
+      rfSay(err.message, true);
+    }).catch(function (err) {
+      rfSay((err && err.message) || String(err), true);
+    }).then(function () {
+      rf.busy = false; RF.dock.classList.remove('busy'); rfPaintDock();
+    });
+  }
+  function rfUndo() {
+    var e = rf.undo[rf.undo.length - 1];
+    if (!e || rf.busy) return;
+    rfPopShut();
+    rf.busy = true; RF.dock.classList.add('busy'); rfSay('taking it back…'); rfPaintDock();
+    // a start that was settled into a pause goes back where the words had put it, which is what the pair was
+    // asked to be before it is put back
+    (e.nudge ? rfTimes(e.nudge.i, e.nudge.to, e.nudge.from) : Promise.resolve()).then(function () {
+      if (e.nudge && segs[e.nudge.i]) {
+        var line = segs[e.nudge.i], was = { start: e.nudge.to, text: line.text, chunks: line.chunks };
+        line.start = e.nudge.from;
+        laterMigrate([was], [line]);
+      }
+      return rfPost({ action: 'restore', pair: e.pair, expect: e.after, to: e.before });
+    }).then(function (res) {
+      rf.undo.pop();
+      rfApply(res);
+      rf.last = { i: res.start.i, t: res.start.now };
+      rfSay('Taken back: the two lines are as they were.');
+    }, function (err) {
+      rf.undo = [];                         // what it could undo is no longer what is there
+      rfSay(err.message, true);
+    }).catch(function (err) {
+      rfSay((err && err.message) || String(err), true);
+    }).then(function () {
+      rf.busy = false; RF.dock.classList.remove('busy'); rfPaintDock();
+    });
+  }
+  RF.undo.onclick = rfUndo;
+  RF.play.onclick = function () {
+    if (rf.last) capPlay(Math.max(0, rf.last.t - 1.5), rf.last.t + 1.5);
+  };
+  RF.tune.onclick = function () { if (rf.last) openCapTimes(rf.last.i); };
+  RF.next.onclick = function () {
+    var from = pnReadFrom() + 12, pick = null;
+    for (var k = 0; k < els.length; k++) {
+      if (!els[k].classList.contains('rf-open')) continue;
+      if (!pick) pick = els[k];                          // where it wraps to
+      if (els[k].getBoundingClientRect().top > from + 4) { pick = els[k]; break; }
+    }
+    if (!pick) { rfSay('Every line ends on a full stop.'); return; }
+    pick.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  document.addEventListener('keydown', function (e) {
+    if (!rf.on || document.querySelector('.tl-root')) return;
+    var t = e.target, typing = t && (t.isContentEditable || /^(input|textarea|select)$/i.test(t.tagName || ''));
+    if (typing) return;
+    if (e.key === 'Escape' && !editing && !dvOn) {
+      if (!RF.pop.hidden) rfPopShut(); else rfSet(false);
+    }
+    if ((e.key === 'z' || e.key === 'Z') && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault(); rfUndo();
+    }
+    // with the card open, the two choices are on the keys: E ends the line here, S starts a line here
+    if (!RF.pop.hidden && !e.ctrlKey && !e.metaKey && !e.altKey && /^[esES]$/.test(e.key)) {
+      var b = RF.pop.querySelector('.rfgo[data-edge="' + (/^[eE]$/.test(e.key) ? 'end' : 'start') + '"]');
+      if (b && !b.disabled) { e.preventDefault(); rfGo(b.dataset.edge); }
+    }
+  });
+
   /* ---------------- sync with the video ---------------- */
   function findSeg(t) {
     var lo = 0, hi = segs.length - 1, ans = -1;
@@ -3917,7 +4446,8 @@
         // the neighbours stay readable: a sentence often carries over
         if (active > 0) els[active - 1].classList.add('near');
         if (active + 1 < els.length) els[active + 1].classList.add('near');
-        if (opts.follow && Date.now() - lastUserScroll > 2500) show(active);
+        // never from under the card of the move-text mode: it is set by the word the click was on
+        if (opts.follow && Date.now() - lastUserScroll > 2500 && !(rf.on && !RF.pop.hidden)) show(active);
       }
     }
   }
@@ -5579,7 +6109,7 @@
     return '';
   }
 
-  function openCapTimes() {
+  function openCapTimes(at) {
     if (!window.ParsehTimeline) {
       capSay('the timeline (lib/timeline.js) did not load: reload the page', true);
       return;
@@ -5590,9 +6120,11 @@
     // the page loads, and a hand quicker than that fetch would be offered
     // "draw the sound" for a video that has been drawn already -- and an
     // hour of recording is not a thing to offer twice by accident.
-    Promise.resolve(capWaveReady).catch(function () {}).then(reallyOpenCapTimes);
+    Promise.resolve(capWaveReady).catch(function () {}).then(function () { reallyOpenCapTimes(at); });
   }
-  function reallyOpenCapTimes() {
+  // `at` is the caption the sheet is to open on, when somebody else knows which (moving text between lines
+  // has just moved one's start); otherwise the one under the playhead
+  function reallyOpenCapTimes(at0) {
     if (!segs.length || !player || !ready) return;
     var was = segs.map(function (sg) { return +sg.start || 0; });
     var marks = segs.map(function (sg, i) {
@@ -5606,7 +6138,7 @@
     // playing or paused -- which is what is heard when the alignment is
     // noticed to be lost, and the first caption for a video not yet begun.
     // Read before capStop, though a pause moves nothing.
-    var now = capNow(), at = now == null ? 0 : Math.max(0, findSeg(now));
+    var now = capNow(), at = typeof at0 === 'number' && segs[at0] ? at0 : now == null ? 0 : Math.max(0, findSeg(now));
     capStop();
     ParsehTimeline.open({
       title: 'the timings — ' + (CFG.title || CFG.id),
@@ -5677,7 +6209,7 @@
       + 'it opens at the caption you are on'
       + (capWhyNoWave() ? ' (no waveform here: ' + capWhyNoWave() + ')' : ''));
   }
-  $('#captimes').onclick = openCapTimes;
+  $('#captimes').onclick = function () { openCapTimes(); };
 
   $('#vidinfo').onclick = openVidMeta;
   $('#vmcancel').onclick = closeVidMeta;
@@ -5895,6 +6427,7 @@
   }
   function rgOpen() {
     if (rgOn) return;
+    rfSet(false);             // picking a stretch and moving text both want a click on the lines
     rgForget();
     rgOn = true;
     RG.panel.hidden = false;
@@ -6835,6 +7368,21 @@
          help: 'While a gloss is open the video waits, and goes on a moment after it closes, so you can read at your own pace. With a mouse or a finger.',
          get: function () { return opts.hoverpause; },
          set: function (v) { press('#hoverpause', v, function () { return opts.hoverpause; }); }},
+        {id: 'below', kind: 'switch', layouts: 'browser', label: 'Glosses below the line', short: 'gloss below',
+         help: 'Shows each phrase’s gloss as text under the line, as a book does, instead of in a cloud when you ' +
+               'point at it. Pointing at a phrase in its row then opens the phrase’s tools: edit, card, copy, colour.',
+         get: function () { return opts.below; },
+         set: function (v) { press('#below', v, function () { return opts.below; }); }},
+        {id: 'reflow', kind: 'switch', layouts: 'browser', label: 'Move text between lines', short: 'moving text',
+         help: 'Turns each word of a line into something to click: a card opens by it with two choices, End the line here and ' +
+               'Start a line here, which move the words after it down to the next line or the words before it up to the line ' +
+               'above, so that lines end where sentences do. Not kept: it is on until you press Done or Esc. The M key does the same.',
+         get: function () { return rf.on; },
+         set: function (v) { rfSet(v); },
+         watch: function (cb) {
+           rf.fire.push(cb);
+           return function () { rf.fire = rf.fire.filter(function (f) { return f !== cb; }); };
+         }},
         {id: 'aloud', kind: 'switch', label: 'Show only the reading', short: 'reading only',
          help: 'Draws each phrase as its reading alone (kana, or pinyin) and keeps the text in the hover cloud.',
          when: function () { return !!L.words; },
@@ -7183,6 +7731,38 @@
     }, function (e) { laterSay('could not mark it: ' + (e && e.message), true); return false; });
   }
   // the cloud's button, drawn with the rest of the row (fillCloud)
+  /* A FLAG FOLLOWS ITS PHRASE when text moves between two lines.  A flag is kept under the line's start and
+     the phrase's number in it, and moving words changes both -- of the phrases that crossed, and of every
+     phrase of a line whose start moved.  So each flagged phrase of the two lines is found again in the two
+     lines as they now are, by its text, and flagged there: taken off its old place without a word, and put
+     on its new with the time and the device it was first flagged by.  A phrase that was cut in two keeps its
+     flag where it was saved (its text is no longer anywhere). */
+  function laterMigrate(olds, news) {
+    if (!laterOn()) return;
+    var pool = [], jobs = [];
+    news.forEach(function (sg) {
+      (sg.chunks || []).forEach(function (ch) { pool.push({ sg: sg, ch: ch, taken: false }); });
+    });
+    olds.forEach(function (sg) {
+      (sg.chunks || []).forEach(function (ch) {
+        var oid = laterId(sg, ch);
+        if (!LT.has(oid)) return;
+        var want = lnorm(ch.fa), hit = null;
+        pool.forEach(function (p) { if (!hit && !p.taken && lnorm(p.ch.fa) === want) hit = p; });
+        if (!hit) return;
+        hit.taken = true;
+        if (laterId(hit.sg, hit.ch) === oid) return;             // nothing about it moved
+        jobs.push({ oid: oid, old: LT.get(oid), sg: hit.sg, ch: hit.ch });
+      });
+    });
+    if (!jobs.length) return;
+    Promise.all(jobs.map(function (j) {
+      var parts = laterParts(j.sg, j.ch), rec;
+      parts.at = j.old.at; parts.by = j.old.by;
+      try { rec = LT.record(parts); } catch (e) { return Promise.resolve(); }
+      return LT.remove(j.oid, { toast: false }).then(function () { return LT.add(rec); });
+    })).then(laterPaint, laterPaint);
+  }
   function laterButton(ch) {
     if (!laterOn() || !cloudCtx) return '';
     var on = laterMarked(cloudCtx.sg, ch);

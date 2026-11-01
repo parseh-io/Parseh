@@ -17,6 +17,32 @@ guide and rebuilds the readers by itself.
 
 ## a0.5.8 — not yet released
 
+### Glosses below the line
+
+The video player showed a phrase's gloss in a cloud when you pointed at it. **Glosses below the line**, in the ⚙ panel's
+*Watching & reading*, draws it **as text under the line**, the way a book's chunks level does:
+a row for each phrase, the phrase on the side the language reads from and, beside it, its transliteration, vocabulary line,
+meaning and note — and the reading, in Japanese. Pointing at a phrase of the line lights its row; pointing at the phrase in
+its row opens the cloud as the phrase's **tools** (**+ card**, **⧉ copy**, **✎ edit**, **review later**, the four colours),
+without the gloss it would say twice. A phrase written with ✎ changes its row and its line together. The choice is kept on
+this device, and a phone keeps its tap and its sheet
+([Glosses below the line](../videos/the-player.md#glosses-below-the-line)).
+
+### Making lines end where sentences do
+
+A video's captions are cut where YouTube or the speech model cut them, often in the middle of a sentence, and a video already
+on the shelf let you move **where a line starts** but never **what is in it**. **Move text between lines**, in the ⚙ panel's *Watching & reading* (and the **M** key, and a **move text** button in a window wide enough for one), is a mode
+in which **a click on a word** opens a card with two choices — **End the line here**, which sends the words after it down to
+the start of the next line, and **Start a line here**, which sends the words before it up to the end of the line above. Each
+says how many words it moves and **lights them while it is pointed at**; one that cannot be made is greyed, with the reason.
+Whole phrases cross with their glosses (and their review later flags); a word inside a phrase **cuts** it at a space, as ✂ does,
+leaving the second half's meaning to write. The words of the transcript are the same before and after, in `annotations.json`
+and `transcript.txt` together, and the move is refused, in the checker's words, if it would break the video. Nothing hears the
+sound, so the new start of the line that gained or lost its first words is **worked out from the words** and said to be: **▶
+hear the join** plays across it and **fine-tune the start** opens [the timings](../videos/the-timings.md) sheet on that line.
+**Undo** (or Ctrl+Z) puts the two lines back exactly, as long as they were not written to since
+([Moving text between lines](../videos/moving-text.md)).
+
 ## a0.5.7 — 28 October 2026
 
 ### Check as I answer

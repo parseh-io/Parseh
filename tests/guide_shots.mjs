@@ -57,6 +57,8 @@ const FILES = {
   // the video's player
   'player':            'videos/shots/player.png',
   'gear-player':       'getting-started/shots/gear-player.png',
+  'player-below':      'videos/shots/player-below.png',                  // the glosses under the line, a book's chunks level
+  'moving-text':       'videos/shots/moving-text.png',                   // "move text": the card by a word, the words it would move lit
   // the studio's pages
   'doc-linked':        'studio/shots/linked-from.png',                   // a document, its bars, its drawer
   'gear-document':     'getting-started/shots/gear-document.png',
@@ -515,6 +517,31 @@ const PICS = {
     await page.waitForSelector('#cloud', {state: 'visible', timeout: 8000});
     await sleep(400);
     await save(page, 'player');
+    await ctx.close();
+  },
+  async 'player-below'() {
+    const ctx = await context(DESK(1000));
+    const page = await openPlayer(ctx, {width: 1000, height: 700});
+    await page.click('#sbs');
+    // the gear's row presses the page's own button, which the bar does not draw
+    await page.evaluate(() => document.getElementById('below').click());
+    await sleep(500);
+    await page.evaluate(() => { ParsehPlayer.seek(12); ParsehPlayer.pause(); });
+    await sleep(900);
+    await save(page, 'player-below');
+    await ctx.close();
+  },
+  async 'moving-text'() {
+    const ctx = await context(DESK(1000));
+    const page = await openPlayer(ctx, {width: 1000, height: 560});
+    await page.click('#sbs');
+    await page.keyboard.press('m');
+    await sleep(400);
+    await page.locator('.seg[data-i="3"] .fa .wd').nth(1).click();     // «کیلو» of «دو کیلو می‌خواهم لطفا»
+    await page.waitForSelector('#rfpop:not([hidden])');
+    await page.hover('#rfpop .rfgo[data-edge="end"]');
+    await sleep(400);
+    await save(page, 'moving-text');
     await ctx.close();
   },
   async 'gear-player'() {

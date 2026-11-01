@@ -6396,6 +6396,43 @@ def test_server():
                                dict(edit, fields={"plain": True}),
                                "a page setting plain, which stays the author's",
                                want=400)
+                    # --- MOVING TEXT BETWEEN LINES (a0.5.8): the words after a phrase go
+                    # to the front of the next line in annotations.json and
+                    # transcript.txt together, the checker still ends with no
+                    # error, the same route takes it back exactly, and a page
+                    # that is out of date is refused by name (409)
+                    segs_now = json.load(open(where_ann, encoding="utf-8"))["segments"]
+                    pair = next((i for i in range(len(segs_now) - 1)
+                                 if len(segs_now[i].get("chunks") or []) > 1
+                                 and segs_now[i + 1].get("chunks")
+                                 and not segs_now[i + 1].get("chapter")), None)
+                    if pair is not None:
+                        kept = open(where_ann, encoding="utf-8").read()
+                        move = {"video": vid, "action": "move", "seg": pair, "edge": "end", "chunk": 0}
+                        j = _post_json(port, "/youtube/api/reflow",
+                                       dict(move, expect={"text": "not what the page shows"}),
+                                       "the move-text route, for a page out of date", want=409)
+                        check(kept == open(where_ann, encoding="utf-8").read(),
+                              "which wrote nothing")
+                        j = _post_json(port, "/youtube/api/reflow", move,
+                                       "the move-text route, the end of a line sent down")
+                        after = json.load(open(where_ann, encoding="utf-8"))["segments"]
+                        check(len(after[pair]["chunks"]) == 1
+                              and after[pair + 1]["text"] == j["segments"][1]["text"]
+                              and j["segments"][1]["text"].endswith(segs_now[pair + 1]["text"]),
+                              "which moved the phrases to the front of the next line",
+                              json.dumps(j)[:200])
+                        rc, out = run([sys.executable, os.path.join(YT_LIB, "check_annotations.py"), dst], cwd=YT)
+                        check(rc == 0 and "0 error(s)" in out,
+                              "and the checker still finds no error in the video", out[-300:])
+                        _post_json(port, "/youtube/api/reflow",
+                                   {"video": vid, "action": "restore", "pair": j["pair"],
+                                    "expect": j["segments"], "to": j["before"]},
+                                   "and the same route taking it back")
+                        check(kept == open(where_ann, encoding="utf-8").read(),
+                              "after which annotations.json is what it was, byte for byte")
+                        _post_json(port, "/youtube/api/reflow", dict(move, seg="x"),
+                                   "the move-text route, a line that is not a number", want=400)
                     # --- THE VIDEO'S OWN METADATA: title, channel, level,
                     # blurb -- video.json, not a chunk.  The concrete case
                     # this route exists for: api_add's YouTube lookup got

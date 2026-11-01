@@ -6,7 +6,9 @@ description: Moving where a phrase ends — cut in two, join next, join previous
 ---
 
 Everything on the [editing page](editing-a-phrase.md) changes what a phrase
-**says**. This changes where it **stops**.
+**says**. This changes where it **stops**, inside its line; where a **line**
+stops — words moved to the line before or after — is
+[Moving text between lines](moving-text.md).
 
 A phrase is a sense group, and where the sense groups fall is a judgement
 somebody makes while reading — which means the division a model produced

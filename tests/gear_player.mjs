@@ -362,8 +362,8 @@ async function partB() {
      ['Watching & reading', 'Looking a word up', 'Playback', 'Text'].concat(zoom ? ['Zoom'] : [], ['Colours', 'Interface']),
      'the groups, in the plan\'s order: watching, looking a word up, playback, text, (zoom,) colours, interface');
   const rows = Object.fromEntries(got.map(g => [g[0], g[2]]));
-  eq(rows.watching, ['follow', 'hoverpause', 'sbs', 'pin', 'size'],
-     'Watching & reading on a computer: keep in view, pause, beside the text, keep the video, its size -- no reading, no marks, no lines');
+  eq(rows.watching, ['follow', 'hoverpause', 'below', 'reflow', 'sbs', 'pin', 'size'],
+     'Watching & reading on a computer: keep in view, pause, glosses below the line, move text between lines, beside the text, keep the video, its size -- no reading, no marks, no lines');
   eq(rows.looking, ['dict', 'defs', 'defsmt', 'help'], 'Looking a word up: the dictionary, its definitions, their translation, the link');
   eq(rows.playback, ['skip'], 'Playback on a computer: the skip distance alone (the page has no speed control of its own)');
   eq(rows.text, ['fa', 'gl', 'width', 'lead', 'reset'], 'Text: the language, the glosses, the width, the spacing, the way back (no subtitles: that is the phone\'s)');
@@ -396,12 +396,14 @@ async function partB() {
       eq((await rowWords(page, g, r)).name, want, `the row ${r} is named «${want}»`);
     }
   const w = {};
-  for (const r of ['follow', 'hoverpause', 'sbs', 'pin', 'size']) w[r] = (await rowWords(page, 'watching', r)).help;
+  for (const r of ['follow', 'hoverpause', 'below', 'sbs', 'pin', 'size']) w[r] = (await rowWords(page, 'watching', r)).help;
   eq(w.follow, 'Scrolls the transcript so the caption being said stays on screen; it waits a moment after you scroll yourself.', 'the sentence of «keep in view»');
   eq(w.pin, 'The video stays at the top while the transcript scrolls under it. Not needed when the video is beside the text.', 'the sentence of «keep the video in view»');
   eq(w.sbs, 'Puts the video in a column beside the transcript instead of above it. Only on wide screens (860 px and up); on a phone, turning it sideways does it.', 'the sentence of «video beside the text»');
   eq(w.size, 'How big the video is. You can also drag the bar under it; double-click it to reset.', 'the sentence of «video size»');
   eq(w.hoverpause.startsWith('While a gloss is open the video waits'), true, 'the sentence of «pause while a gloss is open» speaks of the video');
+  eq(w.below.startsWith('Shows each phrase’s gloss as text under the line, as a book does'), true, 'the sentence of «glosses below the line» says what it draws');
+  eq((await rowWords(page, 'watching', 'below')).name, 'Glosses below the line', 'the row is named for what it does');
   await shutGear(page);
 
   // THE OTHER LANGUAGES' ROWS: a language's own name on the text row, and the rows only some have
@@ -418,7 +420,7 @@ async function partB() {
   await open(ja, JA);
   await openGear(ja);
   const jaRows = await drawnGroups(ja);
-  eq(jaRows.find(g => g[0] === 'watching')[2], ['follow', 'hoverpause', 'aloud', 'sbs', 'pin', 'size'], 'a Japanese video: the reading-only row is there');
+  eq(jaRows.find(g => g[0] === 'watching')[2], ['follow', 'hoverpause', 'below', 'reflow', 'aloud', 'sbs', 'pin', 'size'], 'a Japanese video: the reading-only row is there');
   eq(jaRows.find(g => g[0] === 'text')[2], ['fa', 'gl', 'width', 'lead', 'cjkSpace', 'kanaContrast', 'kanaSize', 'reset'],
      'a Japanese video: space between characters, furigana contrast and furigana size');
   eq(await ja.evaluate(() => document.querySelector('#aloud').textContent), 'kana only', 'and its button is «kana only»');
@@ -489,6 +491,26 @@ async function partC() {
   eq(await page.evaluate(() => __yt.calls.map(c => c[0]).slice(-1)), ['play'], 'the gloss closed: the video went on a moment after');
   await flip(page, 'watching', 'hoverpause');
   eq((await state()).hover, [false, '0'], 'and the row put it back off');
+  // -- glosses below the line: the page's own button, and rows under every glossed line
+  await flip(page, 'watching', 'below');
+  await page.waitForFunction(() => document.querySelectorAll('#segs .row').length > 0);
+  eq(await page.evaluate(() => [document.querySelector('#below').classList.contains('on'), localStorage.getItem('yt_below'),
+                                document.body.classList.contains('glossbelow')]), [true, '1', true],
+     'glosses below the line: the page\'s own button is on, the key is kept and the page says what it draws');
+  await flip(page, 'watching', 'below');
+  await page.waitForFunction(() => document.querySelectorAll('#segs .row').length === 0);
+  eq(await page.evaluate(() => [localStorage.getItem('yt_below'), document.body.classList.contains('glossbelow')]), ['0', false],
+     'and the row put the rows away again');
+  // -- move text between lines: the row turns the mode on, the page and the row agree, and the dock's Done turns it off
+  await flip(page, 'watching', 'reflow');
+  await page.waitForFunction(() => document.body.classList.contains('reflowing'));
+  eq(await page.evaluate(() => [!document.getElementById('rfdock').hidden,
+                                document.querySelector('[data-pg-row="reflow"] .pg-switch').getAttribute('aria-checked')]),
+     [true, 'true'], 'move text between lines: the row turns the mode on, the dock is up and the row says it is on');
+  await page.evaluate(() => document.getElementById('rfdone').click());
+  await page.waitForFunction(() => !document.body.classList.contains('reflowing'));
+  eq(await page.evaluate(() => document.querySelector('[data-pg-row="reflow"] .pg-switch').getAttribute('aria-checked')), 'false',
+     'and leaving the mode from the dock puts the row back off');
   await page.evaluate(() => { __yt.calls.length = 0; });
   // (a switch no longer shuts the popover as it is pressed, so the page under it is reached by shutting it)
   await shutGear(page);

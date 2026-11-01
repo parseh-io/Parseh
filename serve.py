@@ -176,6 +176,7 @@ import activity           # noqa: E402  what the server is busy with, for every 
 import draft               # noqa: E402  an empty book or video, to author from nothing
 import annwrite            # noqa: E402  one chunk of a video's annotations, edited
 import captimes            # noqa: E402  a caption's start, moved in every file that carries it
+import reflow              # noqa: E402  text moved from one line of an added video to the line before or after it
 import wordline            # noqa: E402  a Japanese or Chinese chunk's word line, read
 import words               # noqa: E402  and one proposed, where the analyzers are installed
 import audiofile           # noqa: E402  what a recording is, and ffmpeg's three jobs on one
@@ -4578,6 +4579,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._video_divide_chunk()
             if sub == "/api/times":
                 return self._video_times()
+            if sub == "/api/reflow":
+                return self._video_reflow()
             if sub == "/api/waveform":
                 return self._video_waveform()
             if sub.startswith("/api/transcribe/"):
@@ -5862,6 +5865,51 @@ class Handler(SimpleHTTPRequestHandler):
         out = {"ok": True}
         out.update(r)
         self.send_json(out)
+
+    def _video_reflow(self):
+        """Text moved from one line of an added video to the line before it or
+        after it: where a line ENDS (youtube/lib/reflow.py says why that is a
+        door the transcript may have, and what it writes together).
+
+            {video, action: "move", seg, edge: "end"|"start", chunk, word?,
+             expect?: {text, chunk}}                      -> the two lines, as they are and were
+            {video, action: "restore", pair, expect, to}  -> the same, put back
+
+        A page that is showing something the file no longer holds is refused
+        with 409, as the divide sheet is, and told to reload."""
+        body = self._json_body()
+        d = self._video_dir(body.get("video") or "")
+        if not d:
+            return self.send_json({"ok": False, "error": "no such video"}, 404)
+        action = body.get("action") or "move"
+        try:
+            if action == "move":
+                for k in ("seg", "chunk"):
+                    v = body.get(k)
+                    if not isinstance(v, int) or isinstance(v, bool):
+                        return self.send_json({"ok": False, "error":
+                                               "%s must be a number" % k}, 400)
+                word = body.get("word")
+                if word is not None and (not isinstance(word, int) or isinstance(word, bool)):
+                    return self.send_json({"ok": False, "error": "word must be a number"}, 400)
+                r = reflow.move(d, body.get("seg"), body.get("edge"), body.get("chunk"),
+                                word, body.get("expect"))
+            elif action == "restore":
+                pair = body.get("pair")
+                if not isinstance(pair, int) or isinstance(pair, bool):
+                    return self.send_json({"ok": False, "error": "pair must be a number"}, 400)
+                r = reflow.restore(d, pair, body.get("expect"), body.get("to"))
+            else:
+                return self.send_json({"ok": False, "error":
+                                       "action must be move or restore"}, 400)
+        except reflow.Stale as e:
+            return self.send_json({"ok": False, "error": str(e)}, 409)
+        except ValueError as e:
+            return self.send_json({"ok": False, "error": str(e)}, 400)
+        except OSError:
+            return self.send_json({"ok": False, "error":
+                                   "this video has no annotations.json yet"}, 404)
+        self.send_json(dict(r, ok=True))
 
     def _video_waveform(self):
         """The SHAPE of a YouTube video's sound, recorded from a tab.

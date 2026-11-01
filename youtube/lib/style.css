@@ -48,6 +48,8 @@ header button.on{background:var(--accent);color:var(--accent-fg);border-color:va
    Under html.pg-player, which the page wears once the toolkit has come (player.html): a page without
    it keeps them where they were */
 html.pg-player header :is(#hoverpause,#defmode,#defmt,#lookupset){display:none}
+/* ...and so is «gloss below» (a0.5.8), which is the gear's row alone: the header holds no more at 1280px */
+html.pg-player header #below{display:none}
 /* the gear is the last thing on the bar and stays at its right end, on a second row of its own when the bar
    wraps (the popover opens under it, right edges together) */
 html.pg-player header .pg-gear{margin-inline-start:auto}
@@ -1122,3 +1124,85 @@ html.m-player[data-mode=mobile] #rgpanel{display:none!important}
 #ntpeek .pkx{color:var(--ink);white-space:pre-line;unicode-bidi:plaintext;
   text-align:start;overflow-wrap:anywhere}
 #ntpeek .pkf{color:var(--faint);font-size:11px;font-style:italic;margin-top:5px}
+
+/* ---------------- the glosses below the line (the bar's "gloss below") ----------------
+   A book's chunks level, in the transcript: under each line a row for each phrase that has a gloss to show
+   -- the phrase on one side, and beside it what the cloud holds (the reading, the transliteration, the
+   vocabulary, the meaning, the note), set the way the cloud sets them.  Which side the phrase stands on is
+   the language's own direction, so a Persian row has its text at the right and a Spanish one at the left.
+   Not on the page at all unless it is switched on, so a line is what it always was. */
+.seg .rows{clear:both;margin:4px 0 2px;padding-top:4px;border-top:1px dotted var(--rule)}
+.seg .row{display:flex;gap:18px;align-items:baseline;padding:5px 6px;border-radius:6px}
+html[data-dir="rtl"] .seg .row{flex-direction:row-reverse}
+.seg .row.lit{background:var(--hl)}
+.seg .row .rfa{flex:0 0 min(36%,16em);font-family:var(--tl-font,serif);
+  font-size:calc(var(--yt-fa,20px) * .9);line-height:calc(1.8 * var(--yt-lead,1));
+  text-align:start;color:var(--ink);cursor:pointer}
+.seg .row .rgl{flex:1 1 0;min-width:0;direction:ltr;text-align:left;
+  font-size:var(--yt-gl,12.5px);color:var(--dim);line-height:1.45}
+.seg .rgl .kana{font-family:var(--tl-font,serif);color:var(--ink);
+  font-size:calc(var(--yt-gl,12.5px) + 1.5px);line-height:1.5}
+.seg .rgl .tr{font-style:italic;color:var(--ink);font-size:calc(var(--yt-gl,12.5px) + .5px)}
+.seg .rgl .voc{margin:3px 0 0;padding-top:3px;border-top:1px solid var(--rule)}
+.seg .rgl .en{color:var(--dim);margin-top:3px}
+.seg .rgl .note{color:var(--faint);font-size:11.5px;margin-top:4px;font-style:italic}
+.seg .rgl bdi.v{font-family:var(--tl-font,serif);font-size:calc(var(--yt-gl,12.5px) + 1px);font-style:normal}
+.seg .rgl .unwritten{color:var(--faint);font-style:italic}
+/* the rows fade with their line while the video is synced, as the line does */
+body.synced .seg .rows{opacity:.6;transition:opacity .15s}
+body.synced .seg.on-air .rows,body.synced .seg.near .rows,body.synced .seg:hover .rows{opacity:1}
+@media (max-width:620px){
+  .seg .row,html[data-dir="rtl"] .seg .row{flex-direction:column;gap:2px}
+  .seg .row .rfa{flex:0 0 auto}
+}
+
+/* THE BAR'S «move text» is the review-later door's case again, and a harder one: the header is as full as a
+   window of 1280px holds it, and the button, even as a glyph, sent it on to a second row (every line of the
+   transcript a row lower).  So it is drawn only where there is room; below that the mode is the ⚙ panel's row
+   «Move text between lines» and the M key, which are the same act. */
+@media (max-width:1479px){
+  header #reflow{display:none}
+}
+/* ---------------- moving text between lines (the bar's "move text") ----------------
+   The words of a line become things to click, a line that stops in the middle of a sentence is marked, and
+   two small pieces of chrome appear: the card by the word that was clicked (#rfpop) and the dock at the foot
+   that says what was done and keeps Undo in reach (#rfdock).  Nothing here is on the page unless the mode is. */
+/* the dock lies over the foot of the page: a line scrolled into view stops above it */
+body.reflowing .seg{scroll-margin-bottom:120px}
+body.reflowing .seg .fa .wd,body.reflowing .seg .fa .bare{cursor:pointer;border-radius:3px}
+body.reflowing .seg .fa .wd:hover,body.reflowing .seg .fa .bare:hover{background:var(--hl);
+  box-shadow:0 0 0 2px var(--hl)}
+.seg.rf-open .fa::after{content:"\22EF";color:var(--accent);font-weight:700;margin-inline-start:.45em}
+.rf-pick{background:var(--hl);box-shadow:0 0 0 2px var(--accent);border-radius:3px}
+.rf-moving{background:var(--hl);outline:2px dashed var(--accent);outline-offset:1px;border-radius:3px}
+.rf-flash{animation:rfflash 2.2s ease-out}
+@keyframes rfflash{0%,55%{background:var(--hl);box-shadow:0 0 0 3px var(--hl)}
+  100%{background:transparent;box-shadow:0 0 0 3px transparent}}
+@media (prefers-reduced-motion:reduce){.rf-flash{animation:none;background:var(--hl)}}
+#rfpop{position:fixed;z-index:85;width:min(340px,92vw);background:var(--card);
+  border:1px solid var(--rule);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.22);
+  padding:9px 10px 10px;font-size:13px;color:var(--dim);direction:ltr;text-align:left}
+#rfpop[hidden]{display:none}
+#rfq{font-family:var(--tl-font,serif);font-size:calc(var(--yt-fa,20px) * .85);color:var(--ink);
+  margin:0 2px 4px;line-height:1.4;unicode-bidi:plaintext}
+#rfpop .rfgo{display:block;width:100%;text-align:start;margin:5px 0 0;padding:6px 10px;
+  border:1px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink);
+  cursor:pointer;font:inherit}
+#rfpop .rfgo b{display:block;font-weight:600;font-size:13.5px}
+#rfpop .rfgo small{display:block;color:var(--dim);font-size:12px;margin-top:2px;line-height:1.35}
+#rfpop .rfgo:hover:not(:disabled),#rfpop .rfgo:focus-visible{border-color:var(--accent);background:var(--hl)}
+#rfpop .rfgo:disabled{opacity:.6;cursor:not-allowed}
+#rfdock{position:fixed;z-index:70;left:50%;transform:translateX(-50%);bottom:14px;
+  width:min(760px,94vw);background:var(--card);border:1px solid var(--rule);border-radius:12px;
+  box-shadow:0 8px 28px rgba(0,0,0,.22);padding:9px 12px;display:flex;gap:10px 14px;
+  align-items:center;flex-wrap:wrap;direction:ltr;text-align:left}
+#rfdock[hidden]{display:none}
+#rfdock.busy{opacity:.75}
+#rfsay{flex:1 1 280px;font-size:13px;line-height:1.4;color:var(--dim);min-height:1.4em}
+#rfsay.bad{color:var(--danger)}
+#rfdock .rfbtns{display:flex;gap:6px;flex-wrap:wrap}
+#rfdock button{font:inherit;font-size:13px;padding:5px 10px;border:1px solid var(--rule);
+  background:var(--bg);color:var(--ink);border-radius:6px;cursor:pointer;white-space:nowrap}
+#rfdock button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+#rfdock button:disabled{opacity:.5;cursor:default}
+#rfdock #rfdone{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}

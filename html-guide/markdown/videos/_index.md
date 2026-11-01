@@ -44,8 +44,9 @@ the videos have no mobile version of their own yet.
    in the player.
 4. **Write it**: the ✎ in any gloss cloud opens the phrase's fields;
    **gloss with an LLM** has a chatbot gloss a run of captions;
-   **the timings** moves where a caption starts; a **+** between two lines
-   holds a note of your own.
+   **the timings** moves where a caption starts; **move text** moves words
+   between two lines, so that lines end where sentences do; a **+** between
+   two lines holds a note of your own.
 5. **Take it away**: the ⤓ in the player's bar downloads the video as one
    zip that another Parseh installs whole.
 
@@ -55,7 +56,7 @@ the videos have no mobile version of their own yet.
   the channels, the cards and what their tags say, taking a video off the
   shelf.
 - [The video player](the-player.md) — every control in the bar and the ⚙ panel, reading a
-  transcript, beside the text, the grip, review later, phones.
+  transcript, the glosses below the line, beside the text, the grip, review later, phones.
 - [Reading help](reading-help.md) — the dictionary under a phrase nobody
   has glossed, the definitions, the readings of Japanese and Chinese, and
   **Decompose Kanji**.
@@ -76,6 +77,8 @@ the videos have no mobile version of their own yet.
   deleting a gloss to have it written again.
 - [Notes between the captions](notes-in-the-seam.md) — a studio document in
   the seam between two lines.
+- [Moving text between lines](moving-text.md) — making lines end where
+  sentences do: a click on a word, what moves, Undo.
 - [The timings](the-timings.md) — moving where a caption starts, over a
   picture of the sound.
 - [Video info](video-info-and-drafts.md) — the title, the channel and the

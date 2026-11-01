@@ -191,7 +191,9 @@ have lost.
   capture track: ordered words with video-clock starts and ends, their source
   (Whisper, the optional aligner, or an honest worked-out value), and any
   accepted person-set boundary. The player does not edit or depend on it in
-  this version; it travels in a video bundle for later timing work.
+  this version — [moving text between lines](moving-text.md) does not rewrite it
+  either, since it is the capture as it was; it travels in a video bundle for later
+  timing work.
 - **`media.<ext>`** is the film of [a film on this machine](a-film-on-this-machine.md).
   It is kept out of git; the rest can be.
 - **`media-orig.<ext>`** exists only for a sound a browser could not play: the
