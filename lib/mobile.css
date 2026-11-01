@@ -752,6 +752,13 @@ html.m-player[data-mode=mobile] main > .hint{display:none!important}
 html.m-player[data-mode=mobile] main{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 /* the transcript at a size to read, its captions a finger's targets */
 html.m-player[data-mode=mobile] #segs .seg{padding:10px 8px}
+/* THE GLOSSES BELOW THE LINE (the gear's «Glosses below the line», youtube/lib/style.css draws them) on a phone:
+   each row's phrase over its gloss, at every width -- held sideways the transcript is half the screen and a
+   row of two columns would be cramped -- and the phrase a finger's size to tap for its tools */
+html.m-player[data-mode=mobile] .seg .row,html.m-player[data-mode=mobile][data-dir=rtl] .seg .row{
+  flex-direction:column;align-items:stretch;gap:2px;padding:6px}
+html.m-player[data-mode=mobile] .seg .row .rfa{flex:0 0 auto;padding:4px 0}
+html.m-player[data-mode=mobile] .seg .row .rgl{flex:0 0 auto}
 /* NOTHING THAT WRITES THE VIDEO, and no sheet of one: the card, the chunk's
    own fields, the division of a chunk, the note's editor, the timings -- and
    the cloud's colour marks, which write the phrase's colour into the video's

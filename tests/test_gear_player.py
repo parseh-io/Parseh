@@ -197,7 +197,7 @@ class TheRowsTests(unittest.TestCase):
         self.in_order("' text size'", "How big the transcript’s own words are, the ones you are learning.",
                       "label: 'Subtitle size', layouts: 'mobile'",
                       "How big the subtitles are over the video when it fills the screen (a phone held sideways).",
-                      "label: 'Gloss size'", "How big the meanings and notes in the hover cloud are.",
+                      "label: 'Gloss size'", "How big the meanings and notes are, in the hover cloud and in the rows under a line.",
                       "label: 'Text width'", "How wide the column of transcript may grow on a wide screen; on a narrow screen it always fits.",
                       "label: 'Line spacing'", "The space between lines: 1 is the usual, more is airier.",
                       "label: 'Space between characters'", "Extra room between characters; 0 is the normal spacing.",

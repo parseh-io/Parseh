@@ -17,6 +17,15 @@ guide and rebuilds the readers by itself.
 
 ## a0.6.0 — not yet released
 
+### Glosses below the line, on a phone too
+
+a0.5.8's **Glosses below the line** (a row for each phrase under its line, the gloss as text, not in a cloud) was a
+computer's. The video's ⚙ sheet on a phone has the row now, in *Watching & reading*. On a phone each row stands its phrase
+over its gloss; a tap on the line replays it; a tap on the phrase in its row opens the cloud as the phrase's tools — **copy**,
+**review later**, the dictionary. Held sideways, with the video on the whole screen, the subtitle over the picture is the line
+alone, and a tap on one of its phrases opens the gloss in the cloud, as before
+([Glosses below the line](../videos/the-player.md#glosses-below-the-line)).
+
 ## a0.5.8 — 1 November 2026
 
 ### Glosses below the line

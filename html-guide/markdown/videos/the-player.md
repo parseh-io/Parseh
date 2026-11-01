@@ -88,8 +88,12 @@ The rest of the page works as it did:
   the flag and the ✱ notes mark the phrase in its row as in its line;
 - **writing a phrase** with ✎ changes its row and its line together.
 
-The choice is kept on this device and holds for every video. It is not drawn on a
-phone, whose interface reads a gloss with a tap and a sheet.
+The choice is kept on this device and holds for every video. It is the same row
+on a phone, in the ⚙ sheet's *Watching & reading* ([below](#on-a-phone)): there each
+row stands its phrase over its gloss, a tap on the line replays it, and a tap on the
+phrase in its row opens its tools (**copy**, **review later**, the dictionary).
+A video on the whole screen, held sideways, shows the line alone over the picture,
+and a tap on a phrase of it opens the gloss in the cloud, as it always did.
 
 ## A sound instead of a video {#a-sound}
 
@@ -346,7 +350,8 @@ YouTube video that has not loaded or from a film that is gone.
 A phone has nothing to hover with, so a **tap** on a phrase opens its cloud
 and a second tap closes it — on any screen, including one that claims a
 hover it never delivers. A tap elsewhere on the line still plays it from its
-beginning. On a narrow screen the bar slides out of the way as the page
+beginning. With **Glosses below the line** on ([above](#glosses-below-the-line)),
+the glosses are on the page instead and the cloud is the phrase's tools. On a narrow screen the bar slides out of the way as the page
 moves down and comes back on the smallest move up, bringing the video with
 it; a desktop is left exactly as it is. On a phone the bar has **⚙**:
 the page's panel opens as a sheet from the foot of the screen — first a list of themes, each

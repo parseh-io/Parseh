@@ -200,9 +200,15 @@
     if (mobileMode()) return window.matchMedia(WIDE_M).matches;
     return opts.sbs && window.matchMedia(WIDE).matches;
   }
-  // the glosses are drawn under the line only where there is room for a book's rows: the phone's
-  // interface has its own way to read a gloss (a tap, a sheet) and keeps it
-  function belowOn() { return !!opts.below && !mobileMode(); }
+  // the glosses are drawn under the line when the person asked for them, on a computer and on a phone alike.
+  // On a phone the rows stand one over the other (lib/mobile.css), and a copy of a caption laid over a video
+  // on the whole screen (lib/mobileplayer.js) is the line alone, its gloss in the cloud a tap opens
+  function belowOn() { return !!opts.below; }
+  // THE CLOUD IS THE PHRASE'S TOOLS ONLY when it hangs on a phrase in its row, whose gloss is under it; on a
+  // subtitle copied over the picture (nothing there says the gloss) it is the whole gloss, as it always was
+  function toolsOnly() {
+    return belowOn() && !!(cloudFor && cloudFor.closest && cloudFor.closest('.rows'));
+  }
   // the theme (light / dark / sepia) is the toolbox's own, one preference
   // for every page: /lib/parseh.js keeps it and wires the ◐ button
   function paintButtons() {
@@ -903,7 +909,7 @@
     if (aloudOn()) h += '<div class="ctext" lang="' + L.code + '">' + esc(asDrawn(ch.fa)) + '</div>';
     // WITH THE GLOSSES BELOW THE LINE the cloud is the phrase's TOOLS and nothing it already shows: the
     // gloss is in the row it was opened from, and said twice it would only hide the row it is over
-    if (!belowOn()) h += glossLines(ch);
+    if (!toolsOnly()) h += glossLines(ch);
     // a chunk nobody has glossed yet -- a phrase all the same, hoverable and
     // writable (segEl() says why): say so, rather than opening a cloud that
     // looks broken.  THE GLOSS ALONE decides, as it does for the checker
@@ -912,7 +918,7 @@
     // just been deleted keeps its note -- whose cloud showed that note alone,
     // reading as if it were the meaning, with nothing to say the gloss was gone
     if (!hasGloss(ch)) {
-      if (!belowOn()) h += '<div class="unwritten">nothing glossed yet</div>';
+      if (!toolsOnly()) h += '<div class="unwritten">nothing glossed yet</div>';
       // NOTHING SET UP AT ALL, and the reader is looking at an empty phrase:
       // this is the moment they want to know the feature exists, so say so
       // here rather than only in a header they have not read
@@ -7368,9 +7374,14 @@
          help: 'While a gloss is open the video waits, and goes on a moment after it closes, so you can read at your own pace. With a mouse or a finger.',
          get: function () { return opts.hoverpause; },
          set: function (v) { press('#hoverpause', v, function () { return opts.hoverpause; }); }},
-        {id: 'below', kind: 'switch', layouts: 'browser', label: 'Glosses below the line', short: 'gloss below',
-         help: 'Shows each phrase’s gloss as text under the line, as a book does, instead of in a cloud when you ' +
-               'point at it. Pointing at a phrase in its row then opens the phrase’s tools: edit, card, copy, colour.',
+        {id: 'below', kind: 'switch', label: 'Glosses below the line', short: 'gloss below',
+         help: function () {
+           return mobileNow()
+             ? 'Shows each phrase’s gloss as text under the line, as a book does, instead of in a cloud when you tap it. ' +
+               'Tapping a phrase in its row then opens its tools: copy, review later, the dictionary.'
+             : 'Shows each phrase’s gloss as text under the line, as a book does, instead of in a cloud when you ' +
+               'point at it. Pointing at a phrase in its row then opens the phrase’s tools: edit, card, copy, colour.';
+         },
          get: function () { return opts.below; },
          set: function (v) { press('#below', v, function () { return opts.below; }); }},
         {id: 'reflow', kind: 'switch', layouts: 'browser', label: 'Move text between lines', short: 'moving text',
@@ -7548,7 +7559,7 @@
                      help: 'How big the subtitles are over the video when it fills the screen (a phone held sideways).',
                      show: function (v) { return Math.round(v * 10) / 10 + ' px'; }},
       gl:           {label: 'Gloss size',
-                     help: 'How big the meanings and notes in the hover cloud are.',
+                     help: 'How big the meanings and notes are, in the hover cloud and in the rows under a line.',
                      show: function (v) { return Math.round(v * 10) / 10 + ' px'; }},
       width:        {label: 'Text width',
                      help: 'How wide the column of transcript may grow on a wide screen; on a narrow screen it always fits.',

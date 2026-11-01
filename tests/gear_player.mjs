@@ -1027,7 +1027,7 @@ async function partI() {
   eq(groups.map(g => g[1]), ['Watching & reading', 'Looking a word up', 'Playback', 'Text'].concat(zoom ? ['Zoom'] : [], ['Colours', 'Interface']), 'the same groups, in the same order');
   const kp = await page.evaluate(() => document.querySelectorAll('.kp-btn').length);
   const rows = Object.fromEntries(groups.map(g => [g[0], g[2]]));
-  eq(rows.watching, ['follow', 'hoverpause', 'sbs', 'pin', 'size', 'lines'], 'Watching & reading on a phone gains «show the lines around»');
+  eq(rows.watching, ['follow', 'hoverpause', 'below', 'sbs', 'pin', 'size', 'lines'], 'Watching & reading on a phone gains «show the lines around», and has the glosses below the line');
   eq(rows.playback, ['skip', 'speed'], 'Playback gains the speed: the page has a control of its own for it, the dock');
   eq(rows.text, ['fa', 'sub', 'gl', 'width', 'lead', 'reset'], 'Text gains the subtitles\' size');
   assert(rows.interface[0] === 'mode' && (kp ? rows.interface[1] === 'keep' : true), 'Interface holds the Browser | Mobile choice' + (kp ? ' and the Keep buttons' : ' (no Keep buttons on this page)') + ': ' + JSON.stringify(rows.interface));
@@ -1187,6 +1187,59 @@ async function partJ() {
   await page.context().close();
 }
 
+// ================================================================== l) the glosses below the line, on a phone
+async function partL() {
+  console.log('l) the glosses below the line, on a phone');
+  const page = await pageFor(PHONE, 'mobile', {}, {});
+  await open(page, EN);
+  assert(await page.evaluate(() => !document.querySelector('#segs .row')), 'a phone starts with the clouds, as it always did');
+  await flip(page, 'watching', 'below');
+  await page.waitForFunction(() => document.querySelectorAll('#segs .row').length > 0);
+  eq(await page.evaluate(() => [localStorage.getItem('yt_below'), document.body.classList.contains('glossbelow'),
+                                [...document.querySelectorAll('#segs .seg')].map(s => s.querySelectorAll('.row').length)]),
+     ['1', true, [0, 2, 2, 2]], 'the sheet\'s row draws a row for each phrase of each glossed line, and keeps the choice');
+  assert(/^Shows each phrase’s gloss as text under the line, as a book does, instead of in a cloud when you tap it/.test(
+           (await rowWords(page, 'watching', 'below')).help), 'and its sentence speaks of a tap, not of pointing');
+  await shutGear(page);
+  eq(await page.evaluate(() => { const r = document.querySelector('#segs .row'); return [getComputedStyle(r).flexDirection,
+       r.querySelector('.rfa').getBoundingClientRect().bottom <= r.querySelector('.rgl').getBoundingClientRect().top + 1,
+       document.documentElement.scrollWidth <= innerWidth + 1]; }),
+     ['column', true, true], 'each row stands its phrase over its gloss, and nothing runs sideways');
+  await shot(page, 'l-below-phone');
+  // a tap on a phrase of the line replays the line and opens nothing: the gloss is on the page
+  await page.evaluate(() => { __yt.calls.length = 0; });
+  await tap(page, '#segs .seg[data-i="1"] .fa .w[data-j="0"]');
+  await sleep(250);
+  assert(await page.evaluate(() => document.getElementById('cloud').hidden), 'a tap on a phrase of the line opens no cloud');
+  assert(await page.evaluate(() => __yt.calls.some(c => c[0] === 'seek')), 'and plays the line');
+  // a tap on the phrase in its row opens the cloud as its tools: no gloss said twice
+  await tap(page, '#segs .seg[data-i="1"] .row[data-j="0"] .rfa .w');
+  await page.waitForFunction(() => !document.getElementById('cloud').hidden);
+  eq(await page.evaluate(() => { const c = document.getElementById('cloud');
+       return [!!c.querySelector('.en'), !!c.querySelector('.tr'), !!c.querySelector('.mkcopy')]; }),
+     [false, false, true], 'a tap on a phrase in its row opens its tools: copy, and no gloss over the gloss');
+  await page.context().close();
+
+  // held sideways, the video on the whole screen: the subtitle is the line alone, its gloss in the cloud
+  const land = await pageFor(LAND, 'mobile', {yt_below: '1'}, {});
+  await open(land, EN);
+  await land.waitForFunction(() => window.ParsehMobilePlayer && document.querySelector('.m-vfull') && !document.querySelector('.m-vfull').hidden);
+  assert(await land.evaluate(() => document.querySelectorAll('#segs .row').length > 0), 'sideways the transcript has its rows too');
+  await land.evaluate(() => document.querySelector('#segs .seg[data-i="1"] .lab').click());
+  await land.waitForFunction(() => { const s = document.querySelector('#segs .seg.on-air'); return s && +s.dataset.i === 1; });
+  await tap(land, '.m-vfull');
+  await land.waitForFunction(() => document.documentElement.classList.contains('m-vfullon'));
+  await sleep(500);
+  eq(await land.evaluate(() => [document.querySelectorAll('.m-subs .seg').length, document.querySelectorAll('.m-subs .rows, .m-subs .row').length]),
+     [1, 0], 'on the whole screen the subtitle is the line alone: no row is laid over the picture');
+  await tap(land, '.m-subs .w');
+  await land.waitForFunction(() => !document.getElementById('cloud').hidden);
+  assert(await land.evaluate(() => !!document.getElementById('cloud').querySelector('.en')),
+         'and a tap on its phrase opens the gloss itself in the cloud');
+  await shot(land, 'l-whole-screen-below');
+  await land.context().close();
+}
+
 // ================================================================== k) room, and the three themes
 const lum = c => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
 const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
@@ -1254,7 +1307,7 @@ async function partK() {
   }
 }
 
-const RUN = {a: partA, b: partB, c: partC, d: partD, e: partE, f: partF, g: partG, h: partH, i: partI, j: partJ, k: partK};
+const RUN = {a: partA, b: partB, c: partC, d: partD, e: partE, f: partF, g: partG, h: partH, i: partI, j: partJ, k: partK, l: partL};
 // every part runs, whatever the one before it did: a part that fails says where and the next goes on,
 // so that one run tells everything that is wrong and not only the first thing
 const failed = [];
