@@ -1,4 +1,4 @@
-## [a0.6.0] - unreleased
+## [a0.6.0] - 2026-11-02
 ### Added
 - Glosses below the line on a phone: the video's ⚙ sheet has the row too, each phrase's gloss under its line, a tap on the phrase in its row opening its tools
 - Linguistic analysis: Settings door for optional analyzers on this computer, UDPipe for nine languages, Farahidi for Arabic and Starlang for Turkish, each off until chosen, with a Try it
