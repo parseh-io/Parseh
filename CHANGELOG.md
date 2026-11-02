@@ -1,3 +1,6 @@
+## [a0.6.1] - unreleased
+### Added
+
 ## [a0.6.0] - 2026-11-02
 ### Added
 - Glosses below the line on a phone: the video's ⚙ sheet has the row too, each phrase's gloss under its line, a tap on the phrase in its row opening its tools

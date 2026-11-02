@@ -15,6 +15,8 @@ change. A new version comes in from **Settings → Updating Parseh**
 ([Updating Parseh](../getting-started/updating.md)), which compiles this
 guide and rebuilds the readers by itself.
 
+## a0.6.1 — not yet released
+
 ## a0.6.0 — 2 November 2026
 
 ### Persian as it is spoken, read better
