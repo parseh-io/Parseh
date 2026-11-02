@@ -44,7 +44,7 @@ Recover the text, read what came out against the original itself, decide the par
 
 ### Step 2 -- Annotate, {{BATCH}} paragraphs at a time
 
-Each batch: read `ASKS.md` and `making.json` again and take any part not yet recovered; pre-check the paragraphs; annotate each; proof-read each for the errors no tool finds; confirm or reject every finding; merge, normalise, assemble; add the chapter file to `main.tex`; look at it; verify; record. **The batch recipe** has every command and how to share the work among helpers. What you write is in **The chunk and what you write in it**; what a meaning is, in **The meaning of a chunk**; what the proof-reading looks for, in **The errors no tool finds**; what each tool proves, and does not, in **How to check**.
+{{EVIDENCE_HELPER}}Each batch: read `ASKS.md` and `making.json` again and take any part not yet recovered; pre-check the paragraphs; annotate each; proof-read each for the errors no tool finds; confirm or reject every finding; merge, normalise, assemble; add the chapter file to `main.tex`; look at it; verify; record. **The batch recipe** has every command and how to share the work among helpers. What you write is in **The chunk and what you write in it**; what a meaning is, in **The meaning of a chunk**; what the proof-reading looks for, in **The errors no tool finds**; what each tool proves, and does not, in **How to check**.
 
 ### Step 3 -- The whole book
 

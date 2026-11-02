@@ -1,6 +1,11 @@
 ## [a0.6.0] - unreleased
 ### Added
 - Glosses below the line on a phone: the video's ⚙ sheet has the row too, each phrase's gloss under its line, a tap on the phrase in its row opening its tools
+- Linguistic analysis: Settings door for optional analyzers on this computer, UDPipe for nine languages, Farahidi for Arabic and Starlang for Turkish, each off until chosen, with a Try it
+- The dictionary panel can say what an analyzer read a word as, and find a word under its lemma
+- New text can be cut into phrases with an analyzer's help; edited chunks are never cut again
+- The gloss prompts and the parseh-gloss skill can carry an analyzer's reading of each chunk to do, as evidence
+- A book made in place can ask the analyzers about a sentence, through a helper that writes nothing
 
 ## [a0.5.8] - 2026-11-01
 ### Added

@@ -93,6 +93,9 @@ MODE_WORDS = {"regloss": "re-gloss", "perfield": "per field"}
 # the one rule every gloss prompt embeds by {{MEANING_RULE}}: written once, so that the
 # prompts and the guide never say two things about what a meaning is
 MEANING_RULE = os.path.join(ROOT, "docs", "meaning-rule.md")
+# the one rule for what an analyzer's evidence is (lib/evidence.py), in the locked part of a stretch's prompt only
+# while a chunk carries some, so that a person's own instructions cannot lose it (a0.6.0)
+EVIDENCE_RULE = os.path.join(ROOT, "docs", "analysis-evidence.md")
 
 TEMPLATES = {
     "studio-doc": os.path.join(ROOT, "markdown", "exlex", "PROMPT.md"),
@@ -366,6 +369,8 @@ _PLACEHOLDERS = (
     ("GLOSS_LANGUAGE", "the language the meanings are written in (English)", _GLOSSED),
     ("GLOSS_CODE", "its code (en)", _GLOSSED),
     ("MEANING_RULE", "the rule for what a chunk's meaning says (docs/meaning-rule.md)", _GLOSSED),
+    ("EVIDENCE_RULE", "the rule for what an analyzer's `analysis` is (docs/analysis-evidence.md)", _REGION),
+    ("EVIDENCE_HELPER", "how to ask the analyzers about a text, where they are in use; nothing where not", _NEW_BOOK),
     # the studio's own prompt (markdown/app/promptboxes.py fills them)
     ("OWN_MARKS", "the target's own punctuation marks, said in words", _STUDIO),
     ("ALT_FONT", "the key of the language's alternate face (nastaliq, gothic)", _STUDIO),
@@ -786,6 +791,8 @@ def surface_flags(surface, lang=None, options=None):
     flags = {"book": surface.startswith("book-"), "video": surface.startswith("video-"),
              "studio": surface.startswith("studio-"), "region": surface.endswith("-region"),
              "new": surface.endswith("-new"), "note": False}
+    if surface in _REGION:
+        flags["evidence"] = False       # true only where a chunk carries an analyzer's reading (lib/glossregion.py)
     flags.update(option_flags(surface, lang, options))
     return flags
 
@@ -900,6 +907,11 @@ def language_sections(surface, lang, flags=None, options=None):
 
 def _meaning_rule():
     with open(MEANING_RULE, encoding="utf-8") as f:
+        return f.read()
+
+
+def _evidence_rule():
+    with open(EVIDENCE_RULE, encoding="utf-8") as f:
         return f.read()
 
 
@@ -1151,6 +1163,8 @@ def assemble(surface, lang=None, gloss=None, *, flags=None, values=None, verbati
                             lambda: language_text(surface, L, flags, options=chosen))
     if surface in _GLOSSED:
         includes.setdefault("MEANING_RULE", _meaning_rule)
+        if surface in _REGION:
+            includes.setdefault("EVIDENCE_RULE", _evidence_rule)
     fill = _Fill(flags, values, includes, dict(verbatim or {}))
     made = []
     for raw in (given.instructions if instructions is None else instructions,

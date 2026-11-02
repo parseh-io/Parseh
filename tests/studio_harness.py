@@ -63,6 +63,7 @@ import network    # noqa: E402
 # load lib/prefs.js since a0.5.0 (the theme follows a person), and a suite that
 # presses ◐ or the gear's Colours would write config/prefs.json -- the theme of
 # the owner's own pages -- through serve.py's /__prefs
+import analysisconfig                                          # noqa: E402
 import prefs      # noqa: E402
 # and the ARASAAC pictograms (lib/getarasaac.py): the picker reads them, and the checkout's own arasaac/ may be 160 MB of
 # the owner's -- or none at all, which a suite must not depend on either
@@ -81,6 +82,7 @@ if PICTOGRAMS:
                             pictures=None if PICTOGRAMS != "partial" else 12)
 network.STORE = str(tmp / "config" / "network.json")
 prefs.STORE = str(tmp / "config" / "prefs.json")
+analysisconfig.STORE = str(tmp / "config" / "analysis.json")
 # and the LaTeX drawings' themes, their drawings and their packages
 import latexthemes, latexdraw, texpackages
 latexthemes.STORE = str(tmp / "config" / "latex.json")

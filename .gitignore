@@ -248,6 +248,10 @@ stt/
 # from api.arasaac.org and static.arasaac.org; none of it belongs in the repository.
 arasaac/
 
+# The optional analyzers (lib/getanalysis.py, a0.6.0): an environment and the UDPipe models,
+# somebody else's work, on another licence, fetched on request.
+analysis/
+
 # Optional, locally installed character component packs (licences stored in each pack).
 components/*.db
 components/.build-*/

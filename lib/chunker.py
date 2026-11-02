@@ -580,11 +580,65 @@ def _clauses(text, L, R):
     return [text[g[0][1]:g[-1][2]] for g in groups if g] if len(groups) > 1 else []
 
 
-def _spaced(text, L, R, have_dict):
+# WHAT A DEPENDENCY MAY SAY OF A SEAM (a0.6.0, lib/analyzer.py), and it says only this.  Dependencies are not
+# reading groups: a subtree can be a whole clause, so no boundary is ever made from one.  These few say that
+# a seam lies inside what cannot be glossed apart, or that a word opens what follows.  Each is here because of
+# a sentence that needed it: `die alte Frau` (det, amod), `in dem Haus` (case), `has been seen` (aux),
+# `فکر کردم` and `teşekkür ederim` (compound, compound:lvc), `New York` (flat), `because of` (fixed).
+_DEP_JOIN = ("det", "det:predet", "case", "amod", "nummod", "aux", "aux:pass", "cop", "compound", "compound:lvc", "compound:prt",
+             "compound:svc", "fixed", "flat", "flat:name", "goeswith", "clitic")
+_DEP_REACH = 4                                  # a seam this many tokens from its head is not held by it
+_DEP_OPENS = ("cc", "mark")                     # `and`, `because`: what opens the chunk it introduces
+_UPOS_CLASS = {"NOUN": "NOUN", "PROPN": "NOUN", "VERB": "VERB", "AUX": "AUX", "ADJ": "ADJ", "ADV": "ADV", "PRON": "PRON",
+               "DET": "DET", "ADP": "ADP", "CCONJ": "CONJ", "SCONJ": "CONJ", "NUM": "NUM", "PUNCT": "PUNCT"}
+
+
+def _token_at(toks, spans):
+    """{word's token id: index in toks}, for the analyzer's tokens wholly inside one of ours."""
+    out = {}
+    for t in spans:
+        for i, (_w, s, e) in enumerate(toks):
+            if s <= t.start and t.end <= e:
+                out[t.id] = i
+                break
+    return out
+
+
+def _assist(toks, analysis):
+    """What an analysis says of these tokens -> ({seam index: "join" or "opens"}, {token index: class}).  A seam
+    is the one before token i.  Only what proved to be inside our tokens counts; nothing here can move a token."""
+    seams, classes = {}, {}
+    at = _token_at(toks, analysis.tokens)
+    words = {}
+    for t in analysis.tokens:
+        if t.id in at:
+            for w in t.parsed():
+                words[(w.source, w.id)] = (at[t.id], w)
+    for (source, _id), (i, w) in words.items():
+        if w.upos in _UPOS_CLASS and i not in classes:
+            classes[i] = _UPOS_CLASS[w.upos]
+        target = words.get((source, w.head))
+        if target is None or target[0] == i:
+            continue
+        lo, hi = sorted((i, target[0]))
+        if w.relation in _DEP_JOIN and hi - lo <= _DEP_REACH:
+            for seam in range(lo + 1, hi + 1):
+                seams[seam] = "join"
+        elif w.relation in _DEP_OPENS and seams.get(i) != "join":
+            seams[i] = "opens"
+    return seams, classes
+
+
+def _spaced(text, L, R, have_dict, analysis=None):
     """A sentence cut at the seams between its tokens -> [chunk]: its
     punctuation, the language's function words, and -- where a dictionary is
     installed -- the parts of speech it gives the rest.  `have_dict` False
-    is a language cut by its lists alone."""
+    is a language cut by its lists alone.
+
+    `analysis` is what an analyzer read in this very text, or nothing: a word the
+    rules cannot place takes its part of speech from it, and a seam it
+    speaks for moves the way it says, as long as the writer's punctuation
+    has not already said otherwise."""
     toks = _tokens(text, L)
     if len(toks) < 2:
         return [text.strip()] if text.strip() else []
@@ -613,6 +667,8 @@ def _spaced(text, L, R, have_dict):
     for i, c in enumerate(cands):
         nxt = guess[i + 1] if i + 1 < len(cands) else None
         cls.append(_in_context(c, cls[i - 1] if i else None, nxt, after, parts[i]))
+    seams, known = _assist(toks, analysis) if analysis is not None else ({}, {})
+    cls = [known.get(i, c) if c == "OTHER" else c for i, c in enumerate(cls)]
     left, right, lead = list(cls), list(cls), []
     for i, (pre, post, key) in enumerate(pieces):
         if pre:
@@ -623,8 +679,10 @@ def _spaced(text, L, R, have_dict):
         lead.append(pre or key)
     marked = [toks[0] + (CUT, right[0])]     # (tok, start, end, gap-before, class)
     for i in range(1, len(toks)):
-        marked.append(toks[i] + (_gap(toks, left, right, lead, i, L, R, have_dict),
-                                 right[i]))
+        gap = _gap(toks, left, right, lead, i, L, R, have_dict)
+        if i in seams and left[i] != "PUNCT" and _mark_gap(toks[i - 1][0]) is None:
+            gap = JOIN if seams[i] == "join" else max(gap, CUT)
+        marked.append(toks[i] + (gap, right[i]))
     groups, cur = [], [marked[0]]
     for m in marked[1:]:
         if m[3] >= CUT_AT:
@@ -940,10 +998,12 @@ def _by_words(text, L, R):
     return [c.strip() for c in grown if c.strip()]
 
 
-def phrase(text, lang):
+def phrase(text, lang, analysis=None):
     """The sense groups of one sentence -> [str], or [] where nothing can be
     said (a spaced sentence with no dictionary and no punctuation to cut at,
-    or nothing to cut)."""
+    or nothing to cut).  `analysis`, a good analyzer.Result of exactly this text,
+    is listened to by a spaced language; Japanese and Chinese are cut by their
+    own analyzers whatever is said here."""
     L = languages.get_or_default(lang)
     if not (text or "").strip():
         return []
@@ -959,8 +1019,8 @@ def phrase(text, lang):
         return got if len(got) > 1 else [text.strip()]
     have_dict = lookup.available(L.code)
     if L.spaced:
-        if have_dict or _lexicon(L.code):
-            return _spaced(text, L, R, have_dict)
+        if analysis is not None or have_dict or _lexicon(L.code):
+            return _spaced(text, L, R, have_dict, analysis)
         # nothing to read a class from: the punctuation is all there is
         return _clauses(text, L, R)
     return _spaced(text, L, R, True) if have_dict else []
@@ -991,20 +1051,47 @@ def verb_final(lang):
     return bool(rules(languages.get_or_default(lang).code).get("verb_final"))
 
 
-def chunk_all(texts, lang, how=DEFAULT_WAY):
+def chunk_all(texts, lang, how=DEFAULT_WAY, assist=None):
     """Every sentence of a text, cut the asked-for way -> [[chunk, ...], ...].
 
     One entry point for a whole text, so a caller cannot accidentally cut a
-    book one way and one of its chapters another.
+    book one way and one of its chapters another.  `assist` as in chunk().
     """
     if how not in WAYS:
         raise ValueError("no such way of chunking: %r (%s)"
                          % (how, ", ".join(WAYS)))
-    return [chunk(t, lang, how) for t in (texts or [])]
+    return [chunk(t, lang, how, assist) for t in (texts or [])]
 
 
-def chunk(text, lang, how=DEFAULT_WAY):
-    """One sentence, cut the asked-for way.  Always reproduces `text`."""
+def exact(chunks, text):
+    """Is each chunk a slice of `text`, in order, with only white space left
+    between them?  `reproduces` folds white space, so it cannot say this."""
+    at = 0
+    for c in chunks:
+        i = text.find(c, at)
+        if i < 0 or text[at:i].strip():
+            return False
+        at = i + len(c)
+    return not text[at:].strip()
+
+
+def assisting(code):
+    """The `assist` of chunk() if somebody chose it on Settings -> Linguistic
+    analysis and this language has an analyzer ready, else None."""
+    import analysisconfig
+    import analyzer
+    if analysisconfig.choice("chunking") != "assist" or not analyzer.available(code, syntax=True):
+        return None
+    return lambda text: analyzer.analyze(code, text, syntax=True)
+
+
+def chunk(text, lang, how=DEFAULT_WAY, assist=None):
+    """One sentence, cut the asked-for way.  Always reproduces `text`.
+
+    `assist`, a function from text to analyzer.Result, is for new text only: an
+    edited chunk is never cut again by anything.  Whatever goes wrong with it
+    -- no answer, an answer that fails, a cut that is not a slice of the text
+    -- the cut is the one there would have been without it."""
     text = (text or "").strip()
     if not text:
         return []
@@ -1013,6 +1100,12 @@ def chunk(text, lang, how=DEFAULT_WAY):
                          % (how, ", ".join(WAYS)))
     if how == "sentence":
         return [text]
+    if assist is not None:
+        result = assist(text)
+        if result is not None and result.ok and result.text == text:
+            got = phrase(text, lang, result) or []
+            if got and exact(got, text):
+                return got
     got = phrase(text, lang) or [text]
     return got if reproduces(got, text, lang) else [text]
 

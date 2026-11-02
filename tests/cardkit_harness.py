@@ -138,8 +138,10 @@ def serve_it(tmp, port, no_ffmpeg, tray):
         decks.set_clips_dir(tmp / tray)
     # the reading place and the settings the toolbox keeps (lib/prefs.py):
     # into the temporary tree, never into the real checkout's config/
+    import analysisconfig                                          # noqa: E402
     import prefs
     prefs.STORE = str(tmp / "config" / "prefs.json")
+    analysisconfig.STORE = str(tmp / "config" / "analysis.json")
     # and the door that says who may reach Parseh (lib/network.py): into
     # the temporary tree too, so a suite can neither read the owner's own
     # settings nor shut his Wi-Fi door by running

@@ -269,6 +269,9 @@ def credits():
         out["components:" + key] = (esc(pack["attribution"]), licence_link(pack["licence"]))
     out.update(speech_credits())
     out.update(arasaac_credits())
+    import analysispins
+    out["analysis"] = (esc(analysispins.MODEL_CREDIT),
+                       licence_link(analysispins.MODEL_LICENCE) + " &mdash; the UDPipe models: free for non-commercial use")
     return out
 
 
@@ -319,6 +322,14 @@ def fetched():
         "<a href=\"/settings/arasaac/\">Pictograms (ARASAAC)</a>, in Settings. The credit "
         "ARASAAC asks for is written beside them, in <code>arasaac/LICENSE-ARASAAC.txt</code>.",
         *who["arasaac"]))
+    out.append(work(
+        "The optional linguistic analyzers",
+        "In <code>analysis/</code>, when you ask for them under <a href=\"/settings/analysis/\">Linguistic "
+        "analysis</a>, in Settings: UDPipe (MPL-2.0) by Milan Straka and Jana Strakov&aacute; with its models, "
+        "Farahidi (GPL-3.0-or-later) by Wael Tellat, a port of AlKhalil Morpho Sys 2, and Starlang&rsquo;s "
+        "Turkish morphological analysis (GPL-3.0) by Olcay Taner Y&#305;ld&#305;z. A note of whose the "
+        "models are is written beside them, in <code>analysis/models/LICENSE-MODELS.txt</code>.",
+        *who["analysis"]))
     return "".join(out)
 
 

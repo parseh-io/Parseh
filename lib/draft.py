@@ -418,6 +418,13 @@ CH_WORDS = """\
 """
 
 
+def _cut_all(texts, code, how):
+    """New text, cut: with an analyzer's help where somebody chose that (Settings -> Linguistic analysis), and
+    with nothing else different."""
+    assist = chunker.assisting(code) if how != "sentence" else None
+    return chunker.chunk_all(texts, code, how, assist) if assist else chunker.chunk_all(texts, code, how)
+
+
 def _cuts_for(paras, L, how):
     """Every sentence of the chapter, cut -> {(paragraph, sentence): [chunk]}.
 
@@ -427,7 +434,7 @@ def _cuts_for(paras, L, how):
     flat = [(i, k, sent)
             for i, para in enumerate(paras)
             for k, sent in enumerate(sentences(para))]
-    got = chunker.chunk_all([f[2] for f in flat], L.code, how)
+    got = _cut_all([f[2] for f in flat], L.code, how)
     return {(i, k): c for (i, k, _s), c in zip(flat, got)}
 
 
@@ -879,7 +886,7 @@ def video_from_transcript(transcript, lang, gloss="", video_id=None, url="",
             for ci, cap in enumerate(captions) if not cap["plain"]
             for si, sent in enumerate(sentences(cap["text"]))]
     vcuts = {(ci, si): c for (ci, si, _t), c
-             in zip(flat, chunker.chunk_all([f[2] for f in flat], L.code, how))}
+             in zip(flat, _cut_all([f[2] for f in flat], L.code, how))}
     nchunks = 0
     for ci, cap in enumerate(captions):
         sg = {"start": cap["start"]}

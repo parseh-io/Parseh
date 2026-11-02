@@ -340,6 +340,16 @@ await inPage(`
   document.querySelector('#cloud [data-known-word="川(かわ)"]').click();
   assert(document.querySelector('.p1 [data-c="11"] .wd[data-w="川(かわ)"] ruby.reading-known'), 'every appearance of the word hides');
 `);
+await inPage(`
+  // what an analyzer read the word as (lib/lookupassist.py): one line under the word, found or not, and none without it
+  const said = {lemma: '二人', upos: 'NOUN', feats: {Number: 'Sing'}, source: 'native', status: 'lexical', readings: 2};
+  const none = dictLine({word: '二人', hits: [], tried: ['二人'], machine: said});
+  assert(/native knows this as 二人 · NOUN · Number=Sing · one of 2 readings/.test(none.querySelector('.dmachine').textContent), 'the line under a word not found');
+  const found = dictLine({word: '二人', hits: [{headword: '二人', senses: ['two people']}], tried: [], via: 'as written',
+                          machine: Object.assign({}, said, {status: 'contextual', ranked: true})});
+  assert(/reads this here as .* its entry moved first/.test(found.querySelector('.dmachine').textContent), 'the line under a word found');
+  assert(!dictLine({word: '二人', hits: [], tried: ['二人']}).querySelector('.dmachine'), 'no line without a reading');
+`);
 await hoverChunk(4);
 await inPage(`assert(document.querySelector('#cloud [data-known-kanji="住"]') && !document.querySelector('#cloud [data-known-word]'), 'a chunk without words: kanji controls, as before');`);
 await hoverChunk(17);

@@ -17,6 +17,15 @@ guide and rebuilds the readers by itself.
 
 ## a0.6.0 — not yet released
 
+### Linguistic analysis
+
+**Settings → Linguistic analysis** gets optional analyzers onto your computer: UDPipe for English, German, Spanish,
+French, Italian, Hindi and Persian, Farahidi for Arabic and Starlang for Turkish. Getting one changes nothing. You
+choose, one at a time, whether Parseh listens to it for the dictionary panel, for cutting new text into phrases and
+for the gloss prompts, and **Try it** shows a sentence of yours with and without it. Your edited chunks and your text
+are never changed, and whatever goes wrong, Parseh does what it did before.
+[Linguistic analysis](../lookup-and-languages/linguistic-analysis.md).
+
 ### Glosses below the line, on a phone too
 
 a0.5.8's **Glosses below the line** (a row for each phrase under its line, the gloss as text, not in a cloud) was a

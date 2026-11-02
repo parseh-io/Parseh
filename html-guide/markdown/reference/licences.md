@@ -94,6 +94,11 @@ Name them wherever you use them (the credit is written, word for word, in
 `arasaac/LICENSE-ARASAAC.txt`), never use them for commercial purposes, and
 share what you make with them on the same licence.
 
+**The linguistic analyzers**, fetched only if you ask on
+[Settings → Linguistic analysis](../lookup-and-languages/linguistic-analysis.md), each keep their own licence: UDPipe
+(MPL-2.0), Farahidi (GPL-3.0-or-later) and Starlang's Turkish morphology (GPL-3.0). UDPipe's **models** are
+**CC BY-NC-SA 4.0**: free for non-commercial use, and shared on the same licence.
+
 The installer fetches micromamba, Python and the packages
 `environment.yml` lists. Each of them is under the licence it comes with.
 

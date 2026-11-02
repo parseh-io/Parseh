@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Farahidi: Arabic morphology, pure Python, its resources inside the wheel, GPL-3.0-or-later.
+# Installed only in analysis/runtime/ (lib/getanalysis.py), never in Parseh's environment.
+# Pinned by hash; docs/analyzers.md says what was checked, and how to move a pin.
+farahidi==0.4.0 \
+    --hash=sha256:144bc9e651f9500aee45ee517540d1f2ba7b76b7d81fcf90f3474b91b1f0cd3a \
+    --hash=sha256:c1844da82666d47b409f8ba2c2293d5de30a3b8899c4b0fb656ad102d775a2cc

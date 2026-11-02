@@ -4819,6 +4819,7 @@ function dictLine(w, at) {
     // "this word is not in the dictionary" from "the dictionary was never asked"
     none.textContent = 'not found (tried ' + w.tried.join(', ') + ')';
     wrap.appendChild(none);
+    dictMachine(wrap, w);
     return wrap;
   }
   // WHAT THE SPOKEN PASS READ (lib/spoken.py): a hit that was read as another word is drawn by lib/parseh.js, the same in the
@@ -4886,7 +4887,15 @@ function dictLine(w, at) {
     v.className = 'dnone'; v.textContent = 'found ' + w.via;
     wrap.appendChild(v);
   }
+  dictMachine(wrap, w);
   return wrap;
+}
+// what an analyzer read the word as (lib/lookupassist.py), where somebody chose to see that
+function dictMachine(wrap, w) {
+  if (!w.machine || !Parseh.machineLine) return;
+  const m = document.createElement('div');
+  m.className = 'dnone dmachine'; m.textContent = Parseh.machineLine(w);
+  wrap.appendChild(m);
 }
 
 function dictFill(box, j) {

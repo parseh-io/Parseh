@@ -205,7 +205,7 @@ LIMIT = 1 << 30                 # a release zip is some 15 MB; a gigabyte is a m
 # byte is written, and the same test guards every deletion -- an OLD
 # manifest is a zip's too.
 PERSONAL = ("books/", "youtube/videos/", "youtube/anki/", "markdown/library/", "exercises/",
-            "clips/", "config/", "dict/", "corpus/", "mt/", "components/", "texmf/", "stt/", "llm-scoring/",
+            "clips/", "config/", "dict/", "corpus/", "mt/", "components/", "texmf/", "stt/", "analysis/", "llm-scoring/",
             "arasaac/")
 SCAFFOLDING = (".gitkeep", "README.md")
 NEVER = (".tls/", ".runtime/", ".git/", WORK + "/", ".claude/")

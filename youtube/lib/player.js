@@ -1098,7 +1098,9 @@
       // what it looked for, not merely that it failed: a reader can then
       // tell "not in the dictionary" from "the dictionary was never asked"
       return h + '<div class="dnone">not found (tried ' +
-             esc(w.tried.join(', ')) + ')</div></div>';
+             esc(w.tried.join(', ')) + ')</div>' +
+             (w.machine && Parseh.machineLine ? '<div class="dnone dmachine">' + esc(Parseh.machineLine(w)) + '</div>' : '') +
+             '</div>';
     }
     // WHAT THE SPOKEN PASS READ (lib/spoken.py): drawn by lib/parseh.js, as the book's panel draws it -- a pill, the word it
     // was read as, why, its pieces, its sound -- and a word with several readings numbers them
@@ -1153,6 +1155,7 @@
     // (a word the spoken pass read says how in each of its cards: the line that says it again is left out)
     if (w.via && w.via !== 'as written' && w.kind !== 'spoken')
       h += '<div class="dnone">found ' + esc(w.via) + '</div>';
+    if (w.machine && Parseh.machineLine) h += '<div class="dnone dmachine">' + esc(Parseh.machineLine(w)) + '</div>';
     return h + '</div>';
   }
 

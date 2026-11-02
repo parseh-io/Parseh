@@ -265,6 +265,9 @@ FORMATS = {
     # the ARASAAC pictograms, fetched on Settings (a0.4.2, W9)
     "parseh-arasaac": ("lib/getarasaac.py", "ARASAAC_FORMAT",
                        "the ARASAAC pictograms, their words and their manifest (arasaac/)"),
+    # where the optional analyzers are used (a0.6.0)
+    "parseh-analysis": ("lib/analysisconfig.py", "STORE_FORMAT",
+                        "where Parseh listens to the optional analyzers (config/analysis.json)"),
     # a book's narration, as the aligner leaves it beside the book
     "parseh-timings": ("lib/timestamp.py", "TIMINGS_FORMAT",
                        "where each sentence of a book's narration begins and ends "

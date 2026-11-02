@@ -40,6 +40,7 @@ else:
 import openfile  # noqa: E402
 import store     # noqa: E402
 import network   # noqa: E402  (the door that says who may reach Parseh: pointed at the temporary tree)
+import analysisconfig                                          # noqa: E402
 import prefs     # noqa: E402  (and the owner's preferences: a page driven here may save one)
 
 REMOTE = "remote" in sys.argv[2:]
@@ -50,6 +51,7 @@ network.STORE = str(tmp / "config" / "network.json")
 if REMOTE:
     network.where = lambda ip, doc=None: network.LAN        # the studio alone has no gate of its own: every client is "another device"
 prefs.STORE = str(tmp / "config" / "prefs.json")
+analysisconfig.STORE = str(tmp / "config" / "analysis.json")
 import latexthemes, latexdraw, texpackages    # noqa: E402
 latexthemes.STORE = str(tmp / "config" / "latex.json")
 import prompts                                # noqa: E402

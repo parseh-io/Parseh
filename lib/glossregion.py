@@ -604,8 +604,9 @@ def _mode(regloss, perfield):
 
 
 # --- the prompt ---------------------------------------------------------
-def _shown(ch, todo, mode):
-    """One chunk as the prompt shows it."""
+def _shown(ch, todo, mode, analysis=None):
+    """One chunk as the prompt shows it.  `analysis` is input and nothing else (lib/evidence.py): no
+    answer can bring it back, because `_decided` reads only the fields of a gloss."""
     d = {"fa": ch["fa"]}
     if ch["words"].strip():
         d["words"] = ch["words"]
@@ -618,13 +619,31 @@ def _shown(ch, todo, mode):
                 d[f] = ch["vals"][f]
     if todo:
         d["todo"] = todo
+        if analysis:
+            d["analysis"] = analysis
     return d
 
 
-def _data(ctx, units, mode):
+def _evidence(ctx, units, mode):
+    """What an analyzer says of the chunks to do, where somebody chose that on Settings -> Linguistic analysis
+    -> lib/evidence.py's Evidence, empty when it is off, not ready or has nothing to say: the prompt is then the
+    one there would have been.  It costs its own part and never the prompt."""
+    import analysisconfig
+    import evidence
+    if analysisconfig.choice("evidence") != "on":
+        return evidence.Evidence()
+    try:
+        L = ctx["L"]
+        return evidence.for_units(L.code, units, lambda ch: _todo(ch, L, mode))
+    except (OSError, ValueError, RuntimeError) as e:
+        return evidence.Evidence(diagnostics=[str(e)])
+
+
+def _data(ctx, units, mode, said=None):
     """The one JSON document the prompt ends with, laid out a chunk to a line
     so a person reading the prompt can find their way in it -- and proved to
-    be JSON before it is sent.  -> (text, counts)"""
+    be JSON before it is sent.  `said` is lib/evidence.py's Evidence, if there
+    is any.  -> (text, counts)"""
     L, book = ctx["L"], ctx["surface"] == "book"
     dump = lambda v: json.dumps(v, ensure_ascii=False)
     rows, fill, glossed, chunks = [], 0, 0, 0
@@ -643,7 +662,8 @@ def _data(ctx, units, mode):
                 fill += 1
             elif ch["glossable"]:
                 glossed += 1
-            lines.append("    " + dump(_shown(ch, todo, mode)))
+            lines.append("    " + dump(_shown(ch, todo, mode, said.chunks.get((u.get("key", u.get("i")), ch["j"]))
+                                               if said else None)))
         rows.append("  " + head + "\n" + ",\n".join(lines) + "\n  ]}")
     text = '{"%s": [\n%s\n]}' % ("sentences" if book else "captions", ",\n".join(rows))
     json.loads(text)                            # a prompt that is not JSON is a bug
@@ -727,8 +747,12 @@ def assembled(ctx, units, mode, instructions=None, custom=None, options=None, fl
     caller that has its reason (lib/skills.py leaves open what only a request knows).
     -> (promptkit.Assembled, counts)"""
     L, G = ctx["L"], ctx["G"]
-    data, counts = _data(ctx, units, mode)
+    said = _evidence(ctx, units, mode)
+    data, counts = _data(ctx, units, mode, said)
+    if said.diagnostics:
+        counts = dict(counts, analysis_notes=said.diagnostics)
     fl, subs = substitutions(ctx, mode)
+    fl = dict(fl, evidence=bool(said))
     # THE TITLE AND THE CHUNKS ARE THE BOOK'S OR THE VIDEO'S, not the template's:
     # a title that says `{{DATA}}` is a title, and is put in as one
     return promptkit.assemble(

@@ -43,6 +43,7 @@ import latexthemes                                             # noqa: E402
 import network                                                 # noqa: E402
 import newlang                                                 # noqa: E402
 import offline                                                 # noqa: E402
+import analysisconfig                                          # noqa: E402
 import prefs                                                   # noqa: E402
 import promptkit                                               # noqa: E402
 import prompts                                                 # noqa: E402
@@ -57,6 +58,7 @@ prompts.STORE = str(tmp / "config" / "prompts.json")
 # studio saves its theme through lib/prefs.py since a0.5.0), the two memories of the phone-keeping door, the LaTeX
 # themes, the languages added on this machine (lib/newlang.py keeps a copy of the path) and the speech settings
 prefs.STORE = str(tmp / "config" / "prefs.json")
+analysisconfig.STORE = str(tmp / "config" / "analysis.json")
 offline.DIGESTS = str(tmp / "config" / "digests.json")
 offline.WHERES = str(tmp / "config" / "wheres.json")
 latexthemes.STORE = str(tmp / "config" / "latex.json")

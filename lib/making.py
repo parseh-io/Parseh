@@ -953,8 +953,22 @@ def method_values(facts):
                        "-- %s carries no marks to strip, so exactly" % L.name),
         "LANG_DIGIT_EXAMPLE": L.to_native_digits("3"), "LANG_LABEL_EXAMPLE": L.to_native_digits("3.1"),
         "KANA_RULE": rule, "WORDS_STEP": step, "KANA_EXAMPLE": example,
+        "EVIDENCE_HELPER": evidence_helper(facts, L),
     }
     return values
+
+
+def evidence_helper(facts, L):
+    """The line of the method that says how to ask the analyzers (lib/evidence.py), or nothing where nobody chose
+    that on Settings -> Linguistic analysis, or no analyzer here covers the language."""
+    import analysisconfig
+    import analyzer
+    if analysisconfig.choice("evidence") != "on" or not analyzer.available(L.code, syntax=True):
+        return ""
+    return ("A linguistic analyzer may be asked about a sentence: `%s %s %s --text \"...\"` prints what it read, "
+            "and writes nothing. It can be wrong, and the sentence is what counts; "
+            "[what it says and how to weigh it](analysis-evidence.md). "
+            % (facts["python"], os.path.join(facts["lib"], "evidence.py"), L.code))
 
 
 def _asked(facts, options):

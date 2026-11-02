@@ -29,7 +29,7 @@ Parseh/
   build.sh  environment.yml
   VERSION  CHANGELOG.md  README.md  LICENSE
   lib/  books/  youtube/  markdown/  exercises/  clips/
-  dict/  corpus/  mt/  components/  texmf/  stt/  arasaac/  config/
+  dict/  corpus/  mt/  components/  texmf/  stt/  arasaac/  analysis/  config/
   docs/  html-guide/
   .runtime/  .tls/  .parseh-release.json  .parseh-update/
 ```
@@ -52,6 +52,7 @@ Parseh/
 | `texmf/` | The TeX packages Parseh got for the LaTeX drawings, with the list of them, `parseh-packages.json`. |
 | `stt/` | Speech to text's program and models, fetched on Settings → Speech to text (below). Made on demand; git ignores it. |
 | `arasaac/` | The ARASAAC pictograms and the words that name them, fetched on Settings → Pictograms (ARASAAC) (below). Made on demand; git ignores it. |
+| `analysis/` | The optional linguistic analyzers: an environment of their own (`runtime/`) and UDPipe's models (`models/`), fetched on Settings → Linguistic analysis. Kept by every update, left out of backups. |
 | `config/` | Your settings, and the devices let in (below). |
 | `docs/` | The design notes: `languages.md`, `lang/<code>.md` (each language's conventions), `mobile.md`, `installer.md`, `studio-exercises.md`, the notes on character components, the prompts, and `releasing.md`, the checklist a new version is released by. |
 | `html-guide/` | These pages: `markdown/` (their source), `build.py` and `engine/` (the compiler), `assets/` and `index.html` (the front page); `site/` is what a compile makes. |

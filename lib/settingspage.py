@@ -185,6 +185,14 @@ SETTINGS = {
                           "Parseh names."),
     "arasaac.remove": (None, "It frees the space the pictograms took."),
     "arasaac.stop": (None, "It stops a download this page started."),
+    # THE OPTIONAL ANALYZERS (lib/getanalysis.py, its own door: lib/analysispage.py).  What can arrive is fixed:
+    # packages pinned by hash and models pinned by hash, and nothing a device sends becomes a path or an address.
+    # Whoever presses the button gets the same files.  What they are USED for changes the suggestions everybody
+    # gets, and is a setting like any other of reading; it never touches a book, a video or a person's chunks.
+    "analysis.get": (None, "It puts the analyzers' pinned packages and models on this computer's disk. "
+                           "Whoever presses the button gets the same files."),
+    "analysis.remove": (None, "It frees the space the analyzers took."),
+    "analysis.use": (None, "It says where Parseh listens to the analyzers: suggestions, never your edited text."),
 }
 
 # SETTINGS WHOSE CONTROL IS NOT ON A PAGE OF SETTINGS, because it sits on the
@@ -319,6 +327,12 @@ ROUTES = {
     # stand, what a choice would cost and a word looked for among them (the picker, a0.5.3), open;
     # getting them, looking for what changed, stopping and removing them, open to any device let in
     # (SETTINGS says why)
+    "/settings/api/analysis/state": READ,
+    "/settings/api/analysis/try": READ,
+    "/settings/api/analysis/get": ("analysis.get",),
+    "/settings/api/analysis/stop": ("analysis.get",),
+    "/settings/api/analysis/remove": ("analysis.remove",),
+    "/settings/api/analysis/use": ("analysis.use",),
     "/settings/api/arasaac/state": READ,
     "/settings/api/arasaac/plan": READ,
     "/settings/api/arasaac/search": READ,
@@ -532,6 +546,9 @@ DOORS = (
     ("/settings/arasaac/", "Pictograms (ARASAAC)",
      "Pictures for pages and exercises: ARASAAC's pictograms, to look through and use, with their licence",
      ("arasaac.get", "arasaac.remove", "arasaac.stop")),
+    ("/settings/analysis/", "Linguistic analysis",
+     "Optional analyzers for lookup, new phrases and gloss prompts: UDPipe, Farahidi, Starlang",
+     ("analysis.get", "analysis.remove", "analysis.use")),
     # NO SETTING BEHIND THIS DOOR: a skill is built when it is asked for and downloaded as a file; what is done with
     # it afterwards is the person's own step in the chatbot (lib/skillspage.py)
     ("/settings/skills/", "Skills for your chatbot",
@@ -904,7 +921,7 @@ def signed(main):
     return main[:end] + '<p class="foot">%s</p>\n' % author.foot_links(project.GITHUB_URL, project.NAME, project.WEBSITE_URL) + main[end:]
 
 
-def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_tags=""):
+def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_tags="", analysis_tags=""):
     """/settings/ -- the section itself.  Each door says what is behind it
     rather than only naming it, and who may change it, in the words of the
     table above; `reading_tags` is what the reading help has (serve.py knows
@@ -975,6 +992,12 @@ def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_ta
     add &mdash; shared under a licence that asks for a credit and rules out selling what is made with them.</div>
     <div class="tags">%(arasaac_gate)s%(arasaac_tags)s</div>
   </a>
+  <a class="door" href="/settings/analysis/">
+    <div class="dname">Linguistic analysis</div>
+    <div class="dwhat">Optional analyzers on this computer, UDPipe, Farahidi and Starlang, that Parseh can listen
+    to for the dictionary panel, for new phrases and for the gloss prompts. Off until you say otherwise.</div>
+    <div class="tags">%(analysis_gate)s%(analysis_tags)s</div>
+  </a>
   <a class="door" href="/settings/skills/">
     <div class="dname">Skills for your chatbot</div>
     <div class="dwhat">The prompts as skills a chatbot that keeps skills can hold: download one, install it once, and
@@ -995,6 +1018,7 @@ def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_ta
               "speech_gate": gate(DOORS[4][3]), "speech_tags": speech_tags,
               "prompts_gate": gate(door_keys("/settings/prompts/")),
               "arasaac_gate": gate(door_keys("/settings/arasaac/")), "arasaac_tags": arasaac_tags,
+              "analysis_gate": gate(door_keys("/settings/analysis/")), "analysis_tags": analysis_tags,
               "llm_gate": gate(door_keys("/settings/llm/")), "llm_tags": llm_tags,
               "likelihood_gate": gate(door_keys("/settings/lm-likelihood/")),
               "net_gate": gate(net),

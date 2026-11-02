@@ -5913,6 +5913,8 @@ sys.path.insert(0, os.path.join(os.getcwd(), "lib"))
 import network, offline, prefs
 config = sys.argv[1]
 prefs.STORE = os.path.join(config, "prefs.json")
+import analysisconfig
+analysisconfig.STORE = os.path.join(config, "analysis.json")
 network.STORE = os.path.join(config, "network.json")
 import latexthemes, latexdraw, texpackages
 latexthemes.STORE = os.path.join(config, "latex.json")

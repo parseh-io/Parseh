@@ -43,6 +43,9 @@ its script, its fonts, its passes, its transliteration.
 6. [Synonyms for the machine's reading](synonyms.md) — how the mark finds
    *begin* where the dictionary said *start*.
 
+And, separately, [linguistic analysis](linguistic-analysis.md): optional analyzers
+on your computer, for the dictionary panel, new phrases and the gloss prompts.
+
 ## Languages
 
 7. [The eleven languages](languages.md) — codes, scripts, directions,

@@ -42,6 +42,8 @@ change it — and it is your best guide to the reading: `{{READING_FIELD}}` must
 say what the words say, the readings of the words run together (see the Words
 section of the conventions below).{{/words}}
 
+{{?contract}}{{?evidence}}{{EVIDENCE_RULE}}{{/evidence}}{{/contract}}
+
 What each chunk asks of you:
 
 {{?keep}}- `"todo": true` — **gloss this chunk**: write its {{FIELD_LIST}}{{?marks}}, and put the

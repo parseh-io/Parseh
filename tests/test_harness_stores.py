@@ -48,6 +48,7 @@ LIB = ROOT / "lib"
 # the harness named, which does; or it serves a scratch copy of the toolbox (the
 # copy's own lib/ is imported, so the copy's own config/ is the one written).
 HARNESSES = {
+    "analysis_harness.py": "redirects",
     "arasaac_harness.py": "redirects",
     "cardkit_harness.py": "redirects",
     "decks_harness.py": "redirects",

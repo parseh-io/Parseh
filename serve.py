@@ -1723,6 +1723,15 @@ PROMPTS_ROUTES = {
 
 # SETTINGS -> PICTOGRAMS (ARASAAC) (§8.40, W9, lib/arasaacpage.py): the page, and each of its routes,
 # every one of them in lib/settingspage.py ROUTES
+ANALYSIS_PAGE = "/settings/analysis/"
+ANALYSIS_ROUTES = {
+    "/settings/api/analysis/state": "state",
+    "/settings/api/analysis/try": "try",
+    "/settings/api/analysis/get": "get",
+    "/settings/api/analysis/stop": "stop",
+    "/settings/api/analysis/remove": "remove",
+    "/settings/api/analysis/use": "use",
+}
 ARASAAC_PAGE = "/settings/arasaac/"
 # a picture of the pictograms, for the picker's thumbnails and preview: read-only, the same file for every
 # device that has been let in (lib/arasaacsearch.py picture() takes digits and nothing else)
@@ -4150,6 +4159,18 @@ class Handler(SimpleHTTPRequestHandler):
                     # and no count of characters that might not be its own
                     for w in (r or {}).get("words") or []:
                         w["i"] = pieces[w["i"]]["at"]
+                # WHAT AN ANALYZER MAY ADD, where somebody chose that on Settings -> Linguistic analysis: never to a
+                # person's word line, and it is off until it is chosen (lib/lookupassist.py)
+                if pieces is None and r:
+                    try:
+                        import analysisconfig
+                        how = analysisconfig.choice("lookup")
+                        if how != "off":
+                            import lookupassist
+                            lookupassist.apply(code, r, text, body.get("sentence")
+                                               if isinstance(body.get("sentence"), str) else "", how)
+                    except Exception:           # the analysis may cost its own line, never the lookup
+                        traceback.print_exc()
                 # THE VERB ENTRIES MAY COST THE \vb AND NEVER THE LOOKUP.
                 # verbs.attach already swallows a recipe's own failure; this
                 # is the second guard, for a bug in the core itself -- and the
@@ -6905,10 +6926,12 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/settings/":
             if method != "GET":
                 return self._method_not_allowed()
+            import analysispage
             return self.send_html(settingspage.hub(dict_tags(), updatepage.door_tags(ROOT),
                                                    speechpage.door_tags(),
                                                    '<span class="tag">%s</span>' % ("configured" if llmconfig.load() else "unconfigured"),
-                                                   arasaacpage.door_tags()))
+                                                   arasaacpage.door_tags(),
+                                                   analysispage.door_tags()))
         if path in ("/settings/network", "/settings/network/index.html"):
             return self._redirect("/settings/network/")
         if path == "/settings/network/":
@@ -6968,6 +6991,13 @@ class Handler(SimpleHTTPRequestHandler):
             if method != "GET":
                 return self._method_not_allowed()
             return self.send_html(promptspage.page(self._where()))
+        if path == ANALYSIS_PAGE.rstrip("/"):
+            return self._redirect(ANALYSIS_PAGE)
+        if path == ANALYSIS_PAGE:
+            if method != "GET":
+                return self._method_not_allowed()
+            import analysispage
+            return self.send_html(analysispage.page(self._where(), self._whose_device()))
         if path == ARASAAC_PAGE.rstrip("/"):
             return self._redirect(ARASAAC_PAGE)
         if path == ARASAAC_PAGE:
@@ -7038,6 +7068,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._latex_api(method, path)
         if path in PROMPTS_ROUTES:
             return self._prompts_api(method, path)
+        if path in ANALYSIS_ROUTES:
+            return self._analysis_api(method, path)
         if path in ARASAAC_ROUTES:
             return self._arasaac_api(method, path)
         if path in SKILLS_ROUTES:
@@ -7457,6 +7489,16 @@ class Handler(SimpleHTTPRequestHandler):
             return self._not_found("No such pictogram here.")
         query = urllib.parse.urlsplit(self.path).query
         return self.send_bytes(data, "image/png", 200, {"Cache-Control": arasaacsearch.cache_control(query)})
+
+    def _analysis_api(self, method, path):
+        """Settings -> Linguistic analysis (lib/analysispage.py).  Every route is a POST, gated above
+        (lib/settingspage.py ROUTES) and held to this site by _dispatch (lib/crosssite.py)."""
+        if method != "POST":
+            return self._method_not_allowed()
+        import analysispage
+        body = self._json_body()
+        code, out = analysispage.api(ANALYSIS_ROUTES[path], body, self._where())
+        return self.send_json(out, code)
 
     def _arasaac_api(self, method, path):
         """Settings -> Pictograms (ARASAAC) (lib/arasaacpage.py).  Every route is a POST, gated above
@@ -8213,6 +8255,12 @@ def main():
         # look at the graphics card: none of them may outlive the server
         try:
             getstt.stop_all()
+        except Exception:                                     # noqa: BLE001
+            pass
+        # the analyzers' program, and anything being fetched for it, goes with the server (only if it was ever asked for)
+        try:
+            if "getanalysis" in sys.modules:
+                sys.modules["getanalysis"].stop_all()
         except Exception:                                     # noqa: BLE001
             pass
         # a download of the pictograms is stopped between two pictures, and carries on next time

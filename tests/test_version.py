@@ -302,6 +302,7 @@ class DataFormats(unittest.TestCase):
         import making
         import prompts
         import texpackages
+        import analysisconfig
         import getarasaac
         import wordtimes
         import llmconfig
@@ -334,6 +335,7 @@ class DataFormats(unittest.TestCase):
                 "parseh-prompts": prompts.STORE_FORMAT, "parseh-prompt": prompts.EXPORT_FORMAT,
                 "parseh-texmf": texpackages.MANIFEST_FORMAT,
                 "parseh-arasaac": getarasaac.ARASAAC_FORMAT,
+                "parseh-analysis": analysisconfig.STORE_FORMAT,
                 "parseh-annot": making.ANNOT_FORMAT}
         self.assertEqual(set(held) - set(got), set(), "held here, with no row")
         self.assertEqual(set(got) - set(held), set(), "a row this test does not hold")
@@ -388,7 +390,7 @@ class DataFormats(unittest.TestCase):
             "exercises/": ("parseh-exercise-deck", "parseh-schedule"),
             "clips/": ("parseh-clips",),
             "youtube/anki/": ("parseh-anki",),
-            "config/": ("parseh-prefs", "parseh-network", "parseh-languages", "parseh-digests",
+            "config/": ("parseh-analysis", "parseh-prefs", "parseh-network", "parseh-languages", "parseh-digests",
                         "parseh-wheres", "parseh-updates", "parseh-latex", "parseh-prompts", "parseh-llm", "parseh-lm-likelihood", "parseh-speech"),
             "texmf/": ("parseh-texmf",),
             "dict/": ("parseh-dictionary",),
@@ -405,7 +407,8 @@ class DataFormats(unittest.TestCase):
             "llm-scoring/": (),
             # the ARASAAC pictograms keep a manifest, their facts and each language's words
             # in one shape, which an older Parseh does not know
-            "arasaac/": ("parseh-arasaac",)}
+            "arasaac/": ("parseh-arasaac",),
+            "analysis/": ()}
     # the rows that are not a store but a file made to travel: each is read
     # back by its own stamp, whatever wrote it
     TRAVEL = {"parseh-bundle", "parseh-shelf", "parseh-narration", "parseh-exercise-shelf",

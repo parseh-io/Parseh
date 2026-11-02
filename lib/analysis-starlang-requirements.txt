@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Starlang: source distributions only, in the order they compile, each needing the one before it
+# installed (lib/getanalysis.py installs them one at a time, --no-build-isolation --no-deps). GPL-3.0.
+# Installed only in analysis/runtime/ (lib/getanalysis.py), never in Parseh's environment.
+# Pinned by hash; docs/analyzers.md says what was checked, and how to move a pin.
+NlpToolkit-Util-Cy==1.0.13 \
+    --hash=sha256:7f98c6cbe9f6d14b5762402a4310e3a260a88dd21dee753902c89dea24cd2f00
+NlpToolkit-DataStructure-Cy==1.0.15 \
+    --hash=sha256:23698057f18eef863ddf67524b8552b24436b33c54509a9bd069ad021e9b7a22
+NlpToolkit-Math-Cy==1.0.20 \
+    --hash=sha256:2902af95c0ac92f632bad5f98f65ef3f00447f3ef828e944de07672de1ae23d4
+NlpToolkit-Dictionary-Cy==1.0.38 \
+    --hash=sha256:8c4a20f38b47ea3c4330ab94c71b30e0bb979bbf43ff12d9d405dabf413695ec
+NlpToolkit-Corpus-Cy==1.0.24 \
+    --hash=sha256:0978d315acb5b59fda3edeee73db906f503302e453a27423742a41ef945cac7d
+NlpToolkit-MorphologicalAnalysis-Cy==1.0.36 \
+    --hash=sha256:279196d3e2b4fc0df3fe992397df320e8013686df97ffd8d823bbff2079ac106
