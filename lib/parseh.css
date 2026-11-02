@@ -755,3 +755,20 @@ html.pg-reader header :is(#listenfollow,#listenscroll):disabled{display:none}
    page that has a gear): the reading-place question and the Keep bar, drawn at
    z-index 415, would stand over it, on the very buttons it is for */
 html.pg-sheet :is(.pf-bar,.kp-bar){display:none!important}
+
+/* WHAT AN ANALYZER READ A WORD AS (lib/lookupassist.py), in both dictionary panels and on Settings -> Linguistic analysis:
+   its part of speech in this sentence, and the entry that fits.  In the sans of the page whatever the word's own font is,
+   apart from the direction of the word beside it, and never by colour alone: each says what it is in words. */
+.dposhere{display:inline-block;margin-inline-start:.5em;padding:1px 8px;border-radius:20px;border:1px solid var(--accent);
+  color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent);font:600 12px/1.45 system-ui,sans-serif;
+  vertical-align:middle;direction:ltr;unicode-bidi:isolate;white-space:nowrap}
+.dfits{display:inline-block;margin-inline-start:.5em;padding:0 7px;border-radius:20px;background:var(--accent);color:var(--accent-fg,#fff);
+  font:600 11px/1.5 system-ui,sans-serif;font-style:normal;vertical-align:middle;direction:ltr;unicode-bidi:isolate;white-space:nowrap}
+.dhit.fits{border-inline-start:3px solid var(--accent);padding-inline-start:7px}
+.dmachine{font-style:normal}
+/* and in the editor's sources, where a gloss is written from */
+.sreading{margin:8px 0 3px}
+.sreading .sreadw{font-family:var(--tl-font,serif);font-size:16px}
+.sreading .sreadl{color:var(--dim);font-size:12px;margin-top:1px}
+.sfits{border-inline-start:3px solid var(--accent);padding-inline-start:7px}
+.sfits>.dfits{margin:0 0 2px;display:table}

@@ -10,7 +10,8 @@ THE ANALYSIS, NOT A LIST OF FORMS.  A spoken form is a prefix (می- نمی- ب-
 verb, as speech writes it: گ for گوی, اومد for آمد) and an ending (-e -in -an for the formal -ad -id -and).  The stems are the table;
 the prefixes, the endings, the glide a prefix takes before a vowel (بیا, نیومد, می‌یاد), the bare imperative (کن for بکن) are the
 rules; and what comes out is the formal STRING, which the caller looks up in the dictionary: a form counts only if the dictionary's own
-conjugation table has it.  So the same code reads a verb the table gives a contracted stem to, and one it does not know is checked by
+conjugation table has it -- or, for a NEGATIVE, has its affirmative (`affirmative`): Wiktionary's tables list no negatives at all, so
+نمی‌روم is known by می‌روم and the answer says it is the negative of it.  So the same code reads a verb the table gives a contracted stem to, and one it does not know is checked by
 the old affix rules (and by the sound rules of layer 8) as it always was.
 
 The formal strings are made the way Persian's tables write them (می‌گویم, نمی‌دانم, بیاورم, بنشین, برمی‌دارم): the formal stems and the
@@ -145,13 +146,23 @@ class Verbs:
                 changed = p != P
                 needs_ending = p in short
                 for g in self._glides(p):
-                    auto = p not in listed or needs_ending
+                    auto = p not in listed                # (the t of -st lost before an ending is regular in the past: تونسم, خواسین)
                     self._add(sp_pre + g, (v, "past", "", formal_pre + P, p, changed, needs_ending, auto))
                     self._add(sp_pre + "ن" + g, (v, "negative past", "ن", formal_pre + neg_past if not pre else pre + "ن" + P, p, changed, needs_ending, auto))
                     for mi, mi_formal in (("می", "می" + ZW), ("نمی", "نمی" + ZW)):
-                        self._add(sp_pre + mi + g, (v, "imperfect", mi, formal_pre + mi_formal + P, p, changed, needs_ending, auto))
-        if v.flags.get("mi_stem"):
-            self._add(v.flags["mi_stem"], (v, "present", "می", "می" + ZW + S, v.flags["mi_stem"], True, False, False))
+                        self._add(sp_pre + mi + g, (v, "imperfect", mi, formal_pre + mi_formal + P, p, changed, needs_ending, auto or needs_ending))
+        # the formal negatives themselves, as a page writes them (نیامد, نیفتاد, بینداز's نینداز): the table's own prefixes
+        if not pre:
+            if neg_past != "ن" + P:
+                self._add(neg_past, (v, "negative past", "ن", neg_past, P, False, False, False))
+            if neg != "ن" + S:
+                self._add(neg, (v, "negative", "ن", neg, S, False, False, False))
+        for stem in str(v.flags.get("mi_stem") or "").split("|"):
+            if stem:
+                self._add(stem, (v, "present", "می", "می" + ZW + S, stem, True, False, False))
+        for stem in str(v.flags.get("mi_past") or "").split("|"):
+            if stem:
+                self._add(stem, (v, "imperfect", "می", "می" + ZW + P, stem, True, False, False))
         if v.flags.get("spoken_imp"):
             self.special.setdefault(self.fold(v.flags["spoken_imp"]), []).append((v.formal.get("imp") or ("ب" + S), v))
         # the spoken infinitive: a spoken past stem and a nun (اومدن, خوندن, رسوندن)
@@ -168,6 +179,8 @@ class Verbs:
         def add(formal, why, v, kind, person, negative=False, auto=False):
             if formal and formal not in seen:
                 seen.add(formal)
+                pre = v.flags.get("pre") or ""
+                negative = negative or (formal[len(pre):] if formal.startswith(pre) else formal).startswith("نمی" + ZW)
                 out.append(VForm(formal, why, v, kind, person, negative, auto))
         for formal, v in self.special.get(key, []):
             add(formal, self._say("verb_stem", spoken=key, formal=formal), v, "imperative", "2s")
@@ -203,7 +216,9 @@ class Verbs:
                     elif mode == "bare present":
                         if not e:
                             continue
-                        stem = v.pres if v.flags.get("bare") else "می" + ZW + v.pres
+                        # a verb flagged `light` (کردن, شدن) says its subjunctive with no ب in compounds (خراب کنم, خوشحال شه: note C1), as a form of its own
+                        light = bool(v.flags.get("light"))
+                        stem = v.pres if v.flags.get("bare") else (v.formal.get("subj") or "ب" + v.pres) if light else "می" + ZW + v.pres
                         self._emit(add, v, "present", ("" if not v.flags.get("pre") else v.flags["pre"]) + stem + f, spoken_stem, changed, e, f, v.pres, True)
                     else:
                         self._imperative(add, v, kind, spoken_stem, changed, e, f, auto, note)
@@ -213,6 +228,34 @@ class Verbs:
         out.sort(key=lambda x: (1 if x.auto else 0, 0 if (x.kind == "imperative" and x.person == "2s") else order.get(x.kind, 5),
                                 0 if x.person in ("3s", "2s") else 1))
         return out
+
+    def sound(self, word, infinitive, sounds):
+        """How the word on the page is said, where its verb's spoken stems are in `sounds` (the rule file's `verb_sounds`) -> a
+        romanisation like the dictionary's (`mi-gam`), or "".  Made of what is written and nothing else: a prefix, a stem, an ending."""
+        table = sounds.get(infinitive)
+        if not table:
+            return ""
+        key = self.fold(word).replace(ZW, "")
+        for head, said in (("نمی", "nemi-"), ("می", "mi-"), ("ب", None), ("ن", "na"), ("", "")):
+            if not key.startswith(head):
+                continue
+            rest = key[len(head):]
+            for tense in ("present", "past"):
+                for stem, sound in (table.get(tense) or {}).items():
+                    if not rest.startswith(stem):
+                        continue
+                    ending = rest[len(stem):]
+                    if tense == "past":
+                        tail = {"": "", "م": "am", "ی": "i", "یم": "im", "ین": "in", "ن": "an"}.get(ending)
+                    elif sound[-1] in "āu" or sound.endswith("ro") or sound.endswith("šo"):
+                        tail = {"": "", "م": "m", "ی": "y", "د": "d", "یم": "ym", "ین": "yn", "ن": "n"}.get(ending)
+                    else:
+                        tail = {"": "", "م": "am", "ی": "i", "ه": "e", "یم": "im", "ین": "in", "ن": "an"}.get(ending)
+                    if tail is None or (not ending and tense == "present" and head in ("می", "نمی")):
+                        continue
+                    pre = said if said is not None else ((table.get("be") or "be") if not sound.startswith("y") else "bi")
+                    return pre + sound + tail
+        return ""
 
     def _emit(self, add, v, kind, formal, spoken_stem, changed, e, f, plain, auto=False, note=""):
         why = [self._say(note)] if note else []
@@ -248,6 +291,40 @@ class Verbs:
 
     def _say(self, key, **kw):
         return (self.text.get(key) or key).format(**kw)
+
+    # ---------------------------------------------------------------------------------------------- other spellings
+    def spellings(self, vf):
+        """The formal string of a form and how else a table may write it: Wiktionary's tables make the subjunctive of a verb that begins
+        with a vowel with a plain ب- (بافتد, باندازد), where the language writes the stem it says (بیفتد, بیندازد)."""
+        v = vf.verb
+        subj = v.formal.get("subj")
+        out = [vf.formal]
+        if subj and vf.formal.startswith(subj):
+            out.append("ب" + v.pres + vf.formal[len(subj):])
+        return out
+
+    # ------------------------------------------------------------------------------------------------- the negative
+    def affirmative(self, vf):
+        """The affirmative formal strings of a negative VForm, the way the tables write them: نمی‌روم -> می‌روم, نرود -> برود, نرفت -> رفت,
+        نگو -> بگو, نیامد -> آمد, برنگشتم -> برگشتم.  A verb's own prefixes (`formal`: neg, neg_past, negimp) are undone with its own."""
+        v = vf.verb
+        pre = v.flags.get("pre") or ""
+        body = vf.formal[len(pre):] if pre and vf.formal.startswith(pre) else vf.formal
+        S, P = v.pres, v.past
+        subj = S if pre or v.flags.get("bare") else v.formal.get("subj") or ("ب" + S)
+        neg, neg_past = v.formal.get("neg") or ("ن" + S), v.formal.get("neg_past") or ("ن" + P)
+        pairs = [("نمی" + ZW, "می" + ZW), (neg_past, P), (neg, subj)]
+        if subj != "ب" + S and not pre and not v.flags.get("bare"):
+            pairs.append((neg, "ب" + S))
+        if v.formal.get("negimp"):
+            pairs.append((v.formal["negimp"], v.formal.get("imp") or subj))
+        if S.endswith("وی"):
+            pairs.append((neg[:-1], subj[:-1]))
+        out = []
+        for n, a in pairs:
+            if body.startswith(n):
+                out.append(pre + a + body[len(n):])
+        return list(dict.fromkeys(out))
 
     # ---------------------------------------------------------------------------------------- the perfect, collapsed
     def perfect(self, infinitive, person):

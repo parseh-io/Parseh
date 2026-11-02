@@ -86,7 +86,7 @@ def candidate(rank, root, parse_text, final_pos):
     lemma = citation(root) if first == "VERB" else root
     return analyzer.Candidate(source=NAME, rank=rank, lemma=lemma, root=root, stem=root, upos=upos,
                               native=final_pos or first, feats=feats_of(tags),
-                              raw={"parse": parse_text, "groups": groups})
+                              raw={"parse": parse_text, "groups": groups, "base": UPOS.get(first)})
 
 
 def build(code, text, sentences, parses_of, context="", resources=()):
@@ -113,6 +113,9 @@ class Backend:
 
     def languages(self):
         return ("tr",)
+
+    def loaded(self):
+        return ("tr",) if self._fsm is not None else ()
 
     def status(self, code):
         import importlib.util

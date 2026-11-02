@@ -235,6 +235,7 @@ const READ = ([word]) => {
     const cs = getComputedStyle(h), block = h.querySelector('.dspoken:not(.dsame)'), second = h.querySelector('.dspoken.dsame');
     return {
       head: (txt(h, '.dhead2') || '').trim().split(' ')[0],
+      closed: !!h.querySelector('.dhead2') && getComputedStyle(h.querySelector('.dhead2')).display === 'none',
       num: txt(h, '.dsnum'),
       row: h.className,
       pill: txt(h, '.dspill'),
@@ -268,6 +269,11 @@ function check(surface, c, got) {
   assert(got.found, `${at}: the word has a row in the dictionary block of the cloud` + (got.found ? '' : ': ' + JSON.stringify(got.words)));
   const first = got.cards[0];
   if ('cards' in s) eq(got.cards.length, s.cards, `${at}: ${s.cards} cards`);
+  if (s.small_in === surface) {
+    const small = got.cards.filter(k => /dsmall/.test(k.row));
+    assert(small.length > 0 && small.every(k => k.closed && k.pill), `${at}: the second reading is a small closed row with its pill`);
+    assert(!/dsmall/.test(first.row) && !first.pill && !first.closed && !got.header, `${at}: the entry stands as it always did, with no header of readings`);
+  }
   if (s.badge === null) {
     assert(got.cards.every(k => !k.pill && !/dspk/.test(k.row) && !k.blockText && !k.second) && !got.header,
            `${at}: drawn as it always was: no pill, no tint, no reading, no header`);
@@ -386,6 +392,11 @@ try {
     await waitLooked(reader);
     const got = await reader.evaluate(READ, [c.word]);
     check('reader', c, got);
+    if (c.shows.small_in === 'reader') {
+      await reader.locator('#cloud .dsmall .dsline').first().click();
+      assert(await reader.evaluate(() => { const h = document.querySelector('#cloud .dsmall .dhead2'); return getComputedStyle(h).display !== 'none'; }),
+             'reader: a small row opens when its line is pressed');
+    }
     await shot(reader, `reader-${c.id}`);
     if (GUIDE && c.id === 'composed') {
       // the card of the word, whole, as a person sees it when the cloud is scrolled to it

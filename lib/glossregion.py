@@ -634,7 +634,8 @@ def _evidence(ctx, units, mode):
         return evidence.Evidence()
     try:
         L = ctx["L"]
-        return evidence.for_units(L.code, units, lambda ch: _todo(ch, L, mode))
+        return evidence.for_units(L.code, units, lambda ch: _todo(ch, L, mode),
+                                  "spoken" if ctx["surface"] == "video" else None)
     except (OSError, ValueError, RuntimeError) as e:
         return evidence.Evidence(diagnostics=[str(e)])
 
@@ -818,6 +819,12 @@ def _prompt(ctx, units, mode, prompt=None, options=None):
         notes.append("%d chunks is a long stretch: the LLM may answer over several "
                      "messages -- paste them all, one under the other -- or pick a "
                      "shorter one" % counts["chunks"])
+    # WHAT THE ANALYZER ADDED, or why nothing, where somebody chose that it should (Settings -> Linguistic analysis)
+    said = made.data.count('"analysis": ')
+    if said:
+        notes.append("%d chunk%s carr%s the analyzer's reading" % (said, "" if said == 1 else "s", "ies" if said == 1 else "y"))
+    elif counts.get("analysis_notes"):
+        notes.append("no analyzer's reading in this prompt: %s" % counts["analysis_notes"][0])
     r["notes"] = notes
     return r
 

@@ -33,7 +33,7 @@ MAX_VARIANTS = 200
 
 
 class Rule:
-    __slots__ = ("id", "rx", "put", "sound", "note", "min", "swap", "cost", "stage")
+    __slots__ = ("id", "rx", "put", "sound", "note", "min", "swap", "cost", "stage", "guess")
 
     def __init__(self, spec):
         self.id = spec.get("id") or ""
@@ -46,6 +46,7 @@ class Rule:
         self.min = spec.get("min", 2)
         self.cost = spec.get("cost", 1)         # what the rule adds to a path's rewrites: a broad guess costs more than a regular change
         self.stage = spec.get("stage", 8)       # 8: the sound changes of the note's B; 9: the spellings by ear of its A4, tried after them
+        self.guess = self.cost >= 2             # a broad guess: asked only of a word nothing else reads and the dictionary does not have
 
 
 def _expand(spec):

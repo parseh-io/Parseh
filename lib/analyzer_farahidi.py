@@ -37,8 +37,8 @@ _MOODS = {"مرفوع": "Ind", "منصوب": "Sub", "مجزوم": "Jus"}
 
 
 def _none(v):
-    """Farahidi's "-" means there is none, not a linguistic value."""
-    return None if v in (None, "", "-") else v
+    """Farahidi's "-" and "#" (the root of a particle, `و`) mean there is none, not a linguistic value."""
+    return None if v in (None, "", "-", "#") else v
 
 
 def candidate(rank, a):
@@ -121,6 +121,9 @@ class Backend:
 
     def languages(self):
         return ("ar",)
+
+    def loaded(self):
+        return ("ar",) if self._disambiguator is not None else ()
 
     def status(self, code):
         import importlib.util

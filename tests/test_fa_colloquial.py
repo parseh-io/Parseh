@@ -19,6 +19,7 @@ import glob
 import json
 import os
 import sys
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -36,6 +37,7 @@ import spokensound                   # noqa: E402
 import spokenverb                    # noqa: E402
 
 STATE = fd.FIXTURES / "state.json"
+ZW = "‌"
 JOINERS = "‌‍"
 # every family of the note, so that none can be left without a row
 FAMILIES = ["A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8",
@@ -120,7 +122,7 @@ def evaluate(row, word):
     if strict:
         listed = [(m, h) for m, h in positive]
         for x in hits:
-            if x.get("spoken") and not any(h == x["headword"] and m in "s~" for m, h in listed):
+            if x.get("spoken") and not x["spoken"].get("small") and not any(h == x["headword"] and m in "s~" for m, h in listed):
                 fails.append("an unwanted spoken reading: %s" % x["headword"])
     if opts.get("noise") and hits:
         fails.append("something was found for a word that is noise: %s" % [x["headword"] for x in hits])
@@ -395,11 +397,14 @@ class TheSuiteCanFail(unittest.TestCase):
             self.assertGreaterEqual(red("C4"), 2, "the helper داشتن and a verb is what C4's progressive rows read")
         with mock.patch.object(spoken.Rules, "_perfect", return_value=None):
             self.assertGreaterEqual(red("C5"), 1, "the perfect said as the past is C5's second reading")
-        for family, least in (("B1", 6), ("B2", 5), ("B4", 8), ("B6", 3)):
+        for family, least in (("B1", 6), ("B2", 3)):
             with mock.patch.object(spokensound.Sounds, "raw", return_value=[]):
                 self.assertGreaterEqual(red(family), least, "the sound rules are what %s's rows read" % family)
+        # B3's lost r, B4's lost ع, B6, B7: closed lists, so the word table is what their rows read
+        with mock.patch.object(spoken.Rules, "_table", return_value=[]), mock.patch.object(spokenpeel.Peeler, "_terminal", return_value=[]):
+            self.assertGreaterEqual(red("B3", "B4", "B6", "B7"), 20, "the closed families are rows of the table")
         with mock.patch.object(spokenpeel.Peeler, "_sound", return_value=[]):
-            self.assertGreater(red("B1", "B2", "B4", "T2"), 20, "the peeler asks the sound rules of every stem it reaches")
+            self.assertGreater(red("B1", "B2", "B4", "T2"), 15, "the peeler asks the sound rules of every stem it reaches")
 
     def test_the_layer_nine_stages_are_what_their_rows_read(self):
         """The by-ear stage, the window of spaced letters, the words run together, the one-letter table rows, the doubled clitic,
@@ -413,7 +418,7 @@ class TheSuiteCanFail(unittest.TestCase):
         real = spokensound.Sounds.raw
         with mock.patch.object(spokensound.Sounds, "raw", lambda self, word, stage=None: real(self, word, 8 if stage is None else stage)
                                if stage != 9 else []):
-            self.assertGreaterEqual(red("A4"), 10, "the spellings by ear are the stage A4's rows read")
+            self.assertGreaterEqual(red("A4"), 9, "the spellings by ear are the stage A4's rows read")
         with mock.patch.object(spoken.Rules, "_spaced_window", return_value=None):
             self.assertGreaterEqual(red("A3"), 1)
         with mock.patch.object(spoken.Rules, "_run_together", return_value=[]):
@@ -457,9 +462,27 @@ class ThePassKeepsItsPromises(unittest.TestCase):
             without = [lookup.look_up("fa", text) for text in rows]
         finally:
             spoken.forget()
+        # (a word nearly always formal has its second reading as one small closed row, and that is all a formal page gains)
+        for answer in with_pass:
+            for w in answer["words"]:
+                w["hits"] = [h for h in w["hits"] if not (h.get("spoken") or {}).get("small")]
         for text, a, b in zip(rows, with_pass, without):
             with self.subTest(text=text):
                 self.assertEqual(a, b)
+
+    def test_a_word_broken_by_a_star_is_the_word(self):
+        self.assertEqual(spoken._MASK.sub("", "ک*ص"), "کص")
+        self.assertEqual(spoken._MASK.sub("", "ک.ص"), "کص")
+        self.assertEqual(spoken._MASK.sub("", "این. آن"), "این. آن", "a full stop that ends a word is no mask")
+
+    def test_a_verb_is_said_as_it_is_written(self):
+        V = spoken.rules(lookup, lookup.languages.get_or_default("fa")).verbs
+        S = spoken.rules(lookup, lookup.languages.get_or_default("fa")).S["verb_sounds"]
+        for word, verb, said in (("میام", "آمدن", "mi-yām"), ("میگن", "گفتن", "mi-gan"), ("نمیتونم", "توانستن", "nemi-tunam"), ("نیومد", "آمدن", "nayumad"),
+                                 ("میخوام", "خواستن", "mi-xām"), ("میره", "رفتن", "mi-re"), ("بخور", "خوردن", "boxor"), ("اومدم", "آمدن", "umadam")):
+            with self.subTest(word=word):
+                self.assertEqual(V.sound(word, verb, S), said)
+        self.assertEqual(V.sound("میام", "پختن", S), "", "a verb nobody wrote the stems of says nothing")
 
     def test_a_hit_the_pass_made_says_so_and_a_dictionary_hit_does_not(self):
         said = {"kind", "as", "why", "sound", "sound_kind"}
@@ -618,11 +641,16 @@ class TheSoundRules(unittest.TestCase):
                 self.assertIn(r.cost, (1, 2, 3))
 
     def test_a_rule_gives_what_it_makes_of_a_word_at_every_place_it_fits(self):
-        for word, formal in (("خونه", "خانه"), ("دوس", "دوست"), ("قلف", "قفل"), ("نگا", "نگاه"), ("کوچیک", "کوچک"), ("وخت", "وقت"),
-                             ("دمبال", "دنبال"), ("استخون", "استخوان"), ("اسپ", "اسب"), ("بضی", "بعضی"), ("چار", "چهار")):
+        for word, formal in (("خونه", "خانه"), ("دوس", "دوست"), ("نگا", "نگاه"), ("کوچیک", "کوچک"), ("استخون", "استخوان")):
             with self.subTest(word=word):
                 self.assertIn(formal, [v for v, _r in self.sounds.raw(word)])
                 self.assertNotIn(word, [v for v, _r in self.sounds.raw(word)])
+        # the note's small closed families are rows of the word table and no open rule: as rules they read نرفت as نفرت and پدرم as بدرم
+        words = spoken.rules(lookup, lookup.languages.get_or_default("fa")).words
+        for word, formal in (("قلف", "قفل"), ("وخت", "وقت"), ("دمبال", "دنبال"), ("اسپ", "اسب"), ("بضی", "بعضی"), ("چار", "چهار")):
+            with self.subTest(word=word):
+                self.assertNotIn(formal, [v for v, _r in self.sounds.raw(word)])
+                self.assertIn(formal, [r.formal for r in words.get(word, [])])
         # the spellings by ear are a stage of their own
         self.assertIn("مرسی", [v for v, _r in self.sounds.raw("مرصی", stage=9)])
         self.assertNotIn("مرسی", [v for v, _r in self.sounds.raw("مرصی", stage=8)])
@@ -676,7 +704,7 @@ class TheVerbTable(unittest.TestCase):
                 for part in filter(None, r["formal"].split(";")):
                     self.assertIn(part.partition("=")[0], ("subj", "neg", "neg_past", "imp", "negimp"))
                 for flag in filter(None, r["flags"].split(",")):
-                    self.assertIn(flag.partition("=")[0], ("bare", "pre", "spoken_imp", "mi_stem"))
+                    self.assertIn(flag.partition("=")[0], ("bare", "pre", "spoken_imp", "mi_stem", "mi_past", "light"))
         self.assertGreater(len(seen), 60)
 
     def test_what_comes_from_hazms_verbs_travels_with_its_licence(self):
@@ -791,7 +819,7 @@ class TheTables(unittest.TestCase):
                 if r["kind"] in ("standalone", "formula"):
                     self.assertTrue(r["gloss"], "a row that has no formal twin says what it means")
                 for flag in filter(None, r["flags"].split(",")):
-                    self.assertIn(flag.partition("=")[0], ("certain", "show", "likelier", "pos", "with", "glue", "needs"))
+                    self.assertIn(flag.partition("=")[0], ("certain", "show", "likelier", "pos", "with", "glue", "needs", "whole", "small", "say", "verb"))
                     if flag.startswith("show="):
                         self.assertIn(flag[5:], ("always", "spoken", "never"))
                     if flag.startswith("needs="):
@@ -858,6 +886,124 @@ def record():
         json.dump(s, f, ensure_ascii=False, indent=1)
         f.write("\n")
     print("%d rows pinned" % len(s["pinned"]))
+
+
+
+# ------------------------------------------------------------------ the real dictionary, where there is one
+def _real_dictionary():
+    """A folder holding a real Persian dictionary (Wiktionary's, built by lib/getdict.py), or None: FA_REAL_DICT, the checkout's dict/, or a test
+    run's copy.  The check is of how a rule behaves on 17,000 headwords, which nothing built here can show."""
+    for folder in (os.environ.get("FA_REAL_DICT"), fd.ROOT / "dict"):
+        if folder and os.path.exists(os.path.join(str(folder), "fa.db")):
+            try:
+                c = sqlite3.connect("file:%s?mode=ro" % os.path.join(str(folder), "fa.db"), uri=True)
+                try:
+                    if c.execute("SELECT count(*) FROM entry").fetchone()[0] > 10000:
+                        return str(folder)
+                finally:
+                    c.close()
+            except sqlite3.Error:
+                pass
+    return None
+
+
+class TheRealDictionary(unittest.TestCase):
+    """What the fixture cannot prove.  It has none of the real dictionary's accidents: no negative verb form anywhere, forms like هس of کولخاس, a
+    page for nearly every short word.  Skipped where no real dictionary is at hand."""
+    NOUNS = "پدر مادر برادر خواهر دوست کتاب دست پا سر چشم گوش دل خانه ماشین شهر کشور کار زن مرد پسر دختر معلم درخت باغ لباس کفش پول اسم روز شب".split()
+    # the note's words, with the word they must be read as first
+    PAIRS = [("بچه‌هاشونو", "بچه"), ("خونشونه", "خانه"), ("اینجوری", "اینطور"), ("نمیدونم", "نمی‌دونم"), ("کنن", "کردن"), ("میگن", "گفتن"),
+             ("میام", "آمدن"), ("میای", "آمدن"), ("میاد", "آمدن"), ("نرو", "رفتن"), ("نمیرم", "رفتن"), ("نمیکنم", "کردن"), ("نمیشه", "شدن"),
+             ("نگو", "گفتن"), ("نکن", "کردن"), ("نشه", "شدن"), ("نیار", "آوردن"), ("نیومد", "آمدن"), ("نتونست", "توانستن"), ("بیفته", "افتادن"),
+             ("بنداز", "انداختن"), ("وامیسه", "ایستادن"), ("تونسم", "توانستن"), ("خونه", "خانه"), ("تموم", "تمام"), ("هیشکی", "هیچ‌کس"),
+             ("اگه", "اگر"), ("دیگه", "دیگر"), ("گشنمه", "گرسنه"), ("خیلییییی", "خیلی"), ("حتمن", "حتما"), ("یجا", "یک"), ("یه‌چیزی", "یک"),
+             ("دوتا", "دو"), ("سه‌تا", "سه"), ("چندتا", "چند"), ("اونکه", "آن"), ("وقتیکه", "وقتی"), ("توئه", "تو"), ("عموئه", "عمو"),
+             ("قلف", "قفل"), ("وخت", "وقت"), ("زنگیدن", "زنگ"), ("مسخره‌بازی", "مسخره"), ("خرشانس", "شانس"), ("پاش", "پا"), ("بچم", "بچه"), ("زنه", "زن"),
+             ("کنه", "کردن"), ("بره", "رفتن"), ("نیا", "آمدن"), ("بشین", "نشستن"), ("همشون", "همه"), ("جونم", "جان"), ("نمدونم", "نمی‌دانم"), ("خردم", "خوردن"),
+             ("شوما", "شما"), ("ملیون", "میلیون"), ("انگاری", "انگار"), ("خاستم", "خواستن"), ("یکیو", "یکی"), ("امشبو", "امشب"), ("خونَرو", "خانه"), ("آقاهه", "آقا")]
+    # words that are also something else: the second reading must be there, on a page of speech
+    ALSO = [("کارت", "کار"), ("بهت", "به"), ("روش", "رو"), ("نون", "نان"), ("درس", "درست")]
+    # a guess must leave these alone, with no hint that the page is speech
+    FORMAL = [("نرفت", "رفتن"), ("نکرد", "کردن"), ("نیامد", "آمدن"), ("نکن", "کردن"), ("نمی‌رود", "رفتن"), ("پدرم", "پدر"), ("پسرش", "پسر"),
+              ("روزش", "روز"), ("شبم", "شب"), ("پولم", "پول"), ("مادرم", "مادر"), ("نمی‌داند", "دانستن")]
+    NAMES = "مهران سپیده کیانوش فرزاد شهرام نسرین بهنام پرستو ساناز نیلوفر سعدی گوگل تلگرام واتساپ آیفون نتفلیکس سامسونگ برزیل".split()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.folder = _real_dictionary()
+        if not cls.folder:
+            raise unittest.SkipTest("no real Persian dictionary here")
+        cls.was = lookup.DICT_DIR
+        lookup.DICT_DIR = cls.folder
+        lookup._CONNS.map = {}
+        spoken.forget()
+
+    @classmethod
+    def tearDownClass(cls):
+        lookup.DICT_DIR = cls.was
+        lookup._CONNS.map = {}
+        spoken.forget()
+
+    def hits(self, word, **kw):
+        return lookup.look_up("fa", word, **kw)["words"][0]["hits"]
+
+    def head(self, word, **kw):
+        got = self.hits(word, **kw)
+        return norm(got[0]["headword"]) if got else None
+
+    def test_the_notes_words_are_read_as_what_they_are(self):
+        for word, formal in self.PAIRS:
+            with self.subTest(word=word):
+                self.assertEqual(self.head(word, register="spoken"), norm(formal), [h["headword"] for h in self.hits(word, register="spoken")])
+
+    def test_a_homograph_has_its_second_reading_on_a_page_of_speech(self):
+        for word, formal in self.ALSO:
+            with self.subTest(word=word):
+                self.assertIn(norm(formal), [norm(h["headword"]) for h in self.hits(word, register="spoken")])
+
+    def test_a_negative_is_known_by_its_affirmative(self):
+        # the real tables have no negative forms: the reason every other negative here has to work
+        c = lookup._conn("fa")
+        self.assertFalse(c.execute("SELECT 1 FROM form WHERE form IN ('نمی‌روم', 'نمیروم', 'نرود', 'نیامد')").fetchone())
+        got = self.hits("نمیرم", register="spoken")[0]
+        self.assertEqual(got["headword"], "رفتن")
+        self.assertIn("می‌روم", got["spoken"]["why"])
+        self.assertEqual(got["spoken"]["as"], "نمی‌روم")
+
+    def test_a_formal_word_is_no_verb_made_from_a_noun(self):
+        for word, first in (("جدیدی", "جدید"), ("بارید", "باریدن")):
+            with self.subTest(word=word):
+                self.assertEqual(lookup.look_up("fa", word)["words"][0]["hits"][0]["headword"], first)
+
+    def test_formal_words_are_not_read_past(self):
+        for word, formal in self.FORMAL:
+            with self.subTest(word=word):
+                self.assertEqual(self.head(word), norm(formal), [h["headword"] for h in self.hits(word)])
+                self.assertFalse(self.hits(word)[0].get("spoken"))
+
+    def test_a_noun_and_its_clitic_stay_that(self):
+        right, wrong = 0, []
+        for noun in self.NOUNS:
+            for clitic in ("م", "ت", "ش"):
+                word = noun + (ZW + "ا" + clitic if noun.endswith("ه") else clitic)
+                if self.head(word) == norm(noun):
+                    right += 1
+                else:
+                    wrong.append(word)
+        # (the rest are words of their own: گوشت, شهرت, مردم, کارت ...)
+        self.assertGreaterEqual(right, 79, wrong)
+
+    def test_a_word_no_dictionary_has_is_not_invented(self):
+        for word in self.NAMES:
+            with self.subTest(word=word):
+                got = self.hits(word)
+                self.assertFalse(got and got[0].get("spoken"), [h["headword"] for h in got])
+
+    def test_a_formal_sentence_says_nothing_of_speech(self):
+        for text in ("او به مدرسه نرفت و چیزی نگفت", "پدرم در تهران کار می‌کند و مادرم نمی‌داند", "پدرش کتاب‌هایش را به پسرش داد"):
+            with self.subTest(text=text):
+                got = [(w["word"], h["headword"]) for w in lookup.look_up("fa", text)["words"] for h in w["hits"][:1] if h.get("spoken")]
+                self.assertEqual(got, [])
 
 
 if __name__ == "__main__":

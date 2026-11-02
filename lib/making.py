@@ -966,8 +966,9 @@ def evidence_helper(facts, L):
     if analysisconfig.choice("evidence") != "on" or not analyzer.available(L.code, syntax=True):
         return ""
     return ("A linguistic analyzer may be asked about a sentence: `%s %s %s --text \"...\"` prints what it read, "
-            "and writes nothing. It can be wrong, and the sentence is what counts; "
-            "[what it says and how to weigh it](analysis-evidence.md). "
+            "and writes nothing. What it prints is evidence and can be wrong: where it disagrees with what the sentence "
+            "plainly says, the sentence is right. It gives no right to change the text or the chunks, and nothing of it "
+            "goes into a file you write. "
             % (facts["python"], os.path.join(facts["lib"], "evidence.py"), L.code))
 
 

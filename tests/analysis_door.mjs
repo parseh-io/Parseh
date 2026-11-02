@@ -86,29 +86,52 @@ async function fake(phone) {
     await open();
     await page.waitForSelector('#an select[data-use="lookup"]');
     const text = () => page.evaluate(() => document.querySelector('main').innerText);
+    const get = async (...items) => {
+      for (const i of items) await page.check(`[data-tick="${i}"]`);
+      await page.click('#an-get');
+    };
+    const removeIt = async item => { await page.click(`[data-ask="${item}"]`); await page.click(`[data-remove="${item}"]`); };
     // a
     for (const k of ['lookup', 'chunking', 'evidence'])
       eq(await page.$eval(`select[data-use="${k}"]`, e => e.value), 'off', `${k} is off at first`);
     has(await text(), 'CC BY-NC-SA 4.0', 'the models\' licence is on the page');
     has(await text(), 'Straka', 'whose work they are is on the page');
-    eq(await page.$$eval('[data-get]', b => b.length), 11, 'a Get for Farahidi, Starlang and nine models');
+    has(await text(), 'not part of Parseh', 'and that they can be left out');
+    eq(await page.$$eval('[data-tick]', b => b.length), 11, 'a tick for Farahidi, Starlang and nine models');
+    eq(await page.$eval('#an-get', b => b.disabled), true, 'nothing ticked, nothing to get');
+    has(await text(), 'Get a language above', 'Try it says what it waits for');
+    assert(!(await page.$('#an-try')), 'and has no button that could only fail');
+    await page.check('[data-tick="udpipe:de"]');
+    await page.check('[data-tick="farahidi"]');
+    has(await page.$eval('#an-get', b => b.textContent), '2 items, about 35 MB', 'the button says what it will fetch, the program with it');
+    await page.uncheck('[data-tick="farahidi"]');
+    await page.uncheck('[data-tick="udpipe:de"]');
     // b
     await h.send({cmd: 'hold'});
-    await page.click('[data-get="udpipe:de"]');
+    await get('udpipe:de', 'udpipe:fr');
     await page.waitForSelector('#an-stop');
-    assert(await page.$eval('[data-get="farahidi"]', b => b.disabled), 'the other buttons rest while it fetches');
+    assert(await page.$eval('[data-tick="farahidi"]', b => b.disabled), 'the other ticks rest while it fetches');
+    assert(await page.$('[role="progressbar"]'), 'a bar says it is going');
     await h.send({cmd: 'release'});
-    await page.waitForSelector('[data-remove="udpipe:de"]');
+    await page.waitForSelector('[data-ask="udpipe:de"]');
+    await page.waitForSelector('[data-ask="udpipe:fr"]');
     await until(async () => !(await page.$('#an-stop')), 'the fetch ends');
     eq(await page.$eval('select[data-use="lookup"]', e => e.value), 'off', 'getting an analyzer turned nothing on');
+    has(await text(), 'Can work in German and French', 'each use says where it could work');
+    has(await text(), 'also needs its dictionary', 'and what the dictionary panel also needs');
     // c
-    await page.click('[data-get="udpipe:hi"]');
+    await get('udpipe:hi');
     await until(async () => (await text()).includes('a fake failure'), 'the failure is said');
-    assert(await page.$('[data-get="udpipe:hi"]'), 'and it can be asked again');
+    assert(await page.$('[data-tick="udpipe:hi"]'), 'and it can be asked again');
     // d
     await page.selectOption('select[data-use="lookup"]', 'assist');
     await until(async () => (await h.send({cmd: 'choices'})).lookup === 'assist', 'the choice is written');
     eq((await h.send({cmd: 'choices'})).evidence, 'off', 'another choice did not move with it');
+    await until(async () => /also need|Working in/.test(await text()), 'and the page says where it works');
+    await page.selectOption('select[data-use="evidence"]', 'on');
+    await until(async () => (await text()).includes('Skills for your chatbot') && await page.$('#an a[href="/settings/skills/"]'), 'turning the prompts on points at the skill');
+    await page.selectOption('select[data-use="evidence"]', 'off');
+    await until(async () => (await h.send({cmd: 'choices'})).evidence === 'off', 'and off again');
     await page.reload();
     await page.waitForSelector('select[data-use="lookup"]');
     eq(await page.$eval('select[data-use="lookup"]', e => e.value), 'assist', 'a reload reads it back');
@@ -116,9 +139,15 @@ async function fake(phone) {
     await page.selectOption('#an-lang', 'de');
     await page.fill('#an-text', 'Der alte Mann');
     await page.click('#an-try');
-    await page.waitForSelector('#an-out table');
-    has(await page.$eval('#an-out', e => e.innerText), 'Phrases, with it', 'Try it shows the phrases with it');
-    has(await page.$eval('#an-out', e => e.innerText), 'mann', 'and what was read');
+    await page.waitForSelector('#an-out h4');
+    const said = await page.$eval('#an-out', e => e.innerText);
+    has(said, 'Each word, in this sentence', 'Try it leads with each word');
+    assert(await page.$('#an-out .tok .dposhere'), 'and its part of speech, as the chip the panels draw');
+    has(said, 'The dictionary, with what fits', 'then the dictionary');
+    has(said, 'Phrases', 'and the phrases');
+    has(said, 'mann', 'and what was read');
+    has(said, 'What a gloss prompt would carry', 'and what a prompt would carry, as it promises');
+    eq(await page.$eval('#an-text', e => e.value), 'Der alte Mann', 'the sentence stays in its box');
     // the real lookup call: what `Find` adds, on a word only the analyzer's lemma finds
     const ask = (text, sentence) => h.send({cmd: 'lookup', text, sentence});
     let row = (await ask('Männer', 'Die Männer gehen'))[0];
@@ -129,14 +158,46 @@ async function fake(phone) {
     row = (await ask('Männer', 'Die Männer gehen'))[0];
     eq(row.hits.length, 0, 'off: the answer is what it was');
     assert(!row.machine, 'and says nothing of any analyzer');
+    // the choice shows what it does
+    await page.selectOption('select[data-use="lookup"]', 'show');
+    await page.waitForSelector('.preview .dfits');
+    has(await page.$eval('.preview', e => e.innerText), 'fits this sentence', 'the panel as the choice makes it is on the page');
+    const order = () => page.$$eval('.preview .dhit b', b => b.map(x => x.textContent));
+    await until(async () => (await order())[0] === 'ran', 'Show leaves the order');
+    await page.selectOption('select[data-use="lookup"]', 'assist');
+    await until(async () => (await order())[0] === 'run', 'and the fuller choice puts it first');
+    await page.selectOption('select[data-use="lookup"]', 'off');
+    await until(async () => !(await page.$('.preview')), 'off shows none');
+    // the keyboard stays where it was through a redraw, and a sentence half typed stays
+    await page.focus('#an-text');
+    await page.keyboard.type('xy');
+    await h.send({cmd: 'hold'});
+    await page.check('[data-tick="udpipe:es"]');
+    await page.click('#an-get');
+    await page.waitForSelector('#an-stop');
+    await page.focus('#an-text');
+    await sleep(1800);
+    eq(await page.evaluate(() => document.activeElement.id), 'an-text', 'a poll leaves the keyboard in the box');
+    has(await page.$eval('#an-text', e => e.value), 'xy', 'and what was typed');
+    await h.send({cmd: 'release'});
+    await page.waitForSelector('[data-ask="udpipe:es"]');
     // f
-    await page.click('[data-remove="udpipe:de"]');
-    await page.waitForSelector('[data-get="udpipe:de"]');
-    await page.click('[data-get="udpipe:es"]');
-    await page.waitForSelector('[data-remove="udpipe:es"]');
+    await page.click('[data-ask="udpipe:de"]');
+    has(await text(), 'Remove it?', 'Remove asks first');
+    await page.click('[data-cancel]');
+    assert(await page.$('[data-ask="udpipe:de"]'), 'Keep it keeps it');
+    await removeIt('udpipe:de');
+    await page.waitForSelector('[data-tick="udpipe:de"]');
+    await page.click('#an > details summary');
+    await page.click('[data-ask="all"]');
     await page.click('[data-remove="all"]');
-    await page.waitForSelector('[data-get="udpipe:es"]');
+    await page.waitForSelector('[data-tick="udpipe:es"]');
     assert(!(await Deno.stat(h.info.folder).catch(() => null)), 'Remove all of it takes the folder');
+    // a choice left on with nothing to work with is said so
+    await page.selectOption('select[data-use="chunking"]', 'assist');
+    await until(async () => (await text()).includes('Nothing here can do this yet'), 'a choice with nothing behind it says so');
+    await page.selectOption('select[data-use="chunking"]', 'off');
+    await until(async () => (await h.send({cmd: 'choices'})).chunking === 'off', 'and off');
     // g
     for (const w of [1280, 390]) for (const scheme of ['light', 'dark']) {
       await page.emulateMedia({colorScheme: scheme});
@@ -173,10 +234,11 @@ async function real(folder) {
     await page.goto(url + '/settings/analysis/');
     await page.waitForSelector('#an select[data-use="lookup"]');
     const take = async (item, ms) => {
-      if (await page.$(`[data-remove="${item}"]`)) { console.log('  already here', item); return; }
+      if (await page.$(`[data-ask="${item}"]`)) { console.log('  already here', item); return; }
       const t0 = Date.now();
-      await page.click(`[data-get="${item}"]`);
-      await page.waitForSelector(`[data-remove="${item}"]`, {timeout: ms});
+      await page.check(`[data-tick="${item}"]`);
+      await page.click('#an-get');
+      await page.waitForSelector(`[data-ask="${item}"]`, {timeout: ms});
       console.log(`  ok ${item} in ${Math.round((Date.now() - t0) / 1000)}s`);
     };
     await take("farahidi", 300000);
@@ -184,9 +246,10 @@ async function real(folder) {
     await take('udpipe:ar', 300000);
     await take('udpipe:tr', 300000);
     await take('starlang', 590000);
-    for (const [code, sentence, want] of [['de', 'Der alte Mann steht langsam von seinem Stuhl auf.', 'stehen'],
-                                          ['ar', 'ذهب الولد إلى المدرسة', 'farahidi+udpipe'],
-                                          ['tr', 'Evlerimizden geldim.', 'starlang+udpipe']]) {
+    for (const [code, sentence, want] of [['de', 'Der alte Mann steht langsam von seinem Stuhl auf.', 'verb'],
+                                          ['ar', 'ذهب الولد إلى المدرسة', 'Farahidi'],
+                                          ['tr', 'Evlerimizden geldim.', 'Starlang']]) {
+      await page.waitForSelector('#an-try:not([disabled])');
       await page.selectOption('#an-lang', code);
       await page.fill('#an-text', sentence);
       await page.click('#an-try');

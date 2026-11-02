@@ -17,13 +17,25 @@ guide and rebuilds the readers by itself.
 
 ## a0.6.0 — not yet released
 
+### Persian as it is spoken, read better
+
+Reading Persian written as it is said now holds up on a full dictionary. `نمیرم`, `نمیشه` and `نرو` find their verbs,
+since a negative is known by its affirmative; `پدرم` and `روزش` are no longer read as something else; `پاش`, `بچم` and `میام`
+lead with what they mean in speech; many more spoken spellings are read, such as `چندتا`, `یه‌چیزی` and `وقتیکه`; the commonest
+verbs and words now show how they are said in speech (میام, *mi-yām*); and in a book, what a nearly always formal word could
+also be is one small row you can open. On spoken sentences judged by hand the right word now comes first for 92% of the words,
+against 79% on the dictionary alone, and Turkish goes from 84% to 97%, with [the analyzers](../lookup-and-languages/linguistic-analysis.md#what-they-add-measured) on.
+[Dictionaries](../lookup-and-languages/dictionaries.md).
+
 ### Linguistic analysis
 
-**Settings → Linguistic analysis** gets optional analyzers onto your computer: UDPipe for English, German, Spanish,
-French, Italian, Hindi and Persian, Farahidi for Arabic and Starlang for Turkish. Getting one changes nothing. You
-choose, one at a time, whether Parseh listens to it for the dictionary panel, for cutting new text into phrases and
-for the gloss prompts, and **Try it** shows a sentence of yours with and without it. Your edited chunks and your text
-are never changed, and whatever goes wrong, Parseh does what it did before.
+The dictionary panel can now say **what each word is in this sentence**. A chip beside the word gives its part of speech, and
+the entry of that part of speech says **fits this sentence** and can come first, so `ran` in *They ran home* leads with *run*, and
+a word the dictionary missed is looked up under its lemma. This comes from optional analyzers you get on **Settings → Linguistic
+analysis**: UDPipe for English, German, Spanish, French, Italian, Hindi and Persian, Farahidi for Arabic and Starlang for Turkish. Getting one
+changes nothing: you choose, one at a time, whether Parseh listens to it for the dictionary, for cutting new text into phrases and for the
+gloss prompts, and **Try it** shows a sentence of yours with and without it. Your text and your edited chunks are never changed, and
+whatever goes wrong, Parseh does what it did before.
 [Linguistic analysis](../lookup-and-languages/linguistic-analysis.md).
 
 ### Glosses below the line, on a phone too

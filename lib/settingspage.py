@@ -547,7 +547,7 @@ DOORS = (
      "Pictures for pages and exercises: ARASAAC's pictograms, to look through and use, with their licence",
      ("arasaac.get", "arasaac.remove", "arasaac.stop")),
     ("/settings/analysis/", "Linguistic analysis",
-     "Optional analyzers for lookup, new phrases and gloss prompts: UDPipe, Farahidi, Starlang",
+     "Each word's part of speech in its sentence, for the dictionary, new phrases and gloss prompts",
      ("analysis.get", "analysis.remove", "analysis.use")),
     # NO SETTING BEHIND THIS DOOR: a skill is built when it is asked for and downloaded as a file; what is done with
     # it afterwards is the person's own step in the chatbot (lib/skillspage.py)
@@ -994,8 +994,8 @@ def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_ta
   </a>
   <a class="door" href="/settings/analysis/">
     <div class="dname">Linguistic analysis</div>
-    <div class="dwhat">Optional analyzers on this computer, UDPipe, Farahidi and Starlang, that Parseh can listen
-    to for the dictionary panel, for new phrases and for the gloss prompts. Off until you say otherwise.</div>
+    <div class="dwhat">Optional analyzers on this computer that read each word's part of speech in its sentence, so the
+    dictionary can show the entry that fits, and help with new phrases and gloss prompts. Off until you say otherwise.</div>
     <div class="tags">%(analysis_gate)s%(analysis_tags)s</div>
   </a>
   <a class="door" href="/settings/skills/">

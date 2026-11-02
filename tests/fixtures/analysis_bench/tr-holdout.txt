@@ -1,0 +1,61 @@
+# Written after the rules were tuned on tr, and scored as they stood.
+Komşularımız yarın İzmir'e taşınıyorlar.
+Komşularımız=komşu yarın=yarın taşınıyorlar=taşınmak
+Kardeşimin düğününe gidemedim.
+Kardeşimin=kardeş düğününe=düğün gidemedim=gitmek
+Pencereyi kim kırdı?
+Pencereyi=pencere kim=kim kırdı=kırmak
+Sabahları kahve içmeyi severim.
+Sabahları=sabah kahve=kahve içmeyi=içmek severim=sevmek
+Doktora gitmen gerekiyor.
+Doktora=doktor gitmen=gitmek gerekiyor=gerekmek
+Bu filmi daha önce izlemiştim.
+filmi=film önce=önce izlemiştim=izlemek
+Çocuklarını okuldan aldı.
+Çocuklarını=çocuk okuldan=okul aldı=almak
+Yağmur yağınca içeri girdik.
+Yağmur=yağmur yağınca=yağmak içeri=içeri girdik=girmek
+Annemle telefonda konuştum.
+Annemle=anne telefonda=telefon konuştum=konuşmak
+Elmaları yıkadın mı?
+Elmaları=elma yıkadın=yıkamak
+Kışın burası çok soğuk olur.
+Kışın=kış burası=bura soğuk=soğuk olur=olmak
+Babasına bir mektup yazacak.
+Babasına=baba mektup=mektup yazacak=yazmak
+Müdür toplantıya gelmedi.
+Müdür=müdür toplantıya=toplantı gelmedi=gelmek
+Şarkı söylemeyi bilmiyorum.
+Şarkı=şarkı söylemeyi=söylemek bilmiyorum=bilmek
+Kedim masanın altında uyuyor.
+Kedim=kedi masanın=masa altında=alt uyuyor=uyumak
+Bu yolu daha önce görmedim.
+yolu=yol görmedim=görmek
+Saçlarını kestirmiş.
+Saçlarını=saç kestirmiş=kestirmek|kesmek
+Ormanda kaybolduk.
+Ormanda=orman kaybolduk=kaybolmak
+Arkadaşımın arabası çok hızlı.
+Arkadaşımın=arkadaş arabası=araba hızlı=hızlı
+Gelecek hafta sınavım var.
+Gelecek=gelecek|gelmek hafta=hafta sınavım=sınav var=var
+Ekmeği kesip masaya koydu.
+Ekmeği=ekmek kesip=kesmek masaya=masa koydu=koymak
+Bahçemizde elma ağaçları var.
+Bahçemizde=bahçe elma=elma ağaçları=ağaç
+Otobüsü kaçırdığım için geç kaldım.
+Otobüsü=otobüs kaçırdığım=kaçırmak geç=geç kaldım=kalmak
+Yaz tatilinde denize gireceğiz.
+tatilinde=tatil denize=deniz gireceğiz=girmek
+Sözünü tutmadı.
+Sözünü=söz tutmadı=tutmak
+Kapıyı kapatmayı unuttum.
+Kapıyı=kapı kapatmayı=kapatmak unuttum=unutmak
+Dişlerini fırçaladın mı?
+Dişlerini=diş fırçaladın=fırçalamak
+Parkta çocuklar koşuyordu.
+Parkta=park çocuklar=çocuk koşuyordu=koşmak
+Yüzünü yıkadı.
+Yüzünü=yüz yıkadı=yıkamak
+Bu kitabın yazarı kim?
+kitabın=kitap yazarı=yazar

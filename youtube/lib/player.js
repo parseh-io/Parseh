@@ -1088,19 +1088,27 @@
      under it -- an entry with no provenance is a rumour.                  */
   function dictText(ch) { return (ch && ch.fa) || ''; }
 
+  // what an analyzer read the word as (lib/lookupassist.py), where somebody chose to see that
+  function posChip(w) {
+    var said = Parseh.machinePos && Parseh.machinePos(w);
+    return said ? '<span class="dposhere" title="' + esc(said.title) + '">' + esc(said.text) + '</span>' : '';
+  }
+  function machineRow(w) {
+    var line = w.machine && Parseh.machineLine && Parseh.machineLine(w);
+    return line ? '<div class="dnone dmachine">' + esc(line) + '</div>' : '';
+  }
   // `at` is the word of the chunk's word line the row was asked for,
   // [surface, reading], headed as the line writes it
   function dictLine(w, at) {
     var h = '<div class="dw"><div class="dwd" lang="' + esc(L.code) + '">' +
             esc(at ? at[0] : w.word) +
-            (at && at[1] ? ' <span class="dread">' + esc(at[1]) + '</span>' : '') + '</div>';
+            posChip(w) + (at && at[1] ? ' <span class="dread">' + esc(at[1]) + '</span>' : '') + '</div>';
     if (!w.hits.length) {
       // what it looked for, not merely that it failed: a reader can then
       // tell "not in the dictionary" from "the dictionary was never asked"
       return h + '<div class="dnone">not found (tried ' +
              esc(w.tried.join(', ')) + ')</div>' +
-             (w.machine && Parseh.machineLine ? '<div class="dnone dmachine">' + esc(Parseh.machineLine(w)) + '</div>' : '') +
-             '</div>';
+             machineRow(w) + '</div>';
     }
     // WHAT THE SPOKEN PASS READ (lib/spoken.py): drawn by lib/parseh.js, as the book's panel draws it -- a pill, the word it
     // was read as, why, its pieces, its sound -- and a word with several readings numbers them
@@ -1113,11 +1121,12 @@
       var head = x.spelled || x.headword;
       var said = SP.note(x);
       var block = x.spoken ? SP.block(x, { written: w.word, lang: L.code, dir: L.dir }) : null;
-      h += '<div class="dhit' + SP.row(x) + '">' + (many ? SP.lead(w, k) : '') + '<span class="dhead2"' +
+      h += '<div class="dhit' + SP.row(x) + (x.fits ? ' fits' : '') + '">' + (many ? SP.lead(w, k) : '') + '<span class="dhead2"' +
            (x.spelled && x.spelled !== x.headword
              ? ' title="the dictionary files it under ' + esc(x.headword) + '"' : '') +
            '>' + esc(head) + (x.translit ? ' ' + esc(x.translit) : '') + '</span>' +
            (x.pos ? '<span class="dpos"> ' + esc(x.pos) + '</span>' : '') +
+           (x.fits && Parseh.FITS ? '<span class="dfits">' + esc(Parseh.FITS) + '</span>' : '') +
            (said ? '<span class="dnote"> — ' + esc(said) + '</span>' : '') +
            (block ? block.outerHTML : '');
       // A VERB'S OTHER FORMS, under its headword and before its senses.  The
@@ -1155,7 +1164,7 @@
     // (a word the spoken pass read says how in each of its cards: the line that says it again is left out)
     if (w.via && w.via !== 'as written' && w.kind !== 'spoken')
       h += '<div class="dnone">found ' + esc(w.via) + '</div>';
-    if (w.machine && Parseh.machineLine) h += '<div class="dnone dmachine">' + esc(Parseh.machineLine(w)) + '</div>';
+    h += machineRow(w);
     return h + '</div>';
   }
 
@@ -2151,6 +2160,16 @@
      (wordKey), as the book compares, because Arabic did the same with its
      marks: "وصل → وَصَلَ", the bare page title and the vowelled \vb of one
      verb. */
+  // what the analyzer read the word as (lib/lookupassist.py): here too, because this is where a gloss is written from
+  function srcReading(into, w) {
+    var said = Parseh.machinePos && Parseh.machinePos(w), line = Parseh.machineLine && Parseh.machineLine(w);
+    if (!said && !line) return;
+    var d = document.createElement('div');
+    d.className = 'sreading';
+    d.innerHTML = '<span class="sreadw" lang="' + esc(L.code) + '">' + esc(w.word) + '</span>' + posChip(w) +
+                  (line ? '<div class="sreadl">' + esc(line) + '</div>' : '');
+    into.appendChild(d);
+  }
   function srcHit(into, h) {
     var sense = (h.senses || [])[0] || '';
     var vb = (h.vb && h.vb.here) ? h.vb : null;
@@ -2512,7 +2531,17 @@
         dict.innerHTML = '<div class="snone">the dictionary has nothing for ' +
                          'these words</div>';
       found.forEach(function (w) {
-        (w.hits || []).forEach(function (h) { srcHit(dict, h); });
+        srcReading(dict, w);
+        (w.hits || []).forEach(function (h) {
+          var n = dict.children.length;
+          srcHit(dict, h);
+          if (h.fits && Parseh.FITS && dict.children[n]) {
+            var f = document.createElement('div');
+            f.className = 'dfits'; f.textContent = Parseh.FITS;
+            dict.children[n].classList.add('sfits');
+            dict.children[n].insertBefore(f, dict.children[n].firstChild);
+          }
+        });
       });
       if (opts.defsMt && DICT.defines && MT.ready) defsRead(dict, '.sdef', null, srcDefPut);
       srcPairs(pairs, j);

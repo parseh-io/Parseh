@@ -1,0 +1,101 @@
+# Turkish, inflected as it is read.  Headwords as the dictionary writes them.
+Yarın sabah erkenden işe gideceğim.
+Yarın=yarın sabah=sabah erkenden=erken|erkenden işe=iş gideceğim=gitmek
+Annem bana güzel bir yemek yaptı.
+Annem=anne bana=ben güzel=güzel yemek=yemek yaptı=yapmak
+Bu kitabı okumak istiyorum.
+kitabı=kitap okumak=okumak istiyorum=istemek
+Dün akşam arkadaşlarımla sinemaya gittik.
+Dün=dün akşam=akşam arkadaşlarımla=arkadaş sinemaya=sinema gittik=gitmek
+Çocuklar bahçede top oynuyorlar.
+Çocuklar=çocuk bahçede=bahçe top=top oynuyorlar=oynamak
+Evlerimizden geldim.
+Evlerimizden=ev geldim=gelmek
+Kitaplarımızı okuyamadılar.
+Kitaplarımızı=kitap okuyamadılar=okumak
+Yaşlı adam bahçede büyük bir kitap okuyordu.
+Yaşlı=yaşlı adam=adam büyük=büyük okuyordu=okumak
+Gelen adamı görmemişler.
+Gelen=gelmek|gelen adamı=adam görmemişler=görmek
+Babam her sabah gazete okur.
+Babam=baba her=her gazete=gazete okur=okumak
+Bu sorunu çözemedik.
+sorunu=sorun çözemedik=çözmek
+Kardeşim üniversitede okuyor.
+Kardeşim=kardeş üniversitede=üniversite okuyor=okumak
+Hava bugün çok soğuk.
+Hava=hava bugün=bugün soğuk=soğuk
+Kapıyı açar mısın?
+Kapıyı=kapı açar=açmak
+Sana bir şey söyleyeceğim.
+Sana=sen şey=şey söyleyeceğim=söylemek
+Türkçe öğrenmek zor değil.
+öğrenmek=öğrenmek zor=zor değil=değil
+Arabamı tamir ettirdim.
+Arabamı=araba ettirdim=ettirmek|etmek
+Evde kimse yoktu.
+Evde=ev kimse=kimse yoktu=yok
+Çocuğun oyuncağını kırdım.
+Çocuğun=çocuk oyuncağını=oyuncak kırdım=kırmak
+Ağaçların yaprakları düşüyor.
+Ağaçların=ağaç yaprakları=yaprak düşüyor=düşmek
+Öğretmen öğrencilere soru sordu.
+Öğretmen=öğretmen öğrencilere=öğrenci soru=soru sordu=sormak
+Denizde yüzmeyi seviyorum.
+Denizde=deniz yüzmeyi=yüzmek seviyorum=sevmek
+Yüzü çok güzel.
+Yüzü=yüz
+Yüz metre koştum.
+Yüz=yüz metre=metre koştum=koşmak
+Bu yaz tatile çıkacağız.
+yaz=yaz tatile=tatil çıkacağız=çıkmak
+Mektubu yazdı ve postaya verdi.
+Mektubu=mektup yazdı=yazmak postaya=posta verdi=vermek
+Okula gitmeden önce kahvaltı yaptım.
+Okula=okul gitmeden=gitmek kahvaltı=kahvaltı yaptım=yapmak
+Eve dönerken yağmur başladı.
+Eve=ev dönerken=dönmek yağmur=yağmur başladı=başlamak
+Hasta olduğu için gelemedi.
+Hasta=hasta olduğu=olmak gelemedi=gelmek
+Bunu sana kim anlattı?
+Bunu=bu sana=sen kim=kim anlattı=anlatmak
+Annesinin evinde kalıyor.
+Annesinin=anne evinde=ev kalıyor=kalmak
+Çantamı otobüste unutmuşum.
+Çantamı=çanta otobüste=otobüs unutmuşum=unutmak
+Köpekler bütün gece havladı.
+Köpekler=köpek bütün=bütün gece=gece havladı=havlamak
+Paramız kalmadı.
+Paramız=para kalmadı=kalmak
+Yemeği çok beğendim.
+Yemeği=yemek beğendim=beğenmek
+Geç kaldığım için özür dilerim.
+Geç=geç kaldığım=kalmak özür=özür dilerim=dilemek
+Şehirde yaşamak pahalı.
+Şehirde=şehir yaşamak=yaşamak pahalı=pahalı
+Dağlara tırmanmak istemiyorlar.
+Dağlara=dağ tırmanmak=tırmanmak istemiyorlar=istemek
+Gözlerin çok güzelmiş.
+Gözlerin=göz güzelmiş=güzel
+Satın aldığımız ev küçüktü.
+aldığımız=almak ev=ev küçüktü=küçük
+Bakkaldan ekmek aldım.
+Bakkaldan=bakkal ekmek=ekmek aldım=almak
+Sınavı geçemeyeceğini düşünüyordu.
+Sınavı=sınav geçemeyeceğini=geçmek düşünüyordu=düşünmek
+Bin lira verdim.
+Bin=bin lira=lira verdim=vermek
+Ata bindi.
+Ata=at bindi=binmek
+Çay içer misiniz?
+Çay=çay içer=içmek
+Bahçedeki çiçekleri suladım.
+Bahçedeki=bahçe çiçekleri=çiçek suladım=sulamak
+Herkes evine gitti.
+Herkes=herkes evine=ev gitti=gitmek
+Bu kadın benim öğretmenimdir.
+kadın=kadın öğretmenimdir=öğretmen
+Kitapları masanın üstüne koydum.
+Kitapları=kitap masanın=masa üstüne=üst|üstüne koydum=koymak
+Yardım etmedik çünkü zamanımız yoktu.
+Yardım=yardım etmedik=etmek zamanımız=zaman yoktu=yok

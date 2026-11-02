@@ -59,6 +59,7 @@ _HUNDREDS = ["", "صد", "دویست", "سیصد", "چهارصد", "پانصد",
 R_ENTRY, R_TABLE, R_CLEAN, R_RULE, R_LENGTH, R_SWAP = 0, 1, 2, 3, 4, 5
 FIRST, AFTER = -2.0, 20.0     # the `_tier` a spoken hit takes: before every direct one, or after (lookup._by_use keeps it)
 MAX_SPOKEN = 6                # the most hits a word may hold once readings are added
+_MASK = re.compile(r"(?<=[\u0600-\u06ff])[*.\u066d\u2022]+(?=[\u0600-\u06ff])")
 
 Row = collections.namedtuple("Row", "spoken formal kind flags gloss note src tokens")
 
@@ -156,6 +157,11 @@ class Rules:
     def clean(self, w):
         """The word with characters that are not Persian's put right: what, in words, is the second answer."""
         notes, out = [], []
+        # a word broken by a star or a dot, to pass a filter (ک*ص, ک.ص: note A4): only between letters
+        unmasked = _MASK.sub("", w)
+        if unmasked != w:
+            notes.append("masked")
+            w = unmasked
         for ch in w:
             if ch in self.clean_drop:
                 if "invisible" not in notes:
@@ -191,8 +197,21 @@ class Rules:
             return 0
         if entry.get("kind") == "affix":
             rule = entry.get("_rule") or {}
-            return 1 if len(rule.get("suffix") or rule.get("prefix") or "") <= 1 else 2
-        return 3 if min(h.get("_tier", 0) for h in hits) <= lk.T_FORM else 1
+            if len(rule.get("suffix") or rule.get("prefix") or "") > 1:
+                return 2
+            # a one-letter ending is a guess of the old rules (میام: -م off and the infinitive's -ن put back), but a formal clitic on
+            # a word that takes one is what the word most likely is (پدرم, پسرش, درختت), and the rules of speech must not read past it
+            clitics = ((self.S.get("peel") or {}).get("clitics") or {}).get("formal") or []
+            on_noun = rule.get("suffix") in clitics and not rule.get("add") and any(
+                h.get("pos") in ("noun", "adj") and h.get("_tier", 9) <= lk.T_FORM for h in hits)
+            return 2 if on_noun else 1
+        if min(h.get("_tier", 0) for h in hits) > lk.T_FORM:
+            return 1
+        # only an `alternative` row of another word's page (هس of کولخاس, سیو of سیب, کلی of کلید: old and dialect spellings Wiktionary keeps
+        # for completeness): that says little of what this word is on a page today, so the tables and the endings may read it
+        if all(h.get("_tier", 0) == lk.T_FORM and (h.get("note") or "").startswith("alternative") for h in hits):
+            return 2
+        return 3
 
     def _known(self, lk, c, forms):
         forms = list(dict.fromkeys(f for f in forms if f))
@@ -240,20 +259,71 @@ class Rules:
         return None
 
     def verb_readings(self, lk, c, L, word):
-        """[(VForm, hits)]: the formal verb forms a spoken word can be that the dictionary has (a form of a verb, strongly)."""
+        """[(VForm, hits)]: the formal verb forms a spoken word can be that the dictionary has (a form of a verb, strongly).  A
+        negative is known by its affirmative where the dictionary's tables have none (`_negative_hits`)."""
         if not self.verbs:
             return []
         key = lk._fold(word, L)
         out = []
         for vf in self.verbs.analyze(word)[:12]:
             if lk._fold(vf.formal, L) == key:
-                continue                         # the word as it stands: the dictionary's own answer
-            # the verb the spoken stem is of: می‌شویم is a form of شدن and of شستن, and میشورم is only the second
-            hits = [h for h in self._hits(lk, c, L, vf.formal) if h.get("pos") == "verb" and h.get("_tier", 0) <= lk.T_FORM
-                    and h.get("headword") == vf.verb.inf]
+                continue                         # the word as it stands: the dictionary's own answer (or `_written_negative`)
+            hits = []
+            for formal in self.verbs.spellings(vf):
+                hits = self._verb_form_hits(lk, c, L, formal, vf.verb)
+                if hits:
+                    break
+            if not hits and vf.negative:
+                hits, positive = self._negative_hits(lk, c, L, vf)
+                if hits:
+                    vf.why = "; ".join(x for x in (self._say("verb_negative", formal=positive), vf.why) if x and x != self._say("verb_plain"))
             if hits:
                 out.append((vf, hits))
         return out
+
+    def _verb_form_hits(self, lk, c, L, formal, verb):
+        # the verb the spoken stem is of: می‌شویم is a form of شدن and of شستن, and میشورم is only the second
+        return [h for h in self._hits(lk, c, L, formal) if h.get("pos") == "verb" and h.get("_tier", 0) <= lk.T_FORM
+                and h.get("headword") == verb.inf]
+
+    def _negative_hits(self, lk, c, L, vf):
+        """(hits, the affirmative): a negative verb form is known by its affirmative.  Wiktionary's Persian tables list no negative of
+        any tense, so نمی‌روم, نرود, نیامد, نکن are not forms of anything there and می‌روم, برود, آمد, بکن are."""
+        for positive in self.verbs.affirmative(vf):
+            hits = self._verb_form_hits(lk, c, L, positive, vf.verb)
+            if hits:
+                return hits, positive
+        return [], ""
+
+    def _written_negative(self, lk, c, L, entry, w):
+        """A word that IS a formal negative form (نیامد, نرفت, نکن, نمی‌رود): the verb, first, with its reason in the hit's note and no
+        `spoken` object, since nothing here is read as speech.  It answers what the old affix rules answer for نرفت, and for the
+        vowel-initial verbs they cannot take apart (نیامد is not ن + یامد).  True when it did."""
+        got = self._negative_verb(lk, c, L, w)
+        if not got:
+            return False
+        head, positive = got
+        direct = entry.get("hits") or []
+        if direct and direct[0].get("headword") == head.get("headword"):
+            return True                          # the old rules read it, and their answer stands as it was
+        why = self._say("verb_negative", formal=positive)
+        head = dict(head, note=why, _tier=lk.T_FORM)
+        entry["hits"] = [head] + [h for h in direct if h.get("entry") != head.get("entry")]
+        entry["kind"] = "affix"
+        entry["via"] = why
+        return True
+
+    def _negative_verb(self, lk, c, L, w):
+        """(the hit of its verb, the affirmative) where this word IS a negative form of a verb of the table, or None."""
+        if not self.verbs:
+            return None
+        key = lk._fold(w, L)
+        for vf in self.verbs.analyze(w)[:12]:
+            if vf.negative and lk._fold(vf.formal, L) == key and not self._verb_form_hits(lk, c, L, vf.formal, vf.verb):
+                hits, positive = self._negative_hits(lk, c, L, vf)
+                if hits:
+                    return hits[0], positive
+        return None
 
     def _formal_word(self, lk, c, L, word):
         """The hits of one formal word: an entry or a form of one, or the word with an ending of the language's off it
@@ -358,10 +428,12 @@ class Rules:
         w, cleaned = self.clean(bare)
         key = lk._fold(w, L)
         first, after = [], []
+        if strength < 3 and self._written_negative(lk, c, L, entry, self._nomarks(L, w)):
+            strength, direct = 3, entry["hits"]
 
         # the dictionary's own colloquial pages: before any rule (and given up where a path of endings reads the same page
         # with the endings said: کوچیکه is the page of کوچیک and the copula)
-        own = self._own(lk, c, L, direct)
+        own = self._own(lk, c, L, direct) if not (entry.get("kind") == "affix" and (entry.get("_rule") or {}).get("prefix")) else []
 
         # the whole-word tables
         for rd, row in self._table(lk, c, L, key, ctx, i):
@@ -380,6 +452,14 @@ class Rules:
         # dictionary lists with it, so it comes before the endings are taken off
         if not first and not after and strength <= 2:
             first.extend(self._cv_glued(lk, c, L, bare, w, strength))
+
+        # a tanwin the page writes is evidence, whatever else the letters are (دوماً is دوم, not دوما, گاهاً not گا + ها)
+        if not first and not after and re.search("ً", w) and not any(self._nomarks(L, h.get("headword") or "") != (h.get("headword") or "") for h in direct):
+            first.extend(self._tanwin(lk, c, L, bare, w, strength))
+        # words written together that say what they are by their first or last piece (یه‌چیزی, یجا, اینکه, اونکه, اونهمه): before the
+        # endings are taken off, which on 17,000 headwords would find something in them (اینک, ید)
+        if not first and not after and strength <= 1:
+            first.extend(self._glue_early(lk, c, L, bare, w, strength))
 
         # layers 3 to 6: a word taken apart from the outside in (lib/spokenpeel.py).  A pish or a zir alone is read whatever the
         # dictionary says of the word; a path of endings only where the answer so far stands on a guess (or a trap row asks)
@@ -400,20 +480,43 @@ class Rules:
                         (after if (strength == 2 and rd.weak) else first).append(rd)
                 else:
                     show = policy.flags.get("show")
-                    if show == "always" or (show == "spoken" and ctx.evidence(i)):
+                    # A WORD NEARLY ALWAYS FORMAL (خون, بدن), on a page that does not say it is speech: its second reading is there, one
+                    # small row a person can open, and takes no room from the entry (the owner's pick, design note section 5)
+                    small = bool(policy.flags.get("small")) and not ctx.evidence(i)
+                    if show == "always" or (show == "spoken" and ctx.evidence(i)) or small:
                         direct_ids = {h.get("entry") for h in direct}
                         for rd in readings:
                             ids = {h.get("entry") for h in rd.hits}
-                            if ids and ids <= direct_ids and (strength == 3 or rd.twin):
+                            if small:
+                                if not ids <= direct_ids:
+                                    for h in rd.hits:
+                                        h["spoken"]["small"] = True
+                                    after.append(rd)
+                            elif ids and ids <= direct_ids and (strength == 3 or rd.twin):
                                 same_lines.append(rd)
                             elif strength <= 2 or (policy.flags.get("likelier") == "spoken" and ctx.evidence(i)):
                                 first.append(rd)        # over a guess of the old rules, or where the page says it is speech
                             else:
                                 after.append(rd)
 
+        # a word the dictionary knows, on a page of speech: what it also is with an ending of speech on it.  Where all the dictionary has
+        # is the bare literary present of a verb (خونم, زنه), or a form of a verb that is no verb of speech (بچم of چمیدن, پاش of پاشیدن),
+        # that reading stands first
+        if strength == 3 and self.peeler and not first and not after and not same_lines and ctx is not None and ctx.evidence(i) and not self.policy.get(key):
+            bare_form = bool(direct) and all(self._literary_form(lk, L, h, key) for h in direct)
+            own_page = not bare_form and any(lk._fold(h.get("headword") or "", L) == key for h in direct)
+            found = self.peeler.homograph(lk, c, L, self._nomarks(L, w), ctx, i, {h.get("entry") for h in direct}, own_page)
+            if found:
+                (first if bare_form else after).extend(self._readings_of(lk, c, L, found, R_RULE))
+
         # the rules of the writing level, for a word the dictionary has not found
         if not first and not after and not same_lines and strength <= 1:
             first.extend(self._rules(lk, c, L, bare, w, cleaned, strength))
+        # the last thing a word is asked, and only a word nothing above has read and the dictionary does not have at all: the broad
+        # guesses of the sound rules (a letter put in, a letter said another way).  On 17,000 headwords a guess lands on something
+        # for very many words, so it may stand before no other reading of any kind.
+        if not first and not after and not same_lines and strength == 0 and self.peeler:
+            first.extend(self._readings_of(lk, c, L, self.peeler.read(lk, c, L, self._nomarks(L, w), ctx, i, guesses=True), R_RULE))
 
         # the same word read a second way by a trap's row: a second line on the dictionary's own hit, not another hit
         for rd in same_lines:
@@ -440,6 +543,7 @@ class Rules:
         later = [h for h in spoken_after if h.get("entry") is None or h.get("entry") not in {k.get("entry") for k in kept}]
         for h in spoken_first + spoken_after:
             self._sound_note(lk, L, w, h)
+            self._verb_sound(L, w, h)
         for h in spoken_first:
             self._modal(lk, L, key, h)
         for n, h in enumerate(spoken_first):
@@ -453,6 +557,17 @@ class Rules:
             entry["via"] = self._say("via", why=spoken_first[0]["spoken"]["why"])
             entry["kind"] = "spoken"
         return entry
+
+    def _literary_form(self, lk, L, hit, key):
+        """A hit that is a form of a verb and no page of its own, that speech is unlikely to mean: the bare aorist of any verb (خونم, زنه),
+        or a subjunctive, an imperative or a stem of a verb the table of speech's verbs does not hold.  داره and بریم are speech's own."""
+        if hit.get("pos") != "verb" or lk._fold(hit.get("headword") or "", L) == key:
+            return False
+        note = hit.get("note") or ""
+        verb = self.verbs.verbs.get(hit.get("headword")) if self.verbs else None
+        if "aorist" in note:
+            return not (verb and (verb.flags.get("bare") or verb.flags.get("light")))
+        return bool(re.search(r"subjunctive|imperative|stem", note)) and verb is None
 
     def _doubled(self, lk, L, entry, ctx, i):
         """A clitic on a verb that repeats the object the sentence already names (سارا رو دیدمش, note C7): the formal reading stands,
@@ -503,6 +618,14 @@ class Rules:
         spoken = self.sounds.spoken_sound(hit.get("translit") or hit.get("head_sound") or "", rules)
         if spoken:
             sp["sound"], sp["sound_kind"] = spoken, "spoken"
+
+    def _verb_sound(self, L, w, hit):
+        """A verb's spoken form, said as it is said (note section 13): its stem, prefix and ending are all on the page."""
+        sp = hit.get("spoken")
+        if self.verbs and sp and hit.get("pos") == "verb":
+            said = self.verbs.sound(self._nomarks(L, w), hit.get("headword") or "", self.S.get("verb_sounds") or {})
+            if said:
+                sp["sound"], sp["sound_kind"] = said, "spoken"
 
     def _perfect(self, lk, L, entry, key, ctx, i):
         """The perfect collapsed into the simple past (note C5): a second reading, named, only where the page is speech."""
@@ -603,12 +726,25 @@ class Rules:
                 continue
             if row.kind == "standalone":
                 hit = self._pseudo(row)
-                rd = self._reading(R_TABLE, "table", row.formal, self._say("standalone"), [hit], gloss=row.gloss)
+                rd = self._reading(R_TABLE, "table", row.formal, self._say("standalone"), [hit], gloss=row.gloss, sound=row.flags.get("say"))
             else:
-                hits = self._formal_hits(lk, c, L, row.formal)
-                parts = row.formal.split() if len(row.formal.split()) > 1 and len(hits) > 1 else None
+                hits = self._formal_hits(lk, c, L, row.formal) or ([self._pseudo(row)] if row.gloss else [])
+                # a form of a verb speech says (کنه for کند): not the adjective the formal spelling also is, the verbs of speech first
+                if row.flags.get("verb"):
+                    hits = sorted((h for h in hits if h.get("pos") == "verb"), key=lambda h: (h.get("headword") not in self.verbs.verbs) if self.verbs else 0)
+                negative = self._negative_verb(lk, c, L, row.formal)         # نکند: a page of its own, and the negative of کردن
+                if negative and all(h.get("entry") != negative[0].get("entry") for h in hits):
+                    hits = list(hits) + [negative[0]]
+                parts = row.formal.split() if len(row.formal.split()) > 1 and len(hits) > 1 and not negative else None
                 why = row.note or self._say("table", formal=row.formal)
-                rd = self._reading(R_TABLE, "table", row.formal, why, hits[:MAX_SPOKEN], parts=parts, gloss=row.gloss)
+                rd = self._reading(R_TABLE, "table", row.formal, why, hits[:MAX_SPOKEN], parts=parts, gloss=row.gloss, sound=row.flags.get("say"))
+            if rd:
+                out.append((rd, row))
+        # the first part of a compound verb is also that word on its own (فک بد نیست): after the rows that are words
+        row = self.cv.get(key)
+        if row and not any(r.formal == row.formal for _rd, r in out):
+            hits = self._formal_hits(lk, c, L, row.formal) or ([self._pseudo(row)] if row.gloss else [])
+            rd = self._reading(R_TABLE, "table", row.formal, row.note or self._say("table", formal=row.formal), hits[:MAX_SPOKEN], gloss=row.gloss)
             if rd:
                 out.append((rd, row))
         return out
@@ -617,8 +753,8 @@ class Rules:
     def _rules(self, lk, c, L, bare, w, cleaned, strength):
         """The writing-level rules, in the order of the note: the first that lands on something wins."""
         out = []
-        for stage in (self._manner, self._digits, self._hashtag, self._glue, self._cv_glued, self._tanwin, self._lengthened,
-                      self._swaps, self._run_together):
+        for stage in (self._manner, self._digits, self._hashtag, self._glue, self._derived, self._noun_verb, self._cv_glued, self._tanwin,
+                      self._lengthened, self._swaps, self._zwnj_pieces, self._run_together):
             got = stage(lk, c, L, bare, w, strength)
             if got:
                 return got
@@ -831,8 +967,11 @@ class Rules:
                 rd = self._reading(R_RULE, "rule", form, self._say("digits", formal=form), hits[:1])
                 if rd:
                     return [rd]
-        # the number's words, and the rest as a word of its own
+        # the number's words, and the rest as a word of its own (a counter may carry a clitic: ۳تاشون)
         piece = self._piece(lk, c, L, rest)
+        for counter in (self.S.get("glue") or {}).get("classifiers") or []:
+            if not piece and rest.startswith(counter) and rest[len(counter):] in ("م", "ت", "ش", "مون", "تون", "شون"):
+                piece = self._piece(lk, c, L, counter)
         if piece:
             hits = []
             for word in words:
@@ -892,7 +1031,7 @@ class Rules:
         for p in range(len(k) - 1, 1, -1):
             if k[p:] in classifiers:
                 left = self._piece(lk, c, L, k[:p], glue=True)
-                if left and left[0].get("pos") == "num":
+                if left and (left[0].get("pos") == "num" or k[:p] in (g.get("classifier_hosts") or [])):
                     right = self._piece(lk, c, L, (g.get("classifier_formal") or {}).get(k[p:], k[p:]), glue=True)
                     if right:
                         return self._glued(lk, c, L, [left[1], right[1]], [left[0], right[0]])
@@ -932,6 +1071,93 @@ class Rules:
             rd = self._reading(R_RULE, "rule", phrase, self._say("glued", parts=phrase), whole[:1])
         else:
             rd = self._reading(R_RULE, "rule", phrase, self._say("glued", parts=phrase), hits, parts=formals)
+        return [rd] if rd else []
+
+    def _glue_early(self, lk, c, L, bare, w, strength=0):
+        """ی or یه on the next word (یجا, یه‌چیزی, یه‌جورایی), a closed word and که (اونکه, وقتیکه), a demonstrative on its noun (اونهمه)."""
+        g = self.S.get("glue") or {}
+        k = lk._fold(w, L)
+        ke = g.get("ke") or {}
+        if k.endswith("که") and len(k) > 2:
+            formal = ke.get(k[:-2])
+            if formal:
+                parts = formal.split()
+                hits = [self._piece(lk, c, L, p, loose=True) for p in parts + ["که"]]
+                if all(hits):
+                    return self._glued(lk, c, L, parts + ["که"], [h[0] for h in hits])
+        for table, min_rest, pos in ((g.get("one_early") or {}, g.get("one_early_min_rest", 2), g.get("one_early_pos")),
+                                     (g.get("demonstrative") or {}, g.get("demonstrative_min_rest", 3), g.get("demonstrative_pos"))):
+            for first in sorted(table, key=len, reverse=True):
+                if not k.startswith(first) or len(k) - len(first) < min_rest:
+                    continue
+                if table is g.get("demonstrative") and k[len(first):].startswith(tuple(g.get("demonstrative_not") or [])):
+                    continue                     # اینجام, اینجوری: words of their own, which the endings and the manner rule read
+                tail = k[len(first):]
+                # a noun before anything else the letters are (یدونه is یک دانه, though دونه is also a bare form of دانستن)
+                rest = next(filter(None, (self._piece(lk, c, L, tail, pos=p) for p in pos or [])), None)
+                if not rest and self.peeler:
+                    got = self.peeler.read(lk, c, L, tail, None, None)
+                    got = [x for x in got if x.stem_pos & set(pos or [])]
+                    rest = (got[0].hits[0], got[0].formal) if got else None
+                if not rest:
+                    # a formal ending on it (جاهایی): the old rules' answer, of two letters or more
+                    ent = lk._resolve(c, tail, [], L, False)
+                    ent = ent[0] if ent else None
+                    if ent and self._strength(lk, ent) >= 2 and ent["hits"][0].get("pos") in (pos or []):
+                        rest = (ent["hits"][0], tail)
+                if rest and (not pos or rest[0].get("pos") in pos):
+                    head = self._piece(lk, c, L, table[first], loose=True)
+                    if head:
+                        return self._glued(lk, c, L, [table[first], rest[1]], [head[0], rest[0]])
+        return []
+
+    def _derived(self, lk, c, L, bare, w, strength=0):
+        """The productive pieces of speech (مسخره‌بازی, کثافت‌کاری, دخترباز, خرپول): the word they stand on, looked up, and the piece named."""
+        g = self.S.get("glue") or {}
+        k = lk._fold(w, L)
+        for suffix in g.get("derivation") or []:
+            if k.endswith(suffix) and len(k) - len(suffix) >= 3:
+                stem = self._piece(lk, c, L, k[:-len(suffix)], loose=False)
+                tail = self._piece(lk, c, L, suffix, loose=False)
+                if stem and tail and stem[0].get("pos") in ("noun", "adj"):
+                    return self._glued(lk, c, L, [stem[1], suffix], [stem[0], tail[0]])
+        for prefix in g.get("prefix_very") or []:
+            if k.startswith(prefix) and len(k) - len(prefix) >= 3:
+                stem = self._piece(lk, c, L, k[len(prefix):], loose=False)
+                if stem and stem[0].get("pos") in ("noun", "adj"):
+                    why = self._say("prefix_very", prefix=prefix, stem=stem[1])
+                    rd = self._reading(R_RULE, "rule", stem[1], why, [stem[0]], parts=[prefix, stem[1]],
+                                       pieces=[{"text": prefix, "role": "prefix", "note": why}])
+                    return [rd] if rd else []
+        return []
+
+    def _noun_verb(self, lk, c, L, bare, w, strength=0):
+        """A verb made from a noun, mostly by the young (زنگیدن, لایکیدم, سرچیدی): the noun is what the dictionary can say of it."""
+        # only a word nothing else reads: `بارید` and `جدیدی` are a verb and an adjective the old rules have, and end the same way
+        if strength:
+            return []
+        cfg = (self.S.get("glue") or {}).get("noun_verb") or {}
+        k = lk._fold(w, L)
+        for ending in sorted(cfg.get("endings") or [], key=len, reverse=True):
+            if k.endswith(ending) and len(k) - len(ending) >= 2:
+                stem = self._piece(lk, c, L, k[:-len(ending)], loose=False)
+                if stem and stem[0].get("pos") == "noun":
+                    why = self._say("noun_verb", stem=stem[1])
+                    rd = self._reading(R_RULE, "rule", stem[1], why, [stem[0]])
+                    return [rd] if rd else []
+        return []
+
+    def _zwnj_pieces(self, lk, c, L, bare, w, strength=0):
+        """A compound the dictionary does not list, written with a joiner (باقی‌مونده, عقب‌مونده): each part read as what it is."""
+        parts = [p for p in w.split(ZW) if p]
+        suffixes = (self.S.get("join") or {}).get("suffix_words") or []
+        if len(parts) != 2 or min(len(p) for p in parts) < 3 or parts[1] in suffixes:     # خوب‌اند, کتاب‌هایی are a word and an ending
+            return []
+        got = [self._piece(lk, c, L, p, loose=False) for p in parts]
+        if not all(got):
+            return []
+        rd = self._reading(R_RULE, "rule", " ".join(g[1] for g in got), self._say("glued", parts=" + ".join(g[1] for g in got)),
+                           [g[0] for g in got], parts=[g[1] for g in got])
         return [rd] if rd else []
 
     # ----- spoken -جوری / -طوری
@@ -1050,6 +1276,10 @@ class Rules:
             list((self.S.get("peel") or {}).get("clitics", {}).get("spoken_plural") or [])
         verb = self._piece(lk, c, L, bare[1], loose=True, pos="verb")
         if not verb:
+            return None
+        # (a word that is a function word before it is anything else is no verb: پیشم با تو is not پیش آمدن)
+        ent = lk._resolve(c, bare[1], [], L, False)
+        if ent and ent[0]["hits"] and ent[0]["hits"][0].get("pos") in ("prep", "conj", "pron", "det"):
             return None
         said = verb[1]
         for s, rest in self.peeler._ends(keys[0], clitics):

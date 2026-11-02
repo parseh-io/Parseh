@@ -348,6 +348,7 @@ class Farahidi(unittest.TestCase):
 
     def test_a_sentinel_is_no_root_and_a_changed_token_is_a_failure(self):
         self.assertIsNone(analyzer_farahidi.candidate(0, arabic(root="-")).root)
+        self.assertIsNone(analyzer_farahidi.candidate(0, arabic(root="#")).root)
         with self.assertRaises(A.AlignmentError):
             analyzer_farahidi.build("ar", "كتب", [[(0, 3)]], lambda w: [],
                                     lambda ws: [self.pick("كتاب")])
@@ -397,9 +398,9 @@ def dictionary(folder, code, rows):
 
 class Lemmas(Fake):
     """A backend that reads each word as the table says."""
-    def __init__(self, table, contextual=True, **kw):
+    def __init__(self, table, contextual=True, upos="VERB", **kw):
         super().__init__(**kw)
-        self.table, self.contextual = table, contextual
+        self.table, self.contextual, self.upos = table, contextual, upos
 
     def analyze(self, code, text, syntax=False, context=""):
         r = super().analyze(code, text, syntax, context)
@@ -407,7 +408,7 @@ class Lemmas(Fake):
         for t in r.tokens:
             lemma = self.table.get(t.surface)
             status = A.CONTEXTUAL if self.contextual else A.LEXICAL
-            word = A.Word(id=t.words[0].id, token=t.id, source=self.name, status=status, lemma=lemma, upos="VERB",
+            word = A.Word(id=t.words[0].id, token=t.id, source=self.name, status=status, lemma=lemma, upos=self.upos,
                           start=t.start, end=t.end, surface=t.surface)
             sel = A.Selection(source=self.name, lemma=lemma, lemma_status=status) if lemma else None
             toks.append(A.Token(**dict(A._fields(t), words=(word,), selection=sel)))
@@ -462,18 +463,63 @@ class Lookup(unittest.TestCase):
         self.assertEqual(r["words"][0]["hits"], before)
         self.assertNotIn("kind", {k: v for k, v in r["words"][0].items() if v == "analyzer"})
 
-    def test_the_sentences_lemma_moves_its_entry_first_and_drops_none(self):
+    def test_a_lemma_alone_marks_and_moves_nothing(self):
         was = [h["headword"] for h in lookup.look_up("it", "cane")["words"][0]["hits"]]
-        self.assertEqual(sorted(was), ["canare", "cane"])
-        other = [x for x in was if x != was[0]][0]
-        r = self.look("cane", "assist", {"cane": other})
-        now = [h["headword"] for h in r["words"][0]["hits"]]
-        self.assertEqual(now[0], other)
-        self.assertEqual(sorted(now), sorted(was))
-        self.assertTrue(r["words"][0]["machine"]["ranked"])
-        # a lemma true of the word anywhere is no choice, and moves nothing
-        r = self.look("cane", "assist", {"cane": other}, contextual=False)
-        self.assertEqual([h["headword"] for h in r["words"][0]["hits"]], was)
+        for other in was:
+            r = self.look("cane", "assist", {"cane": other}, upos="X")
+            self.assertEqual([h["headword"] for h in r["words"][0]["hits"]], was)
+            self.assertFalse(any(h.get("fits") for h in r["words"][0]["hits"]))
+
+    def test_the_part_of_speech_marks_the_entry_that_fits_and_assist_moves_it_first(self):
+        was = lookup.look_up("it", "cane")["words"][0]["hits"]
+        self.assertEqual({h["headword"]: h["pos"] for h in was}, {"cane": "noun", "canare": "verb"})
+        for upos, head in (("VERB", "canare"), ("NOUN", "cane")):
+            r = self.look("cane", "show", {"cane": head}, upos=upos)
+            self.assertEqual([h["headword"] for h in r["words"][0]["hits"]], [h["headword"] for h in was], "show moves nothing")
+            self.assertEqual([h["headword"] for h in r["words"][0]["hits"] if h.get("fits")], [head])
+            r = self.look("cane", "assist", {"cane": head}, upos=upos)
+            self.assertEqual(r["words"][0]["hits"][0]["headword"], head)
+            self.assertEqual(len(r["words"][0]["hits"]), 2, "none dropped")
+            self.assertEqual(r["words"][0]["machine"]["pos"], {"VERB": "verb", "NOUN": "noun"}[upos])
+
+    def test_a_part_of_speech_nobody_read_in_the_sentence_marks_nothing(self):
+        r = self.look("cane", "assist", {"cane": "x"}, upos="VERB", contextual=False)
+        self.assertFalse(any(h.get("fits") for h in r["words"][0]["hits"]))
+
+    def test_a_verbs_particle_marks_nothing(self):
+        self.assertIsNone(lookupassist._wanted({"here": True, "upos": "ADP", "relation": "compound:prt"}))
+        self.assertTrue(lookupassist._wanted({"here": True, "upos": "ADP", "relation": "case", "lemma": "x"}))
+
+    def test_when_every_entry_is_that_part_of_speech_nothing_is_marked(self):
+        dictionary(self.td.name, "es", [("uno", "noun", "a", []), ("due", "noun", "b", ["uno"])])
+        A.reset([Lemmas({"uno": "due"}, upos="NOUN", codes=("es",))])
+        r = lookup.look_up("es", "uno")
+        lookupassist.apply("es", r, "uno", "", "assist")
+        self.assertEqual(len(r["words"][0]["hits"]), 2)
+        self.assertFalse(any(h.get("fits") for h in r["words"][0]["hits"]), "a mark on every entry says nothing")
+
+    def test_among_that_part_of_speech_the_lemmas_own_entry_alone(self):
+        dictionary(self.td.name, "fr", [("uno", "verb", "a", []), ("due", "verb", "b", ["uno"]), ("tre", "noun", "c", ["uno"])])
+        A.reset([Lemmas({"uno": "due"}, upos="VERB", codes=("fr",))])
+        r = lookup.look_up("fr", "uno")
+        lookupassist.apply("fr", r, "uno", "", "assist")
+        self.assertEqual([h["headword"] for h in r["words"][0]["hits"] if h.get("fits")], ["due"])
+
+    def test_an_entry_none_of_the_readings_names_does_not_fit(self):
+        said = {"here": True, "upos": "NOUN", "lemma": "erken", "readings": 1, "can_be": ["erken"]}
+        dictionary(self.td.name, "tr", [("erkenden", "adv", "early", []), ("erke", "noun", "power", ["erkenden"])])
+        row = lookup.look_up("tr", "erkenden")["words"][0]
+        self.assertEqual(lookupassist._fits(row, said, "tr", lookup.languages.get_or_default("tr")), 0)
+        self.assertFalse(any(h.get("fits") for h in row["hits"]))
+
+    def test_a_word_found_only_as_something_else_gets_its_lemmas_entry(self):
+        dictionary(self.td.name, "de", [("facendo", "noun", "not it", []), ("fare", "verb", "to do", [])])
+        A.reset([Lemmas({"facendo": "fare"}, upos="VERB", codes=("de",))])
+        r = lookup.look_up("de", "facendo")
+        lookupassist.apply("de", r, "facendo", "", "assist")
+        heads = [(h["headword"], h["pos"], bool(h.get("fits"))) for h in r["words"][0]["hits"]]
+        self.assertEqual(heads, [("fare", "verb", True), ("facendo", "noun", False)])
+        self.assertTrue(r["words"][0]["machine"]["added"])
 
     def test_with_no_analyzer_the_result_is_the_old_one(self):
         A.reset([Fake(usable=False)])
@@ -916,6 +962,566 @@ class Prompts(unittest.TestCase):
         line = making.evidence_helper(facts, L)
         self.assertIn("evidence.py de", line)
         self.assertIn("writes nothing", line)
+        self.assertNotIn("](", line, "a link in it would point at a file a book's folder does not have")
+
+    def fill(self, doc, key, how, reading):
+        for u in doc[key]:
+            for ch in u.get("chunks") or []:
+                if ch.get("todo"):
+                    ch.update({f: "x" for f in ("tr", "voc", "en")})
+                    if reading:
+                        ch["kana"] = "x"
+                    ch.pop("todo")
+                    if how == "altered":
+                        ch["analysis"] = [{"w": "evil", "lemma": "evil"}]
+                    if how == "none":
+                        ch.pop("analysis", None)
+        return doc
+
+    def test_a_book_answer_that_echoes_or_changes_analysis_stores_none_of_it(self):
+        import glob
+        for how in ("echo", "altered", "none"):
+            with self.subTest(how):
+                b = self.spaced_book()
+                b.delete()
+                self.on()
+                doc = self.fill(self._doc(b.prompt()["prompt"], "sentences"), "sentences", how, b.L.reading)
+                b.apply(doc, confirm=True)
+                self.assertEqual(b.recs()[b.k]["en"], "x", "the gloss went in")
+                for path in glob.glob(os.path.join(b.d, "*")):
+                    if os.path.isfile(path):
+                        with open(path, "rb") as f:
+                            data = f.read()
+                        self.assertNotIn(b"evil", data, path)
+                        self.assertNotIn(b'"analysis"', data, path)
+
+    def test_a_persons_added_instructions_keep_the_rule_and_the_request_carries_them(self):
+        import glossregion
+        import prompts
+        b = self.spaced_book()
+        b.delete()
+        self.on()
+        with tempfile.TemporaryDirectory() as td, mock.patch.object(prompts, "STORE", os.path.join(td, "p.json")):
+            p = prompts.save({"name": "mine", "surface": "book-region", "kind": "added", "text": "Be brief."})
+            r = glossregion.book_prompt(b.d, b.first, b.last, prompt=(p.get("id") if isinstance(p, dict) else p.id))
+        self.assertIn("Be brief.", r["prompt"])
+        self.assertIn("What `analysis` is", r["prompt"])
+        self.assertIn('"analysis"', r["skill"]["text"])
+        self.assertIn("Be brief.", r["skill"]["text"])
+
+    def test_it_stands_beside_the_scheme_and_the_short_vowels(self):
+        import languages
+        for bj in self.TG.BOOKS:
+            b = self.TG.Book(self, bj)
+            if not languages.get_or_default(b.L.code).strip_range or b.L.code not in evidence.LANGUAGES:
+                continue
+            b.delete()
+            self.on()
+            r = b.prompt(translit="ipa", marks="marks")
+            self.assertIn('"analysis"', r["prompt"])
+            self.assertIn("IPA", r["prompt"])
+            self.assertIn("What `analysis` is", r["prompt"])
+            self.assertIn("marks: on", r["skill"]["text"])
+            return
+        self.skipTest("no fixture with short vowels in an analyzed language")
+
+    def test_an_altered_vowelled_lemma_cannot_slip_into_the_text(self):
+        b = self.spaced_book()
+        b.delete()
+        self.on()
+        before = b.recs()[b.k]["fa"]
+        doc = self.fill(self._doc(b.prompt()["prompt"], "sentences"), "sentences", "altered", b.L.reading)
+        b.apply(doc, confirm=True)
+        self.assertEqual(b.recs()[b.k]["fa"], before)
+
+    def test_the_skills_hash_moves_with_the_rule(self):
+        import promptkit
+        import skills
+        was = skills.build("parseh-gloss").hash
+        with mock.patch.object(promptkit, "_evidence_rule", lambda: "another rule"), \
+                mock.patch.object(skills, "_fingerprint", lambda: "another"):
+            self.assertNotEqual(skills.build("parseh-gloss").hash, was)
+        skills._CACHE.clear()
+
+    def test_the_prompt_says_what_it_holds_or_why_it_holds_none(self):
+        b = self.spaced_book()
+        b.delete()
+        self.assertFalse([n for n in b.prompt()["notes"] if "analyzer" in n], "off: no word of it")
+        self.on()
+        self.assertTrue([n for n in b.prompt()["notes"] if "carr" in n and "analyzer" in n])
+        A.reset([Fake(usable=False, codes=tuple(A.SYNTAX))])
+        self.assertTrue([n for n in b.prompt()["notes"] if n.startswith("no analyzer's reading")])
+
+    def test_a_literal_mark_in_the_text_stays_data(self):
+        b = self.spaced_book()
+        self.on()
+        said = [{"w": "{{DATA}}", "lemma": "{{LANGUAGE}}"}]
+        with mock.patch("evidence.entry", lambda t, s=None: said[0]):
+            r = b.prompt(regloss=True)
+        self.assertIn("{{DATA}}", self._doc(r["prompt"], "sentences")["sentences"][0]["chunks"][0]["analysis"][0]["w"])
+
+
+class MoreEvidence(unittest.TestCase):
+    def setUp(self):
+        self.addCleanup(A.reset)
+        self.f = Fake()
+        A.reset([self.f])
+
+    def captions(self, *texts):
+        return [{"i": i, "chunks": [{"j": 0, "fa": t}]} if t else {"i": i, "plain": True, "chunks": []}
+                for i, t in enumerate(texts)]
+
+    def seen(self):
+        real, out = self.f.analyze, []
+
+        def spy(code, text, syntax=False, context=""):
+            out.append(text)
+            return real(code, text, syntax, context)
+        self.f.analyze = spy
+        return out
+
+    def test_a_caption_is_read_with_those_it_runs_on_into(self):
+        out = self.seen()
+        ev = evidence.for_units("it", self.captions("il cane", "mangia la", "carne.", "poi dorme"), lambda ch: True)
+        self.assertEqual(out, ["il cane mangia la carne.", "poi dorme"])
+        self.assertEqual([e["w"] for e in ev.chunks[(1, 0)]], ["mangia", "la"])
+        self.assertEqual([e["w"] for e in ev.chunks[(3, 0)]], ["poi", "dorme"])
+
+    def test_a_plain_caption_parts_them_and_a_book_sentence_stands_alone(self):
+        out = self.seen()
+        evidence.for_units("it", self.captions("il cane", "", "mangia"), lambda ch: True)
+        self.assertEqual(out, ["il cane", "mangia"])
+        del out[:]
+        units = [{"key": "a", "chunks": [{"j": 0, "fa": "senza punto"}]}, {"key": "b", "chunks": [{"j": 0, "fa": "altra"}]}]
+        evidence.for_units("it", units, lambda ch: True)
+        self.assertEqual(out, ["senza punto", "altra"])
+
+    def test_a_run_has_a_limit(self):
+        out = self.seen()
+        evidence.for_units("it", self.captions(*[("parola%d " % i) * 100 for i in range(3)]), lambda ch: True)
+        self.assertEqual(len(out), 3)
+
+    def test_a_language_added_later_has_none_of_this(self):
+        import languages
+        self.assertEqual(A.analyze("xx", "abc").outcome, A.UNSUPPORTED)
+        self.assertFalse(A.available("xx"))
+        self.assertFalse(evidence.for_units("xx", self.captions("abc"), lambda ch: True))
+        with tempfile.TemporaryDirectory() as td, mock.patch.object(analysisconfig, "STORE", os.path.join(td, "a.json")):
+            analysisconfig.save({"chunking": "assist"})
+            self.assertIsNone(chunker.assisting("xx"))
+        self.assertIsNotNone(languages)
+
+
+class PlainWords(unittest.TestCase):
+    def test_the_grammar_is_said_in_a_readers_words_and_a_tag_nobody_named_is_left_out(self):
+        self.assertEqual(lookupassist.words_for("VERB", {"Tense": "Past", "Person": "1", "Number": "Sing", "Polarity": "Neg"}),
+                         "verb, past, negative, 1st person, singular")
+        self.assertEqual(lookupassist.words_for("NOUN", {"Case": "Abl", "Person[psor]": "1", "Whatever": "X"}),
+                         "noun, ablative, possessed by the 1st person")
+        self.assertEqual(lookupassist.words_for("", {}), "")
+
+
+class TheyDisagree(unittest.TestCase):
+    def token(self, udpipe, *lemmas):
+        c = tuple(A.Candidate(source="starlang", rank=i, lemma=x, root=x[:-3] if x.endswith("mak") else x) for i, x in enumerate(lemmas))
+        w = A.Word(id="s0.w1", token="t0", source="udpipe", status=A.CONTEXTUAL, lemma=udpipe, upos="VERB")
+        return A.Token(id="t0", start=0, end=4, surface="word", sentence="s0", candidates=c, syntax=(w,))
+
+    def test_the_sentence_chooses_among_the_readings_by_lemma_or_root(self):
+        m = lookupassist._machine(self.token("adam", "ada", "adam"))
+        self.assertEqual((m["lemma"], m["others"], m["status"]), ("adam", ["ada"], A.CONTEXTUAL))
+        m = lookupassist._machine(self.token("gel", "gelmak"))
+        self.assertEqual(m["lemma"], "gelmak")
+
+    def test_a_lemma_no_reading_has_is_no_choice_and_both_stay_seen(self):
+        m = lookupassist._machine(self.token("ok", "okumak"))
+        self.assertEqual((m["lemma"], m["others"]), ("", ["okumak", "ok"]))
+
+
+class MainWord(unittest.TestCase):
+    def tok(self, i, s, e, surface, upos, lemma):
+        w = A.Word(id="s0.w%d" % i, token="t%d" % i, source="u", status=A.CONTEXTUAL, lemma=lemma, upos=upos)
+        return A.Token(id="t%d" % i, start=s, end=e, surface=surface, sentence="s0", words=(w,))
+
+    def test_a_row_is_about_its_word_of_content(self):
+        toks = [self.tok(0, 0, 2, "L'", "DET", "le"), self.tok(1, 2, 7, "homme", "NOUN", "homme")]
+        self.assertEqual(lookupassist._main_token(toks).surface, "homme")
+
+    def test_inside_one_token_too_and_a_contraction_is_its_preposition(self):
+        w = lambda i, u, l: A.Word(id="s0.w%d" % i, token="t0", source="u", status=A.CONTEXTUAL, lemma=l, upos=u)
+        t = A.Token(id="t0", start=0, end=4, surface="وكتب", sentence="s0", words=(w(1, "CCONJ", "و"), w(2, "VERB", "كتب")))
+        self.assertEqual(lookupassist._machine(t)["upos"], "VERB")
+        t = A.Token(id="t0", start=0, end=3, surface="Zum", sentence="s0", words=(w(1, "ADP", "zu"), w(2, "DET", "der")))
+        self.assertEqual(lookupassist._machine(t)["upos"], "ADP")
+
+
+class SpokenAndAnalyzers(unittest.TestCase):
+    """The normaliser reads for the analyzer, the analyzer chooses among the normaliser's readings (a0.6.0)."""
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory()
+        self.addCleanup(self.td.cleanup)
+        p = mock.patch.object(lookup, "DICT_DIR", self.td.name)
+        p.start()
+        self.addCleanup(p.stop)
+        self.addCleanup(A.reset)
+        dictionary(self.td.name, "fa", [("خانه", "noun", "house", []), ("خون", "noun", "blood", []),
+                                        ("کتاب", "noun", "book", [])])
+        self.seen = []
+
+    def backend(self, table):
+        seen = self.seen
+
+        class B(Fake):
+            def analyze(s, code, text, syntax=False, context=""):
+                seen.append(text)
+                toks = []
+                for i, (a, b) in enumerate(A.source_tokens(text)):
+                    lemma, upos = table.get(text[a:b], (None, "NOUN"))
+                    w = A.Word(id="s0.w%d" % (i + 1), token="t%d" % i, source="udpipe", status=A.CONTEXTUAL, lemma=lemma, upos=upos,
+                               start=a, end=b, surface=text[a:b])
+                    toks.append(A.Token(id="t%d" % i, start=a, end=b, surface=text[a:b], sentence="s0", words=(w,)))
+                return A.Result(language=code, text=text, outcome=A.OK, backend="udpipe",
+                                sentences=(("s0", 0, len(text)),), tokens=tuple(toks))
+        A.reset([B(codes=("fa", "it"))])
+
+    def test_a_language_with_no_spoken_rules_is_read_as_it_is(self):
+        self.backend({})
+        dictionary(self.td.name, "it", [("casa", "noun", "x", [])])
+        self.assertEqual(lookupassist.formal_view("it", "la casa"), ("la casa", None))
+
+    def test_with_no_dictionary_nothing_is_changed(self):
+        self.backend({})
+        self.assertEqual(lookupassist.formal_view("de", "das Haus"), ("das Haus", None))
+
+    def test_a_spoken_word_is_read_formally_and_the_answer_comes_back_to_the_pages_word(self):
+        self.backend({"خونه": (None, "NOUN")})
+        text = "خونشون بزرگ"
+        read, spans = lookupassist.formal_view("fa", text, "spoken")
+        if spans:
+            self.assertNotEqual(read, text)
+            for (s, e), (a, b) in spans.items():
+                self.assertEqual(text[s:e], text[s:e])
+                self.assertGreater(b, a)
+
+    def test_the_model_reads_the_first_reading_even_with_rivals(self):
+        # given the page's letters it invents (میشه is میش); measured in tests/analysis_bench.py
+        self.backend({"خونشون": ("خانه", "NOUN")})
+        read, spans = lookupassist.formal_view("fa", "خونشون", "spoken")
+        self.assertNotEqual(read, "خونشون")
+        self.assertEqual(spans[(0, 6)], (0, len(read)))
+
+    def test_on_a_word_the_normaliser_read_the_lemma_chooses_nothing(self):
+        row = {"word": "خونه", "hits": [{"headword": "خانه", "pos": "noun", "spoken": {"as": "خانه"}},
+                                        {"headword": "خون", "pos": "noun", "spoken": {"as": "خون"}},
+                                        {"headword": "خواندن", "pos": "verb", "spoken": {"as": "خواند"}}]}
+        said = {"here": True, "upos": "NOUN", "lemma": "خون", "readings": 0, "can_be": [], "relation": ""}
+        L = lookup.languages.get_or_default("fa")
+        self.assertEqual(lookupassist._fits(row, said, "fa", L), 2)
+        self.assertTrue(row["hits"][0].get("fits"), "the lemma would have left only the second")
+
+    def test_an_infinitive_a_treebank_calls_a_noun_is_the_verb_it_is_spelled(self):
+        L = lookup.languages.get_or_default("fa")
+        row = {"word": "رفتن", "hits": [{"headword": "رفتن", "pos": "verb"}, {"headword": "رف", "pos": "noun"}]}
+        said = {"here": True, "upos": "NOUN", "lemma": "رف", "readings": 0, "can_be": [], "relation": ""}
+        lookupassist._fits(row, said, "fa", L)
+        self.assertEqual([h["headword"] for h in row["hits"] if h.get("fits")], ["رفتن"])
+        row = {"word": "دست", "hits": [{"headword": "دست", "pos": "noun"}, {"headword": "دست", "pos": "verb"}, {"headword": "دس", "pos": "noun"}]}
+        lookupassist._fits(row, said, "fa", L)
+        self.assertEqual([h["pos"] for h in row["hits"] if h.get("fits")], ["noun", "noun"], "a noun spelled so is the word as it stands")
+
+
+class TurkishTwoReaders(unittest.TestCase):
+    """Starlang knows what a word can be, UDPipe what the sentence reads it as."""
+    def token(self, surface, ud, parses):
+        import analyzer_starlang as S
+        word = A.Word(id="s0.w1", token="t0", source="udpipe", status=A.CONTEXTUAL, lemma=ud[0], upos=ud[1])
+        return A.Token(id="t0", start=0, end=len(surface), surface=surface, sentence="s0", words=(word,),
+                       candidates=tuple(S.candidate(i, *p) for i, p in enumerate(parses)))
+
+    L = lookup.languages.get_or_default("tr")
+
+    def test_a_word_derived_from_a_verb_is_read_as_the_verb_a_dictionary_files(self):
+        m = lookupassist._machine(self.token("okumak", ("oku", "VERB"), [("oku", "oku+VERB+POS^DB+NOUN+INF+A3SG+PNON+NOM", "NOUN")]))
+        self.assertEqual((m["upos"], m["here"], m["lemma"]), ("VERB", True, "okumak"))
+
+    def test_the_sentence_chooses_between_readings_with_one_root(self):
+        m = lookupassist._machine(self.token("kırdım", ("kır", "VERB"), [("kır", "kır+NOUN+A3SG+P1SG+NOM^DB+VERB+ZERO+PAST+A1SG", "VERB"),
+                                                                       ("kır", "kır+VERB+POS+PAST+A1SG", "VERB")]))
+        self.assertEqual(m["lemma"], "kırmak")
+
+    def test_two_readers_agreeing_on_a_lemma_tell_nouns_apart(self):
+        m = lookupassist._machine(self.token("adamı", ("adam", "NOUN"), [("ada", "ada+NOUN+A3SG+P1SG+ACC", "NOUN"), ("adam", "adam+NOUN+A3SG+PNON+ACC", "NOUN")]))
+        self.assertTrue(m["agreed"])
+        row = {"word": "adamı", "hits": [{"headword": "ada", "pos": "noun"}, {"headword": "adam", "pos": "noun"}]}
+        self.assertEqual(lookupassist._fits(row, m, "tr", self.L), 1)
+        self.assertTrue(lookupassist._first(row))
+        self.assertEqual(row["hits"][0]["headword"], "adam")
+
+    def test_agreeing_on_a_lemma_the_panel_lacks_marks_no_other(self):
+        m = lookupassist._machine(self.token("erkenden", ("erken", "NOUN"), [("erke", "erke+NOUN+A3SG+P2SG+ABL", "NOUN"), ("erken", "erken+ADJ^DB+NOUN+ZERO+A3SG+PNON+ABL", "NOUN")]))
+        row = {"word": "erkenden", "hits": [{"headword": "erkenden", "pos": "adv"}, {"headword": "erke", "pos": "noun"}]}
+        self.assertEqual(lookupassist._fits(row, m, "tr", self.L), 0)
+
+    def test_the_rescue_starts_from_what_the_sentence_allows_and_leaves_least_to_the_endings(self):
+        m = lookupassist._machine(self.token("öğretmenimdir", ("öğretmenimdir", "NOUN"), [
+            ("öğret", "öğret+VERB+POS^DB+NOUN+INF2+A3SG+P2SG+NOM^DB+VERB+ZERO+PRES+COP+A3SG", "VERB"),
+            ("öğretme", "öğretme+NOUN+A3SG+P2SG+NOM^DB+VERB+ZERO+PRES+COP+A3SG", "VERB"),
+            ("öğretmen", "öğretmen+NOUN+A3SG+P1SG+NOM^DB+VERB+ZERO+PRES+COP+A3SG", "VERB")]))
+        self.assertEqual(m["can_be"][0], "öğretmen")
+
+
+class SpokenAndAnalyzersMore(SpokenAndAnalyzers):
+    def test_a_word_the_model_only_guesses_marks_no_entry(self):
+        self.assertIsNone(lookupassist._wanted({"here": True, "upos": "VERB", "lemma": "", "readings": 0}))
+        self.assertTrue(lookupassist._wanted({"here": True, "upos": "VERB", "lemma": "", "readings": 2}))
+        self.assertTrue(lookupassist._wanted({"here": True, "upos": "VERB", "lemma": "x", "readings": 0}))
+
+    def test_a_part_of_speech_needs_no_lemma(self):
+        w = A.Word(id="s0.w1", token="t0", source="udpipe", status=A.CONTEXTUAL, upos="VERB")
+        m = lookupassist._machine(A.Token(id="t0", start=0, end=4, surface="دیدم", sentence="s0", words=(w,)))
+        self.assertEqual((m["pos"], m["here"], m["lemma"]), ("verb", True, ""))
+
+
+class TwoBackends(unittest.TestCase):
+    def tok(self, upos, cands, sel=None):
+        w = A.Word(id="s0.w1", token="t0", source="udpipe", status=A.CONTEXTUAL, lemma="x", upos=upos)
+        src = "farahidi" if sel else "starlang"
+        c = tuple(A.Candidate(source=src, rank=i, lemma=l, upos=u) for i, (l, u) in enumerate(cands))
+        s = A.Selection(source=src, lemma=sel, lemma_status=A.CONTEXTUAL) if sel else None
+        return A.Token(id="t0", start=0, end=1, surface="x", sentence="s0", syntax=(w,), candidates=c, selection=s)
+
+    def read(self, *a, **k):
+        m = lookupassist._machine(self.tok(*a, **k))
+        return m["upos"], m["here"]
+
+    def test_morphology_knows_what_it_can_be_and_the_sentence_which(self):
+        self.assertEqual(self.read("VERB", [("sinema", "NOUN")]), ("NOUN", True), "only a noun, whatever UDPipe says")
+        self.assertEqual(self.read("NOUN", [("yüz", "NOUN"), ("yüz", "NUM")]), ("NOUN", True))
+        self.assertEqual(self.read("VERB", [("yüz", "NOUN"), ("yüz", "NUM")]), ("VERB", False), "neither: nobody knows")
+        self.assertEqual(self.read("AUX", [("olmak", "VERB")]), ("AUX", True), "an auxiliary is a verb")
+
+    def test_arabic_when_the_two_disagree_nothing_is_claimed(self):
+        self.assertEqual(self.read("NOUN", [("ضرب", "VERB")], sel="ضرب"), ("NOUN", False))
+        self.assertEqual(self.read("VERB", [("ضرب", "VERB"), ("ضرب2", "NOUN")], sel="ضرب"), ("VERB", True))
+        self.assertEqual(self.read("ADJ", [("كبير", "NOUN")], sel="كبير"), ("ADJ", True), "Farahidi's noun is every nominal")
+
+
+class Loaded(unittest.TestCase):
+    def test_loaded_is_said_language_by_language_and_goes_with_the_program(self):
+        w = getanalysis.WORKER_PROGRAM
+        b = getanalysis.backends()[0]
+        with mock.patch.object(w, "alive", lambda: True), mock.patch.object(w, "loaded", {"udpipe": ["de"]}):
+            self.assertTrue(b.status("de")["loaded"])
+            self.assertFalse(b.status("fa")["loaded"])
+        w.loaded = {"udpipe": ["de"]}
+        w._stop()
+        self.assertEqual(w.loaded, {})
+
+
+class Fetching(unittest.TestCase):
+    """The real fetch of a model, from a host on this machine that misbehaves as hosts do."""
+    BODY = os.urandom(200000)
+
+    def setUp(self):
+        import hashlib
+        import http.server
+        test = self
+        self.mode, self.asked = "good", 0
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                test.asked += 1
+                body = test.BODY
+                if test.mode == "page":
+                    body = b"<html>a page, status 200</html>" * 100
+                if test.mode == "500":
+                    self.send_response(500)
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                if test.mode == "cut":
+                    self.wfile.write(body[:1000])
+                    self.close_connection = True
+                    return
+                self.wfile.write(body)
+
+            def log_message(self, *a):
+                pass
+        self.srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+        self.addCleanup(self.srv.server_close)
+        self.addCleanup(self.srv.shutdown)
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        pin = dict(analysispins.UDPIPE_MODELS["de"], bytes=len(self.BODY), sha256=hashlib.sha256(self.BODY).hexdigest())
+        for p in (mock.patch.object(getanalysis, "FOLDER", td.name),
+                  mock.patch.dict(analysispins.UDPIPE_MODELS, {"de": pin}),
+                  mock.patch.object(analysispins, "MODEL_HOST", "http://127.0.0.1:%d/%%s" % self.srv.server_address[1])):
+            p.start()
+            self.addCleanup(p.stop)
+        getanalysis._cancel.clear()
+
+    def get(self):
+        getanalysis._get_model("de", lambda s: None)
+
+    def test_a_good_file_arrives_and_a_second_asking_fetches_nothing(self):
+        self.get()
+        self.assertTrue(getanalysis.model_here("de"))
+        n = self.asked
+        self.get()
+        self.assertEqual(self.asked, n)
+
+    def test_a_web_page_answering_200_is_not_a_model_and_leaves_nothing(self):
+        self.mode = "page"
+        with self.assertRaises((getanalysis.AnalysisError, ValueError)):
+            self.get()
+        self.assertFalse(getanalysis.model_here("de"))
+        self.assertFalse(os.path.exists(getanalysis.model_path("de")))
+
+    def test_a_host_that_fails_is_said_and_asking_again_works(self):
+        self.mode = "500"
+        with self.assertRaises(getanalysis.AnalysisError):
+            self.get()
+        self.assertFalse(getanalysis.model_here("de"))
+        self.mode = "good"
+        self.get()
+        self.assertTrue(getanalysis.model_here("de"))
+
+    def test_a_line_that_drops_looks_ready_to_nobody_and_asking_again_finishes(self):
+        self.mode = "cut"
+        with self.assertRaises(getanalysis.AnalysisError):
+            self.get()
+        self.assertFalse(getanalysis.model_here("de"))
+        self.mode = "good"
+        self.get()
+        self.assertTrue(getanalysis.model_here("de"))
+        with open(getanalysis.model_path("de"), "rb") as f:
+            self.assertEqual(f.read(), self.BODY)
+
+    def test_stop_keeps_what_came_and_is_no_failure(self):
+        import download
+        getanalysis._cancel.set()
+        with self.assertRaises(download.Cancelled):
+            self.get()
+        self.assertFalse(getanalysis.model_here("de"))
+
+
+class MoreLookup(Lookup):
+    """Turkish, Arabic and a person's word line, on real small dictionaries."""
+    def test_a_turkish_light_verb_keeps_its_own_rows(self):
+        dictionary(self.td.name, "tr", [("teşekkür", "noun", "thanks", []), ("etmek", "verb", "to do", ["ederim"])])
+        before = lookup.look_up("tr", "teşekkür ederim")
+        A.reset([Lemmas({"teşekkür": "teşekkür", "ederim": "etmek"}, contextual=False, name="starlang", codes=("tr",))])
+        after = lookup.look_up("tr", "teşekkür ederim")
+        lookupassist.apply("tr", after, "teşekkür ederim", "", "assist")
+        self.assertEqual([[h["headword"] for h in w["hits"]] for w in after["words"]],
+                         [[h["headword"] for h in w["hits"]] for w in before["words"]])
+        self.assertEqual(after["words"][1]["machine"]["others"], ["etmek"])
+
+    def test_a_turkish_root_alone_is_not_asked_as_a_word(self):
+        dictionary(self.td.name, "tr", [("gel", "noun", "not the verb", [])])
+        c = A.Candidate(source="starlang", rank=0, lemma="gelmek", root="gel", stem="gel", upos="VERB")
+
+        class B(Fake):
+            def analyze(self, code, text, syntax=False, context=""):
+                t = A.Token(id="t0", start=0, end=len(text), surface=text, sentence="s0", candidates=(c,))
+                return A.Result(language=code, text=text, outcome=A.OK, backend="starlang",
+                                sentences=(("s0", 0, len(text)),), tokens=(t,))
+        A.reset([B("starlang", ("tr",))])
+        r = lookup.look_up("tr", "geldimx")
+        lookupassist.apply("tr", r, "geldimx", "", "assist")
+        self.assertFalse(r["words"][0]["hits"], "the root found nothing because it was never a lemma")
+
+    def test_arabic_every_reading_stays_in_the_dictionarys_order_and_a_lost_word_is_found(self):
+        dictionary(self.td.name, "ar", [("كتاب", "noun", "book", ["كتب"]), ("كتب", "verb", "to write", [])])
+        was = [h["headword"] for h in lookup.look_up("ar", "كتب")["words"][0]["hits"]]
+        cands = (A.Candidate(source="farahidi", rank=0, lemma="كَتَبَ", upos="VERB"),
+                 A.Candidate(source="farahidi", rank=1, lemma="كِتَاب", upos="NOUN"))
+
+        class B(Fake):
+            def analyze(self, code, text, syntax=False, context=""):
+                sel = A.Selection(source="farahidi", lemma="كِتَاب", lemma_status=A.CONTEXTUAL)
+                t = A.Token(id="t0", start=0, end=len(text), surface=text, sentence="s0", candidates=cands, selection=sel)
+                return A.Result(language=code, text=text, outcome=A.OK, backend="farahidi",
+                                sentences=(("s0", 0, len(text)),), tokens=(t,))
+        A.reset([B("farahidi", ("ar",))])
+        r = lookup.look_up("ar", "كتب")
+        lookupassist.apply("ar", r, "كتب", "", "assist")
+        self.assertEqual([h["headword"] for h in r["words"][0]["hits"]], was)
+        self.assertEqual(r["words"][0]["machine"]["others"], ["كَتَبَ"])
+        r = lookup.look_up("ar", "وبقفلان")
+        self.assertFalse(r["words"][0]["hits"])
+        lookupassist.apply("ar", r, "وبقفلان", "", "assist")
+        self.assertEqual(r["words"][0]["hits"][0]["headword"], "كتاب", "marks are not what keeps a lemma from its row")
+
+    def test_a_reading_nobody_chose_is_not_said_as_if_it_had_been(self):
+        c = (A.Candidate(source="starlang", rank=0, lemma="ada", upos="NOUN"),
+             A.Candidate(source="starlang", rank=1, lemma="adam", upos="NOUN"))
+        t = A.Token(id="t0", start=0, end=4, surface="adam", sentence="s0", candidates=c)
+        m = lookupassist._machine(t)
+        self.assertEqual((m["lemma"], m["others"], m["status"]), ("", ["ada", "adam"], A.LEXICAL))
+        w = A.Word(id="s0.w1", token="t0", source="udpipe", status=A.CONTEXTUAL, lemma="adam", upos="NOUN")
+        m = lookupassist._machine(A.Token(id="t0", start=0, end=4, surface="adam", sentence="s0", candidates=c, syntax=(w,)))
+        self.assertEqual((m["lemma"], m["source"], m["others"]), ("adam", "udpipe", ["ada"]))
+
+    def test_a_persons_word_line_never_reaches_the_analyzer(self):
+        import serve
+        dictionary(self.td.name, "ja", [("山", "noun", "mountain", [])])
+        f = Fake(name="native", codes=("ja",))
+        A.reset([f])
+        with tempfile.TemporaryDirectory() as td, mock.patch.object(analysisconfig, "STORE", os.path.join(td, "a.json")):
+            analysisconfig.save({"lookup": "assist"})
+            h = serve.Handler.__new__(serve.Handler)
+            h.send_json = lambda out, code=200: out
+            out = h._lookup("ja", {"text": "山へ", "words": "山(やま) へ"}, "en")
+            self.assertEqual(f.calls, 0)
+            self.assertFalse(any("machine" in w for w in out["words"]))
+            plain = h._lookup("ja", {"text": "山"}, "en")
+            self.assertEqual(f.calls, 1, "the same language, with no word line, is asked")
+            self.assertTrue(plain["words"])
+
+
+class NewText(unittest.TestCase):
+    """The real way new text is cut (lib/draft.py), with the choice on."""
+    TEXT = "Il vecchio cane mangia la carne in cucina."
+
+    def setUp(self):
+        import draft
+        self.draft = draft
+        self.addCleanup(A.reset)
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        p = mock.patch.object(analysisconfig, "STORE", os.path.join(td.name, "a.json"))
+        p.start()
+        self.addCleanup(p.stop)
+        d = mock.patch.object(lookup, "DICT_DIR", td.name)
+        d.start()
+        self.addCleanup(d.stop)
+        self.f = Fake()
+        A.reset([self.f])
+
+    def cut(self, how):
+        return self.draft._cut_all([self.TEXT], "it", how)[0]
+
+    def test_off_asks_nobody(self):
+        self.cut("phrase")
+        self.assertEqual(self.f.calls, 0)
+
+    def test_on_asks_once_for_phrases_and_never_for_sentences(self):
+        analysisconfig.save({"chunking": "assist"})
+        got = self.cut("phrase")
+        self.assertEqual(self.f.calls, 1)
+        self.assertTrue(chunker.exact(got, self.TEXT))
+        self.cut("sentence")
+        self.assertEqual(self.f.calls, 1)
+
+    def test_a_whole_book_from_text_goes_through_it(self):
+        analysisconfig.save({"chunking": "assist"})
+        r = self.draft.book_from_text(self.TEXT, "it", "title", slug="t", how="phrase")
+        self.assertEqual(self.f.calls, 1)
+        self.assertIn("carne", r["files"]["ch1.tex"])
 
 
 class Boundaries(unittest.TestCase):

@@ -4810,6 +4810,7 @@ function dictLine(w, at) {
   const head = document.createElement('div');
   head.className = 'dwd'; head.textContent = at ? at[0] : w.word;
   head.setAttribute('lang', LANG.code);
+  dictPosChip(head, w);
   if (at && at[1]) { head.appendChild(document.createTextNode(' ')); head.appendChild(readingSpan(at[1])); }
   wrap.appendChild(head);
   if (!w.hits.length) {
@@ -4846,6 +4847,8 @@ function dictLine(w, at) {
     row.appendChild(hd);
     if (h.pos) { const p = document.createElement('span');
       p.className = 'dpos'; p.textContent = ' ' + h.pos; row.appendChild(p); }
+    if (h.fits && Parseh.FITS) { const f = document.createElement('span');
+      f.className = 'dfits'; f.textContent = Parseh.FITS; row.appendChild(f); row.classList.add('fits'); }
     const said = SP ? SP.note(h) : h.note;
     if (said) { const n = document.createElement('span');
       n.className = 'dnote'; n.textContent = ' — ' + said; row.appendChild(n); }
@@ -4890,11 +4893,20 @@ function dictLine(w, at) {
   dictMachine(wrap, w);
   return wrap;
 }
-// what an analyzer read the word as (lib/lookupassist.py), where somebody chose to see that
+// what an analyzer read the word as (lib/lookupassist.py), where somebody chose to see that: the part of speech beside
+// the word, the rest of it on a line under the word
+function dictPosChip(head, w) {
+  const said = Parseh.machinePos && Parseh.machinePos(w);
+  if (!said) return;
+  const c = document.createElement('span');
+  c.className = 'dposhere'; c.textContent = said.text; c.title = said.title;
+  head.appendChild(c);
+}
 function dictMachine(wrap, w) {
-  if (!w.machine || !Parseh.machineLine) return;
+  const line = w.machine && Parseh.machineLine && Parseh.machineLine(w);
+  if (!line) return;
   const m = document.createElement('div');
-  m.className = 'dnone dmachine'; m.textContent = Parseh.machineLine(w);
+  m.className = 'dnone dmachine'; m.textContent = line;
   wrap.appendChild(m);
 }
 
@@ -9074,6 +9086,17 @@ const strList = x => (Array.isArray(x) ? x : (x ? [x] : []))
 // (stripMarks, as the contents filter has them), its case folded
 const wordKey = s => stripMarks(foldCase(String(s || '').normalize('NFC')
   .replace(/\s+/g, ' ').trim()));
+// WHAT THE ANALYZER READ THE WORD AS (lib/lookupassist.py): here too, because this is where a gloss is written from
+function sideReading(into, w, at) {
+  const said = Parseh.machinePos && Parseh.machinePos(w), line = Parseh.machineLine && Parseh.machineLine(w);
+  if (!said && !line) return;
+  const d = document.createElement('div');
+  d.className = 'sreading';
+  if (!at) { const t = document.createElement('span'); t.className = 'sreadw'; t.textContent = w.word; t.setAttribute('lang', LANG.code); d.appendChild(t); }
+  if (said) { const c = document.createElement('span'); c.className = 'dposhere'; c.textContent = said.text; c.title = said.title; d.appendChild(c); }
+  if (line) { const l = document.createElement('div'); l.className = 'sreadl'; l.textContent = line; d.appendChild(l); }
+  into.appendChild(d);
+}
 function sideHit(into, h) {
   const sense = (h.senses || [])[0] || '';
   const said = h.head_sound || h.said || h.translit || '';
@@ -9443,7 +9466,17 @@ function sideFill(n) {
         // word's place in the line), written as the line writes it
         const at = lineWords && typeof w.i === 'number' && (w.hits || []).length ? lineWords[w.i] : null;
         if (at) sideWord(dict, at);
-        for (const h of (w.hits || [])) sideHit(dict, h);
+        sideReading(dict, w, at);
+        for (const h of (w.hits || [])) {
+          const n = dict.children.length;
+          sideHit(dict, h);
+          if (h.fits && Parseh.FITS && dict.children[n]) {
+            const f = document.createElement('div');
+            f.className = 'dfits'; f.textContent = Parseh.FITS;
+            dict.children[n].classList.add('sfits');
+            dict.children[n].insertBefore(f, dict.children[n].firstChild);
+          }
+        }
       }
       if (DICT.defsMt && DICT.defines && MT.ready) defsRead(dict, '.sdef', null, sideDefPut);
       sidePairs(pairs, j);

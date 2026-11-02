@@ -131,6 +131,9 @@ class Backend:
     def languages(self):
         return tuple(analysispins.UDPIPE_MODELS)
 
+    def loaded(self):
+        return tuple(self._models)
+
     def _path(self, code):
         pin = analysispins.UDPIPE_MODELS.get(code)
         return os.path.join(self.folder, pin["file"]) if pin else ""
@@ -155,7 +158,8 @@ class Backend:
             path = self._path(code)
             got = Model.load(path) if os.path.isfile(path) else None
             if got is None:
-                raise analyzer.BackendError("the model at %s could not be loaded" % os.path.basename(path))
+                raise analyzer.BackendError("the model %s could not be loaded: remove it on Settings -> Linguistic "
+                                            "analysis, and get it again" % os.path.basename(path))
             self._models[code] = got
             while len(self._models) > MODELS_KEPT:
                 self._models.popitem(last=False)

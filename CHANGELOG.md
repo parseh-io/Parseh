@@ -2,7 +2,10 @@
 ### Added
 - Glosses below the line on a phone: the video's ⚙ sheet has the row too, each phrase's gloss under its line, a tap on the phrase in its row opening its tools
 - Linguistic analysis: Settings door for optional analyzers on this computer, UDPipe for nine languages, Farahidi for Arabic and Starlang for Turkish, each off until chosen, with a Try it
-- The dictionary panel can say what an analyzer read a word as, and find a word under its lemma
+- The dictionary panel can show each word's part of speech in its sentence and mark the entry that fits, put it first, and find a missed word under its lemma
+- Persian as it is spoken, on a real dictionary: spoken negatives find their verb, guesses no longer misread formal words, and many more spoken forms are read
+- Spoken Persian shows how the commonest verbs and words are said, and a nearly always formal word keeps its other reading in one small row
+- Persian and Turkish dictionary lookups use the normaliser and both analyzers together, and put the right entry first far more often
 - New text can be cut into phrases with an analyzer's help; edited chunks are never cut again
 - The gloss prompts and the parseh-gloss skill can carry an analyzer's reading of each chunk to do, as evidence
 - A book made in place can ask the analyzers about a sentence, through a helper that writes nothing

@@ -14,9 +14,11 @@ not be given an easier world than:
     for the dictionary's own "colloquial form of ..." pages (the note's principle: those come
     before any rule) -- and they are few on purpose, so that nothing here is easy because the
     dictionary happens to hold the spoken word.
-  * A verb carries its whole formal conjugation as form rows, the way Wiktionary's tables give
-    it (می‌کنم, نکردیم, بروید, رفته‌اند, ...) -- generated here from three stems, so that the
-    fixture lists a verb once.  The generated rows are written with the ZWNJ and the builder
+  * A verb carries its formal conjugation as form rows, the way Wiktionary's tables give it
+    (می‌کنم, بروید, رفته‌اند, ...) -- generated here from three stems, so that the fixture lists a
+    verb once.  THE AFFIRMATIVE ONLY: the real tables have no negative of any tense (of 170,000
+    form rows, 26 say `negative`, and those are نیست and ندارد and a few stray imperatives), and a
+    fixture that generated them proved the verb reader on a dictionary that does not exist.  The generated rows are written with the ZWNJ and the builder
     adds the joinerless and mark-less spelling of every form, as lib/getdict.py's `_folded`
     does for the real one.
   * Every word has the part of speech Wiktionary files it under, and the homographs the note's
@@ -55,37 +57,27 @@ def verb_forms(past, pres, o=None):
     """The formal conjugation of one verb as [(form, note)], the way Wiktionary's table lists it.
 
     `o` carries the few things a verb does its own way: `subj` (the subjunctive stem with its
-    prefix, بیا- for آمدن), `neg` (the negative subjunctive's), `neg_past` (نی- for آمدن),
-    `imp` (the imperative singular, بیا), `bare` (a present with no می-: داشتن), and `pre`, a
+    prefix, بیا- for آمدن), `imp` (the imperative singular, بیا), `bare` (a present with no می-: داشتن), and `pre`, a
     preverb the stems stand behind (بر- of برگشتن: برمی‌گردم, برنگشتم, برگردم -- no ب-)."""
     o = o or {}
     pre = o.get("pre", "")
     subj = o.get("subj", pre + (pres if pre else "ب" + pres))
-    neg = o.get("neg", pre + "ن" + pres)
-    neg_past = o.get("neg_past", pre + "ن" + past)
-    mi, nemi = pre + "می" + ZW, pre + "نمی" + ZW
+    mi = pre + "می" + ZW
     out = [(pre + past + "ه", "past participle")]
     for i, who in enumerate(PERSON):
         out += [
             (pre + past + PAST[i], who + " past indicative"),
             (mi + past + PAST[i], who + " past progressive"),
-            (neg_past + PAST[i], who + " negative past indicative"),
-            (nemi + past + PAST[i], who + " negative past progressive"),
             (mi + pres + PRESENT[i], who + " present indicative"),
-            (nemi + pres + PRESENT[i], who + " negative present indicative"),
             (subj + PRESENT[i], who + " present subjunctive"),
-            (neg + PRESENT[i], who + " negative present subjunctive"),
             (pre + past + "ه" + PERFECT[i], who + " present perfect"),
-            (neg_past + "ه" + PERFECT[i], who + " negative present perfect"),
         ]
         if o.get("bare"):
-            out += [(pre + pres + PRESENT[i], who + " present indicative"),
-                    ("ن" + pres + PRESENT[i], who + " negative present indicative")]
-    out += [(o.get("imp", subj), "imperative singular"), (subj + "ید", "imperative plural"),
-            (o.get("negimp", neg), "negative imperative singular"), (neg + "ید", "negative imperative plural")]
+            out += [(pre + pres + PRESENT[i], who + " present indicative")]
+    out += [(o.get("imp", subj), "imperative singular"), (subj + "ید", "imperative plural")]
     if pres.endswith("وی") and len(pres) > 2:
         # the imperative of a stem in -avy drops the yeh, as the tables of Wiktionary list it: بگو, نگو (not بگوی)
-        out += [(subj[:-1], "imperative singular"), (neg[:-1], "negative imperative singular")]
+        out += [(subj[:-1], "imperative singular")]
     return out
 
 
@@ -93,12 +85,12 @@ def be_forms():
     """بودن, which has its own present (هستم, نیستم) and no می- forms."""
     out = [("بوده", "past participle")]
     for i, who in enumerate(PERSON):
-        out += [("بود" + PAST[i], who + " past indicative"), ("نبود" + PAST[i], who + " negative past indicative"),
+        out += [("بود" + PAST[i], who + " past indicative"),
                 ("هست" + ["م", "ی", "", "یم", "ید", "ند"][i], who + " present indicative"),
                 ("نیست" + ["م", "ی", "", "یم", "ید", "ند"][i], who + " negative present indicative"),
-                ("باش" + PRESENT[i], who + " present subjunctive"), ("نباش" + PRESENT[i], who + " negative present subjunctive"),
+                ("باش" + PRESENT[i], who + " present subjunctive"),
                 ("بوده" + PERFECT[i], who + " present perfect")]
-    return out + [("باش", "imperative singular"), ("باشید", "imperative plural"), ("نباش", "negative imperative singular")]
+    return out + [("باش", "imperative singular"), ("باشید", "imperative plural")]
 
 
 def rows_of_verbs():

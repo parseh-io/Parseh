@@ -4168,7 +4168,7 @@ class Handler(SimpleHTTPRequestHandler):
                         if how != "off":
                             import lookupassist
                             lookupassist.apply(code, r, text, body.get("sentence")
-                                               if isinstance(body.get("sentence"), str) else "", how)
+                                               if isinstance(body.get("sentence"), str) else "", how, register)
                     except Exception:           # the analysis may cost its own line, never the lookup
                         traceback.print_exc()
                 # THE VERB ENTRIES MAY COST THE \vb AND NEVER THE LOOKUP.

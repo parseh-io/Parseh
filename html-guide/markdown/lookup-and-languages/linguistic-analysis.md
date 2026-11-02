@@ -5,9 +5,9 @@ description: Optional analyzers on your computer, UDPipe, Farahidi and Starlang,
 ---
 
 A dictionary knows what a word can be. An analyzer reads the sentence and says what
-the word probably is here: its lemma, its part of speech, its grammar, what it
-belongs to. It can be wrong, so Parseh treats what it says as evidence, and only
-where you ask.
+the word probably is here: above all **its part of speech**. So `ran` in *They ran home* is
+a verb, and the dictionary shows you *run* and not the noun. It can be wrong, so Parseh
+shows what it read as a suggestion, and only where you ask.
 
 Everything is on **Settings → Linguistic analysis**. Getting an analyzer changes no
 result. You choose what it is used for, one thing at a time.
@@ -24,41 +24,73 @@ result. You choose what it is used for, one thing at a time.
 Japanese and Chinese keep the analyzers they have: nothing here changes them. A language
 you added yourself has none of this, and goes on as before.
 
-Press **Get** on a row. It fetches only that, from the addresses Parseh knows, and checks
-each file against its hash. **Remove** takes it away again, and **Remove all of it** takes
-the whole folder. Your books, videos and dictionaries are never touched.
+Tick what you want, and press **Get it**: the button says how much it is. It fetches only that, from
+the addresses Parseh knows, and checks each file against its hash. **Remove…** on a row takes it away again, after
+asking, and **Remove all of it**, under *Where it is on this computer*, takes the whole folder. Your books, videos and
+dictionaries are never touched.
 
 > **The UDPipe models have a licence of their own.** They are CC BY-NC-SA 4.0: free for
-> non-commercial use and shared on the same licence. That is why they are not part of
-> Parseh and are fetched only when you ask. The page and the
+> non-commercial use and shared on the same licence. They are not part of Parseh and are
+> fetched only when you ask, so you can use Parseh without them, with nothing of that
+> licence on your computer. The page and the
 > licences page say whose work they are.
 
 ## What they are used for
 
-Each is off until you change it, and each can be set by itself.
+Each is off until you change it, and each can be set by itself. The page says in which languages each can work.
 
-- **The dictionary panel.** *Show* adds a line under each word saying what the analyzer
-  read it as, and whether its sentence chose that. *Show and find* does that too, and a word
-  the dictionary did not find is looked for under the analyzer's lemma. A lemma counts only if
-  it lands on a real entry, and the row says that is how it was found. A word the dictionary
-  did find keeps everything it found. If the sentence chose one of its entries, that one comes first.
-- **Cutting new text into phrases.** When a new book or video is cut into chunks, the analyzer's
+- **The dictionary panel: part of speech.** *Show the part of speech* puts a chip beside each
+  word saying what it is in this sentence, a line under it with its lemma and grammar, and
+  **fits this sentence** on the entry of that part of speech. A word's entries are usually one to a
+  part of speech, so this is the entry that means what the sentence means. Where all a
+  word's entries are the same part of speech, nothing is marked. *Also put what fits first* moves
+  that entry to the top, adds it if only other parts of speech had been found, and looks up
+  a word the dictionary missed under its lemma, saying that is how it was found. No entry is ever dropped.
+  The panel needs the language's own dictionary, from [Reading help](reading-help.md).
+- **Cutting new text into phrases.** When a new book or video is cut into phrases, the analyzer's
   reading of the sentence is listened to. Your punctuation still comes first, and the text is
   never changed. Chunks you have edited are never cut again, by this or anything else.
 - **The gloss prompts.** Copy prompt and the skill's request, for a stretch of a book or a
   video: each chunk to do carries what the analyzer read in it, with a rule telling the model it
-  is fallible, that the sentence wins, and that it is not part of the answer. Nothing of it is
-  ever stored with a gloss. Your own prompts keep the rule too. After turning this on, download
+  is fallible, that the sentence wins, and that it is not part of the answer. The sheet says how many chunks carry
+  it, or why none does. Nothing of it is ever stored with a gloss. Your own prompts keep the rule too. After turning this on, download
   the `parseh-gloss` skill again, as **Settings → Skills for your chatbot** reminds you.
 
 A book being made in place by an agent can ask too: while the gloss prompts' choice is on, the book's
 instructions tell the agent about a helper that reads a sentence and writes nothing.
 
+### Spoken Persian
+
+The analyzers learned Persian from written text, and the dictionary's own reading of spoken Persian knows what a
+spoken word stands for, so each helps the other. With the part of speech on, every spoken word goes to the analyzer in its
+formal spelling, so `خونشون` reaches it as `خانه‌شان`, a noun, and the sentence around it can be read. Its part of speech then
+chooses among the spoken readings: `بده` is "let him give" in `پولو بده` and may be "it is bad" elsewhere. Which spoken reading a
+word has is the dictionary's business, not the analyzer's: what the analyzer guesses as a lemma for a word it has never seen
+chooses nothing. Your text is not touched: this formal version is only what the analyzer reads.
+
+### What they add, measured
+
+Fresh sentences written for the purpose, judged by hand and looked up on a full dictionary, with nothing tuned to them:
+one person's judgement of a small sample, not a promise about your text.
+
+| | right word first | on the panel at all | part of speech right | **fits this sentence** right |
+|---|---|---|---|---|
+| Spoken Persian, the dictionary alone | 79% | 84% | | |
+| Spoken Persian, with its spoken reading | 90% | 97% | | |
+| Spoken Persian, with **Also put what fits first** | 92% | 97% | 81 of 81 | 20 of 20 |
+| Turkish, the dictionary alone | 84% | 89% | | |
+| Turkish, with UDPipe only | 92% | 97% | 81 of 81 | 12 of 12 |
+| Turkish, with Starlang only | 92% | 97% | | |
+| Turkish, with both, as you get them | 97% | 100% | 85 of 87 | 15 of 16 |
+
+So in these two languages it is worth having both on, and for Turkish both analyzers: Starlang knows what a word can be, UDPipe
+which of those the sentence reads, and where the two name the same word (`adamı`: `adam`, not `ada`) that decides it.
+
 ## Try it
 
-**Try it**, at the foot of the page, reads a sentence of yours: every word with what the analyzer
-made of it, the phrases with and without it, and the dictionary with and without it where the language
-has one. Nothing is kept. It is the way to see whether an analyzer helps your language before you turn it on.
+**Try it** reads a sentence of yours: the phrases with and without the analyzer, what the dictionary finds only with
+it where the language has a dictionary, every word with what the analyzer made of it, and what a prompt would
+carry. Nothing is kept. It is the way to see whether an analyzer helps your language before you turn it on.
 
 ## When it cannot help
 
@@ -73,8 +105,9 @@ thousandths of a second. The program goes away after ten idle minutes, with its 
 
 ## Is it any good?
 
-It depends on the language and on the sentence, which is why it stays optional. The models are small and
-make mistakes a reader would not: UDPipe read *wir* in a German sentence as a form of *werden*. Starlang
-never chooses among the readings of a Turkish word, and Farahidi's choice of lemma for an unvowelled Arabic word
-can be wrong while still being one of the word's real readings. On Linux it has been installed and run. **On
-Windows and macOS it has not been tried yet**, Starlang's compile above all.
+It depends on the language and on the sentence, which is why it stays optional. On a set of test sentences in ten
+languages the marked entry was nearly always the right one, and clearly best on verbs, adjectives and function words.
+Arabic was the weakest: an unvowelled `ضرب` was read as a noun in *the boy hit the ball*, and the noun then
+comes first. The models are small and make mistakes a reader would not, and Starlang never chooses among the readings of a
+Turkish word: there it is UDPipe that chooses, among Starlang's readings. On Linux all of this has been installed
+and run. **On Windows and macOS it has not been tried yet**, Starlang's compile above all.

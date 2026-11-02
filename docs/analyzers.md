@@ -60,11 +60,28 @@ A failure is not cached. `clear_cache()` also stops a running request from stori
 
 ## What each consumer may do
 
-**Lookup** (`off`, `show`, `assist`) runs after `look_up` and only adds. It does not use
-`pieces=`, which would turn off the joins of a prefix written apart. A word the dictionary did
-not find is looked for under the analyzer's lemmas, and only a real entry counts; the row says
-`kind: "analyzer"` and `via`. Where the sentence chose a lemma and a word has several entries,
-that lemma's come first and none is dropped. A person's word line never comes here.
+**Lookup** (`off`, `show`, `assist`) is the point of the version: the part of speech. It runs after `look_up` and only
+adds, and does not use `pieces=`, which would turn off the joins of a prefix written apart. A row gets `machine`: the
+part of speech read in the sentence (a chip in both panels), lemma, grammar in plain words. `ENTRY_POS` maps it to the
+dictionary's parts of speech; an entry of that part of speech gets `fits` (the marker) where that tells entries apart, narrowed
+by the lemma where the lemma names one of them. A lemma alone never marks: on `كتابا`, all nouns, it chose `كاتب`.
+`assist` moves what fits to the front (a word read by the spoken pass keeps its numbered order), adds the lemma's entry if only
+other parts of speech were found, and looks a word nothing found up under its lemmas, saying so (`kind: "analyzer"`, `via`). A
+separable verb's particle (`compound:prt`) asks for nothing. For a row of several tokens or a token of several
+words, the word of content speaks. Where a backend holds the morphology, the sentence chooses among its readings only:
+a UDPipe lemma none of Starlang's readings has is shown beside them, not as chosen. A person's word line never comes here.
+
+**Spoken Persian and the analyzers.** `lookupassist.formal_view` hands the model the normaliser's formal spelling (the spoken hit's `as`) in place of a
+spoken word, with a map back to the page's spans; a video's evidence goes the same way (`evidence._carried`). Rivals or not: tried against reading rivals only for a word the
+model does not know, and against the raw page, on hand-judged sentences (`tests/analysis_bench.py`), this gave the most (99% right chips against 93%, wrong marks 4 of 61 against 20 of 69). The analyzer then marks among the spoken readings by part of speech, and those may move; its LEMMA chooses nothing on a row the normaliser read, because it is of a word the model was shown instead of the page's, and a treebank invents one for what it has not seen (`میشه`: `میش`). A POS guessed for a
+word with no lemma and no backend's readings earns a chip the entries bear out, and marks nothing.
+
+An infinitive is a NOUN to a treebank (`رفتن`, `okumak`): a verb entry spelled as the page spells it fits, unless a noun is spelled so.
+
+Two backends: where morphology lists what a word can be, the sentence chooses among those (`sinemaya`: Starlang's only noun beats UDPipe's verb); an entry none of
+its readings names does not fit (`erke` for `erkenden`). A word is judged by what it was before its derivation (`raw["base"]`: `okumak` ends a NOUN and is a verb to look up). Where UDPipe's lemma is one of Starlang's readings, chosen by the sentence's part of speech where one root has two (`kırdım`), the two AGREE and that lemma may tell entries of one part of speech apart (`adamı`: `adam`, not `ada`), the one case a lemma decides. If the panel has no such entry it is added, and none other is marked. A word nothing found is looked up under the chosen lemma, else under every reading that lands, what the sentence allows first and the longest first (`öğretmenimdir`: `öğretmen`).
+
+**How to judge a change here:** `python3 tests/analysis_bench.py <analysis> <dict> [--misses]`, each combination side by side. The `*-holdout` files were written after the rules were tuned and scored as they stood (Persian 79→92% first, 84→97% found; Turkish 84→97%, 89→100%): keep them out of the tuning, or they stop saying anything. Arabic: when Farahidi's sentence and UDPipe disagree nothing is claimed, because each was right about as often.
 
 **Chunking** (`off`, `assist`) is for new text only, through `lib/draft.py`. A dependency can
 hold a seam (`_DEP_JOIN`) or open one (`_DEP_OPENS`), and supply a part of speech to a word the

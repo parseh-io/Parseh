@@ -155,8 +155,9 @@ async function open(lang, storage = {}, {build = 'mine', available = true} = {})
       // whole compound in `compound` -- one line, the compound said and
       // glossed as a whole, with the verb that conjugates in it after.
       if (b.text === 'コーヒーを')
-        return json({ok:true, words:[{word:b.text, tried:[b.text], hits:[{
-          headword:'zadan', translit:'zadan', pos:'verb', senses:['to beat, hit, strike'],
+        return json({ok:true, words:[{word:b.text, tried:[b.text],
+          machine:{lemma:'zadan', others:['zad'], pos:'verb', here:true, grammar:'past', who:'UDPipe'}, hits:[{
+          fits:true, headword:'zadan', translit:'zadan', pos:'verb', senses:['to beat, hit, strike'],
           vb:{lemma:'zadan', here:'ZADAN (zadan · pres. zan · past zad)',
               tex:'\\vb{zadan}{}{zan}{}{zad}{}{}', plain:'zadan · pres. zan · past zad',
               line:'pres. zan · past zad', complete:false,
@@ -630,6 +631,10 @@ try {
   await click(page, '#cloud .esrc');
   await until(() => page.locator('#cloud .esrcbody .sput button').count().then(n => n > 0),
               'the sources answer for the compound');
+  // what the analyzer read, where a gloss is written from (lib/lookupassist.py)
+  eq(await page.locator('#cloud .esrcbody .dposhere').textContent(), 'verb', 'the sources say the part of speech in this sentence');
+  ok(/from zadan .* past .* can also be zad \(UDPipe\)/.test(await page.locator('#cloud .esrcbody .sreadl').textContent()), 'and the rest of the reading');
+  eq(await page.locator('#cloud .esrcbody .sfits .dfits').textContent(), 'fits this sentence', 'and the entry that fits says so');
   const cmpBtn = page.locator('#cloud .esrcbody .sput button', {hasText: 'compound verb'});
   const vocBtn = page.locator('#cloud .esrcbody .sput button', {hasText: 'vocabulary'});
   const labels = await page.evaluate(

@@ -37,6 +37,7 @@ ZW = "‌"
 T_STAGES = {"emphatic": 30, "vocative": 30, "affection": 30, "hem": 31, "object": 32,
             "vclitic": 40, "copula": 41, "vend": 45, "clitic": 50, "definite": 60, "yeh": 61, "plural": 62, "comparative": 64}
 PISH, KASRA = "ُ", "ِ"
+FATHA = "\u064e"
 COPULA_FORMAL = {"1s": "هستم", "2s": "هستی", "3s": "است", "1p": "هستیم", "2p": "هستید", "3p": "هستند"}
 SPOKEN_ONLY_PERSONS = {"1s", "2s", "1p"}       # the copula of these is said of a person, so of an adjective, an adverb or a pronoun
 MAX_CANDIDATES = 80
@@ -45,7 +46,7 @@ MAX_CANDIDATES = 80
 class Cand:
     """One path: where it ended, what it reads as, and what it passed through."""
     __slots__ = ("hits", "formal", "parts", "pieces", "whys", "spoken", "by_rule", "kind", "rules", "alts", "stem_pos", "adds", "bias", "twin",
-                 "weight")
+                 "weight", "negative")
 
     def __init__(self, hits, formal, parts=None, pieces=None, whys=None, spoken=False, kind="rule", rules=(), alts=None,
                  by_rule=False, adds=False, bias=0, weight=0):
@@ -58,6 +59,7 @@ class Cand:
         self.by_rule, self.adds, self.bias = by_rule, adds, bias
         self.weight = weight              # what its sound change costs (lib/spokensound.py): a regular one 1, a broad guess 2
         self.twin = False                 # a formal reading of the same word comes to the same entries
+        self.negative = False             # a verb form with its negative prefix, which the table of stems lists
         self.stem_pos = {h.get("pos") for h in hits}
 
     def entries(self):
@@ -89,7 +91,7 @@ class Peeler:
         self.max_depth = self.cfg.get("max_depth", 3)
         self.nominal = set(self.cfg.get("nominal_pos") or [])
         self.plural_pos = set(self.cfg.get("plural_pos") or [])
-        self._hosts = {k: None for k in ("adverbial", "quantifier", "kinship", "possessive_pron", "persons", "hem_words")}
+        self._hosts = {k: None for k in ("adverbial", "quantifier", "kinship", "possessive_pron", "persons", "hem_words", "object_words")}
         self._host_lists = h
         self._separate = None
         self.pronouns = self.cfg.get("pronouns") or {}
@@ -180,17 +182,20 @@ class Peeler:
                         if got:
                             out.append(Cand(got[:4], formal, whys=[self._say("table", formal=formal)], spoken=True, kind="table"))
             for row in R.words.get(key, []):
-                if row.kind in ("standalone", "cv", "policy"):
+                if row.kind in ("standalone", "cv", "policy") or row.flags.get("whole"):
                     continue
                 got = R._formal_hits(lk, c, L, row.formal)
                 if got:
                     why = row.note or self._say("table", formal=row.formal)
                     out.append(Cand(got[:4], row.formal, parts=row.formal.split() if len(got) > 1 else [row.formal],
                                     whys=[why], spoken=True, kind="table"))
+            bare_imp = R._say("verb_bare_imp")
             for vf, vhits in R.verb_readings(lk, c, L, stem):
-                # a form the table's own stems make comes before one a rule of the table made; a verb after a noun with a clitic
+                # a form the table's own stems make comes before one a rule of the table made; a verb after a noun with a clitic, but a
+                # negative of the table's before it (نره is `let him not go` before it is `it is male`)
                 out.append(Cand(vhits[:4], vf.formal, whys=[vf.why], spoken=True, kind="rule", rules=("verb",), by_rule=True,
-                                bias=2 if vf.auto else 1, weight=3 if vf.auto else 0))
+                                bias=2 if vf.auto else 0 if vf.negative else 1, weight=3 if vf.auto else 2 if vf.why.startswith(bare_imp) else 0))
+                out[-1].negative = vf.negative and not vf.auto
             # a sound change speech writes down (note B), read one step back: for a stem nothing else reads, and for the whole
             # word of a trap's row (خون is blood, and خان said with the u of the spoken language)
             # (a word the dictionary has is not asked for its spellings by ear: only a stem nothing else reads is; a verb form the
@@ -198,6 +203,12 @@ class Peeler:
             guessed = not any(x.rules != ("verb",) for x in out)
             if R.sounds and (guessed or (cache.get("__trap__") and not inner)):
                 out.extend(self._sound(lk, c, L, stem, cache, stages=(9,) if out and guessed else (8, 9) if not out else (8,)))
+            if not out and inner:
+                # a manner word with an ending on it: اینجوریه
+                manner = R._manner(lk, c, L, stem, stem, 0)
+                if manner:
+                    sp = manner[0].hits[0]["spoken"]
+                    out.append(Cand(manner[0].hits, sp["as"], parts=sp.get("parts") or [sp["as"]], whys=[sp["why"]], spoken=True, kind="table"))
             if not out:
                 numbers = R._glue(lk, c, L, stem, stem, 0, only="numbers")
                 if numbers:
@@ -218,15 +229,16 @@ class Peeler:
         out = []
         for stage in stages:
             # the spellings by ear (9) are asked only of a stem the sound changes (8) found nothing for
-            out = self._sound_stage(lk, c, L, stem, stage)
+            out = self._sound_stage(lk, c, L, stem, stage, cache.get("__guess__") or cache.get("__trap__"))
             if out:
                 break
         cache[("sound", stem, stages)] = out
         return out
 
-    def _sound_stage(self, lk, c, L, stem, stage):
+    def _sound_stage(self, lk, c, L, stem, stage, guesses=False):
+        # (a guess is also asked for a trap's row, whose word is a closed list of the file's: هش, دس, راس)
         sounds = self.R.sounds
-        folded = [(lk._fold(v, L), v, r) for v, r in sounds.raw(stem, stage)]
+        folded = [(lk._fold(v, L), v, r) for v, r in sounds.raw(stem, stage) if guesses or not r.guess]
         bases = {}
         for fk, v, _r in folded:
             for tail in sounds.tails:
@@ -237,7 +249,10 @@ class Peeler:
         out = []
         for fk, v, r in folded:
             hits = [h for h in lk._hits_for(c, fk) if h.get("_tier", 0) <= lk.T_FORM] if fk in known else []
-            if not hits and bases.get(fk) in known:
+            if r.guess:
+                # a guess lands on a word's own page, and not on one of the hundreds of thousands of forms of its table
+                hits = [h for h in hits if lk._fold(h.get("headword") or "", L) == fk]
+            elif not hits and bases.get(fk) in known:
                 hits = [h for h in lk._hits_for(c, bases[fk]) if h.get("_tier", 0) <= lk.T_FORM and h.get("pos") in self.nominal]
             if hits:
                 out.append(Cand(hits[:4], v, whys=[self._say("sound", formal=v, note=r.note)], spoken=True, kind="rule",
@@ -386,6 +401,8 @@ class Peeler:
         for s, rest in self._ends(w, cfg.get("suffixes") or []):
             def finish(inner, s=s):
                 n = self._keep(inner, {"noun", "pron", "name", "num", "det"})
+                if not n and inner.hits and self._host(lk, L, "object_words", inner.formal):
+                    n = inner         # همین, همون, یکی: whatever the dictionary files them under, they stand where a noun stands
                 if not n:
                     return None
                 piece = {"text": s, "role": "object", "note": self._say("object")}
@@ -429,6 +446,15 @@ class Peeler:
                               piece={"text": s, "role": "clitic", "note": why} if is_spoken else None,
                               why=why if is_spoken else None, spoken=is_spoken)
             yield rest, finish, "vclitic"
+            # the 3rd person's -e is -t before a clitic (میگتش is میگه + ش), on a stem only the table of speech knows
+            if rest.endswith("ت") and len(rest) >= 4:
+                def finish_t(inner, s=s):
+                    v = self._verbal(inner)
+                    if not v:
+                        return None
+                    why = self._say("clitic_spoken", ending=s, formal=fo.get(s, s))
+                    return v.grow("vclitic", formal=v.formal + fo.get(s, s), part=fo.get(s, s), why=why, spoken=True)
+                yield rest[:-1] + "ه", finish_t, "vclitic"
 
     def _g_vend(self, lk, c, L, w, path, ctx, i):
         """The spoken personal ending -e -in -an for the formal -ad -id -and, on a form the dictionary has."""
@@ -490,6 +516,19 @@ class Peeler:
                 return n.grow("copula", formal=n.formal + " " + COPULA_FORMAL[person], part=COPULA_FORMAL[person], piece=piece, why=why,
                               spoken=True, bias=1)
             yield rest + "ه", finish_restored, "copula", True
+        # the same copula after a vowel, with the glide letter people choose (توئه, توعه, عموئه, شمائه)
+        for s, rest in self._ends(w, self.cfg.get("copula_glide") or []):
+            if self._klass(rest) not in ("alef", "vav"):
+                continue
+
+            def finish_glide(inner, s=s):
+                n = self._keep(inner, self.nominal - {"name"})
+                if not n:
+                    return None
+                why = self._say("copula", ending=s, formal=COPULA_FORMAL["3s"])
+                return n.grow("copula", formal=n.formal + " " + COPULA_FORMAL["3s"], part=COPULA_FORMAL["3s"],
+                              piece={"text": s, "role": "copula", "note": why}, why=why, spoken=True)
+            yield rest, finish_glide, "copula"
         formal_sets = self.cfg.get("copula_formal") or {}
         for s, rest in self._ends(w, list(formal_sets.get("cons") or []) + list(formal_sets.get("vowel") or [])):
             allowed = formal_sets.get("cons") if self._klass(rest) == "cons" else formal_sets.get("vowel")
@@ -693,7 +732,7 @@ class Peeler:
         for s in self.cfg.get("manner_ki") or []:
             if w.endswith(s) and len(w) - len(s) >= 3:
                 def finish_ki(inner, s=s):
-                    n = self._keep(inner, {"adj", "adv"})
+                    n = self._keep(inner, {"adj", "adv", "noun"})
                     if not n:
                         return None
                     piece = {"text": s, "role": "manner", "note": self._say("manner_ki")}
@@ -724,7 +763,14 @@ class Peeler:
         an ezafe (منِ): the marks are evidence, and for these they are the whole rule.  `w` still has its marks."""
         out = []
         cache = {}
-        if w.endswith(PISH):
+        # the vowel of a word's final -e come back before the object marker, and written (خونَرو, بچَرو: note D3)
+        if w.endswith(FATHA + "رو") and len(w) > 3:
+            for inner in self._terminal(lk, c, L, lk._unmarked(w[:-3], L) + "ه", cache):
+                n = self._nominal(inner)
+                if n:
+                    piece = {"text": "رو", "role": "object", "note": self._say("pish")}
+                    out.append(n.grow("pish", formal=n.formal + " را", part="را", piece=piece, why=self._say("pish"), spoken=True))
+        elif w.endswith(PISH):
             for inner in self._terminal(lk, c, L, lk._unmarked(w[:-1], L), cache):
                 n = self._nominal(inner)
                 if n:
@@ -751,12 +797,50 @@ class Peeler:
         """The same, to weigh a spoken reading against a formal one: a sound change counts half (the dictionary decides it)."""
         return len([r for r in cand.rules if r != "sound"]) + (0.5 if "sound" in cand.rules else 0)
 
-    def read(self, lk, c, L, w, ctx, i, with_formal=False, direct=()):
+    def _stacked(self, cand):
+        """Rewrites upon rewrites: what a dictionary of 17,000 headwords will always find something for (نفهمیدم is not نفر + م + ید + هم).
+        A broad guess stands alone or with one ending, a spelling by ear alone, a regular sound change with two endings at most."""
+        if "verb" in cand.rules and len(cand.rules) > (1 if cand.weight >= 3 else 2 if cand.weight else 9):
+            return True                       # a verb form a rule only guessed at, with more on it: شوما is not می‌شوم + -ā, nor بشو + م + -ā
+        if "sound" not in cand.rules:
+            return False
+        others = len([r for r in cand.rules if r != "sound"])
+        return others > (0 if cand.weight >= 3 else 1 if cand.weight >= 2 else 2)
+
+    def homograph(self, lk, c, L, w, ctx, i, direct, own_page):
+        """On a page of speech, what a word the dictionary knows ALSO is, when it ends in what speech puts on a word: پاش is پا + ش beside
+        پاشیدن, بچم is بچه + م beside چمیدن, روش is رو + ش beside `method`, کارت is کار + ت beside `card`.  One ending and a word of the
+        dictionary; `own_page` is a word that has a page of its own, for which only a clitic counts (خانه is no خان + definite -e).
+        A regular sound change alone is asked only of a word that has no page (دونه is دانه beside دانستن)."""
+        cands = self._peel(lk, c, L, w, 0, 0, (), {"__trap__": not own_page}, ctx, i)
+        out, seen = [], set()
+        for x in cands:
+            if not x.rules or x.entries() <= direct or x.entries() in seen or x.weight >= 2 or "verb" in x.rules:
+                continue
+            if not (x.stem_pos & (self.nominal | {"prep", "pron"})) or (x.rules != ("sound",) and "sound" in x.rules):
+                continue
+            stem = lk._fold(x.parts[0] if x.parts else x.formal, L)
+            if x.spoken:
+                ok = x.rules == ("clitic",) or (not own_page and len(x.rules) == 1)
+            else:
+                # a formal clitic on a noun of three letters or more (کارت).  A word that ends in -st -sht -ft -nd is its own (دست is no دس + ت)
+                ok = x.rules == ("clitic",) and len(stem) >= 3 and x.stem_pos & {"noun", "adj"} and w[-2:] not in ("ست", "شت", "فت", "ند")
+                if ok:
+                    x.spoken = x.by_rule = True
+                    x.whys.append(self._say("formal_reading"))
+            if ok:
+                seen.add(x.entries())
+                out.append(x)
+        out.sort(key=lambda x: (0 if x.rules == ("clitic",) else 1, self.cost(x)))
+        return out
+
+    def read(self, lk, c, L, w, ctx, i, with_formal=False, direct=(), guesses=False):
         """The spoken readings of this word as Candidates, best first, or [].  With `with_formal` (a trap's row) the formal
         readings that come to the same entries are added to each one's other readings, so that every reading of the letter is shown.
         `direct` are the entries the dictionary's own answer for the word already has: a trap's row adds nothing by a reading that
         only spells the same entry another way."""
-        cands = [x for x in self._peel(lk, c, L, w, 0, 0, (), {"__trap__": with_formal}, ctx, i) if x.rules]
+        cands = [x for x in self._peel(lk, c, L, w, 0, 0, (), {"__trap__": with_formal, "__guess__": guesses}, ctx, i)
+                 if x.rules and not self._stacked(x)]
         spoken = [x for x in cands if x.spoken]
         if not spoken:
             return []
@@ -766,13 +850,25 @@ class Peeler:
             same = best.entries()
             # a formal reading of as few rules, to another entry, is the reading; to the same entry, it stands beside a
             # spoken one that adds readings (مامانم) and the spoken one that only explains is not needed
-            spoken = [x for x in spoken if self.rules_against(x) < self.rules_against(best) or (x.entries() == same and x.adds)]
-            # a path through a sound change that comes to the entry the formal reading already comes to is a formal word taken
-            # apart and put together again (خسته‌ام is not خست + -e + a sound that gives the -e back)
-            spoken = [x for x in spoken if "sound" not in x.rules or x.entries() != same]
+            # (a verb form the table of stems lists whole is more than a stem of a letter or two and an ending: میام is می‌آیم, not می + ام;
+            # and less than a noun and its clitic: باورم is `my belief`)
+            short = len(lk._fold(best.parts[0] if best.parts else best.formal, L)) < 3
+            # (nor is a name and a clitic in the way of a verb: تونسم is توانستم, not `my Tunisia`)
+            name = best.stem_pos <= {"name"}
+            spoken = [x for x in spoken if self.rules_against(x) < self.rules_against(best) or (x.entries() == same and x.adds)
+                      or (x.rules == ("verb",) and (name or (not x.weight and (short or x.negative))))]
+            # a sound change never reads past a formal word and a formal ending (پدرم is not بدرم, اسمت is not استمت), and a path through
+            # one that comes to the same entry is a formal word taken apart and put together again (خسته‌ام is not خست + -e + a sound)
+            spoken = [x for x in spoken if "sound" not in x.rules]
             if not spoken:
                 return []
-        spoken.sort(key=lambda x: (self.cost(x), 0 if self.rules_against(x) == 0.5 else 1, 0 if x.by_rule else 1, x.bias,
+        # at the same cost: a table word with its -e put back (خونش), or a clitic on a preposition or an adverb (بهش, ازت, اولش), and then a word
+        # read whole through a sound change (خونه), before the rest
+        def first_of(x):
+            if (x.kind == "table" and x.bias < 0) or (x.rules == ("clitic",) and x.spoken and x.stem_pos & {"prep", "adv", "pron", "det"}):
+                return 0
+            return 1 if self.rules_against(x) == 0.5 else 2
+        spoken.sort(key=lambda x: (self.cost(x), first_of(x), 0 if x.by_rule else 1, x.bias,
                                    0 if "verb" in x.stem_pos else 1, 0 if x.kind in ("rule", "entry") else 1))
         if with_formal:
             if direct:

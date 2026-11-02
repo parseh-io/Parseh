@@ -198,9 +198,11 @@ A card made this way is not an entry, and does not look like one:
 - **A piece that has no formal word is named, not dropped.** The emphatic *-ā*
   of *نریا*, the redundant *-sh* on a verb, the helper of the progressive in
   *داره میاد*, which is not offered as "to have".
-- **How it is said.** The spoken sound where a rule gives one (*said xune*);
-  where none does, the formal word's, labelled *formal sound*. A spoken sound
-  nobody knew is never made up.
+- **How it is said.** The spoken sound where a rule gives one (*said xune*), or
+  where it is known: the commonest verbs are said from their stem, prefix and
+  ending (میام, *said mi-yām*), and the commonest words have theirs written down
+  (یه, *said ye*). Where none is known, the formal word's, labelled *formal
+  sound*. A spoken sound nobody knew is never made up.
 
 **Where a word can be read two ways, both are shown**, numbered under a header
 that says so, the likelier first: بده is the verb دادن ("let him give") and بد
@@ -210,7 +212,8 @@ that is speech, رفتم is also *رفته‌ام*, because a perfect is said li
 simple past.
 
 **What comes first** turns on the page. A word the dictionary knows keeps its
-place: خون stays *blood*, first, in a page of formal prose. The video player
+place: خون stays *blood*, first, in a page of formal prose, and what else it
+could be is one small closed row under the entry, which opens when you press it. The video player
 says its captions are speech, and the review of a transcript says so of what it
 reviews; a book says nothing of its narration. On a page that says it is
 speech, or beside a word that only speech writes (*اونا میگن خون بود*), the
@@ -232,10 +235,14 @@ entry.
 **What it cannot do.** It chooses between readings of the same letters by the
 letters and their neighbours and not by the meaning of the sentence, so the
 first reading is only the likelier. A word with no formal twin (a slang word)
-is shown with what the table says it means, and says it has no page. A word bent on
-purpose, a name and a rare word are left as they are. And nobody has measured
-how often a rule reads a word of a language it does not know as one that
-sounds like it; where a card is wrong, the reason on it says how it got there.
+is shown with what the table says it means, and says it has no page. A word
+broken by a star or a dot to pass a filter is read as the word. A word bent in any other way, a name and a rare
+word are left as they are, unless the table has them. Where a card is wrong, the reason on it says how it got there.
+
+On 30 spoken sentences written for the purpose and judged by hand, with a full dictionary and nothing tuned to them, the
+right word came first for 79% of the words without this reading and 90% with it, and was on the panel at all for 84% and 97%.
+[Linguistic analysis](linguistic-analysis.md#spoken-persian) can take that further. That is one person's judgement of a
+small sample, not a promise about your text.
 
 Its table of spoken words and verbs is seeded from Hazm's lists of informal
 Persian (MIT licence), which the [licences page](../reference/licences.md)

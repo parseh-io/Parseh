@@ -155,6 +155,7 @@ class _Worker:
         self.process = None
         self.last = 0
         self.timer = None
+        self.loaded = {}        # backend -> the languages its program holds in memory, as it last said
 
     def alive(self):
         return self.process is not None and self.process.poll() is None
@@ -197,6 +198,8 @@ class _Worker:
             if answer.get("error") == "it stopped":
                 self._stop()
             self.last = time.monotonic()
+            if answer.get("loaded"):
+                self.loaded = answer["loaded"]
             self._arm()
         if not answer.get("ok"):
             raise analyzer.BackendError(answer.get("error") or "no answer")
@@ -216,6 +219,7 @@ class _Worker:
 
     def _stop(self):
         p, self.process = self.process, None
+        self.loaded = {}
         if p is not None:
             try:
                 p.stdin.close()
@@ -265,7 +269,8 @@ class _Remote:
         elif not resource:
             why = "the %s model for %s is not here: Settings → Linguistic analysis" % (self.name, code)
         return {"package": package, "resource": resource, "usable": ready,
-                "loaded": WORKER_PROGRAM.alive(), "version": self.version,
+                "loaded": WORKER_PROGRAM.alive() and code in WORKER_PROGRAM.loaded.get(self.name, ()),
+                "version": self.version,
                 "resource_id": pins.UDPIPE_MODELS[code]["file"] if self.name == "udpipe" else "bundled",
                 "why": why}
 
@@ -294,7 +299,8 @@ def status():
     models = []
     for code, pin in pins.UDPIPE_MODELS.items():
         models.append({"code": code, "treebank": pin["treebank"], "bytes": pin["bytes"],
-                       "licence": pin["licence"], "have": model_here(code), "item": "udpipe:%s" % code})
+                       "licence": pin["licence"], "have": model_here(code), "item": "udpipe:%s" % code,
+                       "loaded": code in WORKER_PROGRAM.loaded.get("udpipe", ())})
     return {"folder": FOLDER, "python": python(), "serving_python": sys.executable,
             "runtime": os.path.isfile(python()), "worker_running": WORKER_PROGRAM.alive(),
             "programs": {

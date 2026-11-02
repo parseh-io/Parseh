@@ -2,6 +2,7 @@
  "_comment": "WHAT THE PANEL SHOWS (note section 13), case by case. Driven by tests/fa_colloquial_panel.mjs, which runs these cases in the book reader and in the video player against the real routes, reading the page as drawn, not the answer's JSON. `row` names a row of rows/ by family and word (`at`: which of them, from 0, where there are several); `shows` is the CONTENT the card must hold, in words, which the test maps to the panel's own markup (lib/parseh.js `Parseh.spoken`). Every case holds in both surfaces.",
  "surfaces": ["reader", "player"],
  "cases": [
+    {"id": "small-row", "row": ["T2", "خون"], "shows": {"first": "خون", "small_in": "reader", "note": "a word nearly always formal, on a page that does not say it is speech: its second reading is one small closed row"}},
   {"id": "plain", "row": ["HAS", "کتاب"],
    "shows": {"badge": null, "note": "a word the dictionary knows is drawn exactly as today: no pill, no reading, no tint"}},
   {"id": "spoken-by-rule", "row": ["B1", "خونه"],

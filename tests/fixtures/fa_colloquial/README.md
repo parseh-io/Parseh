@@ -22,6 +22,8 @@ green, and a row that is red says what the next layer has still to do.
 | `panel.json` | What the panel shows for each case of the note's section 13: driven in the book reader, the video player, the editor's sources column and the phone's sheet by `tests/fa_colloquial_panel.mjs`, on the real hub. |
 | `state.json` | How far the normaliser has got: the layer built, and the rows that already pass and must go on passing. |
 
+The dictionary has no negative verb forms, because the real one has none (the reader knows a negative by its affirmative). `TheRealDictionary` in the test file asks a real dictionary what the fixture cannot show, where one is at hand.
+
 `tests/fa_colloquial_dict.py` builds `fa.db` from the three data files; `tests/test_fa_colloquial.py`
 reads the rows. The dictionary has FORMAL words only, shaped like Wiktionary's Persian (a
 verb carries its whole formal table as form rows). **It proves that a rule reaches a real

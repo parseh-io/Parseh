@@ -45,7 +45,8 @@ def serve(models, stdin, stdout):
                 out = {"ok": True, "status": b.status(ask.get("code"))}
             elif b is not None and ask.get("op") == "analyze":
                 got = b.analyze(ask["code"], ask["text"], bool(ask.get("syntax")), ask.get("context") or "")
-                out = {"ok": True, "result": analyzer.to_plain(got)}
+                out = {"ok": True, "result": analyzer.to_plain(got),
+                       "loaded": {name: list(x.loaded()) for name, x in backends.items()}}
         except analyzer.BackendError as e:
             out = {"ok": False, "error": str(e)}
         except Exception as e:      # what the server has to be told, in place of a silent pipe

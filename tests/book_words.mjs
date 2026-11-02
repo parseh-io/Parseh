@@ -342,12 +342,17 @@ await inPage(`
 `);
 await inPage(`
   // what an analyzer read the word as (lib/lookupassist.py): one line under the word, found or not, and none without it
-  const said = {lemma: '二人', upos: 'NOUN', feats: {Number: 'Sing'}, source: 'native', status: 'lexical', readings: 2};
-  const none = dictLine({word: '二人', hits: [], tried: ['二人'], machine: said});
-  assert(/native knows this as 二人 · NOUN · Number=Sing · one of 2 readings/.test(none.querySelector('.dmachine').textContent), 'the line under a word not found');
-  const found = dictLine({word: '二人', hits: [{headword: '二人', senses: ['two people']}], tried: [], via: 'as written',
-                          machine: Object.assign({}, said, {status: 'contextual', ranked: true})});
-  assert(/reads this here as .* its entry moved first/.test(found.querySelector('.dmachine').textContent), 'the line under a word found');
+  const none = dictLine({word: '二人', hits: [], tried: ['二人'], machine: {lemma: '', others: ['二人', '人'], pos: '', grammar: '', who: 'UDPipe', here: false}});
+  assert(/can be 二人, 人 \\(UDPipe\\)/.test(none.querySelector('.dmachine').textContent), 'what the word can be, under a word not found');
+  assert(!none.querySelector('.dposhere'), 'and no part of speech that was not read in the sentence');
+  const found = dictLine({word: '二人', hits: [{headword: '二人', pos: 'noun', senses: ['two people'], fits: true}, {headword: '人', pos: 'verb', senses: ['x']}], tried: [], via: 'as written',
+                          machine: {lemma: '二人', others: ['人'], pos: 'noun', here: true, grammar: 'singular', who: 'UDPipe'}});
+  const chip = found.querySelector('.dposhere');
+  assert(chip && chip.textContent === 'noun' && /UDPipe read this word as a noun in this sentence/.test(chip.title), 'the part of speech stands beside the word, and says whose it is');
+  assert(/from 二人 · singular · can also be 人 \\(UDPipe\\)/.test(found.querySelector('.dmachine').textContent), 'the rest on a line under it');
+  const rows = [...found.querySelectorAll('.dhit')];
+  assert(rows[0].classList.contains('fits') && rows[0].querySelector('.dfits').textContent === 'fits this sentence', 'the entry that fits says so');
+  assert(!rows[1].querySelector('.dfits'), 'and the other does not');
   assert(!dictLine({word: '二人', hits: [], tried: ['二人']}).querySelector('.dmachine'), 'no line without a reading');
 `);
 await hoverChunk(4);

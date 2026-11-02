@@ -8,8 +8,8 @@
 #   spoken_past      the spoken past stems that differ (اومد for آمد, خوند for خواند)
 #   formal       what the formal tables do their own way, `;` between: subj= the subjunctive's stem with its ب-, neg= the negative
 #                present's, neg_past= the negative past's, imp= the imperative singular, negimp= the negative imperative singular
-#   flags        bare (a present with no می-: داره), pre=<a preverb the stems stand behind: بر>, spoken_imp=<a spoken imperative
-#                singular that is a word of its own: وایسا, for the formal بایست>, mi_stem=<a present stem with its می- written in: وایمیس>
+#   flags        bare (a present with no می-: داره), light (a subjunctive said with no ب, in compounds: کنم, شه), pre=<a preverb the stems stand behind: بر>, spoken_imp=<a spoken imperative
+#                singular that is a word of its own: وایسا, for the formal بایست>, mi_stem=<present stems with their می- written in, `|` between: وایمیس>, mi_past=<the same of the past: وایمیساد>
 #   src          note | hazm (iverbs.dat of Hazm, MIT: see fa.spoken.HAZM-LICENSE.txt) | note+hazm
 #
 # What is NOT here is made by rule from these (spokenverb.py): the spoken endings -e -in -an for -ad -id -and, the prefixes می- نمی- ب- ن-
@@ -17,10 +17,10 @@
 # رسون رسوند), and the loss of the t of -st before an ending (خواسم).  A form counts only if the formal form it makes is in the dictionary.
 #
 infinitive	past	present	spoken_present	spoken_past	formal	flags	src
-کردن	کرد	کن					note+hazm
+کردن	کرد	کن				light	note+hazm
 رفتن	رفت	رو	ر				note+hazm
 گفتن	گفت	گوی	گ|گو		imp=بگو;negimp=نگو		note+hazm
-شدن	شد	شو	ش				note+hazm
+شدن	شد	شو	ش			light	note+hazm
 دادن	داد	ده	د				note+hazm
 آمدن	آمد	آی	ا|یا|آ	اومد	subj=بیای;neg=نیای;neg_past=نیامد;imp=بیا;negimp=نیا		note+hazm
 خواستن	خواست	خواه	خوا|خا|خاه				note+hazm
@@ -32,7 +32,7 @@ infinitive	past	present	spoken_present	spoken_past	formal	flags	src
 گذاشتن	گذاشت	گذار	ذار|زار|گذار	ذاشت|زاشت|گذاشت			note+hazm
 آوردن	آورد	آور	ار|آر|اور	اورد|آورد	subj=بیاور;neg=نیاور;neg_past=نیاورد		note+hazm
 افتادن	افتاد	افت	فت|وفت|افت	فتاد|وفتاد|افتاد	subj=بیفت;neg=نیفت;neg_past=نیفتاد		note
-ایستادن	ایستاد	ایست	وایس|ایست	وایساد|ایستاد	subj=بایست;neg=نایست;neg_past=نایستاد;imp=بایست	spoken_imp=وایسا,mi_stem=وایمیس	note
+ایستادن	ایستاد	ایست	وایس|ایست	وایساد|ایستاد	subj=بایست;neg=نایست;neg_past=نایستاد;imp=بایست	spoken_imp=وایسا,mi_stem=وایمیس|وامیس,mi_past=وایمیساد	note
 انداختن	انداخت	انداز	نداز|انداز	نداخت|انداخت	subj=بینداز;neg=نینداز;neg_past=نینداخت;imp=بینداز		note
 شنیدن	شنید	شنو	شنف|شنو	شنفت|شنید			note
 دیدن	دید	بین			subj=ببین		note
@@ -41,7 +41,7 @@ infinitive	past	present	spoken_present	spoken_past	formal	flags	src
 داشتن	داشت	دار				bare	note+hazm
 بودن	بود	باش					note+hazm
 شستن	شست	شوی	شور|شوی				note
-فهمیدن	فهمید	فهم					note
+فهمیدن	فهمید	فهم	فم	فمید			note
 خریدن	خرید	خر					note+hazm
 کشیدن	کشید	کش					note+hazm
 پرسیدن	پرسید	پرس					note+hazm

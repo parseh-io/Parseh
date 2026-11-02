@@ -49,6 +49,7 @@ MAX_ENTRIES = 5          # to a chunk
 MAX_OTHERS = 3           # other readings of one word
 MAX_CHUNK_CHARS = 420    # of JSON, to a chunk
 MAX_REGION_CHARS = 16000 # of JSON, to a prompt: past this the chunks go without
+MAX_RUN_CHARS = 1000     # of captions read as one sentence
 
 USEFUL = ("Case", "Number", "Person", "Tense", "Aspect", "Mood", "Voice", "VerbForm", "Polarity",
           "Evident", "Person[psor]", "Number[psor]", "Gender", "Definite")
@@ -91,7 +92,8 @@ def entry(token, by_id=None):
     if parsed:
         if len(parsed) == 1:
             w = parsed[0]
-            out.setdefault("lemma", w.lemma)
+            if w.lemma:
+                out.setdefault("lemma", w.lemma)
             if w.upos:
                 out["pos"] = w.upos
             f = _feats(w.feats)
@@ -169,49 +171,94 @@ def project(result, spans):
     return out, {"seam": seam, "cut": cut}
 
 
-def for_units(code, units, todo):
-    """Evidence for every chunk `todo(chunk)` says is to do.  `units` are the
-    sentences or captions of lib/glossregion.py, in order; a plain caption or a
-    chunk with nothing to do gives context and asks nothing."""
-    ev = Evidence()
-    if code not in LANGUAGES:
-        return ev
-    L_sep = " "
+def _runs(units):
+    """The units that are read together -> [[unit, ...]].  A sentence of a book is whole, and stands alone.  A
+    caption is wherever the speaker's time ran out: it is read with the captions it runs on into, up to one
+    that ends a sentence, a plain caption, or MAX_RUN_CHARS.  Nothing beyond the units given is asked for, so a
+    stretch that begins in the middle of a sentence begins there, and that is what the analyzer is told."""
+    runs, cur, size = [], [], 0
     for u in units:
         chunks = u.get("chunks") or []
         if not chunks:
+            if cur:
+                runs.append(cur)
+            cur, size = [], 0
             continue
-        pieces, spans, at = [], {}, 0
-        for ch in chunks:
-            spans[ch["j"]] = (at, at + len(ch["fa"]))
-            pieces.append(ch["fa"])
-            at += len(ch["fa"]) + len(L_sep)
-        text = L_sep.join(pieces)
-        wanted = {ch["j"] for ch in chunks if todo(ch)}
+        length = sum(len(ch["fa"]) + 1 for ch in chunks)
+        if cur and size + length > MAX_RUN_CHARS:
+            runs.append(cur)
+            cur, size = [], 0
+        cur.append(u)
+        size += length
+        last = chunks[-1]["fa"].rstrip()[-1:]
+        if "key" in u or (last and last in analyzer._ENDS):
+            runs.append(cur)
+            cur, size = [], 0
+    if cur:
+        runs.append(cur)
+    return runs
+
+
+def _carried(spans, view):
+    """{key: (start, end)} of the chunks, in the text the normaliser made of theirs: from the first word that begins in
+    a chunk to the last that ends in it.  `view` is lib/lookupassist.py formal_view's map, of whole words."""
+    out = {}
+    for key, (start, end) in spans.items():
+        inside = [v for (s, e), v in view.items() if s >= start and e <= end]
+        if inside:
+            out[key] = (min(v[0] for v in inside), max(v[1] for v in inside))
+    return out
+
+
+def for_units(code, units, todo, register=None):
+    """Evidence for every chunk `todo(chunk)` says is to do.  `units` are the
+    sentences or captions of lib/glossregion.py, in order; a plain caption or a
+    chunk with nothing to do gives context and asks nothing.  `register` as in
+    lib/lookup.py: what a model that has read only written Persian is given of
+    a video's speech is its formal reading, so its `w` is that reading."""
+    ev = Evidence()
+    if code not in LANGUAGES:
+        return ev
+    for run in _runs(units):
+        pieces, spans, at, wanted = [], {}, 0, set()
+        for u in run:
+            uid = u.get("key", u.get("i"))
+            for ch in u["chunks"]:
+                spans[(uid, ch["j"])] = (at, at + len(ch["fa"]))
+                pieces.append(ch["fa"])
+                at += len(ch["fa"]) + 1
+                if todo(ch):
+                    wanted.add((uid, ch["j"]))
         if not wanted:
             continue
-        got = analyzer.analyze(code, text, syntax=True)
+        import lookupassist
+        read, view = lookupassist.formal_view(code, " ".join(pieces), register)
+        if view:
+            spans = _carried(spans, view)
+            wanted &= set(spans)
+        got = analyzer.analyze(code, read, syntax=True)
         if not got.ok:
             for why in got.diagnostics or (got.outcome,):
                 if why not in ev.diagnostics:
                     ev.diagnostics.append(why)
             continue
         ev.resources = got.resources or ev.resources
-        said, counts = project(got, {j: spans[j] for j in wanted})
+        said, counts = project(got, {k: spans[k] for k in wanted})
+        where = run[0].get("at") or run[0].get("i")
         if counts["seam"]:
-            ev.diagnostics.append("%s: %d token(s) cross a chunk's seam, left out"
-                                  % (u.get("at") or u.get("i"), counts["seam"]))
+            ev.diagnostics.append("%s: %d token(s) cross a chunk's seam, left out" % (where, counts["seam"]))
         if counts["cut"]:
-            ev.diagnostics.append("%s: %d word(s) over a chunk's budget, left out"
-                                  % (u.get("at") or u.get("i"), counts["cut"]))
-        for j in sorted(said):
-            size = len(json.dumps(said[j], ensure_ascii=False))
+            ev.diagnostics.append("%s: %d word(s) over a chunk's budget, left out" % (where, counts["cut"]))
+        for key in spans:
+            if key not in said:
+                continue
+            size = len(json.dumps(said[key], ensure_ascii=False))
             if ev.chars + size > MAX_REGION_CHARS:
                 ev.diagnostics.append("the region's budget of %d characters is spent: the rest go without"
                                       % MAX_REGION_CHARS)
                 return ev
             ev.chars += size
-            ev.chunks[(u.get("key", u.get("i")), j)] = said[j]
+            ev.chunks[key] = said[key]
     return ev
 
 

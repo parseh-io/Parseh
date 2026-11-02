@@ -176,14 +176,13 @@ class Token:
         return self.syntax or self.words
 
     def lemmas(self):
-        """Every lemma on offer, the sentence's choice first, then in the
-        backends' own order, each once."""
+        """Every lemma on offer, what a sentence chose first, then what the word
+        can be anywhere in the backend's own order, each once."""
         out = []
         if self.selection and self.selection.lemma:
             out.append(self.selection.lemma)
-        out.extend(w.lemma for w in self.words if w.lemma)
+        out.extend(w.lemma for w in self.words + self.syntax if w.lemma)
         out.extend(c.lemma for c in self.candidates if c.lemma)
-        out.extend(w.lemma for w in self.syntax if w.lemma)
         return list(dict.fromkeys(out))
 
 
