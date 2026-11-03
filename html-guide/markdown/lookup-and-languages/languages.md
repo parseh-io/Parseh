@@ -1,10 +1,10 @@
 ---
-title: The eleven languages
+title: The languages
 weight: 7
 description: The languages Parseh teaches — their codes, scripts, directions, fonts, digits and what each calls its transliteration — and the one table all of it comes from.
 ---
 
-Parseh began as a Persian toolbox and now teaches eleven languages through
+Parseh began as a Persian toolbox and now teaches twelve languages through
 the same doors, with the same buttons and the same file formats. Nothing
 about how you use it changes from one language to the next; what changes is
 what each language needs in order to be read.
@@ -24,6 +24,7 @@ what each language needs in order to be read.
 | Hindi | `hi` | हिन्दी | Devanagari, left to right |
 | Spanish | `es` | español | Latin, left to right |
 | Chinese | `zh` | 中文 | Han characters (simplified), left to right, and also vertical |
+| Catalan | `ca` | català | Latin, left to right |
 
 | Language | The transliteration line is called | Required? | Digits |
 |---|---|---|---|
@@ -32,7 +33,7 @@ what each language needs in order to be read.
 | Hindi | transliteration | yes | ०१२३४५६७८९ |
 | Japanese | rōmaji, with a **kana** reading beside it | yes | 0–9 |
 | Chinese | pinyin | yes | 0–9 |
-| Italian, French, German, Turkish, English, Spanish | pronunciation | no | 0–9 |
+| Italian, French, German, Turkish, English, Spanish, Catalan | pronunciation | no | 0–9 |
 
 The first table is in the registry's order, which every list of languages
 in Parseh follows — the language chips, the add pages' selects, the rows of
@@ -144,7 +145,7 @@ marked `vertical`.
 | Hindi | Noto Serif Devanagari | the same | yes |
 | Japanese | Noto Serif CJK JP (or the device's mincho face); the alternate face Noto Sans CJK JP, a gothic (`font=gothic`) | Noto Serif CJK JP, then Noto Serif JP, IPAexMincho and the system's mincho faces | no: the device's own |
 | Chinese | Noto Serif CJK SC | the same | no: the device's own |
-| Italian, French, German, Turkish, English, Spanish | the toolbox's own roman: TeX Gyre Pagella, or Palatino | the book's own roman | nothing to carry |
+| Italian, French, German, Turkish, English, Spanish, Catalan | the toolbox's own roman: TeX Gyre Pagella, or Palatino | the book's own roman | nothing to carry |
 
 **Four faces travel with Parseh**, in `lib/fonts/`: Vazirmatn, Noto
 Nastaliq Urdu, Noto Naskh Arabic and Noto Serif Devanagari, all under the

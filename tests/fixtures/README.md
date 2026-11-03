@@ -24,6 +24,7 @@ Two paragraphs each, chunked and glossed. Each `book.json` says in its
 | `mini-ja` | *桃太郎* | the opening of Momotaro, a folk tale, in the words it is always told in |
 | `mini-it` | *Il pezzo di legno* | the first two sentences are the opening of Carlo Collodi's *Le avventure di Pinocchio* (1883), word for word; the second paragraph retells what follows, in simpler words. Collodi died in 1890: public domain. |
 | `mini-fa` | *فارسی شکر است* | the first two paragraphs, about 1,050 words, of Mohammad-Ali Jamalzadeh's story *Farsi shekar ast* (*Persian is sugar*), from *Yeki bud, yeki nabud* (Berlin, 1921) — taken from the edition that used to sit at `books/persian/farsi-shakar-ast` |
+| `mini-ca` | *El pescador i la gata* | written for the tests |
 
 **`mini-fa` is not free everywhere.** It was published in 1921, so it is in
 the public domain in the United States. Jamalzadeh died in 1997, so it is
@@ -33,7 +34,7 @@ one text here that is neither written for the tests nor free everywhere.
 
 ## Videos: `videos/<language>/<id>/`
 
-Eleven short dialogues for beginners, one per language — at the market, at
+Twelve short dialogues for beginners, one per language — at the market, at
 the café, in a bookshop — written for the tests. So are their annotations.
 The channel, *Fixture Channel*, and the eleven-character ids are made up:
 no address here is a real video.

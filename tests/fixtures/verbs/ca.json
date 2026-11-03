@@ -1,0 +1,959 @@
+{
+ "_why": "Offline smoke cases for lib/verbs/ca.py, cut from a dict/ca.db built 2026-11-03 from kaikki's Catalan extract (the entry's own rows the recipe reads, in rowid order, plus the chunk word's rows and the pointer rows that carry a form's pronunciation).  Each case is built into a dictionary of one entry; verbs.build (or the lookup and attach, for run=lookup) must give `expect` (null = no vb).  Each case's `why` says what it exercises.",
+ "code": "ca",
+ "cases": [
+  {
+   "entry": {
+    "headword": "parlar",
+    "translit": "",
+    "ipa": "[pərˈla]",
+    "reading": "",
+    "pos": "verb",
+    "sense": "to speak (to communicate with one's voice)\nto speak (to deliver a message to a group; to deliver a speech)\nto talk about, to mention, to address\nto speak (to be able to communicate in a language)\nto talk",
+    "sense_tags": "intransitive\nintransitive\n\ntransitive\nintransitive",
+    "head": ""
+   },
+   "forms": [
+    [
+     "parlar",
+     "",
+     ""
+    ],
+    [
+     "parlo",
+     "first-person present singular",
+     ""
+    ],
+    [
+     "parlí",
+     "first-person preterite singular",
+     ""
+    ],
+    [
+     "parlat",
+     "participle past",
+     ""
+    ],
+    [
+     "parlar",
+     "infinitive",
+     ""
+    ],
+    [
+     "parlant",
+     "gerund",
+     ""
+    ],
+    [
+     "parla",
+     "indicative present singular third-person",
+     ""
+    ],
+    [
+     "parlaré",
+     "first-person future indicative singular",
+     ""
+    ],
+    [
+     "parlarà",
+     "future indicative singular third-person",
+     ""
+    ],
+    [
+     "parlo",
+     "first-person, indicative, present, singular",
+     "",
+     "[ˈpar.lu]"
+    ],
+    [
+     "parlat",
+     "participle, past",
+     "",
+     "[pərˈlat]"
+    ]
+   ],
+   "word": "parlo",
+   "text": "Parlo català a casa",
+   "gloss": "en",
+   "run": "build",
+   "why": "a regular -ar verb: no sound (the stress falls on an a), a regular future (not printed), one equivalent of the first sense",
+   "expect": {
+    "tex": "\\vb{parlar}{}{parlo}{}{parlat}{}{to speak}",
+    "plain": "parlar · pres. parlo · p.p. parlat · to speak",
+    "line": "pres. parlo · p.p. parlat",
+    "complete": true,
+    "missing": []
+   }
+  },
+  {
+   "entry": {
+    "headword": "rebre",
+    "translit": "",
+    "ipa": "[ˈre̞.βɾə]",
+    "reading": "",
+    "pos": "verb",
+    "sense": "to receive",
+    "sense_tags": "Balearic,Central,Northern,Northwestern,Valencia",
+    "head": ""
+   },
+   "forms": [
+    [
+     "rebre",
+     "",
+     ""
+    ],
+    [
+     "rebre",
+     "canonical",
+     ""
+    ],
+    [
+     "root stress:",
+     "canonical",
+     ""
+    ],
+    [
+     "e̞",
+     "canonical",
+     ""
+    ],
+    [
+     "/ə/",
+     "canonical",
+     ""
+    ],
+    [
+     "/ɛ/",
+     "canonical",
+     ""
+    ],
+    [
+     "/e/",
+     "canonical",
+     ""
+    ],
+    [
+     "rebo",
+     "first-person present singular",
+     ""
+    ],
+    [
+     "rebí",
+     "first-person preterite singular",
+     ""
+    ],
+    [
+     "rebut",
+     "participle past",
+     ""
+    ],
+    [
+     "rebent",
+     "gerund",
+     ""
+    ],
+    [
+     "rep",
+     "indicative present singular third-person",
+     ""
+    ],
+    [
+     "rebré",
+     "first-person future indicative singular",
+     ""
+    ],
+    [
+     "rebrà",
+     "future indicative singular third-person",
+     ""
+    ],
+    [
+     "rebut",
+     "participle, past",
+     "",
+     "[rəˈβut]"
+    ],
+    [
+     "rebo",
+     "first-person, indicative, present, singular",
+     "",
+     "[ˈre̞.βu]"
+    ]
+   ],
+   "word": "rebo",
+   "text": "Rebo una carta cada setmana",
+   "gloss": "en",
+   "run": "build",
+   "why": "a -re verb whose head line's root stress (Northern e̞, Balearic ə, Central ɛ) gives Central's open e to the infinitive and the present: rèbre, rèbo",
+   "expect": {
+    "tex": "\\vb{rebre}{rèbre}{rebo}{rèbo}{rebut}{}{to receive}",
+    "plain": "rebre rèbre · pres. rebo rèbo · p.p. rebut · to receive",
+    "line": "pres. rebo rèbo · p.p. rebut",
+    "complete": true,
+    "missing": []
+   }
+  },
+  {
+   "entry": {
+    "headword": "perdre",
+    "translit": "",
+    "ipa": "[ˈpe̞r.dɾə]",
+    "reading": "",
+    "pos": "verb",
+    "sense": "to lose\nto get lost; to disappear\nto miss (as in to miss a train, a film etc.)",
+    "sense_tags": "transitive\nreflexive\ntransitive",
+    "head": ""
+   },
+   "forms": [
+    [
+     "perdre",
+     "",
+     ""
+    ],
+    [
+     "perdo",
+     "first-person present singular",
+     ""
+    ],
+    [
+     "perdí",
+     "first-person preterite singular",
+     ""
+    ],
+    [
+     "perdut",
+     "participle past",
+     ""
+    ],
+    [
+     "perdre",
+     "infinitive",
+     ""
+    ],
+    [
+     "perdent",
+     "gerund",
+     ""
+    ],
+    [
+     "perd",
+     "indicative present singular third-person",
+     ""
+    ],
+    [
+     "perdré",
+     "first-person future indicative singular",
+     ""
+    ],
+    [
+     "perdrà",
+     "future indicative singular third-person",
+     ""
+    ],
+    [
+     "perdo",
+     "first-person, indicative, present, singular",
+     "",
+     "[ˈpe̞r.du]"
+    ],
+    [
+     "perdut",
+     "participle, past",
+     "",
+     "[pərˈdut]"
+    ]
+   ],
+   "word": "perdo",
+   "text": "Sempre perdo les claus",
+   "gloss": "en",
+   "run": "build",
+   "why": "a -re verb with nothing that says whether its e is open or closed (the stored pronunciations are Northern e̞): the two sounds are named in missing, never guessed",
+   "expect": {
+    "tex": "\\vb{perdre}{}{perdo}{}{perdut}{}{to lose}",
+    "plain": "perdre · pres. perdo · p.p. perdut · to lose",
+    "line": "pres. perdo · p.p. perdut",
+    "complete": false,
+    "missing": [
+     "sound of perdre (open or closed e)",
+     "sound of perdo (open or closed e)"
+    ]
+   }
+  },
+  {
+   "entry": {
+    "headword": "servir",
+    "translit": "",
+    "ipa": "[sərˈbi]",
+    "reading": "",
+    "pos": "verb",
+    "sense": "to serve\nto be useful, to be good for",
+    "sense_tags": "ambitransitive\nintransitive",
+    "head": ""
+   },
+   "forms": [
+    [
+     "servir",
+     "",
+     ""
+    ],
+    [
+     "serveixo",
+     "first-person present singular",
+     ""
+    ],
+    [
+     "serví",
+     "first-person preterite singular",
+     ""
+    ],
+    [
+     "servit",
+     "participle past",
+     ""
+    ],
+    [
+     "servir",
+     "infinitive",
+     ""
+    ],
+    [
+     "servint",
+     "gerund",
+     ""
+    ],
+    [
+     "serveix",
+     "indicative present singular third-person",
+     ""
+    ],
+    [
+     "serviré",
+     "first-person future indicative singular",
+     ""
+    ],
+    [
+     "servirà",
+     "future indicative singular third-person",
+     ""
+    ],
+    [
+     "servit",
+     "participle, past",
+     "",
+     "[sərˈbit]"
+    ],
+    [
+     "serveixo",
+     "first-person, indicative, present, singular",
+     ""
+    ]
+   ],
+   "word": "serveixo",
+   "text": "Serveixo el sopar",
+   "gloss": "en",
+   "run": "build",
+   "why": "an -ir inchoative: serveixo, with Central's open -eix- as its sound (servèixo)",
+   "expect": {
+    "tex": "\\vb{servir}{}{serveixo}{servèixo}{servit}{}{to serve}",
+    "plain": "servir · pres. serveixo servèixo · p.p. servit · to serve",
+    "line": "pres. serveixo servèixo · p.p. servit",
+    "complete": true,
+    "missing": []
+   }
+  },
+  {
+   "entry": {
+    "headword": "ser",
+    "translit": "",
+    "ipa": "[ˈse̞]",
+    "reading": "",
+    "pos": "verb",
+    "sense": "to be, to exist\nto be located (to be in a place)\nto be (used to connect a noun to another noun)\nto have a characteristic (used to connect a noun to an adjective that describes an inherent property)\nauxiliary verb to form the passive voice, together with a past participle",
+    "sense_tags": "Balearic,Central,Northern,Northwestern,Valencia,intransitive\nBalearic,Central,Northern,Northwestern,Valencia,intransitive\nBalearic,Central,Northern,Northwestern,Valencia,copulative,transitive\nBalearic,Central,Northern,Northwestern,Valencia,copulative,transitive\nBalearic,Central,Northern,Northwestern,Valencia,auxiliary",
+    "head": ""
+   },
+   "forms": [
+    [
+     "ser",
+     "",
+     ""
+    ],
+    [
+     "ser",
+     "canonical",
+     ""
+    ],
+    [
+     "root stress:",
+     "canonical",
+     ""
+    ],
+    [
+     "e̞",
+     "canonical",
+     ""
+    ],
+    [
+     "/e/",
+     "canonical",
+     ""
+    ],
+    [
+     "soc",
+     "first-person present singular",
+     ""
+    ],
+    [
+     "fui",
+     "first-person preterite singular",
+     ""
+    ],
+    [
+     "estat",
+     "participle past",
+     ""
+    ],
+    [
+     "sigut",
+     "participle past",
+     ""
+    ],
+    [
+     "sent",
+     "gerund",
+     ""
+    ],
+    [
+     "essent",
+     "gerund",
+     ""
+    ],
+    [
+     "és",
+     "indicative present singular third-person",
+     ""
+    ],
+    [
+     "seré",
+     "first-person future indicative singular",
+     ""
+    ],
+    [
+     "serà",
+     "future indicative singular third-person",
+     ""
+    ],
+    [
+     "soc",
+     "first-person, indicative, present, singular",
+     "",
+     "[ˈsuk]"
+    ],
+    [
+     "és",
+     "indicative, present, singular, third-person",
+     "",
+     "[es]"
+    ],
+    [
+     "estat",
+     "participle, past",
+     "",
+     "[əsˈtat]"
+    ],
+    [
+     "sigut",
+     "participle, past",
+     "",
+     "[siˈɣut]"
+    ]
+   ],
+   "word": "és",
+   "text": "La Maria és a casa",
+   "gloss": "en",
+   "run": "build",
+   "why": "ser: soc and estat (the head line's first participle, before sigut); the sounds of ser and soc are not in the source and are named in missing",
+   "expect": {
+    "tex": "\\vb{ser}{}{soc}{}{estat}{}{to be}",
+    "plain": "ser · pres. soc · p.p. estat · to be",
+    "line": "pres. soc · p.p. estat",
+    "complete": false,
+    "missing": [
+     "sound of ser (open or closed e)",
+     "sound of soc (open or closed o)"
+    ]
+   }
+  },
+  {
+   "entry": {
+    "headword": "anar",
+    "translit": "",
+    "ipa": "[əˈna]",
+    "reading": "",
+    "pos": "verb",
+    "sense": "to go\nforms the periphrastic preterite; see usage notes below for more information\nto go away, to leave requires a reflexive pronoun according the subject, and the appropriate form of the adverbial pronoun en",
+    "sense_tags": "\nauxiliary\npronominal,reflexive",
+    "head": ""
+   },
+   "forms": [
+    [
+     "anar",
+     "",
+     ""
+    ],
+    [
+     "vaig",
+     "first-person present singular",
+     ""
+    ],
+    [
+     "aní",
+     "first-person preterite singular",
+     ""
+    ],
+    [
+     "anat",
+     "participle past",
+     ""
+    ],
+    [
+     "anar",
+     "infinitive",
+     ""
+    ],
+    [
+     "anant",
+     "gerund",
+     ""
+    ],
+    [
+     "va",
+     "indicative present singular third-person",
+     ""
+    ],
+    [
+     "aniré",
+     "first-person future indicative singular",
+     ""
+    ],
+    [
+     "anirà",
+     "future indicative singular third-person",
+     ""
+    ],
+    [
+     "anat",
+     "participle, past",
+     "",
+     "[əˈnat]"
+    ],
+    [
+     "vaig",
+     "first-person, indicative, present, singular",
+     "",
+     "[ˈbat͡ʃ]"
+    ]
+   ],
+   "word": "vaig",
+   "text": "Demà vaig a Girona",
+   "gloss": "en",
+   "run": "build",
+   "why": "anar as a verb of motion (vaig a, not vaig + an infinitive): vaig, anat, and the irregular future aniré in the parenthesis",
+   "expect": {
+    "tex": "\\vb{anar}{}{vaig}{}{anat}{}{to go (fut. \\pw{aniré})}",
+    "plain": "anar · pres. vaig · p.p. anat · to go (fut. aniré)",
+    "line": "pres. vaig · p.p. anat · fut. aniré",
+    "complete": true,
+    "missing": []
+   }
+  },
+  {
+   "entry": {
+    "headword": "fer",
+    "translit": "",
+    "ipa": "[ˈfe̞]",
+    "reading": "",
+    "pos": "verb",
+    "sense": "to do, execute\nto make, produce\nForms ad hoc verbs from borrowed nouns.\nto make up, constitute\nto turn, to make\nto father, to beget\nto give birth\nto lay\nto release, to excrete\nto form or make by shaping a material\nto create\nto produce, to yield\nto grow, to develop, to become\nto adapt, to become accustomed to\nto establish a reputation\nto become\nused with time\nto become, to get (a change in the time of day or light.)\nto become, to get",
+    "sense_tags": "transitive\ntransitive\ntransitive\ntransitive\ntransitive\ntransitive\ntransitive\ntransitive\ntransitive\ntransitive\ntransitive\ntransitive\nintransitive,reflexive\nintransitive,reflexive\nreflexive,transitive\nintransitive,reflexive\nimpersonal,reflexive\nintransitive,reflexive\nreflexive",
+    "head": ""
+   },
+   "forms": [
+    [
+     "fer",
+     "",
+     ""
+    ],
+    [
+     "faig",
+     "first-person present singular",
+     ""
+    ],
+    [
+     "fiu",
+     "first-person preterite singular",
+     ""
+    ],
+    [
+     "fet",
+     "participle past",
+     ""
+    ],
+    [
+     "fer",
+     "infinitive",
+     ""
+    ],
+    [
+     "fent",
+     "gerund",
+     ""
+    ],
+    [
+     "fa",
+     "indicative present singular third-person",
+     ""
+    ],
+    [
+     "faré",
+     "first-person future indicative singular",
+     ""
+    ],
+    [
+     "farà",
+     "future indicative singular third-person",
+     ""
+    ],
+    [
+     "fet",
+     "participle, past",
+     "",
+     "[ˈfe̞t]"
+    ],
+    [
+     "faig",
+     "first-person, indicative, present, singular",
+     "",
+     "[ˈfat͡ʃ]"
+    ]
+   ],
+   "word": "faig",
+   "text": "Què faig ara?",
+   "gloss": "en",
+   "run": "build",
+   "why": "fer: faig, fet, fut. faré; fer and fet stress an e the source does not describe",
+   "expect": {
+    "tex": "\\vb{fer}{}{faig}{}{fet}{}{to do (fut. \\pw{faré})}",
+    "plain": "fer · pres. faig · p.p. fet · to do (fut. faré)",
+    "line": "pres. faig · p.p. fet · fut. faré",
+    "complete": false,
+    "missing": [
+     "sound of fer (open or closed e)",
+     "sound of fet (open or closed e)"
+    ]
+   }
+  },
+  {
+   "entry": {
+    "headword": "llevar",
+    "translit": "",
+    "ipa": "[ʎəˈβa]",
+    "reading": "",
+    "pos": "verb",
+    "sense": "to remove, to take out\nto raise, to lift, to help get up\nto get up\nto rise\nto get up, to get out of bed",
+    "sense_tags": "Balearic,Central,Northern,Northwestern,Valencia,transitive\nBalearic,Central,Northern,Northwestern,Valencia,transitive\nBalearic,Central,Northern,Northwestern,Valencia,reflexive\nBalearic,Central,Northern,Northwestern,Valencia,intransitive\nBalearic,Central,Northern,Northwestern,Valencia,pronominal",
+    "head": ""
+   },
+   "forms": [
+    [
+     "llevar",
+     "",
+     ""
+    ],
+    [
+     "llevar",
+     "canonical",
+     ""
+    ],
+    [
+     "root stress:",
+     "canonical",
+     ""
+    ],
+    [
+     "e̞",
+     "canonical",
+     ""
+    ],
+    [
+     "/e/",
+     "canonical",
+     ""
+    ],
+    [
+     "llevo",
+     "first-person present singular",
+     ""
+    ],
+    [
+     "lleví",
+     "first-person preterite singular",
+     ""
+    ],
+    [
+     "llevat",
+     "participle past",
+     ""
+    ],
+    [
+     "llevant",
+     "gerund",
+     ""
+    ],
+    [
+     "lleva",
+     "indicative present singular third-person",
+     ""
+    ],
+    [
+     "llevaré",
+     "first-person future indicative singular",
+     ""
+    ],
+    [
+     "llevarà",
+     "future indicative singular third-person",
+     ""
+    ],
+    [
+     "lleva",
+     "imperative second-person",
+     ""
+    ],
+    [
+     "llevo",
+     "first-person, indicative, present, singular",
+     "",
+     "[ˈʎe̞.βu]"
+    ],
+    [
+     "lleva",
+     "indicative, present, singular, third-person",
+     "",
+     "[ˈʎe̞.βə]"
+    ],
+    [
+     "lleva",
+     "imperative, second-person, singular",
+     "",
+     "[ˈʎe̞.βə]"
+    ],
+    [
+     "llevat",
+     "participle, past",
+     "",
+     "[ʎəˈβat]"
+    ]
+   ],
+   "word": "lleva",
+   "text": "Cada dia es lleva d'hora",
+   "gloss": "en",
+   "run": "build",
+   "why": "a pronominal verb reached through es: llevar-se with em llevo, its reflexive sense (to get up), the root stress's closed e (em llévo), and the question es raises named in missing",
+   "expect": {
+    "tex": "\\vb{llevar-se}{}{em llevo}{em llévo}{llevat}{}{to get up}",
+    "plain": "llevar-se · pres. em llevo em llévo · p.p. llevat · to get up",
+    "line": "pres. em llevo em llévo · p.p. llevat",
+    "complete": false,
+    "missing": [
+     "whether es here makes it llevar-se or is impersonal (llevar)"
+    ]
+   }
+  },
+  {
+   "entry": {
+    "headword": "menjar",
+    "translit": "",
+    "ipa": "[məɲˈʒa]",
+    "reading": "",
+    "pos": "verb",
+    "sense": "to eat something solid\nto eat (something)\nto consume, to deplete (something)",
+    "sense_tags": "Balearic,Central,Valencia,transitive\nBalearic,Central,Valencia,reflexive,transitive,usually\nBalearic,Central,Valencia,reflexive,transitive,usually",
+    "head": ""
+   },
+   "forms": [
+    [
+     "menjar",
+     "",
+     ""
+    ],
+    [
+     "menjar",
+     "canonical",
+     ""
+    ],
+    [
+     "root stress:",
+     "canonical",
+     ""
+    ],
+    [
+     "e",
+     "canonical",
+     ""
+    ],
+    [
+     "/ə/",
+     "canonical",
+     ""
+    ],
+    [
+     "menjo",
+     "first-person present singular",
+     ""
+    ],
+    [
+     "mengí",
+     "first-person preterite singular",
+     ""
+    ],
+    [
+     "menjat",
+     "participle past",
+     ""
+    ],
+    [
+     "menjant",
+     "gerund",
+     ""
+    ],
+    [
+     "menja",
+     "indicative present singular third-person",
+     ""
+    ],
+    [
+     "menjaré",
+     "first-person future indicative singular",
+     ""
+    ],
+    [
+     "menjarà",
+     "future indicative singular third-person",
+     ""
+    ],
+    [
+     "menjat",
+     "participle, past",
+     "",
+     "[məɲˈʒat]"
+    ],
+    [
+     "menjo",
+     "first-person, indicative, present, singular",
+     "",
+     "[ˈmeɲ.ʒu]"
+    ]
+   ],
+   "word": "menjar-lo",
+   "text": "Vull menjar-lo ara",
+   "gloss": "en",
+   "run": "lookup",
+   "why": "a word reached through an enclitic: menjar-lo is menjar (lo is the object, not a reflexive), with menjo's own Central pronunciation [ˈmeɲ.ʒu] giving ménjo",
+   "expect": {
+    "tex": "\\vb{menjar}{}{menjo}{ménjo}{menjat}{}{to eat something solid}",
+    "plain": "menjar · pres. menjo ménjo · p.p. menjat · to eat something solid",
+    "line": "pres. menjo ménjo · p.p. menjat",
+    "complete": true,
+    "missing": []
+   }
+  },
+  {
+   "entry": {
+    "headword": "caldre",
+    "translit": "",
+    "ipa": "[ˈkal.dɾə]",
+    "reading": "",
+    "pos": "verb",
+    "sense": "it is needed, it is necessary\nto have to, to need to, must",
+    "sense_tags": "impersonal,third-person\nimpersonal,third-person",
+    "head": ""
+   },
+   "forms": [
+    [
+     "caldre",
+     "",
+     ""
+    ],
+    [
+     "cal",
+     "present singular third-person",
+     ""
+    ],
+    [
+     "calgut",
+     "participle past",
+     ""
+    ],
+    [
+     "caldre",
+     "infinitive",
+     ""
+    ],
+    [
+     "calent",
+     "gerund",
+     ""
+    ],
+    [
+     "caldrà",
+     "future indicative singular third-person",
+     ""
+    ],
+    [
+     "cal",
+     "indicative, present, singular, third-person",
+     "",
+     "[ˈkal]"
+    ],
+    [
+     "calgut",
+     "participle, past",
+     "",
+     "[kəlˈɣut]"
+    ]
+   ],
+   "word": "cal",
+   "text": "Cal sortir aviat",
+   "gloss": "en",
+   "run": "build",
+   "why": "an impersonal verb: the third person cal in the second slot, and caldrà regular (not printed)",
+   "expect": {
+    "tex": "\\vb{caldre}{}{cal}{}{calgut}{}{it is needed}",
+    "plain": "caldre · pres. cal · p.p. calgut · it is needed",
+    "line": "pres. cal · p.p. calgut",
+    "complete": true,
+    "missing": []
+   }
+  },
+  {
+   "entry": {
+    "headword": "taula",
+    "translit": "",
+    "ipa": "[ˈtaw.lə]",
+    "reading": "",
+    "pos": "noun",
+    "sense": "table (furniture)\ntable (way of arranging information)\ntaula (prehistoric monument of Minorca)\nboard, panel\nboards, stage\nstalemate, draw",
+    "sense_tags": "feminine\nfeminine\nfeminine\nfeminine\nfeminine,in-plural\nfeminine,in-plural",
+    "head": ""
+   },
+   "forms": [],
+   "word": "taula",
+   "text": "Seu a la taula",
+   "gloss": "en",
+   "run": "build",
+   "why": "a noun: no \\vb",
+   "expect": null
+  }
+ ]
+}

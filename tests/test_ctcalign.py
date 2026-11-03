@@ -53,6 +53,17 @@ class Trellis(unittest.TestCase):
         spans = ctcalign._spans(np, logits, "a?", {"a": 1}, meta)
         self.assertEqual("".join(s[0] for s in spans), "a?")
 
+    def test_a_capital_and_another_sign_for_the_same_letter_find_the_networks_own(self):
+        # blank, l, the middle dot, the apostrophe: "L’L·L" and "l'l·l" take the same three tokens, and no wildcard
+        logits = np.array([[7, 0, 0, 0], [0, 9, 0, 0], [7, 0, 0, 0], [0, 0, 0, 9], [7, 0, 0, 0],
+                           [0, 9, 0, 0], [7, 0, 0, 0], [0, 0, 9, 0], [7, 0, 0, 0], [0, 9, 0, 0]],
+                          dtype=np.float32)
+        meta = {"model": {"blank_id": 0}, "text": {"spaces_separate_words": False}}
+        vocab = {"l": 1, "\u00b7": 2, "'": 3}
+        typed = ctcalign._spans(np, logits, "L\u2019L\u2027L", vocab, meta)
+        plain = ctcalign._spans(np, logits, "l'l\u00b7l", vocab, meta)
+        self.assertEqual([s[1:] for s in typed], [s[1:] for s in plain])
+
 
 if __name__ == "__main__":
     unittest.main()

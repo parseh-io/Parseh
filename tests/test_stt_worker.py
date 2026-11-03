@@ -49,7 +49,9 @@ def _worker():
 
 
 worker = _worker()
-ELEVEN = "fa ar it ja fr de tr en hi es zh".split()
+# every language Parseh ships (the registry's _shipped), not a copy of the list
+ELEVEN = __import__("json").loads(open(os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+                                                    "lib", "languages.json"), encoding="utf-8").read())["_shipped"]
 LAZY = "Library libcublas.so.12 is not found or cannot be loaded"
 OOM = "CUDA failed with error out of memory"
 

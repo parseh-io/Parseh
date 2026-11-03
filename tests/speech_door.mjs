@@ -184,12 +184,14 @@ async function suite(phone) {
       has(big, 'Higher accuracy · larger and slower', 'and its trade-off');
       has(big, '3.2 GB', 'its download');
       // the program, the two standard models, a0.4.3's thirteen language-specific ones, and the optional
-      // exact-word-times network of each of the eleven languages
-      eq(await page.locator('[data-row] [data-get]').count(), 27,
+      // exact-word-times network of each language that has one pinned (lib/alignerpins.py)
+      const ALIGNERS = (Deno.readTextFileSync(root + '/lib/alignerpins.py').match(/^ "[a-z]{2,3}": \("[0-9a-f]{40}"/gm) || []).length;
+      const GETS = 1 + 2 + 13 + ALIGNERS;
+      eq(await page.locator('[data-row] [data-get]').count(), GETS,
          'a Get it for the program, every model and every language\'s optional exact-word-times network');
       // LABEL IN NAME (WCAG 2.5.3): a person who says "click Get it" reaches every row, and each
       // still says which part it is for
-      eq(await page.getByRole('button', {name: 'Get it'}).count(), 27, 'each "Get it" is named by the words it shows');
+      eq(await page.getByRole('button', {name: 'Get it'}).count(), GETS, 'each "Get it" is named by the words it shows');
       eq((await page.locator('[data-row="runtime"] [data-get]').getAttribute('aria-label')), 'Get it: the speech program',
          'and names its part after them');
       eq((await page.locator('[data-row="large-v3"] [data-get]').getAttribute('aria-label')), 'Get it: faster-whisper / large-v3',
@@ -210,7 +212,7 @@ async function suite(phone) {
         return {lang: n.getAttribute('lang'), dir: n.getAttribute('dir'), no: e.classList.contains('no'), text: n.textContent};
       }));
       eq(chips.length, st.languages.length, 'a chip for every language Parseh has');
-      for (const code of ['fa', 'ar', 'it', 'ja', 'fr', 'de', 'tr', 'en', 'hi', 'es', 'zh'])
+      for (const code of JSON.parse(Deno.readTextFileSync(root + '/lib/languages.json'))._shipped)
         assert(chips.some(c => c.lang === code && !c.no), `${code} is offered`);
       eq(chips.filter(c => c.dir === 'rtl').map(c => c.lang).sort().join(), 'ar,fa', 'Persian and Arabic are marked right-to-left');
       assert(chips.every(c => c.lang && c.text), 'every chip names its language in that language');

@@ -1,0 +1,1325 @@
+{
+  "_comment": "How a Catalan word on the page is turned into something the dictionary can be asked about. Read by lib/lookup.py; optional, like every file of this name. Wiktionary's Catalan carries the conjugation and the plurals, so an inflected word needs no rule. What it does not carry is a word with something written onto it: an elided article, preposition or pronoun in front (l'home, d'aigua, s'alça, m'agrada, n'hi) and the weak pronouns written after an infinitive, a gerund or an imperative, with a hyphen (menjar-lo, fer-ho, dona-m'ho, donar-me-la) or, after a vowel, an apostrophe (porta'l, veure'ls). All of these found nothing before this file.",
+  "fold": "",
+  "_affixes": "THE ELISIONS, both apostrophes (' and ’). THE WEAK PRONOUNS AFTER THE VERB, alone or in the clusters docs/lang/ca.md lists: the hyphen or the apostrophe that writes them on is unambiguous in Catalan, so no `after` is needed -- nothing else ends in -lo with a hyphen. A word takes at most two steps (lib/lookup.py MAX_PEEL): an elision and a cluster, or two hyphenated pronouns (donar-me-la). The contractions (al, del, pel, can) are pages of their own and need no rule.",
+  "affixes": [
+    {
+      "prefix": "l'",
+      "note": "the elided article or pronoun l' (el, la, li) taken off"
+    },
+    {
+      "prefix": "l’",
+      "note": "the elided article or pronoun l’ (el, la, li) taken off"
+    },
+    {
+      "prefix": "d'",
+      "note": "the elided preposition d' (de) taken off"
+    },
+    {
+      "prefix": "d’",
+      "note": "the elided preposition d’ (de) taken off"
+    },
+    {
+      "prefix": "s'",
+      "note": "the elided pronoun s' (es) taken off"
+    },
+    {
+      "prefix": "s’",
+      "note": "the elided pronoun s’ (es) taken off"
+    },
+    {
+      "prefix": "m'",
+      "note": "the elided pronoun m' (em) taken off"
+    },
+    {
+      "prefix": "m’",
+      "note": "the elided pronoun m’ (em) taken off"
+    },
+    {
+      "prefix": "t'",
+      "note": "the elided pronoun t' (et) taken off"
+    },
+    {
+      "prefix": "t’",
+      "note": "the elided pronoun t’ (et) taken off"
+    },
+    {
+      "prefix": "n'",
+      "note": "the elided n' (en, ne) taken off"
+    },
+    {
+      "prefix": "n’",
+      "note": "the elided n’ (en, ne) taken off"
+    },
+    {
+      "prefix": "qu'",
+      "note": "the elided qu' (que) taken off"
+    },
+    {
+      "prefix": "qu’",
+      "note": "the elided qu’ (que) taken off"
+    },
+    {
+      "suffix": "-me-la",
+      "note": "the weak pronouns -me-la written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-me-les",
+      "note": "the weak pronouns -me-les written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-me-lo",
+      "note": "the weak pronouns -me-lo written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-me-los",
+      "note": "the weak pronouns -me-los written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-te-la",
+      "note": "the weak pronouns -te-la written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-te-les",
+      "note": "the weak pronouns -te-les written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-te-lo",
+      "note": "the weak pronouns -te-lo written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-te-los",
+      "note": "the weak pronouns -te-los written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-se-la",
+      "note": "the weak pronouns -se-la written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-se-les",
+      "note": "the weak pronouns -se-les written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-se-lo",
+      "note": "the weak pronouns -se-lo written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-se-los",
+      "note": "the weak pronouns -se-los written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-nos-la",
+      "note": "the weak pronouns -nos-la written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-nos-les",
+      "note": "the weak pronouns -nos-les written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-nos-ho",
+      "note": "the weak pronouns -nos-ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-vos-la",
+      "note": "the weak pronouns -vos-la written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-vos-ho",
+      "note": "the weak pronouns -vos-ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-li-la",
+      "note": "the weak pronouns -li-la written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-li-les",
+      "note": "the weak pronouns -li-les written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-li-ho",
+      "note": "the weak pronouns -li-ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-li'n",
+      "note": "the weak pronouns -li'n written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-li’n",
+      "note": "the weak pronouns -li’n written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-los-la",
+      "note": "the weak pronouns -los-la written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-los-ho",
+      "note": "the weak pronouns -los-ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-los-hi",
+      "note": "the weak pronouns -los-hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-la-hi",
+      "note": "the weak pronouns -la-hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-les-hi",
+      "note": "the weak pronouns -les-hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-lo-hi",
+      "note": "the weak pronouns -lo-hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-ho-hi",
+      "note": "the weak pronouns -ho-hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-me'l",
+      "note": "the weak pronouns -me'l written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-me’l",
+      "note": "the weak pronouns -me’l written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-me'ls",
+      "note": "the weak pronouns -me'ls written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-me’ls",
+      "note": "the weak pronouns -me’ls written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-me'n",
+      "note": "the weak pronouns -me'n written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-me’n",
+      "note": "the weak pronouns -me’n written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-te'l",
+      "note": "the weak pronouns -te'l written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-te’l",
+      "note": "the weak pronouns -te’l written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-te'ls",
+      "note": "the weak pronouns -te'ls written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-te’ls",
+      "note": "the weak pronouns -te’ls written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-te'n",
+      "note": "the weak pronouns -te'n written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-te’n",
+      "note": "the weak pronouns -te’n written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-se'l",
+      "note": "the weak pronouns -se'l written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-se’l",
+      "note": "the weak pronouns -se’l written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-se'ls",
+      "note": "the weak pronouns -se'ls written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-se’ls",
+      "note": "the weak pronouns -se’ls written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-se'n",
+      "note": "the weak pronouns -se'n written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-se’n",
+      "note": "the weak pronouns -se’n written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-n'hi",
+      "note": "the weak pronouns -n'hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-n’hi",
+      "note": "the weak pronouns -n’hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-l'hi",
+      "note": "the weak pronouns -l'hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-l’hi",
+      "note": "the weak pronouns -l’hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-m'ho",
+      "note": "the weak pronouns -m'ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-m’ho",
+      "note": "the weak pronouns -m’ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-t'ho",
+      "note": "the weak pronouns -t'ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-t’ho",
+      "note": "the weak pronouns -t’ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-s'ho",
+      "note": "the weak pronouns -s'ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-s’ho",
+      "note": "the weak pronouns -s’ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-n'ho",
+      "note": "the weak pronouns -n'ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-n’ho",
+      "note": "the weak pronouns -n’ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-m'hi",
+      "note": "the weak pronouns -m'hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-m’hi",
+      "note": "the weak pronouns -m’hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-t'hi",
+      "note": "the weak pronouns -t'hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-t’hi",
+      "note": "the weak pronouns -t’hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-s'hi",
+      "note": "the weak pronouns -s'hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-s’hi",
+      "note": "the weak pronouns -s’hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-ens-ho",
+      "note": "the weak pronouns -ens-ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-us-ho",
+      "note": "the weak pronouns -us-ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-lo",
+      "note": "the weak pronoun -lo written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-la",
+      "note": "the weak pronoun -la written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-los",
+      "note": "the weak pronoun -los written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-les",
+      "note": "the weak pronoun -les written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-li",
+      "note": "the weak pronoun -li written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-hi",
+      "note": "the weak pronoun -hi written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-ho",
+      "note": "the weak pronoun -ho written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-ne",
+      "note": "the weak pronoun -ne written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-me",
+      "note": "the weak pronoun -me written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-te",
+      "note": "the weak pronoun -te written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-se",
+      "note": "the weak pronoun -se written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-nos",
+      "note": "the weak pronoun -nos written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-vos",
+      "note": "the weak pronoun -vos written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-ens",
+      "note": "the weak pronoun -ens written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-us",
+      "note": "the weak pronoun -us written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "-en",
+      "note": "the weak pronoun -en written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "'ls",
+      "note": "the weak pronoun 'ls written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "’ls",
+      "note": "the weak pronoun ’ls written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "'ns",
+      "note": "the weak pronoun 'ns written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "’ns",
+      "note": "the weak pronoun ’ns written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "'l",
+      "note": "the weak pronoun 'l written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "’l",
+      "note": "the weak pronoun ’l written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "'m",
+      "note": "the weak pronoun 'm written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "’m",
+      "note": "the weak pronoun ’m written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "'t",
+      "note": "the weak pronoun 't written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "’t",
+      "note": "the weak pronoun ’t written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "'s",
+      "note": "the weak pronoun 's written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "’s",
+      "note": "the weak pronoun ’s written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "'n",
+      "note": "the weak pronoun 'n written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    },
+    {
+      "suffix": "’n",
+      "note": "the weak pronoun ’n written after the verb taken off",
+      "prefer": [
+        "imperative second-person",
+        "imperative, second-person, singular",
+        "imperative, plural, second-person",
+        "imperative plural second-person",
+        "imperative, first-person, plural",
+        "imperative first-person plural",
+        "gerund"
+      ]
+    }
+  ],
+  "_prefer": "A VERB FORM CARRYING A PRONOUN IS AN IMPERATIVE, A GERUND OR AN INFINITIVE, and the entry that row belongs to comes first (`prefer`): dona-m'ho is donar's imperative and never dona, 'woman'; porta'l is not a door. An infinitive needs no note: it is the verb's own headword."
+}

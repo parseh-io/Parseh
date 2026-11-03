@@ -1790,6 +1790,9 @@ def api_prepare(h):
         L = posted_lang(data.get("lang"))
     except KeyError as e:
         return h.send_json({"ok": False, "error": str(e.args[0])}, 400)
+    # the variety the add page says the video is in (Arabic's dialects): its prompt names it
+    if isinstance(data.get("variety"), str) and L.variety_of(data["variety"]):
+        L = L.with_variety(data["variety"])
     # the gloss is refused rather than defaulted: the page always sends one,
     # so a code that is not a language means somebody is posting by hand,
     # and answering with a prompt that quietly asks for English would be
@@ -2281,6 +2284,7 @@ ADD_PAGE_HEAD = r'''
 
   <div class="row">
     <label class="inline">Language <select id="lang">__LANGS__</select></label>
+    <label class="inline" id="variety_lbl" hidden>written in <select id="variety"></select></label>
   </div>
   <span class="fieldnote">The language the video teaches &mdash; it decides which captions
     count as plain and the folder the video is filed under.</span>
@@ -2790,6 +2794,15 @@ ADD_PAGE_JS = r'''
     promptOpts.setLang(code); // and the choices for it are the new language's own
     promptMenu.setLang(code); // and so are the prompts of the person's own it is offered
     if (stt) stt.langChanged();
+    // the varieties of the language, where it has any (Arabic's dialects): the dictionary reads the video's words
+    // with that variety's own dictionary and rules first; changed later in the player's dictionary panel
+    var vs = L.varieties || [], vsel = $('variety'), keep = vsel.value;
+    $('variety_lbl').hidden = !vs.length;
+    vsel.innerHTML = '';
+    [{key: '', name: L.standard_name || L.name}].concat(vs).forEach(function (v) {
+      var o = document.createElement('option'); o.value = v.key; o.textContent = v.name; vsel.appendChild(o);
+    });
+    vsel.value = vs.some(function (v) { return v.key === keep; }) ? keep : '';
   }
   $('lang').addEventListener('change', langChanged);
   // the prompt names the gloss language and asks for the meanings in it,
@@ -2880,7 +2893,7 @@ ADD_PAGE_JS = r'''
     $('pstat').textContent = 'preparing…'; $('pinfo').hidden = true;
     post('/api/prepare', Object.assign({url: w.url, path: w.path, id: w.id,
                           transcript: val('transcript'), glossary: val('glossary'),
-                          lang: val('lang'), gloss: val('gloss')}, promptOpts.options(),
+                          lang: val('lang'), gloss: val('gloss'), variety: val('variety')}, promptOpts.options(),
                           promptMenu.id() ? {prompt: promptMenu.id()} : {}))
       .then(function (j) {
         $('pstat').textContent = '';
@@ -2942,7 +2955,7 @@ ADD_PAGE_JS = r'''
     $('estat').textContent = 'drafting…'; $('empty').disabled = true;
     var res = $('eresult'); res.hidden = true;
     var body = {url: w.url, path: w.path, id: w.id,
-                lang: val('lang'), gloss: val('gloss'),
+                lang: val('lang'), gloss: val('gloss'), variety: val('variety'),
                 transcript: val('transcript'),
                 title: ov.title, title_native: ov.title_native,
                 channel: ov.channel, level: ov.level, blurb: ov.blurb,
@@ -3111,7 +3124,9 @@ def add_page():
                     % (L.code, L.code, esc(L.name), esc(L.native))
                     for L in languages.LANGS.values())
     langs_json = json.dumps({L.code: {"name": L.name, "native": L.native, "dir": L.dir,
-                                      "folder": L.folder}
+                                      "folder": L.folder, "standard_name": L.standard_name,
+                                      "varieties": [{"key": v["key"], "name": v.get("name") or v["key"]}
+                                                    for v in L.varieties]}
                              for L in languages.LANGS.values()}, ensure_ascii=False)
     # Every language a gloss may be written in, in two groups: the eight
     # the toolbox teaches (named by the registry, which is what names them

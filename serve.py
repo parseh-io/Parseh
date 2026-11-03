@@ -221,6 +221,7 @@ import latexdraw                                               # noqa: E402
 # AFTER THE STUDIO, which puts its own folders on sys.path: the skills read its box catalogue (§9, a0.4.2)
 import skills             # noqa: E402  the prompts as skills for a chatbot
 import skillspage         # noqa: E402  Settings -> Skills for your chatbot
+import languagespage      # noqa: E402  Settings -> Languages
 studio.htmlgen.set_latex(latexdraw.draw, latexdraw.draw_all, settings="/settings/latex/",
                          peek=latexdraw.peek)
 
@@ -894,6 +895,34 @@ def set_book_meta(book_dir, **fields):
         json.dump(meta, f, ensure_ascii=False, indent=2)
         f.write("\n")
     os.replace(tmp, p)
+
+def set_variety(json_path, lang, variety):
+    """A book.json's or a video.json's `variety` set to `variety` -- one the
+    language has (lib/languages.py) -- or taken out for the standard language
+    ("" or "standard"); every other field as it was.  -> the key, or ""."""
+    import draft
+    L = languages.get(lang)
+    want = draft._variety(L, variety)            # refuses a key the language has not (ValueError)
+    with open(json_path, encoding="utf-8") as f:
+        meta = json.load(f)
+    meta.pop("variety", None)
+    meta.update(want)
+    tmp = json_path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    os.replace(tmp, json_path)
+    return want.get("variety", "")
+
+
+def variety_answer(lang, got):
+    """What a dictionary panel's variety row is drawn from: the one chosen and
+    every one the language has (none: the panel shows no row)."""
+    L = languages.LANGS.get(lang)
+    return {"ok": True, "variety": got or "",
+            "standard_name": (L.standard_name or L.name) if L else "",
+            "varieties": [{"key": v["key"], "name": v.get("name") or v["key"]} for v in (L.varieties if L else [])]}
+
 
 def chunk_way(body):
     """Which way a request asked for its text to be cut.
@@ -1732,6 +1761,15 @@ ANALYSIS_ROUTES = {
     "/settings/api/analysis/remove": "remove",
     "/settings/api/analysis/use": "use",
 }
+# SETTINGS -> LANGUAGES (lib/languagespage.py): every language and what it has, a language of this computer's added
+# from a form, and its prose taken in from a chatbot; every route in lib/settingspage.py ROUTES
+LANGUAGES_PAGE = "/settings/languages/"
+LANGUAGES_ROUTES = {
+    "/settings/api/languages/state": "state",
+    "/settings/api/languages/prompt": "prompt",
+    "/settings/api/languages/add": "add",
+    "/settings/api/languages/answer": "answer",
+}
 ARASAAC_PAGE = "/settings/arasaac/"
 # a picture of the pictograms, for the picker's thumbnails and preview: read-only, the same file for every
 # device that has been let in (lib/arasaacsearch.py picture() takes digits and nothing else)
@@ -1936,7 +1974,9 @@ def reading_check(kind, key):
     if kind not in READING_KINDS:
         return "no such kind of download", 404
     if kind == "dict":
-        if key not in languages.LANGS:
+        # a language, or one of its varieties by its dictionary's key (ar.egy)
+        base, dot, v = (key or "").partition(".")
+        if key not in languages.LANGS and not (dot and base in languages.LANGS and languages.LANGS[base].variety_of(v)):
             return "no such language", 404
     elif kind == "components":
         if key not in decomposition.PACKS:
@@ -2542,6 +2582,11 @@ def _lang_pair(key):
     does not know is shown as it is."""
     names = []
     for code in str(key).split("-"):
+        if "." in code and languages.LANGS.get(code.partition(".")[0]):
+            V = languages.LANGS[code.partition(".")[0]].with_variety(code.partition(".")[2])
+            if V.variety:                      # a variety: "Egyptian Arabic"
+                names.append(V.variety_name)
+                continue
         L = languages.LANGS.get(code)
         if L is None:
             try:
@@ -3677,7 +3722,8 @@ class Handler(SimpleHTTPRequestHandler):
                                      or "/__region/" in path
                                      or "/__reading/" in path
                                      or "/__struct/" in path or "/__clip/" in path
-                                     or "/__lookup" in path or "/__words/" in path):
+                                     or "/__lookup" in path or "/__words/" in path
+                                     or path.endswith("/__variety")):
                 return self._books_post(path)
             if method == "GET" and path.rstrip("/").endswith("/__offline"):
                 return self._offline_manifest(path)
@@ -4067,7 +4113,7 @@ class Handler(SimpleHTTPRequestHandler):
                                 "mistake" % os.path.relpath(gone, ROOT)})
 
     # ---- the dictionary behind a chunk nobody has glossed
-    def _lookup(self, code, body=None, gloss="en"):
+    def _lookup(self, code, body=None, gloss="en", variety=None):
         """What a dictionary has to say about the words of one chunk.
 
         Read-only, in every sense: it opens the language's dict/<code>.db
@@ -4147,10 +4193,12 @@ class Handler(SimpleHTTPRequestHandler):
                 # WHAT THE PAGE SAYS OF ITS TEXT (lib/spoken.py): a video's subtitles are speech, a book's narration
                 # is not; the only value is "spoken", and anything else is no hint
                 register = "spoken" if body.get("register") == "spoken" else None
+                # THE VARIETY THE BOOK OR THE VIDEO IS WRITTEN IN (its `variety`, Arabic's egy, lev, gulf,
+                # mor): its own dictionary and rules first (lib/lookup.py look_up)
                 if pieces is None:
-                    r = lookup.look_up(code, text, register=register)
+                    r = lookup.look_up(code, text, register=register, variety=variety)
                 else:
-                    r = lookup.look_up(code, text, pieces=pieces, authoritative=True)
+                    r = lookup.look_up(code, text, pieces=pieces, authoritative=True, variety=variety)
                     # look_up's `i` is the row's place in the PIECES, which
                     # leave the punctuation out and stop at the cap; a page
                     # holds the LINE, so it is given the word's place there
@@ -4161,7 +4209,9 @@ class Handler(SimpleHTTPRequestHandler):
                         w["i"] = pieces[w["i"]]["at"]
                 # WHAT AN ANALYZER MAY ADD, where somebody chose that on Settings -> Linguistic analysis: never to a
                 # person's word line, and it is off until it is chosen (lib/lookupassist.py)
-                if pieces is None and r:
+                # NOT FOR A VARIETY: the analyzers read the standard language (Farahidi took Gulf أبي, "I want", for
+                # أب "father"), and their reading of a dialect would be evidence for the wrong entry
+                if pieces is None and r and not variety:
                     try:
                         import analysisconfig
                         how = analysisconfig.choice("lookup")
@@ -4614,6 +4664,20 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._video_clip("peaks")
             if sub == "/api/estimate":
                 return self._video_estimate()
+            if sub == "/api/variety":
+                # THE VARIETY THE VIDEO IS WRITTEN IN, changed from its dictionary panel
+                body = self._json_body()
+                d = self._video_dir(body.get("video") or "")
+                if not d:
+                    return self.send_json({"ok": False, "error": "no such video"}, 404)
+                path = os.path.join(d, "video.json")
+                try:
+                    meta = json.load(io.open(path, encoding="utf-8"))
+                    got = (set_variety(path, meta.get("language") or "", body.get("variety"))
+                           if "variety" in body else (meta.get("variety") or ""))
+                except (ValueError, KeyError, OSError) as e:
+                    return self.send_json({"ok": False, "error": str(e)}, 400)
+                return self.send_json(variety_answer(meta.get("language") or "", got))
             if sub == "/api/lookup":
                 body = self._json_body()
                 d = self._video_dir(body.get("video") or "")
@@ -4621,7 +4685,7 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json({"ok": False, "error": "no such video"}, 404)
                 meta = json.load(io.open(os.path.join(d, "video.json"), encoding="utf-8"))
                 return self._lookup(meta.get("language") or "",
-                                    body, meta.get("gloss") or "en")
+                                    body, meta.get("gloss") or "en", meta.get("variety") or None)
             if sub == "/api/words":
                 body = self._json_body()
                 vid = body.get("video")
@@ -5147,12 +5211,25 @@ class Handler(SimpleHTTPRequestHandler):
             return self._book_clip("peaks")
         if p.endswith("__clip/estimate"):
             return self._book_estimate()
+        if p.endswith("__variety"):
+            # THE VARIETY THE BOOK IS WRITTEN IN, changed from its dictionary panel
+            book = self._book_dir()
+            if not book:
+                return self.send_json({"ok": False, "error": "no book here"}, 404)
+            try:
+                b = booklib.Book(book)
+                body = self._json_body()
+                got = (set_variety(os.path.join(book, "book.json"), b.lang.code, body.get("variety"))
+                       if "variety" in body else (b.variety or ""))
+            except (ValueError, KeyError, OSError) as e:
+                return self.send_json({"ok": False, "error": str(e)}, 400)
+            return self.send_json(variety_answer(b.lang.code, got))
         if p.endswith("__lookup"):
             book = self._book_dir()
             if not book:
                 return self.send_json({"ok": False, "error": "no book here"}, 404)
             b = booklib.Book(book)
-            return self._lookup(b.lang.code, None, b.gloss_lang.code)
+            return self._lookup(b.lang.code, None, b.gloss_lang.code, b.variety)
         if p.endswith("__words/propose"):
             book = self._book_dir()
             if not book:
@@ -5314,7 +5391,7 @@ class Handler(SimpleHTTPRequestHandler):
                 author_latin=body.get("author_latin") or "",
                 year=body.get("year") or "", blurb=body.get("blurb") or "",
                 into=booklib.BOOKS_DIR,
-                how=chunk_way(body))
+                how=chunk_way(body), variety=body.get("variety") or "")
         except ValueError as e:
             return self.send_json({"ok": False, "error": str(e)}, 400)
         # a book is nothing to the reader until tex2html has written one, and
@@ -5793,7 +5870,7 @@ class Handler(SimpleHTTPRequestHandler):
                 channel=body.get("channel") or "",
                 level=body.get("level") or "beginner",
                 blurb=body.get("blurb") or "", into=ytpages.VIDEOS,
-                how=chunk_way(body))
+                how=chunk_way(body), variety=body.get("variety") or "")
         except ValueError as e:
             return self.send_json({"ok": False, "error": str(e)}, 400)
         self.send_json(dict(r, ok=True, **self._adopt_wave(body, r["dir"])))
@@ -5845,7 +5922,7 @@ class Handler(SimpleHTTPRequestHandler):
                 channel=(body.get("channel") or "").strip() or "on this machine",
                 level=body.get("level") or "beginner",
                 blurb=body.get("blurb") or "", into=ytpages.VIDEOS,
-                how=chunk_way(body))
+                how=chunk_way(body), variety=body.get("variety") or "")
         except ValueError as e:
             return self.send_json({"ok": False, "error": str(e)}, 400)
         try:
@@ -6931,7 +7008,8 @@ class Handler(SimpleHTTPRequestHandler):
                                                    speechpage.door_tags(),
                                                    '<span class="tag">%s</span>' % ("configured" if llmconfig.load() else "unconfigured"),
                                                    arasaacpage.door_tags(),
-                                                   analysispage.door_tags()))
+                                                   analysispage.door_tags(),
+                                                   languagespage.door_tags()))
         if path in ("/settings/network", "/settings/network/index.html"):
             return self._redirect("/settings/network/")
         if path == "/settings/network/":
@@ -6991,6 +7069,12 @@ class Handler(SimpleHTTPRequestHandler):
             if method != "GET":
                 return self._method_not_allowed()
             return self.send_html(promptspage.page(self._where()))
+        if path == LANGUAGES_PAGE.rstrip("/"):
+            return self._redirect(LANGUAGES_PAGE)
+        if path == LANGUAGES_PAGE:
+            if method != "GET":
+                return self._method_not_allowed()
+            return self.send_html(languagespage.page(self._where()))
         if path == ANALYSIS_PAGE.rstrip("/"):
             return self._redirect(ANALYSIS_PAGE)
         if path == ANALYSIS_PAGE:
@@ -7070,6 +7154,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._prompts_api(method, path)
         if path in ANALYSIS_ROUTES:
             return self._analysis_api(method, path)
+        if path in LANGUAGES_ROUTES:
+            return self._languages_api(method, path)
         if path in ARASAAC_ROUTES:
             return self._arasaac_api(method, path)
         if path in SKILLS_ROUTES:
@@ -7498,6 +7584,14 @@ class Handler(SimpleHTTPRequestHandler):
         import analysispage
         body = self._json_body()
         code, out = analysispage.api(ANALYSIS_ROUTES[path], body, self._where())
+        return self.send_json(out, code)
+
+    def _languages_api(self, method, path):
+        """Settings -> Languages (lib/languagespage.py).  Every route is a POST, gated above
+        (lib/settingspage.py ROUTES) and held to this site by _dispatch (lib/crosssite.py)."""
+        if method != "POST":
+            return self._method_not_allowed()
+        code, out = languagespage.api(LANGUAGES_ROUTES[path], self._json_body(), self._where())
         return self.send_json(out, code)
 
     def _arasaac_api(self, method, path):

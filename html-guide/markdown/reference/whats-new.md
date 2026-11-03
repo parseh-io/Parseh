@@ -17,6 +17,29 @@ guide and rebuilds the readers by itself.
 
 ## a0.6.1 — not yet released
 
+### Catalan
+
+Parseh teaches **Catalan** (`ca`, *català*): books, videos and documents in it, its own conventions for a chatbot and its own
+"How to read this" page, a studio starter, a dictionary from Wiktionary that takes apart `l'home`, `menjar-lo`, `porta'l`
+and `dona-m'ho`, verb entries (infinitive, present, past participle), the linguistic analysis, Whisper's speech to text and exact word times from an aligner of its own.
+[Writing Catalan](../dialect/languages/catalan.md).
+
+### Arabic dialects
+
+An Arabic book or video can say it is written in **Egyptian, Levantine, Gulf or Moroccan Arabic** (on the add page, or later in
+its dictionary panel). Its words are then looked for in that dialect's own dictionary, a small download of its own on Settings →
+Reading help, and with that dialect's rules — the *b-* of the present, the future's *ha-*, the negation's *ma-…-š*, the article
+fused with a preposition — before the standard ones, and the gloss prompts name the dialect. On sentences held out from the work,
+the right entry comes first for about 85% of a dialect's words, against 33–64% when they were read as standard Arabic.
+[Arabic dialects](../lookup-and-languages/dictionaries.md#arabic-dialects).
+
+### Languages, in Settings
+
+**Settings → Languages** lists every language and what it has, feature by feature, and what would add what is missing. A
+language of your own is added there from a form, starting from a related language, and each piece of prose it needs — its
+conventions, its "How to read this" page, its starter, its rules — has a prompt for a chatbot and a box that takes the answer
+back, checked before it is written. [Adding a language](../lookup-and-languages/adding-a-language.md#from-settings).
+
 ## a0.6.0 — 2 November 2026
 
 ### Persian as it is spoken, read better

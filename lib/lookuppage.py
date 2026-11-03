@@ -20,8 +20,9 @@ the fallback component pack) has a card of its own.
 SHOWN RATHER THAN TOLD.  A row not yet installed carries a small example of
 what it adds, drawn the way the reader draws it, in the card's own language:
 a dictionary entry, a sentence somebody translated, a machine's reading, a
-character taken apart.  EXAMPLES below holds one per kind for every language
-the toolbox teaches; a language added later borrows Persian's.
+character taken apart.  The examples are each language's own, in its row of
+the registry (`examples`); a language added without them is shown without one,
+never with another language's words.
 
 SIZES BEFORE ANYTHING IS FETCHED.  Turkish's extract is 431 MB.  Where a size
 has been measured, each downloader ships it (its MEASURED table, read through
@@ -108,6 +109,21 @@ def dictionaries():
             except OSError:
                 row["size"] = 0
             row["older"] = older(L.code)
+        # THE DICTIONARIES OF ITS VARIETIES (Arabic's dialects: lib/languages.py), each a download of its own,
+        # read before the language's for a book or a video written in that variety
+        row["varieties"] = []
+        for v in L.varieties:
+            key = "%s.%s" % (L.code, v["key"])
+            vm = lookup.about(key) or {}
+            vr = {"key": key, "name": v.get("name") or v["key"], "have": bool(vm), "entries": vm.get("entries", ""),
+                  "built": vm.get("built", ""), "size": 0, "older": False}
+            if vm:
+                try:
+                    vr["size"] = os.path.getsize(lookup.path_for(key))
+                except OSError:
+                    pass
+                vr["older"] = older(key)
+            row["varieties"].append(vr)
         out.append(row)
     return out
 
@@ -276,6 +292,8 @@ def sizes():
     codes = list(languages.LANGS)
     for code in codes:
         out["dict:" + code] = known_plan("dict", code)
+        for v in languages.LANGS[code].varieties:
+            out["dict:%s.%s" % (code, v["key"])] = known_plan("dict", "%s.%s" % (code, v["key"]))
         for gloss in codes:
             if gloss == code:
                 continue
@@ -294,48 +312,13 @@ def sizes():
 
 # ---------------------------------------------------------- what it adds
 # ONE EXAMPLE PER KIND IN EACH LANGUAGE, drawn on a row not yet installed so
-# that a person sees what pressing *get it* would add to the reader.  Words a
-# learner meets early, and where the language allows it one that shows why a
+# that a person sees what pressing *get it* would add to the reader.  They are
+# the registry's (`examples` in a row of lib/languages.json): words a learner
+# meets early, and where the language allows it one that shows why a
 # dictionary alone is not enough (a word with two unrelated senses).
-#   dict:   (headword, how it is said or "", part of speech, [senses])
-#   corpus: (a sentence, its translation) -- <m>…</m> marks the shared word
-#   model:  (a sentence, a machine's reading of it)
-EXAMPLES = {
-    "fa": {"dict": ("شیر", "šir", "noun", ["milk", "lion", "tap, faucet"]),
-           "corpus": ("من <m>شیر</m> دوست دارم.", "I like <m>milk</m>."),
-           "model": ("دوباره می‌سازمت، وطن", "I will rebuild you, my country")},
-    "ar": {"dict": ("كتاب", "kitāb", "noun", ["book", "letter, note"]),
-           "corpus": ("هذا <m>كتاب</m> جديد.", "This is a new <m>book</m>."),
-           "model": ("سأعود غدًا.", "I will come back tomorrow.")},
-    "it": {"dict": ("casa", "", "noun", ["house", "home"]),
-           "corpus": ("La <m>casa</m> è grande.", "The <m>house</m> is big."),
-           "model": ("Domani pioverà.", "It will rain tomorrow.")},
-    "ja": {"dict": ("家", "いえ", "noun", ["house", "home, family"]),
-           "corpus": ("<m>猫</m>が好きです。", "I like <m>cats</m>."),
-           "model": ("明日は雨が降るでしょう。", "It will probably rain tomorrow.")},
-    "fr": {"dict": ("livre", "", "noun", ["book (masculine)", "pound (feminine)"]),
-           "corpus": ("J’ai lu ce <m>livre</m>.", "I read this <m>book</m>."),
-           "model": ("Il pleuvra demain.", "It will rain tomorrow.")},
-    "de": {"dict": ("Bank", "", "noun", ["bench", "bank"]),
-           "corpus": ("Die <m>Bank</m> ist geschlossen.", "The <m>bank</m> is closed."),
-           "model": ("Morgen wird es regnen.", "It will rain tomorrow.")},
-    "tr": {"dict": ("ev", "", "noun", ["house, home", "household, family"]),
-           "corpus": ("<m>Ev</m> çok büyük.", "The <m>house</m> is very big."),
-           "model": ("Yarın yağmur yağacak.", "It will rain tomorrow.")},
-    "en": {"dict": ("bank", "", "noun", ["an institution that keeps money",
-                                         "the land along a river"]),
-           "corpus": ("The <m>bank</m> is closed.", "La <m>banca</m> è chiusa."),
-           "model": ("It will rain tomorrow.", "Domani pioverà.")},
-    "hi": {"dict": ("घर", "ghar", "noun", ["house, home", "household"]),
-           "corpus": ("यह मेरा <m>घर</m> है।", "This is my <m>house</m>."),
-           "model": ("कल बारिश होगी।", "It will rain tomorrow.")},
-    "es": {"dict": ("banco", "", "noun", ["bank", "bench"]),
-           "corpus": ("El <m>banco</m> está cerrado.", "The <m>bank</m> is closed."),
-           "model": ("Mañana lloverá.", "It will rain tomorrow.")},
-    "zh": {"dict": ("书", "shū", "noun", ["book", "letter, document"]),
-           "corpus": ("我在看<m>书</m>。", "I am reading a <m>book</m>."),
-           "model": ("明天会下雨。", "It will rain tomorrow.")},
-}
+#   dict:   [headword, how it is said or "", part of speech, [senses]]
+#   corpus: [a sentence, its translation] -- <m>…</m> marks the shared word
+#   model:  [a sentence, a machine's reading of it]
 # a character taken apart, per pack: (the character, [its parts], a part
 # taken apart in turn, or "")
 PARTS = {"kanjivg": ("語", ["言", "吾"], "五 + 口"),
@@ -347,9 +330,14 @@ SYNONYM = ("They will <m>begin</m> at noon.",
 
 
 def examples():
-    """EXAMPLES for every language the page lists: its own where written,
-    Persian's where not (a language somebody added since)."""
-    return {L.code: EXAMPLES.get(L.code, EXAMPLES["fa"]) for L in languages.LANGS.values()}
+    """The registry's examples for every language the page lists; a language
+    added without them (null) is shown without a vignette rather than with
+    another language's words."""
+    out = {}
+    for L in languages.LANGS.values():
+        ex = {k: L.examples[k] for k in ("dict", "corpus", "model") if L.examples.get(k)}
+        out[L.code] = ex or None
+    return out
 
 
 # ------------------------------------------------------------ the view
@@ -385,7 +373,7 @@ def view(state=None, jobs=None, queues=None):
             "needs_dict": corp[L.code]["needs_dict"],
             "models": mods[L.code]["have"], "can_model": mods[L.code]["can"],
             "pack": decomposition.PREFERRED.get(L.code)})
-    kept = sum(d["size"] for d in dicts.values())
+    kept = sum(d["size"] + sum(v["size"] for v in d.get("varieties") or []) for d in dicts.values())
     kept += sum(r["size"] for c in corp.values() for r in c["have"])
     kept += sum(r["size"] for m in mods.values() for r in m["have"])
     kept += sum(p.get("size") or 0 for p in packs.values())
@@ -606,7 +594,13 @@ SCRIPT = r"""
   function marked(s) { return esc(s).replace(/&lt;m&gt;/g, '<mark>').replace(/&lt;\/m&gt;/g, '</mark>')
                                     .replace(/&lt;i&gt;/g, '<i>').replace(/&lt;\/i&gt;/g, '</i>'); }
   function langOf(code) { return S.languages.filter(function (l) { return l.code === code; })[0]; }
-  function nameOf(code) { var l = langOf(code); return l ? l.name : code; }
+  function nameOf(code) {
+    var l = langOf(code);
+    if (l) return l.name;
+    // a variety's dictionary (ar.egy): its own name
+    var base = langOf(String(code).split('.')[0]), v = base && (base.dict.varieties || []).filter(function (x) { return x.key === code; })[0];
+    return v ? v.name : code;
+  }
   function dirOf(code) { var l = langOf(code); return l && l.rtl ? ' dir="rtl"' : ''; }
   function job(kind, key) { return ((S.jobs || {})[kind] || {})[key] || null; }
   function size(kind, key) { return (S.sizes || {})[kind + ':' + key] || {}; }
@@ -637,6 +631,15 @@ SCRIPT = r"""
                have: d.have, older: d.older, credit: lic.dict,
                facts: d.have ? num(d.entries) + ' entries · ' + MB(d.size) + ' · ' + built(d.built) : '',
                kept: d.size, get: 'getdict', drop: 'dropdict', body: {code: L.code}, ex: 'dict'});
+    // the dictionaries of its varieties (Arabic's dialects), each read first for a book or a video written in it
+    (d.varieties || []).forEach(function (v) {
+      rows.push({kind: 'dict', key: v.key, name: 'Dictionary · ' + v.name, lang: L.code,
+                 'for': 'The words of ' + v.name + ' that ' + L.name + '’s dictionary has not, looked for first in a ' +
+                        'book or a video written in it (its dictionary panel says which).',
+                 have: v.have, older: v.older, credit: lic.dict,
+                 facts: v.have ? num(v.entries) + ' entries · ' + MB(v.size) + ' · ' + built(v.built) : '',
+                 kept: v.size, get: 'getdict', drop: 'dropdict', body: {code: v.key}});
+    });
     if (L.pack) {
       var p = S.packs[L.pack] || {};
       rows.push({kind: 'components', key: L.pack, name: 'Character components · ' + p.name,
@@ -689,7 +692,8 @@ SCRIPT = r"""
 
   /* ---- what a row not yet installed would add, drawn the reader's way */
   function vignette(r) {
-    var X = S.examples[r.lang] || S.examples.fa, dir = dirOf(r.lang);
+    var X = S.examples[r.lang] || {}, dir = dirOf(r.lang);
+    if ((r.ex === 'dict' || r.ex === 'corpus' || r.ex === 'model') && !X[r.ex]) return '';
     if (r.ex === 'dict') {
       var e = X.dict;
       return '<figure class="vig" aria-label="what it adds"><div class="lab">dictionary</div>' +

@@ -4,11 +4,12 @@ weight: 11
 description: For whoever maintains Parseh — the one command that adds a twelfth language, what it writes, what is left to write by hand, fonts, and how to check it.
 ---
 
-> **An advanced page, for the command line.** Nothing here is needed to
+> **From a page, or from the command line.** Nothing here is needed to
 > *use* Parseh. A new language is a row of its language table and the files
-> that go with it, so it is done in Parseh's folder, from a terminal, by
-> whoever is comfortable there. There is no button for it yet: once it is
-> done, the language is simply there in every page.
+> that go with it. **Settings → Languages** adds one from a form and has a
+> chatbot write the prose it needs ([below](#from-settings)); everything it
+> does is also a command in Parseh's folder, which the rest of this page
+> describes. Once it is done, the language is simply there in every page.
 >
 > **The language is yours, and an update keeps it.** Its row goes into
 > `config/languages.json`, beside Parseh's own table rather than inside it —
@@ -17,10 +18,45 @@ description: For whoever maintains Parseh — the one command that adds a twelft
 > touch either. Adding a language to Parseh itself, for everybody, is the
 > one flag `--shipped` (below).
 
-Nothing about the number eleven is special. French, German, Turkish,
-Hindi, Spanish and Chinese each arrived as one run of one command — a row
+Nothing about the number twelve is special. French, German, Turkish,
+Hindi, Spanish, Chinese and Catalan each arrived as one run of one command — a row
 of the table and the files that go with it — because every part of Parseh
 reads the table rather than keeping a list of languages of its own.
+
+## From Settings
+
+**Settings → Languages** lists every language Parseh has, and opens each
+one on what it has, feature by feature: its annotation conventions,
+printed books, hyphenation, the studio's starter, examples, the
+dictionary and its rules, verb entries, chunking rules, linguistic
+analysis, translation models, translated sentences, speech to text, exact
+word times, pictograms. Each says what the language is without it and what
+adds it. The same list is `python3 lib/newlang.py --features` (one language:
+`--features ca`).
+
+**Add a language** at the foot of the page asks for what a form can ask:
+the code, the English name and the language's own, the kind of script
+(and its characters, for *other*), a **related language**, the ISO 639-3
+code and a font. It writes what the command below writes, the row in
+`config/languages.json`; the language is in every page at once. Only the
+computer Parseh runs on may add one: a device let in sees the page and not
+the button.
+
+**The related language** is the starting point. The new one takes its
+verb entry's shape and how it glosses a compound, and a copy of its
+chunking rules to read and change; and the prose the new one needs is
+drafted from the related one's own files. In its card, each piece still
+missing — the conventions, the "How to read this" page, the studio's
+starter, the examples, the lookup rules, the chunking rules — has **write
+it with a chatbot**: **copy the prompt** (it carries the related
+language's file as the model and the new one's row as the facts), paste it
+in the chatbot of your choice, read what it writes, paste the answer back
+and **take it in**. Parseh checks the answer's shape before it writes it —
+the seven sections of the conventions, a "How to read this" page that only
+writes text, JSON it can read — and never judges the language itself:
+that is yours to read. On the command line the same prompts are
+`python3 lib/langprompts.py <code> <piece>` and the answer goes back with
+`--answer FILE`.
 
 ## What a language is
 
@@ -72,6 +108,7 @@ The fields of the row that carry a decision:
 ```bash
 python3 lib/newlang.py                 # what it needs, and the languages there are
 python3 lib/newlang.py --check         # every language validated, every file present
+python3 lib/newlang.py --features      # what each language has, feature by feature
 python3 lib/newlang.py --help          # every flag
 python3 lib/newlang.py ko --name Korean --native 한국어 --script other \
     --chars '\uAC00-\uD7AF\u1100-\u11FF' --font 'Noto Serif KR' --iso3 kor
@@ -104,6 +141,7 @@ out nothing you ought to decide. The flags that carry a decision:
 | `--vb-forms`, `--vb-labels` | the verb entry's three forms and two labels, each comma-separated |
 | `--hyphen`, `--import`, `--babel`, `--tex-language` | LaTeX's names, when the defaults are wrong |
 | `--anki-field`, `--duration-units`, `--chapter-words` | the rest of the row |
+| `--like CODE` | a related language (`es` for Catalan): lends its verb entry's shape and how it glosses a compound, copies its chunking rules to read and change, and is the model the prompts for the prose show |
 | `--dry-run` | print the row that would be added, and write nothing |
 | `--force` | overwrite the `.tex` and the `.md` if they are already there |
 | `--shipped` | put the row into Parseh's own table, `lib/languages.json`, and name it in that file's `_shipped` list: for a language added to Parseh itself, to be shared with everybody. Without it the row goes into `config/languages.json` and is this machine's |
@@ -211,6 +249,15 @@ Latin-script language that spells itself, `fr.md` where the spelling hides
 the sound, `fa.md` or `ar.md` for an Arabic script, `ja.md` for a reading,
 `zh.md` for words without a reading.
 
+**Linguistic analysis** is the row's `"analysis"`: which program reads the
+language's word forms and which its sentences (`{"morphology": "udpipe",
+"syntax": "udpipe"}` for most). A language read by UDPipe also needs its
+model pinned in `lib/analysispins.py`; `python3 lib/getanalysis.py measure
+catalan-ancora` fetches the model of that treebank into a throwaway folder
+and prints the line, with its size and its hash, to paste into
+`UDPIPE_MODELS`. **Examples** are the row's `"examples"` (what the lookup
+page and the gloss buttons show), and a chatbot writes them too.
+
 ## Giving it a font
 
 **If the device can be trusted to have the face**, name it with `--font`
@@ -293,7 +340,7 @@ nothing until LaTeX has read it.
 
 ## Three examples
 
-**A Latin-script language** is the easy case — six of the eleven are:
+**A Latin-script language** is the easy case — seven of the twelve are:
 
 ```bash
 python3 lib/newlang.py sv --name Swedish --native svenska --script latin \

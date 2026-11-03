@@ -196,8 +196,9 @@ _RULES = {}
 
 
 def path_for(code):
-    """Where this language's dictionary would be, whether or not it is."""
-    return os.path.join(DICT_DIR, "%s.db" % languages.get_or_default(code).code)
+    """Where this language's dictionary would be, whether or not it is: dict/ar.db,
+    or a variety's own beside it (dict/ar.egy.db, `code` "ar.egy")."""
+    return os.path.join(DICT_DIR, "%s.db" % languages.get_or_default(code).key)
 
 
 def available(code):
@@ -240,7 +241,8 @@ def _conn(code):
     that had answered a request before the build kept saying there was none.
     A stat is cheap; being permanently wrong is not.
     """
-    code = languages.get_or_default(code).code
+    L = languages.get_or_default(code)
+    code = L.key
     have = getattr(_CONNS, "map", None)
     if have is None:
         have = _CONNS.map = {}
@@ -262,7 +264,7 @@ def _conn(code):
             conn.row_factory = sqlite3.Row
             # which language this connection is, so a pronunciation can be
             # written the way that language writes one
-            _CODE_OF[id(conn)] = code
+            _CODE_OF[id(conn)] = L.code
             for _k in [k for k in _HAS_IPA if k[0] == id(conn)]:
                 _HAS_IPA.pop(_k, None)
         except sqlite3.Error:
@@ -429,7 +431,8 @@ def rules(code):
                     words it says its reasons in are all in this section; a
                     language without it is looked up as it always was.
     """
-    code = languages.get_or_default(code).code
+    L = code if isinstance(code, languages.Lang) else languages.get_or_default(code)
+    code = L.key
     if code not in _RULES:
         p = os.path.join(LANG_DIR, "%s.lookup.json" % code)
         d = {}
@@ -442,6 +445,16 @@ def rules(code):
         d.setdefault("fold", "")
         d.setdefault("affixes", [])
         d["affixes"] += _nominal_affixes(d.get("nominal_endings") or {})
+        # A VARIETY'S RULES COME FIRST AND THE LANGUAGE'S AFTER THEM (ar.egy.lookup.json, then
+        # ar.lookup.json): Egyptian takes its b- and its ma-...-sh off, and a standard prefix or ending
+        # is still a standard one.  Whatever the variety's file does not say is the language's.
+        if L.variety:
+            base = rules(L.code)
+            d["affixes"] = d["affixes"] + [a for a in base["affixes"] if a not in d["affixes"]]
+            for k, v in base.items():
+                d.setdefault(k, v)
+            if not d.get("fold"):
+                d["fold"] = base.get("fold") or ""
         _RULES[code] = d
     return _RULES[code]
 
@@ -684,15 +697,16 @@ def _routes(word, L):
     and `base`, the spelling it started from ("as written", or the folding
     that made it).
     """
-    fold = rules(L.code).get("fold") or ""
+    fold = rules(L).get("fold") or ""
     base = _folded_variants(word, L, fold)
-    affixes = rules(L.code).get("affixes") or []
+    affixes = rules(L).get("affixes") or []
     out = [Route(f, w, k, None, w) for f, w, k in base]
     seen = {f for f, _w, _k in base}
     # each frontier entry carries how it got here: the folding that produced
     # its spelling, and the affixes taken off since, in order
     frontier = [(f, w, [], 0) for f, w, _k in base]
-    for _step in range(MAX_PEEL):
+    # a variety's rules may ask for one step more (ar.mor: ما + ك… + ش), never more than three
+    for _step in range(min(3, int(rules(L).get("max_peel") or MAX_PEEL))):
         if not affixes or len(out) >= MAX_ROUTES:
             break
         nxt = []
@@ -1374,7 +1388,7 @@ def pos_weights(code, word):
     return []
 
 
-def look_up(code, text, pieces=None, authoritative=False, register=None):
+def look_up(code, text, pieces=None, authoritative=False, register=None, variety=None):
     """Look every word of a chunk up.  Returns None when the language has no
     dictionary installed, so a caller can tell "nothing found" from "nothing
     to find with".
@@ -1410,11 +1424,19 @@ def look_up(code, text, pieces=None, authoritative=False, register=None):
     For a language with spoken rules (Persian) a spoken reading of a word
     the dictionary knows is offered only where a word of the chunk is
     certainly spoken or the page says so; it changes nothing for the rest.
+
+    `variety` is the one the book or the video says it is written in
+    (Arabic's `egy`, `lev`, `gulf`, `mor`): each word is then looked for with
+    that variety's rules before the language's (rules()), in the variety's
+    own dictionary first (dict/ar.egy.db, where it has been fetched) and in
+    the language's after it, and what the variety's dictionary found comes
+    first, each hit carrying `variety`, its name (_with_variety).
     """
     c = _conn(code)
     if c is None:
         return None
     L = languages.get_or_default(code)
+    V = L.with_variety(variety) if variety and not L.variety else L
     # COMPOSED FIRST, because a dictionary is.  Devanagari's nukta letters
     # have code points of their own (ड़ is U+095C) that NFC takes apart --
     # they are composition exclusions -- and Hindi's 525 159 form rows hold
@@ -1472,8 +1494,11 @@ def look_up(code, text, pieces=None, authoritative=False, register=None):
         elif spoken and spoken.noise(raw):
             got, i = [{"word": raw, "hits": [], "via": "", "tried": [], "kind": ""}], i + 1
         else:
-            got, start = _resolve(c, raw, alts, L, bool(pieces) and not authoritative,
-                                  initial), i
+            if V is not L:
+                got, start = _with_variety(c, raw, alts, V, bool(pieces) and not authoritative, initial), i
+            else:
+                got, start = _resolve(c, raw, alts, L, bool(pieces) and not authoritative,
+                                      initial), i
             if spoken:
                 got = [spoken.augment(host, c, L, one, ctx, start) for one in got]
             i += 1
@@ -1509,6 +1534,42 @@ def look_up(code, text, pieces=None, authoritative=False, register=None):
         for h in w.get("hits") or []:
             h.pop("_tier", None)
     return {"lang": L.code, "source": about(code) or {}, "words": words}
+
+
+def _with_variety(c, raw, alts, V, from_model, initial):
+    """One word of a text written in a variety (lib/languages.py with_variety):
+    looked for with the variety's rules in its own dictionary, then with the
+    same rules in the language's, the variety's hits first and marked.
+
+    THE SAME RULES IN BOTH, because they are the variety's and the language's
+    together (rules()): Egyptian بيكتب is ب + يكتب, and يكتب is in the standard
+    dictionary, not in the Egyptian one, which has the words standard Arabic
+    does not.  A hit both dictionaries have (the same headword and part of
+    speech) is shown once, the variety's.
+    """
+    cv = _conn(V.key)
+    own = _resolve(cv, raw, alts, V, from_model, initial) if cv is not None else []
+    std = _resolve(c, raw, alts, V, from_model, initial)
+    # said in the note every panel shows under a hit, old readers' included
+    for w in own:
+        for h in w.get("hits") or []:
+            h["variety"] = V.variety_name
+            h["note"] = V.variety_name + (("; " + h["note"]) if h.get("note") else "")
+    if not own:
+        return std
+    if not std or [w["word"] for w in own] != [w["word"] for w in std]:
+        return own if any(w.get("hits") for w in own) else std
+    out = []
+    for a, b in zip(own, std):
+        if not a.get("hits"):
+            out.append(b)
+            continue
+        have = {(h.get("headword"), h.get("pos")) for h in a["hits"]}
+        merged = dict(a, hits=a["hits"] + [h for h in b.get("hits") or []
+                                           if (h.get("headword"), h.get("pos")) not in have])
+        merged["tried"] = a.get("tried", []) + [t for t in b.get("tried", []) if t not in a.get("tried", [])]
+        out.append(merged)
+    return out
 
 
 # What ends a sentence, and what opens one, around a word of the chunk.
@@ -1632,7 +1693,7 @@ def _stands(c, piece, L):
 def _join_rule(L):
     """The language's `join_next`, as (the words, folded; the parts of speech
     the two must make together, empty for any), or None where it has none."""
-    R = rules(L.code).get("join_next") or {}
+    R = rules(L).get("join_next") or {}
     if isinstance(R, list):
         R = {"words": R}
     words = frozenset(_fold(w, L) for w in R.get("words") or () if w)
@@ -1693,7 +1754,7 @@ def _joined(c, raw, nxt, L, rule):
 def _only_spellings(hits, L):
     """Is everything the whole word found a page that only spells two words
     as one -- a contraction, a phrase -- by the language's `also_peel`?"""
-    R = rules(L.code).get("also_peel") or {}
+    R = rules(L).get("also_peel") or {}
     pos = set(R.get("pos") or ())
     has = tuple(R.get("note_has") or ())
     if not (pos or has):

@@ -131,7 +131,7 @@ script and set in the Japanese face.
 
 A code the registry does not have is not guessed at: the document is
 drawn as Persian, and the editor's preview says so in red above the page —
-`unknown target language 'xx' -- rendered as Persian`. The eleven codes
+`unknown target language 'xx' -- rendered as Persian`. The twelve codes
 are listed with what each one changes in
 [Documents in each language](languages/_index.md).
 

@@ -47,8 +47,9 @@ def replacement(original, raw, model_derived=False):
 
 
 def lexical(text):
+    # the middle dot is inside a Catalan word (col·lecció), as an apostrophe or a hyphen is inside others
     return bool(text) and any(c.isalnum() for c in text) and all(
-        unicodedata.category(c)[0] in 'LMN' or c in "’'-\u200c\u200d" for c in text)
+        unicodedata.category(c)[0] in 'LMN' or c in "’'-\u200c\u200d\u00b7" for c in text)
 
 
 def candidates(word, extra):

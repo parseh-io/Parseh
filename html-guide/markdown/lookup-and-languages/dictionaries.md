@@ -283,6 +283,49 @@ off), and never while a cloud is open: the lookup you are waiting for is
 never queued behind ten you are not. It needs no setting; it happens
 whenever the **dictionary** switch is on.
 
+## Arabic dialects
+
+An Arabic book or video says which Arabic it is written in: **Modern
+Standard Arabic**, the default, or one of four dialects — **Egyptian**,
+**Levantine**, **Gulf** or **Moroccan**. It is chosen on the add page
+(**Written in**, beside the language) and changed later from the reader's
+or the player's dictionary panel, whose last line is **written in** with a
+menu of the five.
+
+A word of a text in a dialect is looked for in two ways the standard
+language does not need:
+
+- **in the dialect's own dictionary first.** Each is a download of its own
+  on **Settings → Reading help**, under Arabic's (*Dictionary · Egyptian
+  Arabic*, and so on): Wiktionary's pages for that dialect, through the
+  same source and under the same licence as the Arabic one, and small —
+  a few megabytes each. It has the words standard Arabic has not:
+  *دلوقتي*, *هلق*, *بزاف*, *شو*, *وين*. Its entries come first and say
+  which dialect they are from; the standard dictionary's follow.
+- **with the dialect's own rules**, before Arabic's: what a dialect writes
+  onto a word standard Arabic also has — Egyptian and Levantine *b-* of the
+  present (*بيكتب* is *يكتب*), the future's *ha-* or *ḥa-*, Moroccan *ka-*
+  and *ġa-*, the negation's *ma- … -š* (*ماكنعرفش* is *عرف*), the article
+  fused with a preposition or a demonstrative (*عالبيت*, *هالكتاب*,
+  *فالدار*), a pronoun written on with *-l-* (*قولّي*) and a hamza written
+  as a plain letter (*تاكل*, *تقرا*). These work even without the dialect's
+  dictionary, against the standard one.
+
+Measured on sentences written for the purpose and held out from the work
+on the rules, the entry that fits comes first for about 85% of the words
+of an Egyptian, Gulf or Moroccan text and 89% of a Levantine one, against
+33–64% when the same texts were read as standard Arabic.
+
+**The linguistic analysis is not used for a dialect.** Its programs read
+standard Arabic, and their reading of a dialect word is often another
+word's (Gulf *أبي*, *I want*, read as *أب*, *father*): the panel does not
+mark a reading *fits this sentence* in a text written in a dialect.
+
+The prompts for a chatbot say the dialect too: a book's or a video's
+prompt tells it the text is Egyptian Arabic (say), to gloss each word as
+that dialect uses it and to write its transliteration as it is said there.
+Arabic written in Latin letters (*Arabizi*) is not read.
+
 ## Taking it into a gloss
 
 The reading panel has no buttons that write: nothing in it becomes a gloss.

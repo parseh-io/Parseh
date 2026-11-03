@@ -476,6 +476,8 @@ def _book_units(book, first, last):
                 folded[key] = unit
             else:
                 units.append(unit)
+    # the variety the book is written in (Arabic's dialects): its prompt says so (promptkit.language_text)
+    L = L.with_variety(b.variety) if b.variety else L
     ctx = {"surface": "book", "dir": book, "L": L, "G": b.gloss_lang,
            "reorders": bool(b.meta.get("reorders")), "meta": b.meta,
            "first": first, "last": last,
@@ -564,6 +566,8 @@ def _video_units(vdir, frm, to):
     region = ("caption %d, %s" % (frm, _clock(first_t)) if n == 1 else
               "captions %d–%d, %s–%s · %d captions" % (frm, to, _clock(first_t),
                                                        _clock(last_t), n))
+    if isinstance(meta.get("variety"), str) and L.variety_of(meta["variety"]):
+        L = L.with_variety(meta["variety"])
     ctx = {"surface": "video", "dir": vdir, "L": L, "G": G, "meta": meta,
            "id": meta.get("id") or os.path.basename(os.path.normpath(vdir)),
            "reorders": bool(meta.get("reorders")), "from": frm, "to": to,

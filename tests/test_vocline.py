@@ -220,7 +220,9 @@ class Buttons(unittest.TestCase):
 globalThis.document = {readyState: 'complete', getElementById: () => null};
 await import(%s);
 await import(%s);
-const B = globalThis.ParsehVocButtons, LANGS = %s, out = {examples: B.EXAMPLES, titles: {}};
+const B = globalThis.ParsehVocButtons, LANGS = %s, out = {examples: {}, titles: {}};
+// a language's own examples are its row's (examples.macros); the table holds the eleven of a0.6.0, for older readers
+for (const [code, L] of Object.entries(LANGS)) out.examples[code] = (L.examples && L.examples.macros) || B.EXAMPLES[code];
 // a language somebody added has no example of its own, nor forms in its registry row
 out.added = ['dw', 'vb', 'bw', 'pw'].map(k => B.explain(k, {code: 'zz', name: 'Zzish'}, {name: 'English', code: 'en'}).title);
 for (const [code, L] of Object.entries(LANGS)) {

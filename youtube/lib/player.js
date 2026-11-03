@@ -351,6 +351,13 @@
     DICT.words = !!j.available; DICT.pairs = !!j.corpus_available;
     DICT.corpus = j.corpus || {};
     DICT.defines = !!j.definitions;
+    // THE VARIETY THE VIDEO IS WRITTEN IN (lib/parseh.js variety): a row under the dictionary block, for a
+    // language that has varieties; a change empties what was looked up before, so the next word is asked again
+    if (window.Parseh && Parseh.variety && !(Array.isArray(L.varieties) && !L.varieties.length)) {
+      Parseh.variety.configure({ url: '/youtube/api/variety', extra: { video: CFG.id },
+                                 onchange: function () { DICT.cache = {}; } });
+      Parseh.variety.watch();
+    }
     showHelp();
     // one local SQLite read per phrase, so preparing ahead is free
     preStart();

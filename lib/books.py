@@ -127,6 +127,14 @@ class Book:
         return by_dir.code if by_dir else languages.DEFAULT
 
     @property
+    def variety(self):
+        """The variety the book is written in (book.json `variety`: Arabic's
+        egy, lev, gulf, mor), or None for the standard language -- and for a
+        key the language does not have."""
+        v = (self.meta.get("variety") or "").strip().lower()
+        return v if v and self.lang.variety_of(v) else None
+
+    @property
     def lang(self):
         return languages.get(self.language)
 

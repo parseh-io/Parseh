@@ -1,0 +1,269 @@
+{
+  "_comment": "How a word of a text in Egyptian Arabic is turned into something a dictionary can be asked about: the Egyptian dictionary first, the standard one after it, with these rules and then lib/lang/ar.lookup.json's (lib/lookup.py rules(): a variety's rules come first). The words Egyptian has and standard Arabic has not (دلوقتي, إزاي, عايز) are pages of the Egyptian dictionary and need no rule; these are the ones written onto a word standard Arabic also has: the present's b- (بيكتب, بتقول, بكتب), the future's ha- (هنروح, هيكتب), the negation's ma-...-š (ماكتبش, مابيكتبش), the pronoun written onto the verb with -l- (قولّي, كتبتلوش) and the hamza a text writes as a plain letter (تاكل, تقرا). Measured on TODOs/arabic-dialects/ar-egy.txt.",
+  "max_peel": 3,
+  "affixes": [
+    {
+      "prefix": "مب",
+      "front": "أ",
+      "min_stem_length": 2,
+      "note": "ما + ب- taken off together, the first person's أ put back: مبحبش is أحب"
+    },
+    {
+      "prefix": "مبي",
+      "min_stem_length": 3,
+      "note": "ما + بي- taken off together"
+    },
+    {
+      "prefix": "مبت",
+      "min_stem_length": 3,
+      "note": "ما + بت- taken off together"
+    },
+    {
+      "prefix": "بي",
+      "note": "the present's بي- taken off a verb: بيكتب is يكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "بي",
+      "front": "أ",
+      "note": "the present's بي- taken off a first person, its أ put back (بكتب is أكتب)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "بت",
+      "note": "the present's بت- taken off a verb: بتقول is تقول",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "بت",
+      "front": "أ",
+      "note": "the present's بت- taken off a first person, its أ put back (بكتب is أكتب)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "بن",
+      "note": "the present's بن- taken off a verb: بنروح is نروح",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "بن",
+      "front": "أ",
+      "note": "the present's بن- taken off a first person, its أ put back (بكتب is أكتب)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ب",
+      "note": "the present's ب- taken off a verb: بكتب is أكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ب",
+      "front": "أ",
+      "note": "the present's ب- taken off a first person, its أ put back (بكتب is أكتب)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "هي",
+      "note": "the future's هي- taken off a verb: هيكتب is يكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "هي",
+      "front": "أ",
+      "note": "the future's هي- taken off a first person, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "هت",
+      "note": "the future's هت- taken off a verb: هتروح is تروح",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "هت",
+      "front": "أ",
+      "note": "the future's هت- taken off a first person, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "هن",
+      "note": "the future's هن- taken off a verb: هنروح is نروح",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "هن",
+      "front": "أ",
+      "note": "the future's هن- taken off a first person, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ه",
+      "note": "the future's ه- taken off a verb: هروح is أروح",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ه",
+      "front": "أ",
+      "note": "the future's ه- taken off a first person, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "حي",
+      "note": "the future's حي- taken off a verb: حيكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "حي",
+      "front": "أ",
+      "note": "the future's حي- taken off a first person, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ح",
+      "note": "the future's ح- taken off a verb: حروح",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ح",
+      "front": "أ",
+      "note": "the future's ح- taken off a first person, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ما",
+      "note": "the ما of a negation written onto the verb",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "مابي",
+      "note": "ما + بي- taken off together: مابيكتبش",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ماب",
+      "note": "ما + ب- taken off together",
+      "min_stem_length": 3
+    },
+    {
+      "suffix": "ش",
+      "min_stem_length": 2,
+      "note": "the -š of a negation (ما…ش) taken off: ماكتبش, مايكتبش"
+    },
+    {
+      "suffix": "لي",
+      "min_stem_length": 2,
+      "note": "the -لي of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لو",
+      "min_stem_length": 2,
+      "note": "the -لو of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "له",
+      "min_stem_length": 2,
+      "note": "the -له of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لها",
+      "min_stem_length": 2,
+      "note": "the -لها of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لك",
+      "min_stem_length": 2,
+      "note": "the -لك of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لنا",
+      "min_stem_length": 2,
+      "note": "the -لنا of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لكم",
+      "min_stem_length": 2,
+      "note": "the -لكم of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لهم",
+      "min_stem_length": 2,
+      "note": "the -لهم of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لوش",
+      "min_stem_length": 2,
+      "note": "the -لوش of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "ليش",
+      "min_stem_length": 2,
+      "note": "the -ليش of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "prefix": "تا",
+      "front": "تأ",
+      "note": "a hamza written as a plain alif, put back: تا is تأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "يا",
+      "front": "يأ",
+      "note": "a hamza written as a plain alif, put back: يا is يأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "نا",
+      "front": "نأ",
+      "note": "a hamza written as a plain alif, put back: نا is نأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "أا",
+      "front": "أأ",
+      "note": "a hamza written as a plain alif, put back: أا is أأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "با",
+      "front": "بأ",
+      "note": "a hamza written as a plain alif, put back: با is بأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "suffix": "ا",
+      "add": "أ",
+      "note": "a final hamza dropped, put back: تقرا is تقرأ"
+    },
+    {
+      "suffix": "ا",
+      "add": "اء",
+      "note": "a final hamza dropped, put back: الما is الماء"
+    },
+    {
+      "prefix": "ال",
+      "note": "the article al- taken off"
+    },
+    {
+      "prefix": "لل",
+      "note": "li- with the article (لل) taken off"
+    },
+    {
+      "prefix": "بال",
+      "note": "bi- with the article (بال) taken off"
+    },
+    {
+      "prefix": "وال",
+      "note": "wa- with the article (وال) taken off"
+    },
+    {
+      "suffix": "ين",
+      "min_stem_length": 3,
+      "note": "the plural -īn of a participle taken off (عاوزين is عاوز)"
+    },
+    {
+      "suffix": "ات",
+      "min_stem_length": 3,
+      "note": "the plural -āt taken off"
+    }
+  ],
+  "_article": "THE ARTICLE IS TAKEN OFF HERE and not in ar.lookup.json: Wiktionary's standard Arabic files a word with its article among its forms, and its dialect dictionaries do not (الولاد, الدراري, للدار found nothing). A verb's prefix leaves three letters at least (`min_stem_length`): حالك is not the future's ح + الك."
+}

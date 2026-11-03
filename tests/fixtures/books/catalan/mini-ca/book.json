@@ -1,0 +1,14 @@
+{
+  "slug": "mini-ca",
+  "language": "ca",
+  "title": "El pescador i la gata",
+  "title_latin": "El pescador i la gata",
+  "title_en": "The Fisherman and the Cat",
+  "author": "una faula",
+  "author_latin": "a fable",
+  "year": "",
+  "blurb": "A fixture for the tests: two short Catalan paragraphs, two sentences each.",
+  "main": "main.tex",
+  "audio": null,
+  "transcript": null
+}

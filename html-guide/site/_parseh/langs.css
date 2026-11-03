@@ -22,15 +22,18 @@
   --tl-alt-es:'TeX Gyre Pagella', 'Palatino Linotype', Palatino, Georgia, serif;
   --tl-font-zh:'Noto Serif CJK SC', serif;
   --tl-alt-zh:'Noto Serif CJK SC', serif;
+  --tl-font-ca:'TeX Gyre Pagella', 'Palatino Linotype', Palatino, Georgia, serif;
+  --tl-alt-ca:'TeX Gyre Pagella', 'Palatino Linotype', Palatino, Georgia, serif;
 }
-[data-lang=fa]{--tl-font:var(--tl-font-fa);--tl-alt:var(--tl-alt-fa);--tl-dir:rtl;--tl-alt-lh:2.6}
-[data-lang=ar]{--tl-font:var(--tl-font-ar);--tl-alt:var(--tl-alt-ar);--tl-dir:rtl;--tl-alt-lh:1}
-[data-lang=it]{--tl-font:var(--tl-font-it);--tl-alt:var(--tl-alt-it);--tl-dir:ltr;--tl-alt-lh:1}
-[data-lang=ja]{--tl-font:var(--tl-font-ja);--tl-alt:var(--tl-alt-ja);--tl-dir:ltr;--tl-alt-lh:1}
-[data-lang=fr]{--tl-font:var(--tl-font-fr);--tl-alt:var(--tl-alt-fr);--tl-dir:ltr;--tl-alt-lh:1}
-[data-lang=de]{--tl-font:var(--tl-font-de);--tl-alt:var(--tl-alt-de);--tl-dir:ltr;--tl-alt-lh:1}
-[data-lang=tr]{--tl-font:var(--tl-font-tr);--tl-alt:var(--tl-alt-tr);--tl-dir:ltr;--tl-alt-lh:1}
-[data-lang=en]{--tl-font:var(--tl-font-en);--tl-alt:var(--tl-alt-en);--tl-dir:ltr;--tl-alt-lh:1}
-[data-lang=hi]{--tl-font:var(--tl-font-hi);--tl-alt:var(--tl-alt-hi);--tl-dir:ltr;--tl-alt-lh:1}
-[data-lang=es]{--tl-font:var(--tl-font-es);--tl-alt:var(--tl-alt-es);--tl-dir:ltr;--tl-alt-lh:1}
-[data-lang=zh]{--tl-font:var(--tl-font-zh);--tl-alt:var(--tl-alt-zh);--tl-dir:ltr;--tl-alt-lh:1}
+[data-lang=fa]{--tl-font:var(--tl-font-fa);--tl-alt:var(--tl-alt-fa);--tl-dir:rtl;--tl-alt-lh:2.6;--tl-name:"Persian"}
+[data-lang=ar]{--tl-font:var(--tl-font-ar);--tl-alt:var(--tl-alt-ar);--tl-dir:rtl;--tl-alt-lh:1;--tl-name:"Arabic"}
+[data-lang=it]{--tl-font:var(--tl-font-it);--tl-alt:var(--tl-alt-it);--tl-dir:ltr;--tl-alt-lh:1;--tl-name:"Italian"}
+[data-lang=ja]{--tl-font:var(--tl-font-ja);--tl-alt:var(--tl-alt-ja);--tl-dir:ltr;--tl-alt-lh:1;--tl-name:"Japanese"}
+[data-lang=fr]{--tl-font:var(--tl-font-fr);--tl-alt:var(--tl-alt-fr);--tl-dir:ltr;--tl-alt-lh:1;--tl-name:"French"}
+[data-lang=de]{--tl-font:var(--tl-font-de);--tl-alt:var(--tl-alt-de);--tl-dir:ltr;--tl-alt-lh:1;--tl-name:"German"}
+[data-lang=tr]{--tl-font:var(--tl-font-tr);--tl-alt:var(--tl-alt-tr);--tl-dir:ltr;--tl-alt-lh:1;--tl-name:"Turkish"}
+[data-lang=en]{--tl-font:var(--tl-font-en);--tl-alt:var(--tl-alt-en);--tl-dir:ltr;--tl-alt-lh:1;--tl-name:"English"}
+[data-lang=hi]{--tl-font:var(--tl-font-hi);--tl-alt:var(--tl-alt-hi);--tl-dir:ltr;--tl-alt-lh:1;--tl-name:"Hindi"}
+[data-lang=es]{--tl-font:var(--tl-font-es);--tl-alt:var(--tl-alt-es);--tl-dir:ltr;--tl-alt-lh:1;--tl-name:"Spanish"}
+[data-lang=zh]{--tl-font:var(--tl-font-zh);--tl-alt:var(--tl-alt-zh);--tl-dir:ltr;--tl-alt-lh:1;--tl-name:"Chinese"}
+[data-lang=ca]{--tl-font:var(--tl-font-ca);--tl-alt:var(--tl-alt-ca);--tl-dir:ltr;--tl-alt-lh:1;--tl-name:"Catalan"}

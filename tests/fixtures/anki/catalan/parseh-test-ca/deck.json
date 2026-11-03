@@ -1,0 +1,7 @@
+{
+ "name": "Parseh::Test",
+ "lang": "ca",
+ "id": 1998880135,
+ "created": "2026-11-03",
+ "_comment": "A fixture deck: one vocab and one opposites card of this language, filed under its language folder exactly as the store now writes them. Every fixture deck shares the NAME 'Parseh::Test' on purpose -- two languages may hold a deck of the same name (and so the same slug), since they live in different folders; the directory names them apart only for a human reading the fixture. Never a deck the dashboards write into."
+}

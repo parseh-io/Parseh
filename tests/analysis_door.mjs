@@ -97,7 +97,9 @@ async function fake(phone) {
     has(await text(), 'CC BY-NC-SA 4.0', 'the models\' licence is on the page');
     has(await text(), 'Straka', 'whose work they are is on the page');
     has(await text(), 'not part of Parseh', 'and that they can be left out');
-    eq(await page.$$eval('[data-tick]', b => b.length), 11, 'a tick for Farahidi, Starlang and nine models');
+    // one tick per pinned UDPipe model (lib/analysispins.py), and one each for Farahidi and Starlang
+    const models = (Deno.readTextFileSync(root + '/lib/analysispins.py').match(/^ {4}"[a-z]{2,3}": _model\(/gm) || []).length;
+    eq(await page.$$eval('[data-tick]', b => b.length), models + 2, `a tick for Farahidi, Starlang and ${models} models`);
     eq(await page.$eval('#an-get', b => b.disabled), true, 'nothing ticked, nothing to get');
     has(await text(), 'Get a language above', 'Try it says what it waits for');
     assert(!(await page.$('#an-try')), 'and has no button that could only fail');

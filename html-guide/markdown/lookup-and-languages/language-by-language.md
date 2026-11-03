@@ -2,7 +2,7 @@
 title: What differs, language by language
 linkTitle: Language by language
 weight: 10
-description: Levels, readings, words, vertical text, verb entries, transliteration schemes and the reading help — everything that is not the same in all eleven languages.
+description: Levels, readings, words, vertical text, verb entries, transliteration schemes and the reading help — everything that is not the same in every languages.
 ---
 
 The doors, the buttons and the file formats are the same for every
@@ -24,7 +24,7 @@ them ([Levels and their names](../books/levels.md)).
 | Arabic | **With vowels** the vowelled attempt · **Chunks** chunks and glosses · **Plain** unvowelled, as Arabic is written |
 | Japanese | **Furigana** with furigana over each word · **Kana only** the reading alone, in kana · **Chunks** chunks and glosses · **Plain** plain, as Japanese is written · **Vertical** vertical (tategaki) |
 | Chinese | **Pinyin** with pinyin over each word · **Pinyin only** the reading alone, in pinyin · **Chunks** chunks and glosses · **Plain** plain, as Chinese is written · **Vertical** vertical |
-| Italian, French, German, Turkish, English, Spanish, Hindi | **Sentence** the sentence · **Chunks** chunks and glosses |
+| Italian, French, German, Turkish, English, Spanish, Hindi, Catalan | **Sentence** the sentence · **Chunks** chunks and glosses |
 
 Why these and not others:
 
@@ -80,6 +80,7 @@ a gloss is written the way it is.
 | **Japanese** | required: Hepburn rōmaji written from the kana (*Tōkyō*, particles *wa e o* as said). |
 | **Chinese** | required: pinyin with tone marks, never numbers; the neutral tone unmarked. |
 | **Italian**, **Spanish** | optional, and given only where the spelling misleads — Italian's open and closed *e* and *o* and its stress, Spanish's silent *h*. Most chunks need none. |
+| **Catalan** | optional, given where the spelling misleads, which is more often than in Italian or Spanish: the open and closed *e* and *o*, the neutral vowel *ə* of an unstressed *a* or *e*, the letters not said (an infinitive's *r*, *molt*'s *t*); the stressed vowel always marked in the line. |
 | **German** | optional, where the spelling misleads (vowel length, the two *ch*, stress). Capitals are spelling — a noun always has one — and a separable verb is glossed as the whole verb, however far apart its halves are. |
 | **Turkish** | optional and rarely needed: the spelling is phonemic. The vocabulary line carries the morphology instead — a word's stem and each suffix in order. |
 | **French** | optional in principle, given on almost every chunk in practice: the spelling hides the sound (silent endings, nasal vowels, liaisons). A respelling, not IPA. |
@@ -105,6 +106,7 @@ each language's:
 | Hindi | infinitive · stem · perfective (m. sg.) | *stem* / *perf.* |
 | Spanish | infinitive · 1st sg. present · 3rd sg. preterite | *pres.* / *pret.* |
 | Chinese | verb · A了B (a separable verb only) · A不B (a verb with a complement only) | *split* / *can't* |
+| Catalan | infinitive · 1st sg. present · past participle | *pres.* / *p.p.* |
 
 A pair left blank is not printed at all — a Chinese verb has its *split*
 form or its *can't* form, never both. Whatever else a language's verbs need
@@ -112,7 +114,7 @@ goes in one parenthesis after the meaning: *to drive (er fährt; aux.
 sein)*. The chunk sheet's `\vb{}{}{}{}{}{}{}` button names the three
 forms of the book's language in its tooltip, and the dictionary's verb entries, where a
 language's recipe recognises a verb, arrive in exactly this shape
-([Dictionaries](dictionaries.md)). Every one of the eleven languages has
+([Dictionaries](dictionaries.md)). Every one of Parseh's languages has
 such a recipe.
 
 ## In each door
@@ -122,7 +124,7 @@ such a recipe.
 | **Book reader** | the levels above and their names; the direction and side of the chunk column; the digits of the labels; ruby over the words of Japanese and Chinese; the ⚙ panel's first slider named after the language (**Persian text size**), and a **Height of vertical columns** slider for Japanese and Chinese; **Diacritics** for Persian and Arabic |
 | **Video player** | the direction and face of the transcript; the kana line of a Japanese phrase above its rōmaji; the **kana only** / **pinyin only** reading button for Japanese and Chinese; **Diacritics** for Persian and Arabic |
 | **Studio** | which text is found by its script and which must be marked; the fonts offered by `font=` (`nastaliq` for Persian, `gothic` for Japanese); `vertical` for Japanese and Chinese; a lemma heading's reading field and a **kana** insert button for Japanese; the target-text editor's button, **✎ Persian**, **✎ Japanese**… |
-| **Reading help** | a dictionary for every language, with extra rules for Persian, Arabic, French, Italian, Japanese and Chinese; a corpus of Japanese or Chinese only after its dictionary; **Decompose Kanji** / **Decompose Hanzi** for Japanese and Chinese only; translation models only to or from English |
+| **Reading help** | a dictionary for every language, with extra rules for Persian, Arabic, French, Italian, Japanese, Chinese and Catalan, and for Arabic one more per dialect (Egyptian, Levantine, Gulf, Moroccan), read first in a book or a video written in it; a corpus of Japanese or Chinese only after its dictionary; **Decompose Kanji** / **Decompose Hanzi** for Japanese and Chinese only; translation models only to or from English |
 | **Anki** | a pair of note types per language — *Frank Italian* and *Frank Italian Opposites*, and so on (Persian's first is *Frank YouTube Persian*) — whose first field is named after the language (*Headword* for English), with a *Reading* field for Japanese; tags `<language>-book` and `<language>-youtube` (`farsi-…` for Persian) |
 | **Videos, adding one** | which captions count as *plain* (in a script language, a caption with none of its letters); the words for seconds, minutes and chapters in the transcript |
 

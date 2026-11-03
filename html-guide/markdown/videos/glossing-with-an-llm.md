@@ -256,7 +256,7 @@ context, and an answer that hands it back unchanged would write it back.
 Only the four gloss fields are ever written: never the text, the words, the
 colour, the note or a phrase's freedom from the transcript.
 
-> **Every language.** The panel works the same in all eleven. What changes
+> **Every language.** The panel works the same in every language. What changes
 > is what the prompt asks for — the kana of Japanese, the pinyin of Chinese
 > agreeing with its words, a transliteration where the language wants one —
 > and the conventions it carries, which are that language's own.

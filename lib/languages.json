@@ -1,6 +1,6 @@
 {
   "_comment": "The language registry of Parseh -- one entry per language a learner can study. Read by lib/languages.py (Python) and embedded, per page, into the HTML the tools write; nothing else holds a table of languages. Order here is display order. Character classes are regex ranges usable by both Python's re and JavaScript's RegExp. This file is Parseh's own, and an update replaces it: a language added on one machine is written to config/languages.json instead, which lib/languages.py reads after this one. _shipped names the rows that belong here; a row this file holds and _shipped does not name was added by hand, and Parseh moves it to config/languages.json when it starts (docs/languages.md, section 1).",
-  "_shipped": ["fa", "ar", "it", "ja", "fr", "de", "tr", "en", "hi", "es", "zh"],
+  "_shipped": ["fa", "ar", "it", "ja", "fr", "de", "tr", "en", "hi", "es", "zh", "ca"],
   "fa": {
     "name": "Persian", "native": "فارسی", "folder": "persian", "tag": "farsi",
     "iso3": "pes",
@@ -35,7 +35,13 @@
     "anki": {"field": "Persian", "vocab_model": 1724563200001, "opposites_model": 1724563200002,
              "vocab_name": "Frank YouTube Persian", "opposites_name": "Frank Persian Opposites"},
     "duration_units": ["ثانیه", "دقیقه", "ساعت"],
-    "chapter_words": ["فصل"]
+    "chapter_words": ["فصل"],
+    "analysis": {"morphology": "udpipe", "syntax": "udpipe"},
+    "examples": {
+      "dict": ["شیر", "šir", "noun", ["milk", "lion", "tap, faucet"]],
+      "corpus": ["من <m>شیر</m> دوست دارم.", "I like <m>milk</m>."],
+      "model": ["دوباره می‌سازمت، وطن", "I will rebuild you, my country"]
+    }
   },
   "ar": {
     "name": "Arabic", "native": "العربية", "folder": "arabic", "tag": "arabic",
@@ -71,7 +77,21 @@
     "anki": {"field": "Arabic", "vocab_model": 1724563200011, "opposites_model": 1724563200012,
              "vocab_name": "Frank Arabic", "opposites_name": "Frank Arabic Opposites"},
     "duration_units": ["ثانية", "ثوان", "ثوانٍ", "دقيقة", "دقائق", "ساعة", "ساعات"],
-    "chapter_words": ["الفصل", "فصل"]
+    "chapter_words": ["الفصل", "فصل"],
+    "compounds": "parts",
+    "analysis": {"morphology": "farahidi", "syntax": "udpipe"},
+    "examples": {
+      "dict": ["كتاب", "kitāb", "noun", ["book", "letter, note"]],
+      "corpus": ["هذا <m>كتاب</m> جديد.", "This is a new <m>book</m>."],
+      "model": ["سأعود غدًا.", "I will come back tomorrow."]
+    },
+    "standard_name": "Modern Standard Arabic",
+    "varieties": [
+      {"key": "egy", "name": "Egyptian Arabic", "kaikki": [["Egyptian Arabic", "arz"]]},
+      {"key": "lev", "name": "Levantine Arabic", "kaikki": [["South Levantine Arabic", "ajp"], ["North Levantine Arabic", "apc"]]},
+      {"key": "gulf", "name": "Gulf Arabic", "kaikki": [["Gulf Arabic", "afb"], ["Hijazi Arabic", "acw"]]},
+      {"key": "mor", "name": "Moroccan Arabic", "kaikki": [["Moroccan Arabic", "ary"]]}
+    ]
   },
   "it": {
     "name": "Italian", "native": "italiano", "folder": "italian", "tag": "italian",
@@ -105,7 +125,13 @@
     "anki": {"field": "Italian", "vocab_model": 1724563200021, "opposites_model": 1724563200022,
              "vocab_name": "Frank Italian", "opposites_name": "Frank Italian Opposites"},
     "duration_units": ["secondo", "secondi", "minuto", "minuti", "ora", "ore"],
-    "chapter_words": ["capitolo"]
+    "chapter_words": ["capitolo"],
+    "analysis": {"morphology": "udpipe", "syntax": "udpipe"},
+    "examples": {
+      "dict": ["casa", "", "noun", ["house", "home"]],
+      "corpus": ["La <m>casa</m> è grande.", "The <m>house</m> is big."],
+      "model": ["Domani pioverà.", "It will rain tomorrow."]
+    }
   },
   "ja": {
     "name": "Japanese", "native": "日本語", "folder": "japanese", "tag": "japanese",
@@ -143,7 +169,14 @@
     "anki": {"field": "Japanese", "vocab_model": 1724563200031, "opposites_model": 1724563200032,
              "vocab_name": "Frank Japanese", "opposites_name": "Frank Japanese Opposites"},
     "duration_units": ["秒", "分", "時間"],
-    "chapter_words": ["章", "第"]
+    "chapter_words": ["章", "第"],
+    "compounds": "parts",
+    "analysis": {"morphology": "native", "syntax": null},
+    "examples": {
+      "dict": ["家", "いえ", "noun", ["house", "home, family"]],
+      "corpus": ["<m>猫</m>が好きです。", "I like <m>cats</m>."],
+      "model": ["明日は雨が降るでしょう。", "It will probably rain tomorrow."]
+    }
   },
   "fr": {
     "name": "French",
@@ -225,7 +258,13 @@
     ],
     "chapter_words": [
       "chapitre"
-    ]
+    ],
+    "analysis": {"morphology": "udpipe", "syntax": "udpipe"},
+    "examples": {
+      "dict": ["livre", "", "noun", ["book (masculine)", "pound (feminine)"]],
+      "corpus": ["J’ai lu ce <m>livre</m>.", "I read this <m>book</m>."],
+      "model": ["Il pleuvra demain.", "It will rain tomorrow."]
+    }
   },
   "de": {
     "name": "German",
@@ -307,7 +346,14 @@
     ],
     "chapter_words": [
       "Kapitel"
-    ]
+    ],
+    "compounds": "parts",
+    "analysis": {"morphology": "udpipe", "syntax": "udpipe"},
+    "examples": {
+      "dict": ["Bank", "", "noun", ["bench", "bank"]],
+      "corpus": ["Die <m>Bank</m> ist geschlossen.", "The <m>bank</m> is closed."],
+      "model": ["Morgen wird es regnen.", "It will rain tomorrow."]
+    }
   },
   "tr": {
     "name": "Turkish",
@@ -386,7 +432,13 @@
     ],
     "chapter_words": [
       "bölüm"
-    ]
+    ],
+    "analysis": {"morphology": "starlang", "syntax": "udpipe"},
+    "examples": {
+      "dict": ["ev", "", "noun", ["house, home", "household, family"]],
+      "corpus": ["<m>Ev</m> çok büyük.", "The <m>house</m> is very big."],
+      "model": ["Yarın yağmur yağacak.", "It will rain tomorrow."]
+    }
   },
   "en": {
     "name": "English",
@@ -469,7 +521,13 @@
     ],
     "chapter_words": [
       "chapter"
-    ]
+    ],
+    "analysis": {"morphology": "udpipe", "syntax": "udpipe"},
+    "examples": {
+      "dict": ["bank", "", "noun", ["an institution that keeps money", "the land along a river"]],
+      "corpus": ["The <m>bank</m> is closed.", "La <m>banca</m> è chiusa."],
+      "model": ["It will rain tomorrow.", "Domani pioverà."]
+    }
   },
   "hi": {
     "name": "Hindi",
@@ -556,7 +614,13 @@
       "अध्याय",
       "पाठ",
       "भाग"
-    ]
+    ],
+    "analysis": {"morphology": "udpipe", "syntax": "udpipe"},
+    "examples": {
+      "dict": ["घर", "ghar", "noun", ["house, home", "household"]],
+      "corpus": ["यह मेरा <m>घर</m> है।", "This is my <m>house</m>."],
+      "model": ["कल बारिश होगी।", "It will rain tomorrow."]
+    }
   },
   "es": {
     "name": "Spanish",
@@ -629,7 +693,13 @@
       "opposites_name": "Frank Spanish Opposites"
     },
     "duration_units": ["segundo", "segundos", "minuto", "minutos", "hora", "horas"],
-    "chapter_words": ["capítulo"]
+    "chapter_words": ["capítulo"],
+    "analysis": {"morphology": "udpipe", "syntax": "udpipe"},
+    "examples": {
+      "dict": ["banco", "", "noun", ["bank", "bench"]],
+      "corpus": ["El <m>banco</m> está cerrado.", "The <m>bank</m> is closed."],
+      "model": ["Mañana lloverá.", "It will rain tomorrow."]
+    }
   },
   "zh": {
     "name": "Chinese",
@@ -723,6 +793,107 @@
       "opposites_name": "Frank Chinese Opposites"
     },
     "duration_units": ["秒", "秒", "分钟", "分钟", "小时", "小时"],
-    "chapter_words": ["第", "章", "回"]
+    "chapter_words": ["第", "章", "回"],
+    "compounds": "parts",
+    "analysis": {"morphology": "native", "syntax": null},
+    "examples": {
+      "dict": ["书", "shū", "noun", ["book", "letter, document"]],
+      "corpus": ["我在看<m>书</m>。", "I am reading a <m>book</m>."],
+      "model": ["明天会下雨。", "It will rain tomorrow."]
+    }
+  },
+  "ca": {
+    "name": "Catalan",
+    "native": "català",
+    "iso3": "cat",
+    "folder": "catalan",
+    "tag": "catalan",
+    "dir": "ltr",
+    "script": "latin",
+    "chars": null,
+    "word_sep": " ",
+    "digits": "0123456789",
+    "strip": null,
+    "reading": false,
+    "vertical": false,
+    "words": false,
+    "require_tr": false,
+    "translit_label": "pronunciation",
+    "reading_label": null,
+    "vocal_label": "the sentence",
+    "bare_label": null,
+    "vb_labels": [
+      "pres.",
+      "p.p."
+    ],
+    "vb_forms": [
+      "infinitive",
+      "1st sg. present",
+      "past participle"
+    ],
+    "fonts": {
+      "main": null,
+      "alt": null,
+      "alt_key": null,
+      "css_main": "'TeX Gyre Pagella', 'Palatino Linotype', Palatino, Georgia, serif",
+      "css_alt": null,
+      "alt_line_height": null,
+      "web_files": []
+    },
+    "tex": {
+      "babel": "catalan",
+      "import": "ca",
+      "options": "",
+      "script": "Latin",
+      "language": "Catalan",
+      "main": null,
+      "main_fallbacks": [],
+      "alt": null,
+      "alt_options": null,
+      "hyphen": "catalan"
+    },
+    "passes": [
+      {
+        "key": "vocal",
+        "name": "Sentence",
+        "label": "1",
+        "title": "the sentence, to read on its own"
+      },
+      {
+        "key": "chunks",
+        "name": "Chunks",
+        "label": "2",
+        "title": "the sentence cut into chunks, each with its gloss beside it"
+      }
+    ],
+    "anki": {
+      "field": "Catalan",
+      "vocab_model": 1724563200121,
+      "opposites_model": 1724563200122,
+      "vocab_name": "Frank Catalan",
+      "opposites_name": "Frank Catalan Opposites"
+    },
+    "duration_units": [
+      "segon",
+      "segons",
+      "minut",
+      "minuts",
+      "hora",
+      "hores"
+    ],
+    "chapter_words": [
+      "capítol"
+    ],
+    "like": "es",
+    "analysis": {
+      "morphology": "udpipe",
+      "syntax": "udpipe"
+    },
+    "examples": {
+      "dict": ["gat", "", "noun", ["cat", "jack (for lifting a car)"]],
+      "corpus": ["El <m>gat</m> dorm al sofà.", "The <m>cat</m> is sleeping on the sofa."],
+      "model": ["Demà plourà.", "It will rain tomorrow."],
+      "macros": {"dw": "\\dw{llibre}{} book, m.", "vb": "\\vb{perdre}{pèrdre}{perdo}{pèrdo}{perdut}{}{to lose}", "bw": "\\vb{tenir}{}{tinc}{}{tingut}{}{}\\bw{gana}{}{to be hungry}", "pw": "\\dw{mà}{} hand, f., pl. \\pw{mans}"}
+    }
   }
 }

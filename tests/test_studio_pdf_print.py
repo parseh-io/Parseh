@@ -783,7 +783,7 @@ class StartersInLargePrint(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_every_starter_stays_inside_the_text_block_in_large_print(self):
-        self.assertEqual(11 * 3, len(self.runs))
+        self.assertEqual(len(list(STARTERS.glob("*.md"))) * 3, len(self.runs))     # every starter, at three sizes
         for (code, size), (build, out) in sorted(self.runs.items()):
             # built, and every target string found where it is printed
             self.assertEqual("ok", build["status"], (code, size, build))

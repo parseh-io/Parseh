@@ -1,5 +1,9 @@
 ## [a0.6.1] - unreleased
 ### Added
+- Catalan, a twelfth language: books, videos, the studio, its dictionary's rules, verb entries, linguistic analysis, speech to text
+- Arabic dialects: a book or a video can be Egyptian, Levantine, Gulf or Moroccan Arabic, with each dialect's own dictionary and rules read first
+- Settings → Languages: what each language has, feature by feature; add a language of your own from a form, and write its prose with a chatbot
+- Adding a language starts from a related one (newlang.py --like), and every per-language table is now the language's row
 
 ## [a0.6.0] - 2026-11-02
 ### Added

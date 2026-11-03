@@ -1,0 +1,7 @@
+{
+ "_comment": "Which of Wiktionary's pronunciations a Catalan word keeps. Read by lib/translit.py and lib/getdict.py; optional, like every file of this name. No `map`: docs/lang/ca.md writes a pronunciation by hand and only where it helps, so nothing here turns IPA into a transliteration.",
+ "prefer": [
+  "Central"
+ ],
+ "_prefer": "WHICH PRONUNCIATION. Wiktionary gives a Catalan word several, tagged Central, Balearic, Valencia, North-Western and, without a tag, often the Northern one first, whose e̞ and o̞ do not say whether a vowel is open or closed. docs/lang/ca.md takes Central Catalan as its reference, and lib/verbs/ca.py reads the open or closed e and o of a verb's forms from it: before this file, 1 verb entry in 172 that stresses an e or an o said which (measured by the recipe's author, 2026-11-03)."
+}

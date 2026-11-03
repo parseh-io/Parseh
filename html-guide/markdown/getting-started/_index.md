@@ -11,8 +11,8 @@ once. It runs on your own computer as one small web server, and you use it
 in a browser — on that computer, or on a phone or a laptop that can reach
 it.
 
-It teaches eleven languages — Persian, Arabic, Italian, Japanese, French,
-German, Turkish, English, Hindi, Spanish and Chinese — right to left for
+It teaches twelve languages — Persian, Arabic, Italian, Japanese, French,
+German, Turkish, English, Hindi, Spanish, Chinese and Catalan — right to left for
 Persian and Arabic, and set vertically for Japanese and Chinese when you
 want them so.
 

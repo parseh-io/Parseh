@@ -1,0 +1,2 @@
+# git carries no empty directory, and this one must survive a clone:
+# every tool that lists content walks <door>/<language>/<item>/.

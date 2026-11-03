@@ -1,0 +1,30 @@
+{
+ "id": "ca-opp",
+ "guid": "fx-ca-opp",
+ "kind": "opposites",
+ "lang": "ca",
+ "created": "2026-11-03 10:00:00",
+ "video": "",
+ "book": "fixture-ca",
+ "time": 0,
+ "context": "",
+ "notes": "",
+ "bidirectional": true,
+ "reverse_only": false,
+ "img_front": null,
+ "img_back": null,
+ "fa": "gran",
+ "kana": "",
+ "tr": "",
+ "en": "",
+ "opp": "petit",
+ "opp_kana": "",
+ "opp_tr": "",
+ "tags": [
+  "catalan-book"
+ ],
+ "source": {
+  "label": "fixture",
+  "url": ""
+ }
+}

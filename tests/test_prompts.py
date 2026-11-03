@@ -86,6 +86,8 @@ SIZES = {
     "hi": ((18521, 21300), (18196, 21000), (33252, 38300), (22678, 26100), (21961, 25300), (2811, 3300), (64340, 74000)),
     "es": ((18139, 20900), (17906, 20600), (38592, 44400), (27945, 32200), (27276, 31400), (2783, 3300), (69785, 80300)),
     "zh": ((19334, 22300), (19034, 21900), (41768, 48100), (28888, 33300), (28305, 32600), (2739, 3200), (71772, 82600)),
+    # Catalan (a0.6.1): its conventions say more of the sound than Spanish's, whose spelling says more of it
+    "ca": ((19305, 22300), (19072, 22000), (43293, 49800), (31226, 36000), (30550, 35200), (2777, 3200), (74959, 86300)),
 }
 MEASURED = ("studio-doc", "studio-exercises", "video-new", "video-region", "book-region",
             "transcript-tidy", "book-new")
@@ -962,7 +964,8 @@ class LanguageCut(unittest.TestCase):
         for code in self.CODES:
             whole = len(K.language_text("book-new", code))
             self.assertGreater(whole - len(K.language_text("studio-doc", code)), 8000, code)
-            self.assertLess(whole - len(K.language_text("studio-doc", code)), 18500, code)
+            # (20.5 K since Catalan's, the longest file at 24 K, which loses 81 % of it as Spanish loses 83 %)
+            self.assertLess(whole - len(K.language_text("studio-doc", code)), 20500, code)
             for who in ("book", "video"):
                 own = len(K.language_text(who + "-new", code))
                 self.assertGreater(own - len(K.language_text(who + "-region", code)), 500, code)
@@ -1871,13 +1874,14 @@ class StudioBoxes(ControlledMachine):
     def test_the_lesson_is_under_sixty_percent_of_the_old_prompt_in_every_language(self):
         # the owner's reason for the boxes: "sometimes these prompts are too long for some LLMs"
         lesson = next(p for p in promptboxes.PRESETS if p.default).boxes
-        for code in languages.CODES:
+        # the languages the old prompt was measured in; one added since never had it, and SIZES holds its budget
+        for code in [c for c in languages.CODES if c in OLD_STUDIO]:
             new = len(studio_server.studio_prompt(languages.get(code), boxes=list(lesson)).text)
             self.assertLess(new, 0.6 * OLD_STUDIO[code], "%s: the lesson is %d characters, the old prompt %d" % (
                 code, new, OLD_STUDIO[code]))
 
     def test_the_exercise_prompt_for_a_page_that_uses_nothing_is_under_sixty_percent_of_the_old_one(self):
-        for code in languages.CODES:
+        for code in [c for c in languages.CODES if c in OLD_EXERCISES]:
             new = len(promptlab.build("studio-exercises", code).text)
             self.assertLess(new, 0.6 * OLD_EXERCISES[code], (code, new, OLD_EXERCISES[code]))
 
@@ -2575,7 +2579,7 @@ USUAL_SCHEME_SAYS = {
     "fa": "**š** = ش", "ar": "never `kh`", "hi": "**ष is ś, like श.**", "ja": "**Hepburn rōmaji**",
     "it": "IPA-lite pronunciation aid", "es": "IPA-lite pronunciation aid",
     "fr": "The scheme is a respelling, not IPA", "de": "**pronunciation line, given only where the spelling misleads**",
-    "tr": "**Never respell the alphabet.**",
+    "tr": "**Never respell the alphabet.**", "ca": "IPA-lite pronunciation aid",
 }
 TAKE_THE_FILE = ("studio-doc", "studio-exercises", "video-region", "book-region", "video-new", "book-new")
 

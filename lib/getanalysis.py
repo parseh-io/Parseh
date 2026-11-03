@@ -5,6 +5,7 @@
     python3 lib/getanalysis.py                  what is here
     python3 lib/getanalysis.py get farahidi udpipe:de udpipe:fa starlang
     python3 lib/getanalysis.py remove udpipe:de | farahidi | starlang | all
+    python3 lib/getanalysis.py measure catalan-ancora   a new language's UDPipe pin, measured at LINDAT
 
 Nothing here is imported, fetched or started until somebody asks on Settings ->
 Linguistic analysis (lib/analysispage.py); a person who never does has the
@@ -545,6 +546,47 @@ def remove(what):
     return True
 
 
+# THE PIN OF A MODEL NOBODY HAS PINNED YET: for a developer adding a language
+# (docs/analyzers.md, "Moving a pin").  LINDAT's item for the UD 2.5 models
+# lists every file with its bitstream id and size; the hash is the file's own,
+# taken from a download into a throwaway folder that is deleted afterwards.
+ITEM = "https://lindat.mff.cuni.cz/repository/server/api/core/items/41f05304-629f-4313-b9cf-9eeb0a2ca7c6/bundles"
+
+
+def measure(treebank, say=print):
+    """The UDPIPE_MODELS line for `treebank` (catalan-ancora), measured at LINDAT."""
+    import hashlib
+    import tempfile
+    import urllib.request
+
+    def get(url):
+        req = urllib.request.Request(url, headers={"User-Agent": "Parseh getanalysis measure"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return json.load(r)
+    want = "%s-ud-2.5-191206.udpipe" % treebank
+    found = None
+    for b in get(ITEM)["_embedded"]["bundles"]:
+        if b["name"] != "ORIGINAL":
+            continue
+        for f in get(b["_links"]["bitstreams"]["href"] + "?size=500")["_embedded"]["bitstreams"]:
+            if f["name"] == want:
+                found = f
+    if not found:
+        raise AnalysisError("LINDAT's UD 2.5 models have no %s." % want)
+    with tempfile.TemporaryDirectory() as tmp:
+        dest = os.path.join(tmp, want)
+        say("fetching %s (%.1f MB) to hash it" % (want, found["sizeBytes"] / 1048576))
+        download.fetch(pins.MODEL_HOST % found["uuid"], dest)
+        h = hashlib.sha256()
+        with open(dest, "rb") as f:
+            for block in iter(lambda: f.read(1 << 20), b""):
+                h.update(block)
+        size = os.path.getsize(dest)
+    if size != found["sizeBytes"]:
+        raise AnalysisError("LINDAT said %d bytes and sent %d." % (found["sizeBytes"], size))
+    return '    "<code>": _model("%s", "%s", %d,\n                 "%s"),' % (treebank, found["uuid"], size, h.hexdigest())
+
+
 def _cli(argv):
     if not argv:
         print(json.dumps(status(), indent=1, ensure_ascii=False))
@@ -554,6 +596,8 @@ def _cli(argv):
             build(check_items(argv[1:]))
         elif argv[0] == "remove" and len(argv) == 2:
             remove(argv[1])
+        elif argv[0] == "measure" and len(argv) == 2:
+            print(measure(argv[1]))
         else:
             print(__doc__)
             return 2

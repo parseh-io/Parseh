@@ -541,8 +541,8 @@ class Adding(Tree):
         self.assertEqual(slot, newlang.PERSONAL_SLOT + 7)
         self.assertEqual((vocab, opp), (newlang.ANKI_BASE + newlang.ANKI_STEP * slot + 1,
                                         newlang.ANKI_BASE + newlang.ANKI_STEP * slot + 2))
-        # and Parseh's own walk is the one it always was
-        self.assertEqual(newlang.next_anki_pair(reg)[2], 12)
+        # and Parseh's own walk is the one it always was: the slot after the last shipped language's (Catalan's, 12)
+        self.assertEqual(newlang.next_anki_pair(reg)[2], 13)
 
 
 TEXLUA = shutil.which("texlua")

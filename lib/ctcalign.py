@@ -54,6 +54,10 @@ def _path(np, logits, tokens, blank):
     return logs, path, labels
 
 
+# a character a text writes for one the networks' vocabularies hold
+_SAME = {"\u2019": "'", "\u2018": "'", "\u02bc": "'", "\u2027": "\u00b7", "\u0387": "\u00b7", "\u2022": "\u00b7"}
+
+
 def _spans(np, logits, text, vocab, meta):
     blank = int(meta["model"]["blank_id"])
     delimiter = meta["model"].get("word_delimiter")
@@ -62,6 +66,12 @@ def _spans(np, logits, text, vocab, meta):
     for char in text:
         lookup = delimiter if spaced and char == " " else char
         token = vocab.get(lookup)
+        if token is None and lookup != delimiter:
+            # the same letter as the network spells it: its lower case (a caption's capitals), or the one
+            # sign of several a text may write for it (’ for ', the dots a Catalan l·l is typed with)
+            token = vocab.get(lookup.lower())
+            if token is None and lookup in _SAME:
+                token = vocab.get(_SAME[lookup])
         if token is None:
             # One synthetic wildcard uses the strongest non-blank emission at
             # each frame, preserving monotonicity without inventing vocabulary.

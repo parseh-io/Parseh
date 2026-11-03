@@ -243,6 +243,31 @@ class Lang:
         # (the usual scheme already IS IPA: English) or "none" (the setting is not offered: Chinese,
         # whose word line is written in pinyin, which no converter turns into IPA yet)
         self.ipa = d.get("ipa") if d.get("ipa") in ("usual", "none") else "offered"
+        # which analyzer speaks for the language's morphology and its syntax
+        # (lib/analyzer.py), by name: "udpipe", "farahidi", "starlang", "native"
+        # (the word line), or nothing -- a language added without the key has none
+        an = d.get("analysis") or {}
+        self.analysis = {"morphology": an.get("morphology") or None, "syntax": an.get("syntax") or None}
+        # one example per kind, in the language itself: what a row of the lookup
+        # page would add (dict, corpus, model) and what a gloss button writes
+        # (macros: dw, vb, bw, pw).  A language without them is shown without.
+        self.examples = dict(d.get("examples") or {})
+        # how a compound is glossed: "parts" (the whole with its parts: German,
+        # Japanese, Chinese, Arabic) or "verb" (a light verb with the word it
+        # carries: the default)
+        self.compounds = "parts" if d.get("compounds") == "parts" else "verb"
+        # the related language it was started from (newlang.py --like): whose
+        # files the prompts for its prose show as the model
+        self.like = d.get("like") or None
+        # THE VARIETIES A TEXT MAY BE WRITTEN IN, besides the standard one
+        # (Arabic's dialects): each {key, name, kaikki: [[extract name,
+        # lang_code], ...]}.  A book or a video names one in its `variety`;
+        # its lookups then try that variety's dictionary and rules first.
+        self.varieties = [dict(v) for v in (d.get("varieties") or []) if isinstance(v, dict) and v.get("key")]
+        self.standard_name = d.get("standard_name") or ""
+        self.variety = None               # set on the copy with_variety() returns
+        self.variety_name = ""
+        self.key = code                   # the dictionary's and the rules' file stem: ar, or ar.egy
         self.reading_label = d.get("reading_label")
         self.vocal_label = d.get("vocal_label") or "the sentence"
         self.bare_label = d.get("bare_label")
@@ -387,10 +412,32 @@ class Lang:
                 "fonts": {"css_main": self.css_font(), "css_alt": self.fonts.get("css_alt"),
                           "alt_key": self.fonts.get("alt_key"),
                           "alt_line_height": self.fonts.get("alt_line_height")},
-                "passes": self.passes, "anki": self.anki}
+                "passes": self.passes, "anki": self.anki,
+                "examples": self.examples, "compounds": self.compounds,
+                "varieties": [{"key": v["key"], "name": v.get("name") or v["key"]} for v in self.varieties],
+                "standard_name": self.standard_name}
+
+    def variety_of(self, key):
+        """The row of one variety (`egy`), or None."""
+        key = (key or "").strip().lower()
+        return next((v for v in self.varieties if v["key"] == key), None)
+
+    def with_variety(self, key):
+        """This language as written in one of its varieties: the same Lang in
+        everything (code, script, folder, every page), but for `key` -- the
+        stem of its own dictionary and rules (ar.egy) -- and its name.  The
+        language itself for an unknown or empty key."""
+        v = self.variety_of(key)
+        if v is None:
+            return self
+        import copy
+        V = copy.copy(self)
+        V.variety, V.variety_name = v["key"], v.get("name") or v["key"]
+        V.key = "%s.%s" % (self.code, v["key"])
+        return V
 
     def __repr__(self):
-        return "<Lang %s %s>" % (self.code, self.name)
+        return "<Lang %s %s>" % (self.key, self.name)
 
 
 def read_store(path=None):
@@ -520,6 +567,28 @@ CODES = list(LANGS)
 FOLDERS = {L.folder: L.code for L in LANGS.values()}
 
 
+def reload():
+    """Read the registry again, in place: every module that holds LANGS, CODES,
+    FOLDERS or GLOSSES sees the new table, and lib/langs.css is written again.
+    For a language added on this machine from Settings -> Languages, so that it
+    is in every page at once; what a module worked out from the table when it
+    was imported (an analyzer's language, say) is the next start's."""
+    fresh, problems = _load()
+    LANGS.clear()
+    LANGS.update(fresh)
+    PROBLEMS[:] = problems
+    CODES[:] = list(LANGS)
+    FOLDERS.clear()
+    FOLDERS.update({L.folder: L.code for L in LANGS.values()})
+    GLOSSES.clear()
+    GLOSSES.update(_glosses())
+    try:
+        write_css()
+    except OSError:
+        pass
+    return LANGS
+
+
 def get(code, default=None):
     """The language with this code.  Unknown -> the default when one is
     given, else KeyError: a misspelled code must not quietly become
@@ -527,6 +596,10 @@ def get(code, default=None):
     code = (code or "").strip().lower()
     if code in LANGS:
         return LANGS[code]
+    # a variety, by the key its dictionary and rules are filed under (ar.egy)
+    base, dot, v = code.partition(".")
+    if dot and base in LANGS and LANGS[base].variety_of(v):
+        return LANGS[base].with_variety(v)
     if default is not None:
         return LANGS[default] if isinstance(default, str) else default
     raise KeyError("unknown language %r (known: %s)" % (code, ", ".join(CODES)))
@@ -756,7 +829,6 @@ DEFAULT_GLOSS = "en"
 _PROSE = {
     "pt": ("Portuguese", "português", "portuguese", "ltr"),
     "nl": ("Dutch", "Nederlands", "dutch", "ltr"),
-    "ca": ("Catalan", "català", "catalan", "ltr"),
     "ro": ("Romanian", "română", "romanian", "ltr"),
     "pl": ("Polish", "polski", "polish", "ltr"),
     "ru": ("Russian", "русский", "russian", "ltr"),
@@ -960,8 +1032,11 @@ def css():
 
     An element that carries data-lang="<code>" gets --tl-font (the main face),
     --tl-alt (the alternate face, or the main one again), --tl-dir and
-    --tl-alt-lh (the leading the alternate face wants).  The stacks come
-    from the registry, so no stylesheet names a font per language.
+    --tl-alt-lh (the leading the alternate face wants), and --tl-name, the
+    English name as a CSS string, so a script on a page that was not handed
+    the registry can still say "Catalan" rather than "ca".  The stacks and
+    the names come from the registry, so no stylesheet and no script names
+    a font or a language of its own.
     """
     out = ["/* generated from lib/languages.json -- do not edit */", ":root{"]
     for L in LANGS.values():
@@ -971,7 +1046,8 @@ def css():
     for L in LANGS.values():
         lh = L.fonts.get("alt_line_height") or 1
         out.append("[data-lang=%s]{--tl-font:var(--tl-font-%s);--tl-alt:var(--tl-alt-%s);"
-                   "--tl-dir:%s;--tl-alt-lh:%s}" % (L.code, L.code, L.code, L.dir, lh))
+                   "--tl-dir:%s;--tl-alt-lh:%s;--tl-name:%s}"
+                   % (L.code, L.code, L.code, L.dir, lh, json.dumps(L.name)))
     return "\n".join(out) + "\n"
 
 

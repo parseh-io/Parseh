@@ -186,6 +186,19 @@ def _lang(lang):
         raise ValueError(str(e.args[0] if e.args else e))
 
 
+def _variety(L, variety):
+    """{"variety": key} for a variety the language has (Arabic's egy, lev,
+    gulf, mor), else nothing: the standard language is the absence of the key,
+    as it is in every book.json and video.json written before there were any."""
+    v = (variety or "").strip().lower()
+    if not v or v in ("standard", "msa"):
+        return {}
+    if not L.variety_of(v):
+        raise ValueError("%s has no variety %r (%s)." % (
+            L.name, v, ", ".join(x["key"] for x in L.varieties) or "it has none"))
+    return {"variety": v}
+
+
 def _gloss(gloss):
     """A code a gloss may be written in, or a Gloss.  Nothing -> English.
 
@@ -505,7 +518,7 @@ MAIN_TEX = r"""%% {byline}.  Build:  ./build.sh {slug}
 def book_from_text(text, lang, title, gloss="", slug=None, author="",
                    title_latin="", title_en="", author_latin="", year="",
                    blurb="", chapter=1, into=None,
-                   how=chunker.DEFAULT_WAY):
+                   how=chunker.DEFAULT_WAY, variety=""):
     """A whole reading edition, drafted from the text of one chapter.
 
     `text` is the chapter as the author has it -- paragraphs separated by
@@ -564,6 +577,7 @@ def book_from_text(text, lang, title, gloss="", slug=None, author="",
         # reader of either that took it for the other would be wrong about
         # half the page (docs/languages.md section 3)
         "gloss": G.code,
+        **_variety(L, variety),
         "title": title,
         "title_latin": (title_latin or "").strip() or slug,
         "title_en": (title_en or "").strip(),
@@ -800,7 +814,7 @@ def _level(level):
 def video_from_transcript(transcript, lang, gloss="", video_id=None, url="",
                           title="", title_native="", channel="",
                           level="beginner", blurb="", into=None,
-                          how=chunker.DEFAULT_WAY):
+                          how=chunker.DEFAULT_WAY, variety=""):
     """A video's three files, drafted from the transcript YouTube shows.
 
     `transcript` is that panel pasted whole, timestamps and all -- it is the
@@ -933,6 +947,7 @@ def video_from_transcript(transcript, lang, gloss="", video_id=None, url="",
         "channel": (channel or "").strip() or "Unknown channel",
         "language": L.code,
         "gloss": G.code,                # what the glosses are written IN
+        **_variety(L, variety),
         # the same three the add page offers and ytpages writes; anything
         # else is a typo, and the index would file the video under a level
         # no chip can pick

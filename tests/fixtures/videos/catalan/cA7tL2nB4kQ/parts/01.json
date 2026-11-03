@@ -1,0 +1,38 @@
+[
+ {"start": 0,
+  "chunks": [
+   {"fa": "Welcome back to the channel, today we learn Catalan at the market", "plain": true}
+  ]},
+ {"start": 6,
+  "chunks": [
+   {"fa": "Bon dia,", "voc": "bon good, the form bo takes before its noun; dia day, m. — bon dia is the greeting, morning and midday", "en": "good morning,"},
+   {"fa": "em posa", "tr": "əm pòzə", "voc": "posa you put, formal (posar · pres. poso pòso · p.p. posat · to put); em to me — em posa, lit. do you put me, is how one asks a shopkeeper for something", "en": "could I have"},
+   {"fa": "un quilo de taronges?", "voc": "quilo kilo, m.; taronja orange, f., pl. taronges — the j is written g before an e", "en": "a kilo of oranges?"}
+  ]},
+ {"start": 11,
+  "chunks": [
+   {"fa": "Quant valen", "voc": "quant how much; valen they cost (valer valèr · pres. valc · p.p. valgut · to be worth, to cost (fut. valdré))", "en": "how much are"},
+   {"fa": "les pomes avui?", "tr": "ləs pómə əvúi", "voc": "poma apple, f.; avui today", "en": "the apples today?"}
+  ]},
+ {"start": 15,
+  "chunks": [
+   {"fa": "Van a dos euros", "voc": "van they go (anar · pres. vaig · p.p. anat · to go (fut. aniré)) — anar a, of a price, to sell at; not the van of the past, which an infinitive follows", "en": "they are two euros"},
+   {"fa": "el quilo,", "voc": "el quilo the kilo — Catalan says the where English says a", "en": "a kilo,"},
+   {"fa": "senyora", "voc": "senyora madam; ny is the ny of canyon", "en": "madam"}
+  ]},
+ {"start": 20,
+  "chunks": [
+   {"fa": "D'acord,", "voc": "d'acord all right, agreed (de + acord, agreement)", "en": "all right,"},
+   {"fa": "me n'emporto tres", "tr": "mə nəmpòrtu très", "voc": "me n'emporto I'll take (emportar-se · pres. m'emporto m'empòrto · p.p. emportat · to take away with one); n' of them, the en a number asks for when what it counts is not said", "en": "I'll take three"}
+  ]},
+ {"start": 24,
+  "chunks": [
+   {"fa": "Aquí té,", "voc": "aquí here; té you have, formal (tenir · pres. tinc · p.p. tingut · to have (fut. tindré)) — aquí té is here you are", "en": "here you are,"},
+   {"fa": "fins després", "voc": "fins until; després after, later — see you later", "en": "see you later"}
+  ]},
+ {"start": 28,
+  "chunks": [
+   {"fa": "Moltes gràcies", "tr": "móltəs grásiəs", "voc": "molt much, many, f. pl. moltes; gràcies thanks", "en": "thank you very much"},
+   {"fa": "i bon dia", "voc": "bon dia here a farewell: have a good day", "en": "and have a good day"}
+  ]}
+]

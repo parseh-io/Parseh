@@ -123,7 +123,7 @@ target: fa
 
 **Which language.** **+ New** follows the language chip: with Japanese
 picked, it opens the Japanese starter; with **all**, the toolbox's first
-language (Persian). Every one of the eleven languages has a starter of its
+language (Persian). Every one of Parseh's languages has a starter of its
 own. To write about another language, pick its chip first — or change the
 `target:` line, and the preview follows at once. The `lang:` line says what
 language you write the prose in; see [the editor](editor.md#front-matter).

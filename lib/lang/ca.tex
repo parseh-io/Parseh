@@ -1,0 +1,138 @@
+% SPDX-License-Identifier: GPL-3.0-or-later
+% Catalan (català) -- what the reading editions' preamble leaves to the language.
+% Input by lib/frank-preamble.tex as \input{\FrankLib/lang/\BookLang.tex};
+% docs/languages.md section 6 lists the hooks every file here must define and
+% section 12 the ones it may; the guide's page "Adding a language"
+% (html-guide/markdown/lookup-and-languages/adding-a-language.md) walks
+% through writing one.
+%
+% Scaffolded from lib/lang/_template.tex by lib/newlang.py.  Everything below
+% the switches came out of lib/languages.json, so it agrees with the registry
+% by construction; \FrankHowTo did not, and is the one thing you must write.
+% The model to read while writing it is lib/lang/fa.tex.
+
+% ---- the babel language and the switches ----------------------------------
+% \FrankLangName is what \foreignlanguage and \begin{otherlanguage} are given
+% everywhere in the core preamble: babel must know this name, or every passage
+% comes out in the roman with a "Unknown language" error.
+\newcommand{\FrankLangName}{catalan}
+\FrankRTLfalse           % chunk left, gloss right; \pw needs no bidi isolate
+\FrankHasBarefalse       % nothing comes off, so pass 3 would repeat pass 1
+\FrankHasAltfalse        % whether \FrankAltFont exists (the title, the chapter number)
+\FrankHasReadingfalse    % whether \chr's third argument is set as a reading
+\FrankHasVertfalse       % whether pass 4 is \FrankVertPass rather than the font pass
+\FrankHasAloudfalse      % whether the chunks carry words, and pass 2 is each one's reading alone
+
+% ---- fonts ------------------------------------------------------------------
+% No face is NAMED here: \FrankPickFont walks the registry's tex.main and then
+% tex.main_fallbacks and takes the first one installed, so the .tex and the
+% .json cannot drift apart (docs/languages.md section 12).  A bundled face --
+% one that travels in lib/fonts/ -- is found because build.sh puts that
+% directory on OSFONTDIR.
+\babelprovide[import=ca]{catalan}
+%% No font of its own: tex.main is null in the registry, so the text is
+%% set in the roman the core preamble already loaded -- the same face as
+%% the glosses, which is right for a Latin script and wrong for any other.
+
+% ---- the vocabulary line -----------------------------------------------------
+% \vb{infinitive}{sound}{1st sg. present}{sound}{past participle}{sound}{meaning}:
+% these two are the labels printed before the second and third forms.  The
+% three forms are the registry's "vb_forms", which the chunk editor names
+% when somebody types a \vb:
+%   "infinitive", "1st sg. present", "past participle"
+% Whatever you choose here, docs/lang/ca.md must name the same three
+% forms in the same order, or the annotator fills slots the page labels
+% differently.
+% The core prints the second and the third pair only when its FORM is given
+% (lib/frank-preamble.tex), so a verb that has no such form leaves the pair
+% blank, {}{}, rather than repeating another one.  What the three cannot say
+% -- an auxiliary, a class, a governed case -- goes in ONE parenthesis after
+% the meaning, items parted by "; ", each only where it is not the ordinary
+% case: {to drive (er fährt; aux. sein)} is German's.
+% Catalan gives the infinitive, the first person singular present and the
+% masculine singular past participle: the present shows the stem's changes
+% (serveixo, vinc, faig), and the participle is what every compound tense is
+% built on (he parlat); the everyday past is va + the infinitive (va parlar),
+% which the first form already gives.  No extras.
+% The pair below comes from the registry's "vb_labels" ("pres.", "p.p."), which is
+% where the reader takes it from as well: change one and change the other, or
+% the PDF and the reader of one book label the same form differently.
+% lib/newlang.py --check compares them.
+\newcommand{\FrankVbPres}{pres.}
+\newcommand{\FrankVbPast}{p.p.}
+
+% ---- the two Lua filters ---------------------------------------------------
+% frank_strip(s): the bare form of a chunk -- what pass 3 shows.  Written from
+% the registry's `strip`; the identity when there is nothing to take off.
+% frank_latin(s): the label's digits as ASCII, because a PDF destination name
+% cannot carry the language's own figures.  Written from `digits`.
+% Both are called for every language, so both must exist even when they do
+% nothing.  No #, % or literal backslash in a \directlua body: TeX reads it
+% first (NOTES section 9 of the Persian book).
+\directlua{
+  function frank_strip(s) return s end
+  function frank_latin(s) return s end
+}
+
+% ---- the "How to read this" page -----------------------------------------------
+% Printed by lib/frank-frontmatter.tex, before the first chapter: the only
+% place the reader is told what the passes are for.  Write it in the second
+% person, one paragraph per pass, then a paragraph on the transliteration
+% scheme and one on how verbs are given -- the shape lib/lang/fa.tex has.
+% \pw{...} sets one word of the language inside the English; it is defined by
+% the core preamble, after this file, and only expanded when the page is set.
+%
+\newcommand{\FrankHowTo}{%
+Every passage comes twice.
+
+\smallskip
+\textbf{First} the whole sentence, and nothing else. Try to read it. Get as
+far as you can and do not worry about what you cannot get — the point is the
+attempt, made before any help arrives.
+
+\smallskip
+\textbf{Second} the same sentence in small chunks, Catalan on the left, and
+on the right three lines: how it sounds, then how to look each word up, then
+what it means. Now you find out how much you had right. Catalan needs nothing
+added to its letters to be read, so there is no third pass: the sentence you
+attempted is already the sentence as it is printed.
+
+\smallskip
+The pronunciation line follows standard Central Catalan, the Catalan of
+Barcelona, and it is given only where the spelling and a few rules do not tell
+you the sound. The rules first, since the line does not repeat them: an
+unstressed \pw{a} or \pw{e} is the neutral vowel \textit{ə}, the
+\textit{a} of \textit{about} (\pw{casa}, \textit{kázə}), and an unstressed
+\pw{o} is \textit{u}; the \pw{r} of an infinitive is not said
+(\pw{parlar}, \textit{pərlá}), nor a \pw{t} after \pw{l} or \pw{n} at the end
+of a word (\pw{molt}), nor the \pw{b} of \pw{amb}, nor \pw{h}; \pw{b} and
+\pw{v} are one sound. What the line shows is the rest. The stressed vowel
+carries an accent, and on an \textit{e} or an \textit{o} the accent says
+which of two sounds it is — open \textit{è}, \textit{ò} against closed
+\textit{é}, \textit{ó} — which Catalan spelling shows only where it writes
+an accent anyway (\pw{porta}, \textit{pòrtə}; \pw{boca}, \textit{bókə}).
+\textit{ʎ} is \pw{ll} and \textit{ɲ} is \pw{ny}; \textit{ʃ} is \pw{x} and
+\pw{ix}, \textit{tʃ} is \pw{tx} and a final \pw{ig} (\pw{vaig},
+\textit{vatʃ}), \textit{ʒ} is \pw{j} and \pw{g} before \textit{e} or
+\textit{i}; a double \textit{ll} in the line is the long \textit{l} of
+\pw{col·lecció}, written with the middle dot; \textit{rr} is the trill,
+which \pw{r} also is at the start of a word. A book whose line is in IPA
+writes \textit{ˈ} before the stressed syllable instead, and \textit{ɛ},
+\textit{ɔ} for the open vowels. Valencian and Balearic texts are printed as
+they are written, and their line follows the recording.
+
+\smallskip
+Verbs are given as infinitive, first person present, past participle,
+meaning — the two later forms are the ones you cannot guess (\pw{tenir},
+\pw{tinc}, \pw{tingut}; \pw{servir}, \pw{serveixo}, \pw{servit}), and a form
+carries its sound beside it only where its stressed \textit{e} or \textit{o}
+has no accent written on it. An irregular future stands in brackets after the
+meaning (\textit{fut.} \pw{tindré}): the same stem makes the conditional,
+\pw{tindria}. The past a story is told in is \pw{va} with the infinitive
+— \pw{vaig parlar} is \textit{I spoke}, not \textit{I go to speak} — and it is
+named after the verb's entry, as every form the entry does not show is. Catalan
+has two verbs for \textit{to be}, and the line says which: \pw{ser} for what a
+thing is and where it is, \pw{estar} for how it is at this moment. A
+subjunctive is named where it appears, since your own language may have no
+form for that mood.
+}

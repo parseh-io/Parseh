@@ -54,6 +54,8 @@ import threading
 import types
 from dataclasses import dataclass, field
 
+import languages
+
 SCHEMA = 1
 
 # what became of the request
@@ -68,11 +70,10 @@ CONTEXTUAL = "contextual"    # chosen by this sentence
 LEXICAL = "lexical"          # true of the word anywhere; an order is frequency at best
 STATUSES = (CONTEXTUAL, LEXICAL)
 
-# who speaks for a language, when nobody asks for a backend by name
-MORPHOLOGY = {"en": "udpipe", "de": "udpipe", "es": "udpipe", "fr": "udpipe", "it": "udpipe",
-              "hi": "udpipe", "fa": "udpipe", "ar": "farahidi", "tr": "starlang",
-              "ja": "native", "zh": "native"}
-SYNTAX = {code: "udpipe" for code in ("en", "de", "es", "fr", "it", "hi", "fa", "ar", "tr")}
+# who speaks for a language, when nobody asks for a backend by name: the
+# registry's `analysis` (lib/languages.json), so a language is added in one place
+MORPHOLOGY = {L.code: L.analysis["morphology"] for L in languages.LANGS.values() if L.analysis["morphology"]}
+SYNTAX = {L.code: L.analysis["syntax"] for L in languages.LANGS.values() if L.analysis["syntax"]}
 
 MAX_TEXT = 200_000           # characters in one request: a chapter, not a shelf
 MAX_RESULTS = 256            # results kept, oldest use first out

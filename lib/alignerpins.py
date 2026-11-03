@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Immutable public Parseh CTC-aligner artifacts, checked 2026-09-30.
+"""Immutable public Parseh CTC-aligner artifacts, checked 2026-09-30 (Catalan 2026-11-03).
 
 Only the int8 ONNX runtime artifact is distributed.  The smaller supporting
 JSON/licence files are hash checked as well; their size is deliberately not a
@@ -18,7 +18,8 @@ _PRE = {"zh": "c403ce09975b90dff0dd8302c42d422e9de1f166cd7772df23490069893cb0cf"
         "de": "ca5999a45e98bb76ea87a461ba28a23ad32a5bb9f733b8e0f6546ff38b6c612d",
         "fr": "ca5999a45e98bb76ea87a461ba28a23ad32a5bb9f733b8e0f6546ff38b6c612d",
         "it": "ca5999a45e98bb76ea87a461ba28a23ad32a5bb9f733b8e0f6546ff38b6c612d",
-        "en": "ca5999a45e98bb76ea87a461ba28a23ad32a5bb9f733b8e0f6546ff38b6c612d"}
+        "en": "ca5999a45e98bb76ea87a461ba28a23ad32a5bb9f733b8e0f6546ff38b6c612d",
+        "ca": "c403ce09975b90dff0dd8302c42d422e9de1f166cd7772df23490069893cb0cf"}
 
 # code: public-repo commit, source licence, model sha/bytes, vocab sha,
 # meta sha, NOTICE sha.  The source commits/preprocessing contract are inside
@@ -35,6 +36,9 @@ _ROWS = {
  "fr": ("c8781e16f7ddf98b43972401061bfc8fb9aee7be", "apache-2.0", "efd4d759980e6351c0e6610644b733a1bc36f30840b31de29274274fb888cec7", 356311445, "e83a3c849e480757fabd9fe927b870581e926407bcc7e1b6dcc8bda1e78a8d78", "bf3e37122369535c84ced3d6d9ea99d0f5baceb690bcd59e81bbbedced02d6f8", "3eeddfbfb63cf3c0ef1b511ae9f1bb15bd35c35d106b2098299d3e63e2459fea"),
  "it": ("e2785517cb23ef5825e64fa87ca7a75546401731", "apache-2.0", "94009e742d5fa40976eb5594e038199e3a3ca81eee21de28c9b86493e7325da5", 356296099, "deee9194b91e4e4f628ff37da6226a9c9cfe564810c917ae545920458723c58e", "0e02772836f5684c5a12df8cb5fe43b4b64174d72109a9f6241053c4dd7d384a", "75328a6c30ae3d2d82ffa19093c7928cf499679af3ba65aabe5f84d21da2233c"),
  "en": ("c0f8960268a23db8e3705ef24d3236e419739975", "apache-2.0", "731ccae6a5d1cddce647cd7c4a2faef9fb31d4a12eab64714e9ff7b6048e7d7b", 356284613, "1ec5eeced764da0e4a4d2e95c1c3470c3235222db0182088beac3e7c67eda8ff", "d03e90d8481c71e1a6251372f601c3691d8a91ca2c7366b8a37e319944a8496e", "8b9f7db8a44110821da1e3211f450e5d4fbbd5582dc96ef4a72a6bf4d76aed8b"),
+ # Catalan, published 2026-11-03: from ccoreilly/wav2vec2-large-xlsr-catala@a4467e83 (Apache-2.0; Common Voice ca, CC0, and
+ # ParlamentParla, CC-BY-4.0), converted and checked in a folder of its own beside the checkout (Parseh-aligner-ca/)
+ "ca": ("89844115311debda6cccc6b9e63e81f9a8f2d01c", "apache-2.0", "1de4a90f79f79bd6eeaad53afbf52a51500d93421f3cebfc5bf2eb1138f798c7", 356294063, "55922b0b9b4c25c14091d212d9e3f117383add0d53a502a5ca6c7fd43f8092cf", "bf96b7120e13cb9116ad01853e2e9868d7db97cfcd168e9d0e3a3793bb838cf4", "5adb99796557bd632515843dd7dbd8d9ecda28a22717236753a881f37ad2ba94"),
 }
 
 ALIGN_PINS = {}

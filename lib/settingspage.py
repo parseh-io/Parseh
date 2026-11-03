@@ -193,6 +193,14 @@ SETTINGS = {
                            "Whoever presses the button gets the same files."),
     "analysis.remove": (None, "It frees the space the analyzers took."),
     "analysis.use": (None, "It says where Parseh listens to the analyzers: suggestions, never your edited text."),
+    # A LANGUAGE OF THIS COMPUTER'S (lib/languagespage.py, lib/newlang.py, lib/langprompts.py): adding one writes a
+    # row Parseh reads as it runs and a LaTeX file every book in it compiles, and taking a chatbot's answer in writes
+    # that LaTeX file, the conventions every prompt carries and the language's lookup rules.  What a device sends
+    # becomes files Parseh runs, so both are the computer's alone.
+    "languages.add": (RUN, "It adds a language: a row of the language table and the files Parseh reads for it, "
+                           "a LaTeX file among them."),
+    "languages.prose": (RUN, "It writes a language's files from a chatbot's answer: its conventions, its LaTeX "
+                             "page, its lookup rules."),
 }
 
 # SETTINGS WHOSE CONTROL IS NOT ON A PAGE OF SETTINGS, because it sits on the
@@ -333,6 +341,11 @@ ROUTES = {
     "/settings/api/analysis/stop": ("analysis.get",),
     "/settings/api/analysis/remove": ("analysis.remove",),
     "/settings/api/analysis/use": ("analysis.use",),
+    # the languages (lib/languagespage.py): the list and a prompt, open; adding one and taking prose in, the computer's
+    "/settings/api/languages/state": READ,
+    "/settings/api/languages/prompt": READ,
+    "/settings/api/languages/add": ("languages.add",),
+    "/settings/api/languages/answer": ("languages.prose",),
     "/settings/api/arasaac/state": READ,
     "/settings/api/arasaac/plan": READ,
     "/settings/api/arasaac/search": READ,
@@ -549,6 +562,9 @@ DOORS = (
     ("/settings/analysis/", "Linguistic analysis",
      "Each word's part of speech in its sentence, for the dictionary, new phrases and gloss prompts",
      ("analysis.get", "analysis.remove", "analysis.use")),
+    ("/settings/languages/", "Languages",
+     "Every language and what it has; add one of your own, and write its prose with a chatbot",
+     ("languages.add", "languages.prose")),
     # NO SETTING BEHIND THIS DOOR: a skill is built when it is asked for and downloaded as a file; what is done with
     # it afterwards is the person's own step in the chatbot (lib/skillspage.py)
     ("/settings/skills/", "Skills for your chatbot",
@@ -921,7 +937,8 @@ def signed(main):
     return main[:end] + '<p class="foot">%s</p>\n' % author.foot_links(project.GITHUB_URL, project.NAME, project.WEBSITE_URL) + main[end:]
 
 
-def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_tags="", analysis_tags=""):
+def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_tags="", analysis_tags="",
+        languages_tags=""):
     """/settings/ -- the section itself.  Each door says what is behind it
     rather than only naming it, and who may change it, in the words of the
     table above; `reading_tags` is what the reading help has (serve.py knows
@@ -998,6 +1015,13 @@ def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_ta
     dictionary can show the entry that fits, and help with new phrases and gloss prompts. Off until you say otherwise.</div>
     <div class="tags">%(analysis_gate)s%(analysis_tags)s</div>
   </a>
+  <a class="door" href="/settings/languages/">
+    <div class="dname">Languages</div>
+    <div class="dwhat">Every language %(name)s has and what each one has, feature by feature: the conventions a chatbot is
+    given, printed books, the dictionary&rsquo;s rules, speech, pictograms. Add a language of your own, and write the prose
+    it needs with a chatbot.</div>
+    <div class="tags">%(languages_gate)s%(languages_tags)s</div>
+  </a>
   <a class="door" href="/settings/skills/">
     <div class="dname">Skills for your chatbot</div>
     <div class="dwhat">The prompts as skills a chatbot that keeps skills can hold: download one, install it once, and
@@ -1012,6 +1036,7 @@ def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_ta
 </div>
 </main>""" % {"name": NAME, "version": esc(parseh_version()),
               "skills_gate": gate(door_keys("/settings/skills/")),
+              "languages_gate": gate(door_keys("/settings/languages/")), "languages_tags": languages_tags,
               "reading_gate": gate(DOORS[0][3]), "reading_tags": reading_tags,
               "update_gate": gate(DOORS[2][3]), "update_tags": update_tags,
               "latex_gate": gate(DOORS[3][3]),

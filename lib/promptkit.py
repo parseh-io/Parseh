@@ -1031,7 +1031,20 @@ def language_text(surface, lang, flags=None, gloss=None, options=None):
             line = "#" * down + line
         out.append(line)
     known = _common(surface, L, _gloss(gloss), chosen)
-    return _PLACEHOLDER.sub(lambda m: known.get(m.group(1), m.group(0)), "\n".join(out).strip())
+    said = _PLACEHOLDER.sub(lambda m: known.get(m.group(1), m.group(0)), "\n".join(out).strip())
+    return (_variety_says(L) + said) if L.variety else said
+
+
+def _variety_says(L):
+    """What a prompt says, before the conventions, of a text written in one of the
+    language's varieties (Arabic's dialects: the book's or the video's
+    `variety`): which, and what that changes; the conventions after it are the
+    language's, and hold wherever the variety does not say otherwise."""
+    std = L.standard_name or ("standard " + L.name)
+    return ("**This text is in %s**, not in %s. Read every word as %s: gloss what it means there, give a "
+            "word only %s has as that word (do not replace it with a %s synonym), and write `tr` as it is said "
+            "in %s. The conventions below are %s's, and hold wherever %s does not say otherwise.\n\n"
+            % (L.variety_name, std, L.variety_name, L.variety_name, std, L.variety_name, L.name, L.variety_name))
 
 
 # --- the version line ---------------------------------------------------

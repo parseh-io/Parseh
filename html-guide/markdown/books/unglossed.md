@@ -154,7 +154,7 @@ nothing for these words*, *no translation model for this pair*).
 ## What the verb draft does in each language {#what-the-verb-draft-does-in-each-language}
 
 A verb's draft is built from the dictionary's conjugation table, so it is as
-good as that table, and the tables of the eleven languages have their own
+good as that table, and the tables of Parseh's own languages have their own
 gaps. It is always a **draft for you to correct**, and where it could not fill
 a slot the button says which. In a video, where the phrase holds a form that
 is none of the three a `\vb` prints, the draft also names that form after the

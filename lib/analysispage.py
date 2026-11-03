@@ -51,18 +51,19 @@ def _items(st):
     for code in pins.UDPIPE_MODELS:
         name = languages.get_or_default(code).name
         m = by_code[code]
-        if code == "ar":
+        morph = analyzer.MORPHOLOGY.get(code)       # the registry's: who reads the word forms
+        if morph == "farahidi":
             f = st["programs"]["farahidi"]
             rows.append({"item": "farahidi", "name": name, "part": "word forms", "mb": f["mb"], "have": f["have"],
                          "code": code, "note": "Farahidi " + f["version"] + ", " + f["licence"] +
                          ". Half a gigabyte of memory while it is working."})
-        if code == "tr":
+        if morph == "starlang":
             t = st["programs"]["starlang"]
             rows.append({"item": "starlang", "name": name, "part": "word forms", "mb": t["mb"], "have": t["have"],
                          "code": code, "note": "Starlang " + t["version"] + ", " + t["licence"] +
                          ". Compiled when it is installed, which takes a minute or two.",
                          "cannot": "" if t["compiler"] else "It needs a C compiler, and this computer has none."})
-        rows.append({"item": m["item"], "name": name, "part": "sentence structure" if code in ("ar", "tr") else "",
+        rows.append({"item": m["item"], "name": name, "part": "sentence structure" if morph not in (None, "udpipe") else "",
                      "mb": round(m["bytes"] / 1048576), "have": m["have"], "loaded": m["loaded"], "code": code,
                      "note": "UDPipe, " + m["treebank"] + ", " + m["licence"] + "."})
     return rows

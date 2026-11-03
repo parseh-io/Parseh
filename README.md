@@ -15,9 +15,9 @@ A toolkit for learning languages through annotated content and active
 recall. Read books and watch videos glossed the Ilya Frank way, chunk by
 chunk, with the narration in step; write notes and interactive exercises in
 a Markdown dialect of its own and study them with spaced repetition; turn
-anything you read into Anki cards. Eleven languages: Persian, Arabic,
-Italian, Japanese, French, German, Turkish, English, Hindi, Spanish and
-Chinese.
+anything you read into Anki cards. Twelve languages: Persian, Arabic,
+Italian, Japanese, French, German, Turkish, English, Hindi, Spanish,
+Chinese and Catalan.
 
 **In alpha: bugs are to be expected.** The newest version is on the
 [releases page](https://github.com/parseh-io/Parseh/releases/latest),

@@ -175,7 +175,7 @@ no conversion software is needed on your computer.
   the CPU and says so, once. *NVIDIA GPU*, chosen and failing, says why and
   does not quietly switch.
 - **The language** is the **Language** of step 1 — Whisper is told it, so
-  choose the one that is spoken. All eleven of the toolbox's languages are
+  choose the one that is spoken. All of the toolbox's languages are
   offered (and a language you added, if Whisper knows it; where it does not
   the block says so and offers nothing).
 - **Exact word times.** When Settings has the optional network for this

@@ -21,7 +21,7 @@ Prose language
   A Japanese lesson written in Italian has `target: ja` and `lang: it`.
 
 Registry
-: `lib/languages.json`, the one table that says what each of the eleven
+: `lib/languages.json`, the one table that says what each of the
   languages is: its code, its folder, its script and direction, its
   fonts, the passes of its books, its Anki note types. Nothing else in
   Parseh holds a list of languages. A language added on this machine has

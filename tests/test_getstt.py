@@ -207,7 +207,7 @@ class Pins(unittest.TestCase):
         self.assertNotEqual(a["tokenizer.json"], b["tokenizer.json"])
 
     def test_each_exact_word_times_network_is_public_pinned_and_checked(self):
-        self.assertEqual(set(getstt.ALIGNERS), {"zh", "ja", "hi", "ar", "fa", "tr", "es", "de", "fr", "it", "en"})
+        self.assertEqual(set(getstt.ALIGNERS), {"zh", "ja", "hi", "ar", "fa", "tr", "es", "de", "fr", "it", "en", "ca"})
         self.assertEqual(set(getstt.ALIGN_PARTS), {"align-" + c for c in getstt.ALIGNERS})
         for code, pin in getstt.ALIGN_PINS.items():
             with self.subTest(code=code):
@@ -244,10 +244,10 @@ class Pins(unittest.TestCase):
             self.assertIn("cuDNN 9 for CUDA 13", later)
             self.assertEqual(getstt.gpu_note(), "")
 
-    def test_whisper_knows_parsehs_eleven_and_a_code_it_does_not_is_said(self):
+    def test_whisper_knows_every_parseh_language_and_a_code_it_does_not_is_said(self):
         import languages
         shipped = json.loads((ROOT / "lib" / "languages.json").read_text(encoding="utf-8"))["_shipped"]
-        self.assertEqual(len(shipped), 11)
+        self.assertGreaterEqual(len(shipped), 11)
         for code in shipped:
             self.assertEqual(getstt.whisper_code(code), code, "a Parseh code IS the Whisper code")
         self.assertEqual(len(getstt.WHISPER_LANGUAGES), 100)

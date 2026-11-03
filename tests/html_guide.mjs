@@ -557,8 +557,8 @@ try {
     }
     assert(pages.length >= 20 && wrong.length === 0,
            `on each of the ${pages.length} pages that have a marked word, the cloud opens on each language's word with that language's labels: ` + wrong.join(' || '));
-    assert(CODES.length === 11 && CODES.every(c => covered.has(c)),
-           `all eleven languages were driven (${[...covered].sort().join(' ')} of ${CODES.length})`);
+    assert(CODES.length >= 11 && CODES.every(c => covered.has(c)),
+           `every language of the registry was driven (${[...covered].sort().join(' ')} of ${CODES.length})`);
 
     // and a page with no such word carries no studio script and no layer
     await page.goto(FILE + '/site/getting-started/installing.html');

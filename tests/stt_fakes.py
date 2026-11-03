@@ -38,7 +38,7 @@ MODELS = speechmodels.MODELS
 DEFAULT_INSTALLED = speechmodels.STANDARD_MODELS
 MODES = ("auto", "cpu", "cuda")
 # Whisper's own list is 100 codes; the ones the tests need, and one it lacks
-WHISPER = frozenset("fa ar it ja fr de tr en hi es zh af ko yue".split())
+WHISPER = frozenset("fa ar it ja fr de tr en hi es zh ca af ko yue".split())
 
 
 class SpeechError(Exception):

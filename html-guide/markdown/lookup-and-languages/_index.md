@@ -1,7 +1,7 @@
 ---
 title: Lookup and languages
 weight: 80
-description: Reading what nobody has glossed yet — dictionaries, character components, translated sentences, a translation model — the eleven languages Parseh teaches, and speech to text, an optional transcript made on this computer.
+description: Reading what nobody has glossed yet — dictionaries, character components, translated sentences, a translation model — the languages Parseh teaches, and speech to text, an optional transcript made on this computer.
 ---
 
 This section has two halves, and they meet in the same place: the
@@ -17,9 +17,9 @@ sharpens what the model shows. All of it is optional, all of it is off
 until you turn it on, and none of it is ever written into a book or a
 video as if it were a gloss.
 
-**The second half is the languages themselves.** Parseh teaches eleven:
+**The second half is the languages themselves.** Parseh teaches twelve:
 Persian, Arabic, Italian, Japanese, French, German, Turkish, English, Hindi,
-Spanish and Chinese. They share every door, button and file format; what
+Spanish, Chinese and Catalan. They share every door, button and file format; what
 differs is what each language needs in order to be read — its direction,
 its script, its fonts, its passes, its transliteration.
 
@@ -48,7 +48,7 @@ on your computer, for the dictionary panel, new phrases and the gloss prompts.
 
 ## Languages
 
-7. [The eleven languages](languages.md) — codes, scripts, directions,
+7. [The languages](languages.md) — codes, scripts, directions,
    fonts, digits and what each one calls its transliteration.
 8. [Target language and gloss language](target-and-gloss.md) — what you
    are learning, and what the meanings are written in.

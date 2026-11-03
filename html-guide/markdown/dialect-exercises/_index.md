@@ -112,7 +112,7 @@ field you were last in.
 ## A page to start from
 
 **+ New**, in the studio's library, starts a document from the starter page
-of the language the toolbox is set to, and each of the eleven starters has
+of the language the toolbox is set to, and each of the twelve starters has
 a section
 *Exercises* holding every type and all three kinds of card, and a follow-up,
 written in that language — the quickest way to see how an exercise in Arabic, Hindi

@@ -56,7 +56,7 @@ SHIPPED = {
            ("bare", "Plain", "4", "plain, as Chinese is written"),
            ("alt", "Vertical", "5", VERTICAL)],
 }
-for _code in ("it", "fr", "de", "tr", "en", "hi", "es"):
+for _code in ("it", "fr", "de", "tr", "en", "hi", "es", "ca"):
     SHIPPED[_code] = [("vocal", "Sentence", "1", "the sentence, to read on its own"),
                       ("chunks", "Chunks", "2", CHUNKS)]
 

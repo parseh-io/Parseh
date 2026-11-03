@@ -11,7 +11,7 @@ language comes from the toolbox's language registry, `lib/languages.json`
 the characters of its script, its direction, its faces, whether it has a
 reading or can be set vertically. Nothing about a language is written into
 the studio itself, which is why every construct of this section works the
-same for all eleven.
+same for every language.
 
 | `target:` | Language | Its text is… | Direction | Second face | Vertical | Reading | Its transliteration |
 |---|---|---|---|---|---|---|---|
@@ -26,6 +26,7 @@ same for all eleven.
 | `hi` | [Hindi](hindi.md), हिन्दी | found by its script | left to right | — | — | — | transliteration |
 | `es` | [Spanish](spanish.md), español | marked | left to right | — | — | — | pronunciation |
 | `zh` | [Chinese](chinese.md), 中文 | found by its script | left to right, or vertical | — | yes | — | pinyin |
+| `ca` | [Catalan](catalan.md), català | marked | left to right | — | — | — | pronunciation |
 
 A document that names no `target:` is Persian.
 
@@ -43,7 +44,7 @@ of the reading view, named after the language, changes it, and the PDF
 takes its value.
 
 **Latin-script languages** — Italian, French, German, Turkish, English,
-Spanish. Their letters are the prose's letters, so nothing can be found:
+Spanish, Catalan. Their letters are the prose's letters, so nothing can be found:
 every word you want set as the target language is marked, and there are
 no automatic paragraphs. Their text is set in the prose's own face,
 TeX Gyre Pagella, at the same size (1.00): what marks it out is the mark

@@ -33,7 +33,7 @@ import sttpanel                                               # noqa: E402
 import wavefile                                               # noqa: E402
 import ytpages                                                # noqa: E402
 
-# two lines of speech in each of the eleven languages Parseh teaches, in its
+# two lines of speech in each of the languages Parseh teaches, in its
 # own script: Whisper's text is kept exactly as it is given
 SPEECH = {
     "fa": ("سلام، ببخشید سیب چند است", "کیلویی سی هزار تومان، تازه آمده"),
@@ -47,6 +47,7 @@ SPEECH = {
     "hi": ("सभी को नमस्ते", "आज हम बाज़ार जा रहे हैं"),
     "es": ("Hola a todos", "Hoy vamos al mercado"),
     "zh": ("大家好，欢迎回来", "今天我们去市场"),
+    "ca": ("Bon dia a tothom", "Avui anem al mercat de la plaça"),
 }
 
 
@@ -59,9 +60,9 @@ def read_back(panel, lang):
 
 
 class Panel(unittest.TestCase):
-    def test_the_eleven_languages_are_all_here(self):
-        self.assertEqual(sorted(SPEECH), sorted(c for c in languages.LANGS if c in SPEECH))
-        self.assertEqual(len(SPEECH), 11)
+    def test_every_language_parseh_ships_is_here(self):
+        shipped = [c for c in languages.LANGS if not getattr(languages.LANGS[c], "mine", False)]
+        self.assertEqual(sorted(SPEECH), sorted(shipped))
 
     def test_a_timed_result_becomes_a_transcript_the_real_parser_accepts(self):
         # brief test 16, once for each language Parseh teaches, Whisper's leading

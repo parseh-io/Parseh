@@ -515,13 +515,20 @@ def build_entry(a, reg):
     alt = (a.alt_font or "").strip() or None
     alt_key = (a.alt_key or ("alt" if alt else None))
     vocab, opp, slot = next_anki_pair(reg, personal=not getattr(a, "shipped", False))
+    # A RELATIVE (--like) lends what it shares with the new language and nothing
+    # it could get wrong: the verb entry's shape and how compounds are glossed;
+    # its chunking rules are copied by add() as a file to review.  Words,
+    # conventions and lookup rules are the new language's own (lib/langprompts.py).
+    like = languages.LANGS.get(a.like) if getattr(a, "like", None) else None
+    if getattr(a, "like", None) and like is None:
+        refuse("--like %r is not a language of this Parseh" % a.like)
     vb_labels = [s.strip() for s in (a.vb_labels or "").split(",") if s.strip()] \
-        or ["pres.", "past"]
+        or (list(like.vb_labels) if like and like.vb_labels else ["pres.", "past"])
     if len(vb_labels) != 2:
         refuse("--vb-labels wants two, comma-separated: the label before the second "
                "form and the one before the third (got %s)" % ", ".join(vb_labels))
     vb_forms = [s.strip() for s in (a.vb_forms or "").split(",") if s.strip()] \
-        or list(VB_FORMS_DEFAULT)
+        or (list(like.vb_forms) if like and like.vb_forms else list(VB_FORMS_DEFAULT))
     if len(vb_forms) != 3:
         refuse("--vb-forms wants three, comma-separated: what the first, second and "
                "third form of a \\vb are (infinitive,present stem,past stem -- got %s)"
@@ -655,6 +662,10 @@ def build_entry(a, reg):
     }
     entry["duration_units"] = [s.strip() for s in entry["duration_units"]]
     entry["chapter_words"] = [s.strip() for s in entry["chapter_words"]]
+    if like:
+        entry["like"] = like.code
+        if like.compounds == "parts":
+            entry["compounds"] = "parts"
     entry["_slot"] = slot                 # not part of the row; popped by the caller
     return entry
 
@@ -1429,6 +1440,18 @@ def add(a):
                        (os.path.join(LANG_DOCS, code + ".md"), render_doc(code, entry))):
         _, how = write_file(path, body, a.force)
         print("  %-20s %s" % (os.path.relpath(path, ROOT), how))
+    if entry.get("like"):
+        src = os.path.join(LANG_TEX, entry["like"] + ".chunk.json")
+        dst = os.path.join(LANG_TEX, code + ".chunk.json")
+        if os.path.exists(src) and (a.force or not os.path.exists(dst)):
+            with open(src, encoding="utf-8") as f:
+                rules = json.load(f)
+            rules = dict([("_from", "Copied from lib/lang/%s.chunk.json by newlang.py --like %s: the "
+                           "phrase shape of a relative, to be read and changed where %s differs."
+                           % (entry["like"], entry["like"], entry["name"]))] + list(rules.items()))
+            with open(dst, "w", encoding="utf-8") as f:
+                f.write(json.dumps(rules, ensure_ascii=False, indent=2) + "\n")
+            print("  %-20s copied from %s's, to review" % (os.path.relpath(dst, ROOT), entry["like"]))
     for d in content_dirs(folder):
         keep = os.path.join(d, ".gitkeep")
         os.makedirs(d, exist_ok=True)
@@ -1509,7 +1532,14 @@ def add(a):
         print("     (Arabic's are unvowelled), set \"vb_video_bare\": true in its row of")
         print("     %s by hand -- there is no flag for it -- and a" % where)
         print("     video's verb line drops them.")
-    print("\nThen:  python3 lib/newlang.py --check     (every language, its files and fonts)")
+    print("\nThe prose of 1, 2 and 4 -- and the examples, the lookup rules and the chunking rules --")
+    print("can be drafted by a chatbot: Settings -> Languages gives a prompt for each piece, with")
+    print("%s's file as the model, and takes the answer back in; on the command line," % (
+        languages.LANGS.get(entry.get("like")).name if entry.get("like") and languages.LANGS.get(entry.get("like"))
+        else "a related language"))
+    print("    python3 lib/langprompts.py %s conventions          (then --answer FILE)" % code)
+    print("\nThen:  python3 lib/newlang.py --features %s   (what it has, feature by feature)" % code)
+    print("       python3 lib/newlang.py --check     (every language, its files and fonts)")
     print("       python3 tests/smoke.py             (the regression run)")
     print("The whole process is the guide's page \"Adding a language\".")
     return 0
@@ -1606,6 +1636,12 @@ def main(argv=None):
                         "transcripts write them")
     p.add_argument("--chapter-words", dest="chapter_words",
                    help="comma-separated: the words a chapter heading uses")
+    p.add_argument("--like", metavar="CODE",
+                   help="a related language (es for Catalan): lends its verb entry's shape and "
+                        "compounds, copies its chunking rules to review, and is the model the "
+                        "prompts for the prose show (lib/langprompts.py)")
+    p.add_argument("--features", action="store_true",
+                   help="what each language has, feature by feature (all, or the code given)")
     p.add_argument("--force", action="store_true", help="overwrite files that are there")
     p.add_argument("--dry-run", dest="dry_run", action="store_true",
                    help="print the entry that would be added and write nothing")
@@ -1626,6 +1662,12 @@ def main(argv=None):
         return 1 if any(s.startswith("!!") for s in said) else 0
     if a.check:
         return check(a.strict)
+    if a.features:
+        import langfeatures
+        if a.code and not languages.LANGS.get(a.code):
+            refuse("%r is not a language of this Parseh" % a.code)
+        print(langfeatures.render([a.code] if a.code else None))
+        return 0
     if not a.code:
         return show()
     return add(a)

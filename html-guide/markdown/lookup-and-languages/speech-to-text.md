@@ -113,8 +113,8 @@ else: opening **Add a video** never installs anything.
 
 **Languages** lists every language Parseh has, each in its own script and
 the right-to-left ones right-to-left, with a tick for those Whisper knows.
-All eleven of Parseh's are ticked: Persian, Arabic, Italian, Japanese,
-French, German, Turkish, English, Hindi, Spanish and Chinese. A language you
+All twelve of Parseh's are ticked: Persian, Arabic, Italian, Japanese,
+French, German, Turkish, English, Hindi, Spanish, Chinese and Catalan. A language you
 added yourself is ticked if Whisper has a code for it, and marked *not
 offered* if it does not.
 
@@ -123,7 +123,7 @@ optional CTC network is about 340–361 MiB installed, and its row says the
 size before **Get it**, download progress, **Stop** or **Remove**, its licence
 and its attribution. It is not needed to transcribe: Whisper works with no
 such network. When installed, it lets the add page make word boundaries from
-the recording while leaving Whisper's captions unchanged. All eleven offered
+the recording while leaving Whisper's captions unchanged. All twelve offered
 languages have one; each download is pinned to an immutable public
 `parseh/aligner-<language>` revision and hash-checked before it is installed
 under `stt/aligners/<language>/`.

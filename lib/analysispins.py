@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""The exact programs and models the optional analyzers are, checked 2026-11-02.
+"""The exact programs and models the optional analyzers are, checked 2026-11-02 (Catalan 2026-11-03).
 
 Standard library only and no logic: lib/getanalysis.py fetches by these,
 lib/analyzer_udpipe.py finds its files by these, and docs/analyzers.md says what
@@ -48,6 +48,8 @@ UDPIPE_MODELS = {
                  "c0f1f4f694a30de1689abb2549512ec1a92d6d12cee46ce613876ad0050db7af"),
     "ar": _model("arabic-padt", "950d4077-bd61-4e5c-af05-ac9de11ddb39", 19752087,
                  "5637b73cc30ebd231ccad7ee4ee57d7c8367f6b1883aae09128e656b760e7be3"),
+    "ca": _model("catalan-ancora", "af6b22b0-9e1f-4af8-80b9-95fa911d5987", 18142787,
+                 "a706a200017c3968e2c23ee229d7680d22140d948358e5a667cdece4a997d8ad"),
     "tr": _model("turkish-imst", "9308edfd-6a11-4774-8dac-c64f13778d2a", 8396624,
                  "195f5646d96663c788d66ea29bb26862b17457aa7a8d95bf3d852d75522a5fed"),
 }

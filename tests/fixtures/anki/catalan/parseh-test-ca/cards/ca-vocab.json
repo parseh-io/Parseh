@@ -1,0 +1,30 @@
+{
+ "id": "ca-vocab",
+ "guid": "fx-ca-vocab",
+ "kind": "vocab",
+ "lang": "ca",
+ "created": "2026-11-03 10:00:00",
+ "video": "fixture-ca",
+ "book": "",
+ "time": 0,
+ "context": "La dona és a casa",
+ "notes": "",
+ "bidirectional": true,
+ "reverse_only": false,
+ "img_front": null,
+ "img_back": null,
+ "fa": "dona",
+ "kana": "",
+ "tr": "dònə",
+ "en": "woman, f. — the open o; dóna, with the closed one, is gives",
+ "opp": "",
+ "opp_kana": "",
+ "opp_tr": "",
+ "tags": [
+  "catalan-youtube"
+ ],
+ "source": {
+  "label": "fixture",
+  "url": ""
+ }
+}

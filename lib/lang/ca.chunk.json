@@ -1,0 +1,14 @@
+{
+  "_comment": "How Catalan phrases hold together, for lib/chunker.py. Started from Spanish's (newlang.py --like es) and read for Catalan. Optional, like every file of this name.",
+  "np_head": "initial",
+  "adposition": "before",
+  "_why": "Catalan puts the adjective after the noun (la casa gran) and its prepositions before it (a la casa), as Spanish and Italian do. The few adjectives that come first -- bon, gran, mal, the demonstratives and the possessives -- are the exception this cannot see; a model reading the sentence can.",
+  "bind_forward": [
+    "^(?i:em|et|es|ens|us|li|els|hi|ho|en|ne)$",
+    "^(?i:m|t|s|n|l)['’]"
+  ],
+  "_bind_forward": "THE WEAK PRONOUNS BEFORE THE VERB, which are never finished on their own: em, et, es, ens, us, li, els, hi, ho, en, written apart (em diu, li ho dona) or elided onto it (m'agrada, s'alça, n'hi ha, l'ha vist -- a single token, bound to what follows only when written apart from it). `el`, `la`, `les` are left out on purpose: they are the articles as well, and the determiner rule binds them forward already. Pronouns after the verb are written onto it with a hyphen or an apostrophe (menjar-lo, porta'l), so there is no gap to cut.",
+  "_contractions": "`al`, `del`, `pel`, `can` (a + el, de + el, per + el, ca + en) are pages of their own in Wiktionary's Catalan, filed `contraction` (lib/getdict.py keeps their gloss as their meaning); the unknown class leans towards joining, so they stay with what follows in ordinary sentences.",
+  "min": 2,
+  "max": 5
+}

@@ -57,6 +57,11 @@ def shipped():
     return {k: v for k, v in rows.items() if not k.startswith("_")}
 
 
+def gear_reader_era():
+    """The languages Parseh shipped when the readers began to embed their levels' names."""
+    return "fa ar it ja fr de tr en hi es zh".split()
+
+
 class TheTable(unittest.TestCase):
     """LEVELS in the layer is lib/languages.json."""
 
@@ -68,12 +73,16 @@ class TheTable(unittest.TestCase):
         cls.table = json.loads(m.group(1))
 
     def test_it_is_the_registry_word_for_word(self):
-        want = {code: {p["key"]: [p["name"], p["title"]] for p in row["passes"]} for code, row in shipped().items()}
+        rows = shipped()
+        want = {code: {p["key"]: [p["name"], p["title"]] for p in rows[code]["passes"]} for code in self.table}
         self.assertEqual(self.table, want)
 
-    def test_it_has_every_shipped_language_and_nothing_else(self):
-        self.assertEqual(set(self.table), set(shipped()))
-        self.assertEqual(len(self.table), 11)
+    def test_it_has_the_languages_of_its_day_and_nothing_else(self):
+        # FROZEN: the table answers for readers built before the names existed (a0.4.x), so it holds the
+        # eleven languages Parseh had then; a language added since has never had a reader without its
+        # names, and adding one is no edit here
+        self.assertEqual(set(self.table), set(gear_reader_era()))
+        self.assertLessEqual(set(self.table), set(shipped()))
 
     def test_no_name_is_longer_than_a_button_holds_and_none_has_a_digit(self):
         for code, row in self.table.items():
@@ -118,6 +127,8 @@ class TheTwin(unittest.TestCase):
     def test_it_agrees_for_every_shipped_language(self):
         cases, want = [], []
         for code, row in shipped().items():
+            if code not in gear_reader_era():
+                continue                # no reader of it was ever built without the names
             lang = self.old_embed(row, code)
             for p, q in zip(lang["passes"], row["passes"]):
                 cases.append({"lang": lang, "pass": p})

@@ -39,7 +39,7 @@ You choose both when you add the thing:
   with English chosen; the page remembers your gloss language for the next
   video.
 
-Both selects of the gloss list the eleven languages Parseh teaches, then
+Both selects of the gloss list the languages Parseh teaches, then
 the languages it only **writes in**: Portuguese, Dutch, Catalan, Romanian,
 Polish, Russian, British English and American English. A book glossed in
 Portuguese gets its meanings in Portuguese, set and hyphenated as

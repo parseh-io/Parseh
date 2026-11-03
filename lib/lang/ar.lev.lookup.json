@@ -1,0 +1,263 @@
+{
+  "_comment": "How a word of a text in Levantine Arabic is turned into something a dictionary can be asked about: the Levantine dictionary first (kaikki's South and North Levantine Arabic), the standard one after it, these rules and then lib/lang/ar.lookup.json's. Written onto a word standard Arabic also has: the present's b- (بيكتب, بحكي = أحكي), the future's ḥa- (حيروح; رح is a word of its own), the demonstrative and the preposition fused with the article (هالبيت = هذا البيت, عالطاولة = على الطاولة), the pronoun written onto the verb with -l- (قلّي, احكيلو), the negation's -š (مابعرفش) and the dropped hamza. Measured on TODOs/arabic-dialects/ar-lev.txt.",
+  "max_peel": 3,
+  "affixes": [
+    {
+      "prefix": "مب",
+      "front": "أ",
+      "min_stem_length": 2,
+      "note": "ما + ب- taken off together, the first person's أ put back: مبحبش is أحب"
+    },
+    {
+      "prefix": "مبي",
+      "min_stem_length": 3,
+      "note": "ما + بي- taken off together"
+    },
+    {
+      "prefix": "مبت",
+      "min_stem_length": 3,
+      "note": "ما + بت- taken off together"
+    },
+    {
+      "prefix": "بي",
+      "note": "the present's بي- taken off a verb: بيكتب is يكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "بي",
+      "front": "أ",
+      "note": "the present's بي- taken off a first person, its أ put back (بكتب is أكتب)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "بت",
+      "note": "the present's بت- taken off a verb: بتحكي is تحكي",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "بت",
+      "front": "أ",
+      "note": "the present's بت- taken off a first person, its أ put back (بكتب is أكتب)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "من",
+      "note": "the present's من- taken off a verb: منروح is نروح (b + n-)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "من",
+      "front": "أ",
+      "note": "the present's من- taken off a first person, its أ put back (بكتب is أكتب)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "بن",
+      "note": "the present's بن- taken off a verb: بنروح is نروح",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "بن",
+      "front": "أ",
+      "note": "the present's بن- taken off a first person, its أ put back (بكتب is أكتب)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ب",
+      "note": "the present's ب- taken off a verb: بحكي is أحكي",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ب",
+      "front": "أ",
+      "note": "the present's ب- taken off a first person, its أ put back (بكتب is أكتب)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "حي",
+      "note": "the future's حي- taken off a verb: حيروح is يروح",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "حي",
+      "front": "أ",
+      "note": "the future's حي- taken off a first person, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "حت",
+      "note": "the future's حت- taken off a verb: حتروح",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "حت",
+      "front": "أ",
+      "note": "the future's حت- taken off a first person, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "حن",
+      "note": "the future's حن- taken off a verb: حنروح",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "حن",
+      "front": "أ",
+      "note": "the future's حن- taken off a first person, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ح",
+      "note": "the future's ح- taken off a verb: حروح is أروح",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ح",
+      "front": "أ",
+      "note": "the future's ح- taken off a first person, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ما",
+      "note": "the ما of a negation written onto the verb",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "هال",
+      "front": "ال",
+      "note": "هال- (هذا ال-) taken off, the article put back"
+    },
+    {
+      "prefix": "عال",
+      "front": "ال",
+      "note": "عال- (على ال-) taken off, the article put back"
+    },
+    {
+      "prefix": "ع",
+      "note": "ع- (على) taken off",
+      "min_stem_length": 3
+    },
+    {
+      "suffix": "ش",
+      "min_stem_length": 2,
+      "note": "the -š of a negation (ما…ش) taken off: ماكتبش, مايكتبش"
+    },
+    {
+      "suffix": "لي",
+      "min_stem_length": 2,
+      "note": "the -لي of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لو",
+      "min_stem_length": 2,
+      "note": "the -لو of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "له",
+      "min_stem_length": 2,
+      "note": "the -له of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لها",
+      "min_stem_length": 2,
+      "note": "the -لها of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لك",
+      "min_stem_length": 2,
+      "note": "the -لك of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لنا",
+      "min_stem_length": 2,
+      "note": "the -لنا of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لكم",
+      "min_stem_length": 2,
+      "note": "the -لكم of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لهم",
+      "min_stem_length": 2,
+      "note": "the -لهم of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لوش",
+      "min_stem_length": 2,
+      "note": "the -لوش of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "ليش",
+      "min_stem_length": 2,
+      "note": "the -ليش of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "prefix": "تا",
+      "front": "تأ",
+      "note": "a hamza written as a plain alif, put back: تا is تأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "يا",
+      "front": "يأ",
+      "note": "a hamza written as a plain alif, put back: يا is يأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "نا",
+      "front": "نأ",
+      "note": "a hamza written as a plain alif, put back: نا is نأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "أا",
+      "front": "أأ",
+      "note": "a hamza written as a plain alif, put back: أا is أأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "با",
+      "front": "بأ",
+      "note": "a hamza written as a plain alif, put back: با is بأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "suffix": "ا",
+      "add": "أ",
+      "note": "a final hamza dropped, put back: تقرا is تقرأ"
+    },
+    {
+      "suffix": "ا",
+      "add": "اء",
+      "note": "a final hamza dropped, put back: الما is الماء"
+    },
+    {
+      "prefix": "ال",
+      "note": "the article al- taken off"
+    },
+    {
+      "prefix": "لل",
+      "note": "li- with the article (لل) taken off"
+    },
+    {
+      "prefix": "بال",
+      "note": "bi- with the article (بال) taken off"
+    },
+    {
+      "prefix": "وال",
+      "note": "wa- with the article (وال) taken off"
+    },
+    {
+      "suffix": "ين",
+      "min_stem_length": 3,
+      "note": "the plural -īn of a participle taken off (عاوزين is عاوز)"
+    },
+    {
+      "suffix": "ات",
+      "min_stem_length": 3,
+      "note": "the plural -āt taken off"
+    }
+  ],
+  "_article": "THE ARTICLE IS TAKEN OFF HERE and not in ar.lookup.json: Wiktionary's standard Arabic files a word with its article among its forms, and its dialect dictionaries do not (الولاد, الدراري, للدار found nothing). A verb's prefix leaves three letters at least (`min_stem_length`): حالك is not the future's ح + الك."
+}

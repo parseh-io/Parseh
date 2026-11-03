@@ -50,6 +50,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sys
 import time
 import urllib.error
@@ -203,9 +204,34 @@ _GLIDE_TO = {"\u0940": "\u0908", "\u0947": "\u090f"}     # ी -> ई, े -> �
 def url_for(L):
     """Where this language's extract lives.  kaikki names its files by the
     language's English name, which the registry already holds -- so a
-    language added to the registry needs nothing added here."""
-    name = L.name.replace(" ", "%20")
-    return URL % (name, name)
+    language added to the registry needs nothing added here.  A variety
+    (lib/languages.py with_variety) has its own, named in its row: the first
+    of them here, every one in urls_for()."""
+    return urls_for(L)[0]
+
+
+def urls_for(L):
+    """Every extract this dictionary is made of: one for a language, one or
+    more for a variety (Levantine is kaikki's South and North Levantine
+    Arabic, two files with two codes)."""
+    if L.variety:
+        v = L.variety_of(L.variety) or {}
+        names = [n for n, _code in v.get("kaikki") or []]
+    else:
+        names = [L.name]
+    # the folder keeps the name's spaces and the file drops them: Egyptian%20Arabic/...-EgyptianArabic.jsonl
+    return [URL % (n.replace(" ", "%20"), n.replace(" ", "")) for n in names]
+
+
+def accepted_codes(L):
+    """The `lang_code`s an extract's entries may carry: the language's own, or
+    the variety's (arz for Egyptian Arabic, ajp and apc for Levantine) -- kaikki
+    files a dialect under its own ISO code, and every one of them would be
+    taken for a stray entry and skipped."""
+    if L.variety:
+        v = L.variety_of(L.variety) or {}
+        return {c for _n, c in v.get("kaikki") or []} or {L.code}
+    return {L.code}
 
 
 _AUX = re.compile(r"\[auxiliary ([^\[\]]+)\]")
@@ -414,6 +440,14 @@ def _senses(o):
         gl = [g for g in (s.get("glosses") or []) if isinstance(g, str)]
         fo = [f.get("word") for f in (s.get("form_of") or []) if f.get("word")]
         al = [f.get("word") for f in (s.get("alt_of") or []) if f.get("word")]
+        # A CONTRACTION IS TWO WORDS, NOT A SPELLING OF ONE, and its gloss is
+        # the meaning ("Contraction of the preposition a and the article el.
+        # to the").  Wiktionary tags Catalan's al, del, pel, can `alt-of`, with
+        # a target that is either a sentence (no page: del was dropped
+        # whole) or the first word alone, so `al` was filed under the letter
+        # a and `can` under ca, "dog".  Its gloss is kept as a meaning.
+        if (fo or al) and "contraction" in (s.get("tags") or []) and gl:
+            fo = al = []
         if fo or al:
             note = ", ".join(t for t in (s.get("tags") or [])
                              if t not in ("form-of", "alt-of", "no-gloss"))
@@ -1054,6 +1088,7 @@ def convert(path, code, db_path, limit=0, say=print, progress=None,
 
 def _convert(c, path, code, limit, say, progress, cancel):
     L = languages.get_or_default(code)
+    accepted = accepted_codes(L)
     n = skipped = 0
     # (surface, lemma word, note, kind, the page's pos, how the page's own
     # word is romanised, how it is said)
@@ -1086,7 +1121,7 @@ def _convert(c, path, code, limit, say, progress, cancel):
             if not word or len(word) > 120:
                 skipped += 1
                 continue
-            if o.get("lang_code") and o["lang_code"] != L.code:
+            if o.get("lang_code") and o["lang_code"] not in accepted:
                 skipped += 1          # a file that carries more than it says
                 continue
             senses, of = _senses(o)
@@ -1220,6 +1255,7 @@ def _convert(c, path, code, limit, say, progress, cancel):
         made += 1
     c.executemany("INSERT INTO meta (key, value) VALUES (?,?)", [
         ("lang", L.code), ("language", L.name),
+        ("variety", L.variety_name if L.variety else ""),
         ("source", SOURCE), ("licence", LICENCE), ("url", url_for(L)),
         ("built", time.strftime("%Y-%m-%d")),
         ("entries", str(n)), ("forms", str(made)),
@@ -1284,7 +1320,29 @@ def fetch(L, dest, say=print, progress=None, cancel=None):
     `dest.part` and renames only a complete file, and the next fetch asks
     kaikki for the rest; Stop (`cancel`) is download.Cancelled, and keeps
     what came."""
-    url = url_for(L)
+    urls = urls_for(L)
+    if len(urls) > 1:
+        # A VARIETY OF SEVERAL EXTRACTS is fetched one file at a time beside the
+        # first and joined into `dest`, which the build then reads as one: the
+        # parts are kept until the whole is there, so Stop loses nothing
+        parts = []
+        for n, url in enumerate(urls):
+            part = "%s.%d" % (dest, n)
+            if not os.path.isfile(part):
+                _fetch_one(url, part, say, progress, cancel)
+            parts.append(part)
+        with open(dest + ".join", "wb") as out:
+            for part in parts:
+                with open(part, "rb") as f:
+                    shutil.copyfileobj(f, out)
+        os.replace(dest + ".join", dest)
+        for part in parts:
+            os.unlink(part)
+        return
+    _fetch_one(urls[0], dest, say, progress, cancel)
+
+
+def _fetch_one(url, dest, say, progress, cancel):
     say("  %s" % url)
     try:
         download.fetch(url, dest, say=say, progress=progress, cancel=cancel)
@@ -1302,7 +1360,7 @@ def fetch(L, dest, say=print, progress=None, cancel=None):
 
 def _extract_for(L):
     """Where this language's extract is downloaded to, and kept by --keep."""
-    return os.path.join(lookup.DICT_DIR, "%s.jsonl" % L.code)
+    return os.path.join(lookup.DICT_DIR, "%s.jsonl" % L.key)
 
 
 def plan(code, src=None, limit=0, keep=False, out=None, *, probe=True):
@@ -1321,7 +1379,7 @@ def plan(code, src=None, limit=0, keep=False, out=None, *, probe=True):
     built bigger than its extract (Turkish 306 of 431 MB, German 342 of
     1 077)."""
     L = languages.get_or_default(code)
-    dl, kept = MEASURED.get(L.code, (None, None))
+    dl, kept = MEASURED.get(L.key, (None, None))
     measured, have = dl is not None, 0
     if src is not None:                   # built from a file already here
         dl, measured, bound = 0, False, os.path.getsize(src)
@@ -1333,7 +1391,9 @@ def plan(code, src=None, limit=0, keep=False, out=None, *, probe=True):
         else:
             have = download.leftover(tmp)
             if dl is None and probe:
-                dl = download.probe(url_for(L))
+                # every file of a variety of several (Levantine is two), summed
+                sizes = [download.probe(u) for u in urls_for(L)]
+                dl = sum(sizes) if all(x is not None for x in sizes) else None
         bound = dl
     built = kept if kept is not None else bound
     peak = None
@@ -1379,7 +1439,7 @@ def build(code, src=None, limit=0, keep=False, say=print, out=None,
         os.makedirs(os.path.dirname(db), exist_ok=True)
     else:
         os.makedirs(lookup.DICT_DIR, exist_ok=True)
-        db = lookup.path_for(L.code)
+        db = lookup.path_for(L.key)
     tmp = None
     if src is None:
         tmp = _extract_for(L)
@@ -1399,7 +1459,7 @@ def build(code, src=None, limit=0, keep=False, say=print, out=None,
                            if db.startswith(ROOT + os.sep) else db))
     part = db + ".part"
     try:
-        n = convert(src, L.code, part, limit=limit, say=say,
+        n = convert(src, L.key, part, limit=limit, say=say,
                     progress=progress, cancel=cancel)
         os.replace(part, db)
     except BaseException:

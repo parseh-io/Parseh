@@ -13,6 +13,7 @@ writes into the file.  The guide's compile copies the licences beside the
 fonts.  And the old duplicates are gone: the video player's copies of three
 fonts, and the PDF manual, whose address now opens the guide.
 """
+import json
 import http.client
 import re
 import subprocess
@@ -457,7 +458,9 @@ class FixtureProvenance(unittest.TestCase):
     def test_every_fixture_book_says_where_its_text_comes_from(self):
         readme = (ROOT / "tests" / "fixtures" / "README.md").read_text(encoding="utf-8")
         books = sorted(p.name for p in (ROOT / "tests" / "fixtures" / "books").glob("*/*") if p.is_dir())
-        self.assertEqual(len(books), 11)
+        # one fixture book per language Parseh ships (tests/smoke.py builds each)
+        shipped = json.loads((ROOT / "lib" / "languages.json").read_text(encoding="utf-8"))["_shipped"]
+        self.assertEqual(len(books), len(shipped))
         for slug in books:
             self.assertIn("| `%s` |" % slug, readme, slug)
         for part in ("verbs/", "align/cases.json", "wordline.json", "Videos", "Anki decks", "Studio documents"):

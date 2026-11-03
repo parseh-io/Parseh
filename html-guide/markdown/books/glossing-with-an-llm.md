@@ -295,7 +295,7 @@ Only the four gloss fields are ever written. The text, the word line, the
 colour and a paragraph's freedom from its source never are, and a `\chp`
 chunk, which has no gloss slots, is never glossed.
 
-> **Every language.** The sheet works the same in all eleven. What changes
+> **Every language.** The sheet works the same in every language. What changes
 > is what the prompt asks for — the kana of Japanese, the pinyin of Chinese
 > agreeing with its word line, a transliteration where the language wants
 > one — and the conventions it carries, which are that language's own.

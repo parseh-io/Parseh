@@ -48,7 +48,7 @@ you. A deck does not care how an exercise was written: once it is in, it is
 one exercise with its own schedule.
 
 **A deck has one language.** When you make a deck you say which of the
-eleven languages it is for, and every exercise in it is in that language,
+twelve languages it is for, and every exercise in it is in that language,
 drawn in that language's face and direction — right to left for Persian and
 Arabic. That is also why a document's exercises are offered only to the
 decks of the document's own language.

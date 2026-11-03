@@ -9,7 +9,7 @@ this document; when a tool and this document disagree, the tool is wrong.
 The languages today: **Persian** (`fa`), **Arabic** (`ar`), **Italian**
 (`it`), **Japanese** (`ja`), **French** (`fr`), **German** (`de`),
 **Turkish** (`tr`), **English** (`en`), **Hindi** (`hi`), **Spanish** (`es`),
-**Chinese** (`zh`) — eleven rows in four scripts: the Arabic abjad, the
+**Chinese** (`zh`), **Catalan** (`ca`) — twelve rows in four scripts: the Arabic abjad, the
 Latin alphabet, Devanagari and the Han characters (which Japanese writes
 alongside its two kana syllabaries, and which the registry therefore gives
 `japanese` and `cjk` as two `script` values rather than one). This is the
@@ -1264,6 +1264,58 @@ guide's page **"Adding a language"**
 (`html-guide/markdown/lookup-and-languages/adding-a-language.md`): the one
 command and its flags, what is left to write by hand, the font, the check, and
 worked examples.
+
+### Easier since a0.6.1: one place, a related language, the prose by a chatbot
+
+**No file keeps its own list of the languages.** What used to be written
+per language outside the registry is now a field of the row: `analysis`
+(which program reads its word forms and its sentences: lib/analyzer.py's
+MORPHOLOGY and SYNTAX are built from it), `examples` (what the lookup page
+shows for a dictionary, a corpus and a model, and `macros`, what each gloss
+button writes), `compounds` (`"parts"` where a compound is glossed as a
+whole with its parts, else a light verb), `like` (the related language it
+was started from). The pages learn a language's name from `/lib/langs.css`
+(`--tl-name`, beside `--tl-dir`). Two tables of the browser stay, FROZEN at
+the eleven of a0.6.0 because readers built before the record carried the
+same facts still ask them: the level names of lib/gear-reader.js and the
+gloss-button examples of lib/vocbuttons.js; a language added since has
+never had such a reader, and needs no edit there. The tests count from the
+registry (`_shipped`), never a number.
+
+**`--like CODE`** starts a language from a related one: its verb entry's
+shape, its `compounds`, a copy of its chunking rules to review, and `like`
+in the row. **`--features`** (lib/langfeatures.py) says, per language and
+feature by feature, what it has, what it is without the rest and what adds
+it -- the same list **Settings → Languages** shows (lib/languagespage.py),
+where a language of this machine's is added from a form and its prose is
+written with a chatbot: lib/langprompts.py gives a prompt per piece
+(conventions, the "How to read this" page, the studio starter, the
+examples, the lookup rules, the chunking rules), the related language's
+file as the model, and an intake that checks the answer's shape -- the
+seven sections, a `\FrankHowTo` that only writes text (no `\directlua`,
+`\input`, `\def`…), JSON that parses -- before it writes it. Adding and
+taking prose in are the computer's alone (lib/settingspage.py SETTINGS
+`languages.add`, `languages.prose`). `languages.reload()` puts a language
+added from the page into every page at once. `python3 lib/getanalysis.py
+measure <treebank>` prints a new UDPipe pin.
+
+### Varieties: a language written in more than one way
+
+A row may name **varieties** (`varieties`: `[{key, name, kaikki: [[extract
+name, lang_code], ...]}]`, and `standard_name` for the standard one):
+Arabic's `egy`, `lev`, `gulf`, `mor`. A book's or a video's `variety`
+(book.json, video.json; none is the standard language) says which its text
+is in. `languages.get("ar.egy")` (or `Lang.with_variety`) is the same Lang
+with `key` = `ar.egy` and `variety_name`, and its key is the stem of its own
+files: `dict/ar.egy.db` (lib/getdict.py builds it from every extract the
+row names, accepting their `lang_code`s) and `lib/lang/ar.egy.lookup.json`,
+read before `ar.lookup.json` (lookup.rules), with `max_peel` up to 3.
+`lookup.look_up(..., variety=)` looks each word up with those rules in the
+variety's dictionary and then in the language's, the variety's hits first
+and marked (`variety`, and its name at the head of the hit's note). The
+analyzers are not asked for a variety: they read the standard language.
+A prompt for a book or a video in a variety names it before the
+conventions (promptkit.language_text).
 
 ---
 

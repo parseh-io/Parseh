@@ -156,7 +156,9 @@ def lang_records():
     """One record per language of the registry, in its order, with what the
     page lays out: its names, its folder and its direction."""
     return [{"code": L.code, "name": L.name, "native": L.native, "folder": L.folder,
-             "dir": L.dir} for L in languages.LANGS.values()]
+             "dir": L.dir, "standard_name": L.standard_name,
+             "varieties": [{"key": v["key"], "name": v.get("name") or v["key"]} for v in L.varieties]}
+            for L in languages.LANGS.values()]
 
 
 def gloss_records():
@@ -440,6 +442,10 @@ a.wbtn{display:inline-block;text-decoration:none;color:var(--accent-fg)}
       <span class="fieldnote">The language the meanings are written <b>in</b>. An Italian
         learning Persian wants them in Italian.</span>
       <span class="fieldnote" id="glossnote"></span></label>
+    <label id="variety_lbl" hidden>Written in <select id="variety"></select>
+      <span class="fieldnote">The variety of the language the text is in: the dictionary looks a word up in
+        its own dictionary and with its own rules first. It can be changed later in the reader's dictionary
+        panel.</span></label>
     <label class="wide">Slug (directory name, ascii) <input id="slug" placeholder="hekayat-e-…" autocomplete="off">
       <span class="fieldnote">The directory name. Left empty it is made from the
         transliterated title.</span>
@@ -810,6 +816,14 @@ a.wbtn{display:inline-block;text-decoration:none;color:var(--accent-fg)}
     // wrapper left behind in another lane would hand down nothing
     IDENT.setAttribute('data-lang', L.code);
     $('title_lbl').textContent = 'Title, ' + L.name;
+    // the varieties of the language, where it has any (Arabic's dialects): the standard one first
+    var vs = L.varieties || [], vsel = $('variety'), keep = vsel.value;
+    $('variety_lbl').hidden = !vs.length;
+    vsel.innerHTML = '';
+    [{key: '', name: L.standard_name || L.name}].concat(vs).forEach(function (v) {
+      var o = document.createElement('option'); o.value = v.key; o.textContent = v.name; vsel.appendChild(o);
+    });
+    vsel.value = vs.some(function (v) { return v.key === keep; }) ? keep : '';
     $('author_lbl').textContent = 'Author, ' + L.name;
     // the chapter is the book's own text: its face comes from langs.css
     // through data-lang, and Persian and Arabic read the other way
@@ -1104,7 +1118,7 @@ a.wbtn{display:inline-block;text-decoration:none;color:var(--accent-fg)}
     $('estat').textContent = 'drafting…'; $('mkempty').disabled = true;
     var act = working('Writing the book ' + val('title').trim());
     fetch(act.url('/books/__empty'), {method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({lang: val('lang'), gloss: val('gloss'),
+      body: JSON.stringify({lang: val('lang'), gloss: val('gloss'), variety: val('variety'),
         text: text, slug: val('slug').trim(),
         title: val('title').trim(), title_latin: val('title_latin').trim(),
         title_en: val('title_en').trim(), author: val('author').trim(),

@@ -86,7 +86,7 @@ the study page brings it forward when nothing else is left (see
 - **Name** — anything you like, up to 200 characters (extra spaces are
   dropped). Two decks may have the same name; each still has its own
   address.
-- **Language** — one of the eleven, each written `Persian — فارسی`,
+- **Language** — one of the twelve, each written `Persian — فارسی`,
   `Italian — italiano`, and so on. It starts on the language of the chip you
   picked, or on the first of the list when you picked **all**. *Every
   exercise of a deck is in its language*, as the dialog reminds you: this

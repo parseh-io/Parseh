@@ -1,0 +1,212 @@
+{
+  "_comment": "How a word of a text in Moroccan Arabic (Darija, in Arabic letters) is turned into something a dictionary can be asked about: the Moroccan dictionary first, the standard one after it, these rules and then lib/lang/ar.lookup.json's. Written onto a word standard Arabic also has: the present's ka-/ta- (كيكتب, تيكتب, كنكتب = أكتب: Moroccan's first person singular is n-), the future's ġa- (غيكتب; غادي is a word of its own), the negation's ma-...-š (ماكيكتبش, three steps, so this file allows three), في ال- fused (فالدار), the pronoun written onto the verb with -l- and the dropped hamza. Words of its own (بزاف, ديال, الدراري) are the Moroccan dictionary's. Latin-letter Darija (Arabizi) is not read. Measured on TODOs/arabic-dialects/ar-mor.txt.",
+  "max_peel": 3,
+  "affixes": [
+    {
+      "prefix": "كي",
+      "note": "the present's ka- taken off: كيكتب is يكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "كت",
+      "note": "the present's ka- taken off: كتكتب is تكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "كن",
+      "front": "أ",
+      "note": "the present's ka- and the first person's n- taken off, its أ put back: كنكتب is أكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "كن",
+      "note": "the present's ka- taken off: كنكتبو is نكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "تي",
+      "note": "the present's ta- taken off: تيكتب is يكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "تن",
+      "front": "أ",
+      "note": "the present's ta- and the first person's n-, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "غي",
+      "note": "the future's ġa- taken off: غيكتب is يكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "غت",
+      "note": "the future's ġa- taken off",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "غن",
+      "front": "أ",
+      "note": "the future's ġa- and the first person's n-, its أ put back",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ن",
+      "front": "أ",
+      "note": "Moroccan's first person singular n-, its أ put back: نكتب is أكتب",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ماك",
+      "note": "ما + ka- taken off together: ماكيكتبش",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "مات",
+      "note": "ما + ta- taken off together",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "ما",
+      "note": "the ما of a negation written onto the verb",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "فال",
+      "front": "ال",
+      "note": "فال- (في ال-) taken off, the article put back"
+    },
+    {
+      "prefix": "ف",
+      "note": "ف- (في) taken off",
+      "min_stem_length": 3
+    },
+    {
+      "suffix": "و",
+      "min_stem_length": 2,
+      "note": "the plural -u of the verb taken off: كيكتبو is يكتب"
+    },
+    {
+      "suffix": "ش",
+      "min_stem_length": 2,
+      "note": "the -š of a negation (ما…ش) taken off: ماكتبش, مايكتبش"
+    },
+    {
+      "suffix": "لي",
+      "min_stem_length": 2,
+      "note": "the -لي of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لو",
+      "min_stem_length": 2,
+      "note": "the -لو of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "له",
+      "min_stem_length": 2,
+      "note": "the -له of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لها",
+      "min_stem_length": 2,
+      "note": "the -لها of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لك",
+      "min_stem_length": 2,
+      "note": "the -لك of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لنا",
+      "min_stem_length": 2,
+      "note": "the -لنا of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لكم",
+      "min_stem_length": 2,
+      "note": "the -لكم of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لهم",
+      "min_stem_length": 2,
+      "note": "the -لهم of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "لوش",
+      "min_stem_length": 2,
+      "note": "the -لوش of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "suffix": "ليش",
+      "min_stem_length": 2,
+      "note": "the -ليش of a pronoun written onto the verb (قولّي, قالّه, اكتبلو)"
+    },
+    {
+      "prefix": "تا",
+      "front": "تأ",
+      "note": "a hamza written as a plain alif, put back: تا is تأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "يا",
+      "front": "يأ",
+      "note": "a hamza written as a plain alif, put back: يا is يأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "نا",
+      "front": "نأ",
+      "note": "a hamza written as a plain alif, put back: نا is نأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "أا",
+      "front": "أأ",
+      "note": "a hamza written as a plain alif, put back: أا is أأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "prefix": "با",
+      "front": "بأ",
+      "note": "a hamza written as a plain alif, put back: با is بأ (تاكل, ياكل)",
+      "min_stem_length": 3
+    },
+    {
+      "suffix": "ا",
+      "add": "أ",
+      "note": "a final hamza dropped, put back: تقرا is تقرأ"
+    },
+    {
+      "suffix": "ا",
+      "add": "اء",
+      "note": "a final hamza dropped, put back: الما is الماء"
+    },
+    {
+      "prefix": "ال",
+      "note": "the article al- taken off"
+    },
+    {
+      "prefix": "لل",
+      "note": "li- with the article (لل) taken off"
+    },
+    {
+      "prefix": "بال",
+      "note": "bi- with the article (بال) taken off"
+    },
+    {
+      "prefix": "وال",
+      "note": "wa- with the article (وال) taken off"
+    },
+    {
+      "suffix": "ين",
+      "min_stem_length": 3,
+      "note": "the plural -īn of a participle taken off (عاوزين is عاوز)"
+    },
+    {
+      "suffix": "ات",
+      "min_stem_length": 3,
+      "note": "the plural -āt taken off"
+    }
+  ],
+  "_article": "THE ARTICLE IS TAKEN OFF HERE and not in ar.lookup.json: Wiktionary's standard Arabic files a word with its article among its forms, and its dialect dictionaries do not (الولاد, الدراري, للدار found nothing). A verb's prefix leaves three letters at least (`min_stem_length`): حالك is not the future's ح + الك."
+}
