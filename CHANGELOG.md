@@ -1,4 +1,4 @@
-## [a0.6.1] - unreleased
+## [a0.6.1] - 2026-11-03
 ### Added
 - Catalan, a twelfth language: books, videos, the studio, its dictionary's rules, verb entries, linguistic analysis, speech to text
 - Arabic dialects: a book or a video can be Egyptian, Levantine, Gulf or Moroccan Arabic, with each dialect's own dictionary and rules read first
