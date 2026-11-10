@@ -15,7 +15,7 @@ change. A new version comes in from **Settings → Updating Parseh**
 ([Updating Parseh](../getting-started/updating.md)), which compiles this
 guide and rebuilds the readers by itself.
 
-## a0.6.2 — not yet released
+## a0.6.2 — 10 November 2026
 
 ### Chunks side by side
 

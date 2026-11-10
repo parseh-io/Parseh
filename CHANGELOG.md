@@ -1,4 +1,4 @@
-## [a0.6.2] - unreleased
+## [a0.6.2] - 2026-11-10
 ### Added
 - Chunks side by side: a book's chunks level can flow along the line, each chunk a small column of text, reading and meaning, with the vocabulary under the sentence (⚙ page → Chunks laid out)
 - Phrases side by side: the video player's glosses below the line can be drawn the same way, with vocabulary and notes under the columns (⚙ page → Phrases laid out)
