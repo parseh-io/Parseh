@@ -37,20 +37,66 @@
 <header class="topbar" data-layout="browser">
   <a class="hublink" href="/" title="Parseh — the hub"><span class="glyph">پ</span>Parseh</a>
   <a class="brand" href="{{BASE}}/"><span class="brand-fa" lang="fa">ف</span> Studio</a>
+  <!-- THE BAR (a0.6.2): what is done every day first, then three menus named in words, and Stop server apart at the
+       far end.  Every action keeps the id and the explanation it had as a button of its own; the two that act on
+       "the documents shown" are below, under the filters that decide which those are. -->
   <div class="topbar-actions">
-    <a class="btn" href="{{BASE}}/prompt">LLM prompt</a>
-    <button class="btn" id="btn-paste-answer">Paste LLM answer</button>
-    <label class="btn" for="file-upload"
-           title="A markdown document, or a .zip of one with its pictures and recordings (a document's Download ▾ gives one)">Upload .md / .zip</label>
+    <a class="btn primary" href="{{BASE}}/new" id="btn-new"
+       title="A new, empty document, written by hand in the editor">+ New</a>
+    <details class="dropdown bar-menu" id="menu-llm">
+      <summary class="btn" title="Have a chatbot write a document: take the prompt to it, then bring its answer back">With an LLM ▾</summary>
+      <div class="menu">
+        <a href="{{BASE}}/prompt" id="btn-llm-prompt"
+           title="The prompt to give a chatbot, made for the language and the kind of document you choose">LLM prompt<small>The prompt to copy into a chatbot</small></a>
+        <button type="button" id="btn-paste-answer"
+                title="Paste what the chatbot answered: the studio takes the document out of it and adds it to the library">Paste LLM answer<small>Make a document of what it answered</small></button>
+      </div>
+    </details>
+    <details class="dropdown bar-menu" id="menu-open">
+      <summary class="btn" title="Bring a document in: add a file to the library, or work on one where it is">Open / import ▾</summary>
+      <div class="menu">
+        <button type="button" id="btn-upload"
+                title="A markdown document, or a .zip of one with its pictures and recordings (a document's Download ▾ gives one)">Upload .md / .zip<small>Add a copy of a file to the library</small></button>
+        <!-- A FILE FROM ANYWHERE ON THE COMPUTER PARSEH RUNS ON (a0.5.2, static/openfile.js): worked on where it is, through
+             a copy; the file itself changes only when the copy is saved.  Every device Parseh lets in may use it. -->
+        <button type="button" id="btn-open-file" hidden
+                title="Open a Markdown or zip file from anywhere on the computer Parseh runs on. The studio works on a copy; the file itself changes only when you save">Open a file…<small>Work on a file where it is on the computer</small></button>
+      </div>
+    </details>
     <input type="file" id="file-upload" accept=".md,.markdown,.txt,.zip,application/zip" multiple hidden>
-    <!-- A FILE FROM ANYWHERE ON THE COMPUTER PARSEH RUNS ON (a0.5.2, static/openfile.js): worked on where it is, through
-         a copy; the file itself changes only when the copy is saved.  Every device Parseh lets in may use it. -->
-    <button type="button" class="btn" id="btn-open-file" hidden
-            title="Open a Markdown or zip file from anywhere on the computer Parseh runs on. The studio works on a copy; the file itself changes only when you save">Open a file…</button>
-    <a class="btn" href="{{BASE}}/api/export" title="Download the whole library as a zip">Backup</a>
-    <button type="button" class="btn" id="btn-restore"
-            title="Put a backup zip back: every document it holds, with its id, its tags and the links that point at it">Load from backup</button>
+    <details class="dropdown bar-menu" id="menu-backup">
+      <summary class="btn" title="The whole library as one zip, to keep somewhere safe, and the way to put one back">Backup ▾</summary>
+      <div class="menu">
+        <a href="{{BASE}}/api/export" id="btn-backup" title="Download the whole library as a zip">Backup the whole library<small>Download every document as one zip</small></a>
+        <button type="button" id="btn-restore"
+                title="Put a backup zip back: every document it holds, with its id, its tags and the links that point at it">Load from backup<small>Put a backup zip back</small></button>
+      </div>
+    </details>
     <input type="file" id="backup-file" accept=".zip,application/zip" hidden>
+    <button class="btn danger ghost" id="btn-stop">Stop server</button>
+  </div>
+</header>
+<main class="container">
+  <div class="searchrow">
+    <input id="search" type="search" placeholder="Search by title, subtitle or tag…" autocomplete="off">
+    <label class="check"><input type="checkbox" id="intext"> search in text too</label>
+    <button type="button" class="btn ghost" id="btn-clear-filters" hidden
+            title="Clear the search, every tag filter and the language chip">Clear all filters</button>
+    <select id="sort" title="Sort order">
+      <option value="updated">Last modified</option>
+      <option value="created">Created</option>
+      <option value="title">Title A–Z</option>
+    </select>
+  </div>
+  {{LANG_CHIPS}}
+  <!-- THE FILES OPEN NOW (static/openfile.js): drawn only when there is one -->
+  <section id="open-files" class="open-files" aria-label="Files opened from the computer" hidden></section>
+  <div id="tagbar" class="tagbar"></div>
+  <p id="tag-filter-hint" class="tag-filter-hint" hidden>Tags: click to include (+), again to exclude (−), again to clear. Shift-click excludes directly.</p>
+  <!-- THE DOCUMENTS SHOWN, AND WHAT IS DONE WITH ALL OF THEM AT ONCE (a0.6.2): here, under the search, the chips and
+       the tags that decide which they are, and no longer on the bar.  Nothing here is on a phone (static/mobile.css). -->
+  <div class="shownrow" id="shown-row">
+    <span class="shown-say" id="shown-say">The 0 documents shown:</span>
     <details class="dropdown" id="download-shown">
       <summary class="btn" id="btn-download-shown"
                title="Download the documents shown">Download 0 shown</summary>
@@ -77,27 +123,7 @@
       <button type="button" class="btn ghost" id="btn-make-stop"
               title="Begin no new drawing: the ones under way finish, and what was made stays made">Stop</button>
     </span>
-    <a class="btn primary" href="{{BASE}}/new">+ New</a>
-    <button class="btn danger ghost" id="btn-stop">Stop server</button>
   </div>
-</header>
-<main class="container">
-  <div class="searchrow">
-    <input id="search" type="search" placeholder="Search by title, subtitle or tag…" autocomplete="off">
-    <label class="check"><input type="checkbox" id="intext"> search in text too</label>
-    <button type="button" class="btn ghost" id="btn-clear-filters" hidden
-            title="Clear the search, every tag filter and the language chip">Clear all filters</button>
-    <select id="sort" title="Sort order">
-      <option value="updated">Last modified</option>
-      <option value="created">Created</option>
-      <option value="title">Title A–Z</option>
-    </select>
-  </div>
-  {{LANG_CHIPS}}
-  <!-- THE FILES OPEN NOW (static/openfile.js): drawn only when there is one -->
-  <section id="open-files" class="open-files" aria-label="Files opened from the computer" hidden></section>
-  <div id="tagbar" class="tagbar"></div>
-  <p id="tag-filter-hint" class="tag-filter-hint" hidden>Tags: click to include (+), again to exclude (−), again to clear. Shift-click excludes directly.</p>
   <div id="cards" class="cards" data-lang-filter="[data-lang]"></div>
   <div id="empty" class="empty hidden">
     <p>No documents yet.</p>

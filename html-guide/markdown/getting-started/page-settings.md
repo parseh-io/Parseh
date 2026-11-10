@@ -124,6 +124,7 @@ the names are what the panel says.
 | **Levels & reading** — this device; the names follow you | **Levels** | one line for each level of the book: a tick that shows or hides it, a field for its name, and a sentence saying what it shows ([Levels and their names](../books/levels.md)) |
 | | **Diacritics** | Persian and Arabic: shows or hides the small vowel marks on levels 1 and 2 ([Levels and their names](../books/levels.md#diacritics)) |
 | | **Glosses** | the meaning beside each chunk, on or off — the **G** key |
+| | **Chunks laid out** | **In rows**, each chunk on a row of its own with its gloss beside it, or **Side by side**, the chunks along the line with their gloss under them and the vocabulary below ([Chunks side by side](../books/reader.md#chunks-side-by-side)). Rests while the cloud is on |
 | | **Glosses in a cloud** | reading the text clean, with a chunk's gloss in a cloud when you point at it or tap it — the **H** key. While it is on, the chunks level and **Glosses** rest |
 | | **Pause while a gloss is open** | under the cloud's row, in a book with a recording: the recording waits while a cloud is open |
 | | **Hide the bars** | puts the header away; a small **⌄** in the corner brings it back |
@@ -168,6 +169,7 @@ panel. [The reader](../books/reader.md) lists the header.
 | **Watching & reading** — this device | **Keep the playing caption in view** | the transcript scrolls so that the caption being said stays on screen; it waits a moment after you scroll yourself |
 | | **Pause while a gloss is open** | the video waits while a cloud is open, and goes on a moment after it closes |
 | | **Glosses below the line** | each phrase's gloss drawn as text in a row under its line, as a book does, instead of in a cloud when you point or tap ([The video player](../videos/the-player.md#glosses-below-the-line)); on a phone too |
+| | **Phrases laid out** | under *Glosses below the line*, and resting while that is off: **In rows**, a row for each phrase with its gloss beside it, or **Side by side**, the phrases one after another under the line, each with its transliteration and its meaning under it, and the vocabulary and the notes below them ([Side by side](../videos/the-player.md#phrases-side-by-side)); on a phone too |
 | | **Move text between lines** | the mode in which a click on a word moves the words after it down to the next line, or the words before it up to the line above ([Moving text between lines](../videos/moving-text.md)); not kept, and not on a phone |
 | | **Show only the reading** | Japanese and Chinese: each phrase drawn as its kana or pinyin alone, the text in the cloud |
 | | **Diacritics** | drawn only when the video's lines hold vowel marks (Persian, Arabic): shows or hides them |

@@ -16,7 +16,7 @@ another computer, or to keep a copy of it somewhere safe.
 |---|---|---|
 | **Books** | the books' library, `/books/`, panel **⇩ The whole shelf** | **Backup every book** |
 | **Videos** | the video index, `/youtube/`, panel **⇩ The whole shelf** | **Backup every video** |
-| **Studio documents** | the studio's library, `/studio/`, at the top | **Backup** |
+| **Studio documents** | the studio's library, `/studio/`, in the bar's **Backup ▾** menu | **Backup the whole library** |
 | **Exercise decks** | the exercise decks, `/exercises/`, at the top | **Backup** |
 
 Beside each of them, on every shelf, is **Load from backup**, which puts

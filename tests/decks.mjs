@@ -2905,7 +2905,7 @@ async function endToEnd(browser) {
            'it clears the language chip too, and the three are shown again');
     assert(await page.locator('#btn-restore').count() === 1
            && await page.locator('#backup-file').count() === 1,
-           'and the library offers “Load from backup” beside Backup');
+           'and the library offers “Load from backup” in its Backup ▾ menu');
 
     // the sort menu is not a filter: it is remembered, and opening the page
     // again must not quietly put the list back in another order

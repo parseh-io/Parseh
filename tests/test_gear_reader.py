@@ -225,6 +225,43 @@ class TheLoader(unittest.TestCase):
         self.assertIn("/lib/gear-reader.js", offline.SHARED)
         self.assertTrue((ROOT / "lib" / "gear-reader.js").is_file())
 
+    def test_the_chunks_side_by_side_is_loaded_before_the_gear_served_and_kept(self):
+        """lib/chunkflow.js (a0.6.2) reaches every reader from parseh.js, before the gear whose row drives it."""
+        import offline
+        import serve
+        self.assertIn("cf.src = base + 'chunkflow.js';", self.PARSEH)
+        self.assertIn("cf.async = false;", self.PARSEH)
+        self.assertLess(self.PARSEH.index("a book's reader, in the mobile interface"), self.PARSEH.index("base + 'chunkflow.js'"))
+        self.assertLess(self.PARSEH.index("base + 'chunkflow.js'"), self.PARSEH.index("['ParsehGear', 'pagesettings.js']"))
+        # the layout the device chose is on the body before the page is drawn, and off again if the script cannot be had
+        self.assertIn("localStorage.getItem('bk_flow') === '1'", self.PARSEH)
+        self.assertIn("document.body.classList.remove('chunkflow');", self.PARSEH)
+        self.assertIn("/lib/chunkflow.js", serve.STATIC_FILES)
+        self.assertTrue(serve.static_ok("/lib/chunkflow.js"))
+        self.assertIn("/lib/chunkflow.js", offline.SHARED)
+        flow = read(ROOT / "lib" / "chunkflow.js")
+        for said in ("var KEY = 'bk_flow', CLS = 'chunkflow';", "root.ParsehFlow = {", "line.className = 'fv';",
+                     "line.setAttribute('data-for'", "if (e.key === KEY || e.key === null) apply(stored());"):
+            self.assertIn(said, flow)
+        # beside the columns a shift-click is on the level itself: the sentence is copied, never all the level says
+        # (its glosses, and each vocabulary line twice); and the pencil of a column is placed by the ink around it
+        for said in ("t.matches('.pass.p2') || t.matches('.pass.p2 > .fvoc')", "text = sentenceOf(t.closest('.pass.p2'));",
+                     "function sentenceOf(p2) {", "function liftPen() {", "b.classList.toggle('flowtight', pad < PAD);"):
+            self.assertIn(said, flow)
+        css = read(ROOT / "lib" / "parseh.css")
+        self.assertIn("#chpen.flowtight,.later-flag.flowtight{padding-top:var(--flowpad,1px);padding-bottom:var(--flowpad,1px)}", css)
+        # the columns of a line stand on their first baseline (a reading over one of them must not push it down)
+        self.assertRegex(css, r"body\.chunkflow:not\(\.no2\):not\(\.hovermode\) \.pass\.p2\{display:flex;flex-flow:row wrap;\s*align-items:baseline;")
+        # a copy of a vocabulary line is never a chunk: no data-c, no row
+        code = re.sub(r"/\*.*?\*/", "", flow, flags=re.S)
+        self.assertNotIn("setAttribute('data-c'", code)
+        self.assertNotIn("className = 'row", code)
+        # its rules are in the sheet every reader links, and leave a level that is put away alone
+        css = read(ROOT / "lib" / "parseh.css")
+        self.assertIn("body.chunkflow:not(.no2):not(.hovermode) .pass.p2{display:flex;flex-flow:row wrap;", css)
+        self.assertIn("body.chunkflow .pass.p2>.row>.gl>.voc{display:none}", css)
+        self.assertIn("body.chunkflow.nogloss .pass.p2>.fvoc{display:none}", css)
+
     def test_the_toolkit_ignores_a_scripts_click_for_its_outside_click(self):
         """The rows press the page's own buttons with .click(); that click is outside the panel and must not
         shut the popover under a person's hand (found by driving the first row of the book's gear)."""
@@ -312,6 +349,28 @@ class TheLayer(unittest.TestCase):
                 "How big the kana over the kanji are, as a percentage of the kanji's own size.",
                 "Hover mode shows the glosses in the cloud instead."):
             self.assertIn(said, text)
+
+    def test_the_chunks_side_by_side_is_a_choice_of_the_levels_theme(self):
+        # a0.6.2: the further layout of the Chunks level, drawn by lib/chunkflow.js and offered here
+        text = flat(self.SRC)
+        for said in (
+                "id: 'flow', kind: 'choice', label: 'Chunks laid out'",
+                "options: [{value: 'rows', label: 'In rows'}, {value: 'flow', label: 'Side by side'}]",
+                "In rows: each chunk on a row of its own, its gloss beside it. Side by side: the chunks follow one another "
+                "along the line, each with its transliteration and its meaning under it, and the vocabulary below them.",
+                "flow: 'side by side'", "if (flowOn()) extra.push(SHORT.flow);",
+                "root.ParsehFlow.set(v === 'flow')",
+                "disabled: function () { return document.body.classList.contains('hovermode') ? LOCKED : false; }"):
+            self.assertIn(said, text)
+        # right after Glosses, before the cloud; and after the levels' names in the summary
+        self.assertLess(text.index("label: 'Glosses'"), text.index("label: 'Chunks laid out'"))
+        self.assertLess(text.index("label: 'Chunks laid out'"), text.index("label: 'Glosses in a cloud'"))
+        self.assertLess(text.index("extra.push('no diacritics')"), text.index("extra.push(SHORT.flow)"))
+        # the device's key is the layer's own, and nobody else's: never one that follows the person
+        import prefs
+        self.assertNotIn("bk_flow", self.CODE)
+        self.assertNotIn("bk_flow", prefs.KEYS)
+        self.assertNotIn("bk_flow", read(ROOT / "lib" / "prefs.js"))
 
     def test_diacritics_keeps_the_originals_and_wraps_the_readers_of_text(self):
         for said in ("var originals = new WeakMap();", "var SCOPE = '.p1 .w, .row .fa';", "var MARKS_KEY = 'bk_marks';",

@@ -102,17 +102,24 @@ async function runSuite(mode, info, opts = {}) {
   };
   const barWhere = async p => { await barName(p); return p.locator('#filebar .fb-where').textContent(); };
 
+  // the menu is opened first, as a person does, and the entry chosen in it
+  const openMenu = async p => {
+    if (!(await p.locator('#menu-open').evaluate(d => d.open))) await p.locator('#menu-open > summary').click();
+    await p.waitForSelector('#btn-open-file', {state: 'visible'});
+  };
+  const pressOpenFile = async p => { await openMenu(p); await p.locator('#btn-open-file').click(); };
   // open a file from the library page through the browser's typed path, and arrive at its reading page
   const openTyped = async (lib, path) => {
-    await lib.locator('#btn-open-file').click();
+    await pressOpenFile(lib);
     await lib.waitForSelector('.of-modal .of-path');
     await lib.fill('.of-path', path);
     await lib.press('.of-path', 'Enter');
     await lib.waitForURL(/\/open\/[0-9a-f]{12}\/doc\//);
   };
+  // "Open a file…" is an entry of the bar's "Open / import ▾" menu (a0.6.2): there once openfile.js has wired it
   const library = async () => {
     const p = await newPage(S + '/');
-    await p.waitForSelector('#btn-open-file:not([hidden])');
+    await p.waitForSelector('#btn-open-file:not([hidden])', {state: 'attached'});
     return p;
   };
 
@@ -121,8 +128,9 @@ async function runSuite(mode, info, opts = {}) {
     console.log('r) another device that is let in uses it too, and is told whose disk it sees');
     assert(info.remote === true, 'the studio takes this browser for another device');
     const far = await library();
+    await openMenu(far);
     assert(await far.locator('#btn-open-file').isVisible(), 'the library offers "Open a file…" to it as well');
-    await far.locator('#btn-open-file').click();
+    await pressOpenFile(far);
     await far.waitForSelector('.of-modal .of-path');
     await far.waitForFunction(h => document.querySelector('.of-modal h3').textContent.includes(h), info.host);
     assert((await dialogTitle(far)).includes('Open a file on ' + info.host), 'the window says whose disk it shows: ' + await dialogTitle(far));
@@ -150,9 +158,10 @@ async function runSuite(mode, info, opts = {}) {
   // ------------------------------------------------------------------ a) the library page and the browser
   console.log('a) the library page and the file browser');
   let lib = await library();
+  await openMenu(lib);
   assert(await lib.locator('#btn-open-file').isVisible(), 'the library offers "Open a file…" to this computer');
   assert(await lib.locator('#open-files').isHidden(), 'and lists no file open: there is none');
-  await lib.locator('#btn-open-file').click();
+  await pressOpenFile(lib);
   await lib.waitForSelector('.of-modal .of-row');
   assert((await dialogTitle(lib)).includes('Open a file'), 'a window with a file browser opens');
   assert(await lib.locator('.of-place').count() >= 2, 'with places to start from');
@@ -352,7 +361,7 @@ async function runSuite(mode, info, opts = {}) {
   await lib.waitForURL(u => !/\/open\//.test(u.pathname));
   // a zip of several documents asks which
   lib = await library();
-  await lib.locator('#btn-open-file').click();
+  await pressOpenFile(lib);
   await lib.waitForSelector('.of-modal .of-path');
   await lib.fill('.of-path', file('two.zip'));
   await lib.press('.of-path', 'Enter');
@@ -467,7 +476,7 @@ async function runSuite(mode, info, opts = {}) {
   // ------------------------------------------------------------------ h) a path that cannot be opened
   console.log('h) refusals');
   lib = await library();
-  await lib.locator('#btn-open-file').click();
+  await pressOpenFile(lib);
   await lib.waitForSelector('.of-modal .of-path');
   await lib.fill('.of-path', mine + sep + 'no' + sep + 'such' + sep + 'file.md');
   await lib.press('.of-path', 'Enter');
@@ -483,7 +492,7 @@ async function runSuite(mode, info, opts = {}) {
   await lib.waitForSelector('.of-modal', {state: 'detached'});
   assert(await openDirCount(info.open_dir) === 0, 'nothing was opened');
   // a path typed and the Open button pressed (not Enter) is the path asked for
-  await lib.locator('#btn-open-file').click();
+  await pressOpenFile(lib);
   await lib.waitForSelector('.of-modal .of-path');
   await lib.fill('.of-path', file('pictures.md'));
   await clickButton(lib, 'Open');
@@ -493,7 +502,7 @@ async function runSuite(mode, info, opts = {}) {
   await lib.waitForURL(u => !/\/open\//.test(u.pathname));
   lib = await library();
   // the files opened lately are offered again, one click each
-  await lib.locator('#btn-open-file').click();
+  await pressOpenFile(lib);
   await lib.waitForSelector('.of-modal .of-place');
   assert(await lib.locator('.of-recent').count() >= 3, 'the dialog offers the files opened lately');
   await lib.locator('.of-recent', {hasText: 'lesson.md'}).first().click();

@@ -161,7 +161,12 @@
     // THE GLOSSES BELOW THE LINE, as a book's chunks level sets them (yt_below): each phrase of a line
     // with its transliteration, vocabulary and meaning beside it, under the sentence, in place of a
     // cloud that opens when a phrase is pointed at.  Off, which is the player as it always was
-    below: store('yt_below', false)
+    below: store('yt_below', false),
+    // ...AND HOW THOSE GLOSSES ARE LAID OUT (yt_flow): in rows, a row for each phrase with its gloss beside
+    // it, or SIDE BY SIDE -- the phrases one after another under the line, each a small column with its
+    // transliteration and its meaning under it, the vocabulary and the notes below them.  It says
+    // nothing while the glosses are not below the line
+    flow: store('yt_flow', false)
   };
   // what the switch has behind it, filled by the question asked once at the
   // foot of this file
@@ -204,6 +209,8 @@
   // On a phone the rows stand one over the other (lib/mobile.css), and a copy of a caption laid over a video
   // on the whole screen (lib/mobileplayer.js) is the line alone, its gloss in the cloud a tap opens
   function belowOn() { return !!opts.below; }
+  // the phrases side by side under the line: only while the glosses are below it
+  function flowOn() { return belowOn() && !!opts.flow; }
   // THE CLOUD IS THE PHRASE'S TOOLS ONLY when it hangs on a phrase in its row, whose gloss is under it; on a
   // subtitle copied over the picture (nothing there says the gloss) it is the whole gloss, as it always was
   function toolsOnly() {
@@ -227,6 +234,8 @@
     $('#aloud').classList.toggle('on', opts.aloud);
     $('#below').classList.toggle('on', opts.below);
     document.body.classList.toggle('glossbelow', belowOn());
+    $('#flow').classList.toggle('on', opts.flow);
+    document.body.classList.toggle('glossflow', flowOn());
     document.body.classList.toggle('aloud', aloudOn());
     document.body.classList.toggle('nopin', !opts.pin);
     // in the mobile mode the phone's own orientation decides it
@@ -260,13 +269,29 @@
     opts.dict = !opts.dict; localStorage.setItem('yt_dict', opts.dict ? '1' : '0');
     paintButtons(); refillCloud();
   };
+  /* A LAYOUT CHOSEN WHILE A PHRASE IS BEING EDITED is not drawn under the editor's hand (the editor hangs on
+     a phrase of the page as it stands): the drawing is owed, and closeEditor pays it -- or the page would
+     go on showing the old layout while the gear says the new one, until a reload. */
+  var redrawOwed = false;
+  function redrawWhenFree() {
+    if (editing) { redrawOwed = true; return; }
+    redrawOwed = false;
+    redrawAll();
+  }
   /* THE GLOSSES BELOW THE LINE: pressed, every line is drawn again with its rows (or without them), and the
      page stays where it was read -- a line is taller with its glosses under it, and the caption being read
      must not slide out of view. */
   $('#below').onclick = function () {
     opts.below = !opts.below; localStorage.setItem('yt_below', opts.below ? '1' : '0');
     paintButtons();
-    if (!editing) redrawAll();
+    redrawWhenFree();
+  };
+  /* THE PHRASES SIDE BY SIDE under the line, or each in its row: the same drawing again, for the same reason.
+     Pressed while the glosses are not below the line it is kept and shows when they are. */
+  $('#flow').onclick = function () {
+    opts.flow = !opts.flow; localStorage.setItem('yt_flow', opts.flow ? '1' : '0');
+    paintButtons();
+    if (belowOn() || redrawOwed) redrawWhenFree();
   };
   /* ENGLISH, EXPLAINED IN ENGLISH -- the book reader's two switches
      (lib/tex2html.py), for its reason: every dictionary here is the English
@@ -829,6 +854,9 @@
         var ch = sg.chunks[+w.dataset.j];
         if (ch) paintWords(w, ch);
       });
+      // ...and side by side, the phrase a note is led by
+      var under = d.querySelector('.rows.flow');
+      if (under) fillUnder(under, sg);
     });
     if (held) {
       var d = held.getBoundingClientRect().top - was;
@@ -1715,7 +1743,12 @@
     if (w && all.indexOf(w) < 0) all.push(w);
     all.forEach(function (e) { paintWords(e, ch); paintCol(e, ch); });
     var gl = line && line.querySelector('.row[data-j="' + ci + '"] .rgl');
-    if (gl) fillRow(gl, ch);
+    if (!gl) return;
+    // side by side, the column has the reading, the transliteration and the meaning, and the block under
+    // the columns the vocabulary and the note: both are written again
+    var under = gl.closest('.rows.flow');
+    fillRow(gl, ch, !!under);
+    if (under && segs[si]) fillUnder(under, segs[si]);
   }
   function setColour(col) {
     var at = coords();
@@ -2616,6 +2649,8 @@
     }
     editWasPlaying = false;
     closeCloud();          // the gloss it now has is one hover away again
+    // a layout chosen from the gear while the editor was open (redrawWhenFree) is drawn now
+    if (redrawOwed) { redrawOwed = false; redrawAll(); }
   }
   function saveEdit() {
     var at = coords();
@@ -3795,13 +3830,72 @@
   /* THE ROWS under a line: one for each phrase that has a gloss to show (a run drawn bare has none),
      the phrase on one side and, beside it, what a book's chunks level sets there -- the reading, the
      transliteration, the vocabulary, the meaning, the note.  Which side follows the language's direction. */
-  function fillRow(gl, ch) {
+  function fillRow(gl, ch, flow) {
+    if (flow) { gl.innerHTML = columnLines(ch); return; }
     gl.innerHTML = hasGloss(ch) || hasNote(ch) ? glossLines(ch)
                  : '<div class="unwritten">nothing glossed yet</div>';
   }
+  /* SIDE BY SIDE (flowOn): WHAT STANDS UNDER A PHRASE IN ITS COLUMN -- the reading, the transliteration and
+     the meaning, and nothing else; a line that is empty is not there, and a phrase nobody glossed is its text
+     alone.  Each line says its own direction and carries NO alignment of its own (the cloud's lines carry
+     one, GATTRS): the stylesheet sets every line of a column against the edge the TEXT starts from, so an
+     English meaning under a Persian phrase is an English paragraph that hugs the right. */
+  var GDIR = GRTL ? 'rtl' : 'ltr';
+  function columnLines(ch) {
+    var h = '';
+    if (L.reading && ch.kana) h += '<div class="kana" lang="' + L.code + '" dir="' + L.dir + '">' + esc(ch.kana) + '</div>';
+    if (ch.tr) h += '<div class="tr" dir="ltr">' + esc(ch.tr) + '</div>';
+    if (ch.en) h += '<div class="en" lang="' + esc(G.code) + '" dir="' + GDIR + '">' + glossHTML(ch.en) + '</div>';
+    return h;
+  }
+  // a phrase as it stands in its column, in words alone: without the readings hung over it
+  function phraseSaid(w) {
+    var c = w.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll('rt, rp'), function (r) { r.parentNode.removeChild(r); });
+    return c.textContent;
+  }
+  /* ...AND WHAT STANDS UNDER THE COLUMNS, across the line's whole width: for each phrase in turn its
+     vocabulary line, and its note led by the phrase it is about.  Marked data-for and never data-j: it is
+     no phrase and no row, and nothing that looks for one may find it.  Written whole from the line as it
+     now is, so one writing serves the first drawing and every change after it. */
+  function fillUnder(rows, sg) {
+    var box = rows.querySelector('.fvoc');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'fvoc';
+      rows.appendChild(box);
+    }
+    box.textContent = '';
+    (sg.chunks || []).forEach(function (ch, j) {
+      if (isBare(ch)) return;
+      if (ch.voc) {
+        var v = document.createElement('div');
+        v.className = 'fv'; v.dataset.for = j; v.lang = G.code; v.setAttribute('dir', GDIR);
+        v.innerHTML = vocHTML(ch.voc);
+        box.appendChild(v);
+      }
+      if (ch.note) {
+        var n = document.createElement('div');
+        n.className = 'fn'; n.dataset.for = j; n.lang = G.code; n.setAttribute('dir', GDIR);
+        var w = rows.querySelector('.row[data-j="' + j + '"] .w');
+        var lead = document.createElement('bdi');
+        lead.className = 'fph'; lead.lang = L.code;
+        lead.textContent = w ? phraseSaid(w) : '';
+        var said = document.createElement('span');
+        said.className = 'fnt';
+        said.innerHTML = glossHTML(ch.note);
+        n.appendChild(lead); n.appendChild(document.createTextNode(' ')); n.appendChild(said);
+        box.appendChild(n);
+      }
+    });
+  }
   function rowsEl(sg) {
+    var flow = flowOn();
     var rows = document.createElement('div');
-    rows.className = 'rows';
+    rows.className = flow ? 'rows flow' : 'rows';
+    // side by side the phrases follow one another from the side the language reads from, and the page
+    // itself says no direction (player.html): the flow says its own
+    if (flow) rows.setAttribute('dir', L.dir);
     (sg.chunks || []).forEach(function (ch, j) {
       if (isBare(ch)) return;
       var row = document.createElement('div');
@@ -3816,11 +3910,13 @@
       rfa.appendChild(w);
       var gl = document.createElement('div');
       gl.className = 'rgl';
-      fillRow(gl, ch);
+      fillRow(gl, ch, flow);
       row.appendChild(rfa); row.appendChild(gl);
       rows.appendChild(row);
     });
-    return rows.childNodes.length ? rows : null;
+    if (!rows.childNodes.length) return null;
+    if (flow) fillUnder(rows, sg);
+    return rows;
   }
   /* ONE CAPTION'S LINE, whole: its time, its phrases, and every listener the
      line and its phrases carry.  A function of its own because two things
@@ -7423,6 +7519,14 @@
          },
          get: function () { return opts.below; },
          set: function (v) { press('#below', v, function () { return opts.below; }); }},
+        {id: 'flow', kind: 'choice', indent: 1, label: 'Phrases laid out',
+         options: [{value: 'rows', label: 'In rows'}, {value: 'flow', label: 'Side by side'}],
+         help: 'In rows: a row for each phrase, its gloss beside it. Side by side: the phrases follow one another ' +
+               'under the line, each with its transliteration and its meaning under it, and the vocabulary and the ' +
+               'notes below them.',
+         disabled: function () { return opts.below ? false : 'Turn on Glosses below the line first.'; },
+         get: function () { return opts.flow ? 'flow' : 'rows'; },
+         set: function (v) { press('#flow', v === 'flow', function () { return opts.flow; }); }},
         {id: 'reflow', kind: 'switch', layouts: 'browser', label: 'Move text between lines', short: 'moving text',
          help: 'Turns each word of a line into something to click: a card opens by it with two choices, End the line here and ' +
                'Start a line here, which move the words after it down to the next line or the words before it up to the line ' +
@@ -7494,6 +7598,8 @@
         if (r.layouts === 'mobile' && !mobileNow()) return;
         if (typeof r.when === 'function' && !r.when()) return;
         if (r.get()) out.push(r.short);
+        // the layout of the glosses below the line, said beside them and only while they are there
+        if (r.id === 'below' && opts.below && opts.flow) out.push('side by side');
       });
       if (videoHasMarks() && !opts.marks) out.push('no diacritics');
       if (CFG.kind !== 'audio') out.push('video ' + Math.round(sizeShare()) + ' %');

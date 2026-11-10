@@ -5,7 +5,7 @@ import {gearOpen, gearClose, gearUp, gearRow, gearReach} from './gear_driver.mjs
 //      GEAR_READER_SHOTS=<dir>   saves the screenshots this suite looks at (the header, the gear on every group,
 //                                wide and on a phone, in the three themes, a right-to-left book, an old reader)
 //      GEAR_READER_ONLY=a,b      runs only those sections (a development aid): built, wide, listening, marks,
-//                                phone, keys, names, old, widths, look
+//                                phone, keys, names, old, flow, widths, look
 //
 // THE BOOK READER'S GEAR (a0.5.0, plan §2, §3, §4, §6 "Book"): lib/gear-reader.js on the toolkit
 // (lib/pagesettings.js), driven where a person meets it -- built readers served by the REAL hub over a temporary
@@ -39,6 +39,13 @@ import {gearOpen, gearClose, gearUp, gearRow, gearReach} from './gear_driver.mjs
 //             Persian and Arabic (right to left), Japanese, Chinese, English and Hindi
 //  old)       a reader BUILT BEFORE a0.5.0 (digits on its buttons, the old words, a language record without
 //             names, no bk_cont) gains the gear, the names, "keep going" kept and Diacritics with no rebuild
+//  flow)      the chunks side by side (a0.6.2, lib/chunkflow.js): off by default and the page as it was; turned on
+//             from the gear's row, in Persian (right to left), English, Japanese and a reader built long ago, the
+//             chunks of a sentence share a line from the side the language reads from, each a column with its
+//             gloss under it on the text's own edge, the vocabulary in a block under the flow; glosses off, hover
+//             mode resting the row, a reload, a second tab, nothing sent to the toolbox, a later chapter, a chunk
+//             written again with the pencil (and where the pencil stands), a phone at 390px; and off again the
+//             page is the page it was, box for box
 //  widths)    nothing scrolls sideways from 320 to 1280, the gear shut and open
 //  look)      the screenshots, and the sheet over everything it must be over
 const root = await Deno.realPath(new URL('..', import.meta.url));
@@ -97,6 +104,34 @@ for folder, slug, src in (('persian', 'lazy-fa', 'persian/mini-fa'), ('arabic', 
     assert '\\input{ch1.tex}' in s
     io.open(m, 'w', encoding='utf-8').write(s.replace('\\input{ch1.tex}', '\\input{ch1.tex}\n\\input{ch2.tex}\n\\input{ch3.tex}'))
     mobile_harness.built_reader(Path(d))
+# A LINE THAT MIXES chunks with a reading over their words (ruby) and a chunk with none, in the two languages that
+# have a word line with readings: what the side-by-side layout has to keep in step (the flow section)
+RUBY = {'ruby-ja': ('japanese', 'japanese/mini-ja', """
+\\parnum{1.11}
+\\begin{frank}
+\\chrw{}{山へ}{やまへ}{yama e}{\\dw{山}{yama} hill}{to the hill}{山(やま) へ}
+\\chr{}{おじいさんは}{おじいさんは}{ojiisan wa}{}{the old man}
+\\chrw{}{柴刈りに}{しばかりに}{shibakari ni}{\\dw{柴刈り}{shibakari} gathering firewood}{to gather firewood}{柴刈り(しばかり) に}
+\\chrw{}{行きました。}{いきました}{ikimashita.}{}{went.}{行きました(いきました) 。}
+\\chrw{}{川へ}{かわへ}{kawa e}{\\dw{川}{kawa} river}{to the river}{川(かわ) へ}
+\\chrw{}{洗濯に}{せんたくに}{sentaku ni}{\\dw{洗濯}{sentaku} washing}{to do the washing}{洗濯(せんたく) に}
+\\end{frank}
+"""), 'ruby-zh': ('chinese', 'chinese/mini-zh', """
+\\parnum{1.11}
+\\begin{frank}
+\\chw{}{我们的村子}{wǒmen de cūnzi}{\\dw{村子}{cūnzi} village}{our village}{我们(wǒmen) 的(de) 村子(cūnzi)}
+\\ch{}{很小}{hěn xiǎo}{}{is very small}
+\\chw{}{早上}{zǎoshang}{\\dw{早上}{zǎoshang} morning}{in the morning}{早上(zǎoshang)}
+\\end{frank}
+""")}
+for slug, (folder, src, add) in RUBY.items():
+    d = os.path.join(books, folder, slug)
+    shutil.copytree('tests/fixtures/books/' + src, d, ignore=shutil.ignore_patterns('reader', '.reader-key'))
+    f = os.path.join(d, 'ch1.tex')
+    t = io.open(f, encoding='utf-8').read()
+    i = t.rindex('\\chapend')
+    io.open(f, 'w', encoding='utf-8').write(t[:i] + add + '\n' + t[i:])
+    mobile_harness.built_reader(Path(d))
 # the two old ones start as copies of a built book (the recording of the English one comes along)
 for folder, slug, src in (('persian', 'old-fa', 'persian/mini-fa'), ('english', 'old-en', 'english/mini-en')):
     shutil.copytree(os.path.join(books, src), os.path.join(books, folder, slug))
@@ -146,7 +181,8 @@ for (const t = Date.now();;) {
   await sleep(250);
 }
 const READERS = {...MADE.readers, 'lazy-fa': '/books/persian/lazy-fa/reader/', 'lazy-ar': '/books/arabic/lazy-ar/reader/',
-                 'old-fa': '/books/persian/old-fa/reader/', 'old-en': '/books/english/old-en/reader/'};
+                 'old-fa': '/books/persian/old-fa/reader/', 'old-en': '/books/english/old-en/reader/',
+                 'ruby-ja': '/books/japanese/ruby-ja/reader/', 'ruby-zh': '/books/chinese/ruby-zh/reader/'};
 // what the toolbox keeps for the person, put back to the usual between sections (every page the suite opens
 // asks for it at load, and a value one section left would be worn by the next)
 async function resetPrefs() {
@@ -924,6 +960,380 @@ try {
     await shot(ph, 'old-phone');
     await shot(page, 'old-wide');
     await page.context().close(); await en.context().close(); await ph.context().close();
+    await resetPrefs();
+  }
+
+  /* ======================================================================= flow */
+  if (want('flow')) {
+    console.log('\nflow) the chunks side by side');
+    await resetPrefs();
+    const ROW = {name: 'Chunks laid out',
+                 help: 'In rows: each chunk on a row of its own, its gloss beside it. Side by side: the chunks follow one another along the line, ' +
+                       'each with its transliteration and its meaning under it, and the vocabulary below them.'};
+    // every box the Chunks level draws, to the tenth of a pixel: what "the page as it was" is held to
+    const boxes = page => page.evaluate(() => {
+      const r = e => { const b = e.getBoundingClientRect(); return [b.left, b.top, b.width, b.height].map(v => Math.round(v * 10) / 10).join(' '); };
+      scrollTo(0, 0);
+      return [...document.querySelectorAll('main .sub')].slice(0, 6).map(s => r(s) + ' | ' +
+        [...s.querySelectorAll('.pass.p2, .pass.p2 .row, .pass.p2 .fa, .pass.p2 .gl, .pass.p2 .gl > *')].map(r).join(' | ')).join('\n');
+    });
+    // the first subparagraph with three chunks or more, measured as it is drawn
+    const flowOf = page => page.evaluate(() => {
+      const rtl = document.documentElement.dir === 'rtl';
+      const p2 = [...document.querySelectorAll('main .pass.p2')].find(p => p.querySelectorAll(':scope > .row').length >= 3);
+      const rows = [...p2.querySelectorAll(':scope > .row')];
+      const box = e => e.getBoundingClientRect();
+      // where the WORDS of an element start: the right edge of its text in a right-to-left book, the left in the others
+      const edge = e => { const g = document.createRange(); g.selectNodeContents(e); const b = g.getBoundingClientRect(); return rtl ? b.right : b.left; };
+      const shown = e => !!e && e.getClientRects().length > 0;
+      const P = box(p2), R = rows.map(box);
+      const cols = rows.filter(r => r.querySelector('.gl')).map(r => {
+        const fa = r.querySelector('.fa'), gl = r.querySelector('.gl');
+        const lines = ['.kana', '.tr', '.en'].map(s => gl.querySelector(s)).filter(e => shown(e) && e.textContent.trim());
+        return {under: !shown(gl) || box(gl).top >= box(fa).bottom - 1, off: lines.map(e => Math.abs(edge(e) - edge(fa))),
+                wide: Math.abs(box(r).width - Math.max(box(fa).width, box(gl).width)) < 1, voc: shown(gl.querySelector('.voc'))};
+      });
+      const firstCol = rows.find(r => r.querySelector('.gl .tr') && r.querySelector('.gl .tr').textContent.trim());
+      const tr = firstCol && firstCol.querySelector('.gl .tr'), en = firstCol && firstCol.querySelector('.gl .en');
+      const cs = e => getComputedStyle(e);
+      const block = p2.querySelector(':scope > .fvoc');
+      return {rtl, n: rows.length, tops: R.map(b => Math.round(b.top)), firstLine: R.filter(b => Math.abs(b.top - R[0].top) < 1).length,
+              // the first chunk on the side the language reads from, the second next to it on the other side
+              firstAtStart: Math.abs((rtl ? P.right - R[0].right : R[0].left - P.left)) < 1,
+              secondAfter: rtl ? R[1].right < R[0].left : R[1].left > R[0].right,
+              full: R.every(b => Math.abs(b.width - P.width) < 1), inside: R.every(b => b.left >= P.left - 0.5 && b.right <= P.right + 0.5),
+              under: cols.every(c => c.under), off: Math.max(0, ...cols.flatMap(c => c.off)), shrunk: cols.every(c => c.wide), vocInRow: cols.some(c => c.voc),
+              trStyle: tr ? [cs(tr).fontStyle, cs(tr).color === cs(firstCol.querySelector('.fa')).color] : null,
+              enInk: en ? cs(en).color === cs(firstCol.querySelector('.fa')).color : null,
+              glShown: rows.some(r => shown(r.querySelector('.gl'))),
+              withVoc: rows.filter(r => r.querySelector('.gl .voc')).map(r => r.dataset.c),
+              block: block ? {shown: shown(block), last: p2.lastElementChild === block, lines: [...block.children].map(l => l.dataset.for),
+                              cls: [...new Set([...block.children].map(l => l.className))], chunkish: block.querySelectorAll('[data-c], .row').length,
+                              below: box(block).top >= Math.max(...R.map(b => b.bottom)) - 1, wide: Math.abs(box(block).width - P.width) < 1,
+                              text: [...block.children].map(l => l.textContent), src: rows.filter(r => r.querySelector('.gl .voc')).map(r => r.querySelector('.gl .voc').textContent)} : null,
+              blocks: document.querySelectorAll('.fvoc').length, sideways: document.documentElement.scrollWidth - innerWidth};
+    });
+    const chips = page => page.evaluate(() => [...document.querySelectorAll('.pg-panel [data-pg-row=flow] .pg-chip')].map(c => [c.textContent, c.getAttribute('aria-checked'), c.disabled]));
+    const choose = async (page, label) => {
+      await gearReach(page, 'flow');
+      const c = gearRow(page, 'flow').locator(`.pg-chip:text-is("${label}")`);
+      await c.scrollIntoViewIfNeeded();
+      if (page.touch) await c.tap(); else await c.click();
+      await sleep(200);
+    };
+    const state = page => page.evaluate(() => [document.body.classList.contains('chunkflow'), localStorage.getItem('bk_flow'), ParsehFlow.get()]);
+    // a browser that has the layout on already (and, for a phone, the mobile mode)
+    const ctxFlow = phone => phone ? () => { localStorage.setItem('bk_flow', '1'); localStorage.setItem('parseh_mode', 'mobile'); document.cookie = 'parseh_mode=mobile; Path=/; SameSite=Lax; Max-Age=31536000'; }
+                                   : () => { localStorage.setItem('bk_flow', '1'); };
+
+    /* THE PENCIL OF A COLUMN (and the flag beside it): where the two stand once the pointer is on chunk n, and every
+       piece of text of the page -- a chunk, a reading over it, a gloss line, a vocabulary line, the sentence above --
+       that either of them covers.  Letters are measured as they are drawn (the boxes of the text nodes). */
+    const penOver = async (page, n) => {
+      const fa = page.locator(`main .pass.p2 .row[data-c="${n}"] .fa`).first();
+      await fa.scrollIntoViewIfNeeded();
+      await page.mouse.move(2, 2);
+      await sleep(360);                               // the pencil of the chunk before has gone
+      await fa.hover();
+      await page.waitForSelector('#chpen', {state: 'visible'});
+      await sleep(260);
+      return page.evaluate(n => {
+        const row = document.querySelector(`main .pass.p2 .row[data-c="${n}"]`), r = row.getBoundingClientRect();
+        const box = e => { const b = e.getBoundingClientRect(); return {left: b.left, top: b.top, right: b.right, bottom: b.bottom}; };
+        const pen = box(document.getElementById('chpen')), f = document.querySelector('.later-flag');
+        const flag = f && f.getClientRects().length ? box(f) : null;
+        const meet = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+        const hits = [], w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT), g = document.createRange();
+        // the box of a run of text is as tall as its font; what is DRAWN in it is what a canvas measures of these letters
+        const ctx = document.createElement('canvas').getContext('2d');
+        const ink = (t, b) => {
+          const cs = getComputedStyle(t.parentNode);
+          ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+          const m = ctx.measureText(t.nodeValue), tall = m.fontBoundingBoxAscent + m.fontBoundingBoxDescent, k = b.height / tall;
+          if (!(k > 0.8 && k < 1.25)) return b;
+          const line = b.top + m.fontBoundingBoxAscent * k;
+          return {left: b.left, right: b.right, top: Math.max(b.top, line - m.actualBoundingBoxAscent * k), bottom: Math.min(b.bottom, line + m.actualBoundingBoxDescent * k)};
+        };
+        for (let t; (t = w.nextNode());) {
+          if (!/\S/.test(t.nodeValue)) continue;
+          g.selectNodeContents(t);
+          for (const box of g.getClientRects()) {
+            const b = box.width ? ink(t, box) : box;
+            for (const [who, p] of [['pencil', pen], ['flag', flag]])
+              if (p && box.width && meet(p, b)) hits.push(`${who} on "${t.nodeValue.trim().slice(0, 24)}" of ${t.parentNode.closest('rt') ? 'rt' : (t.parentNode.closest('.fa, .tr, .en, .kana, .fv, .w, .pass') || t.parentNode).className}`);
+          }
+        }
+        // at the column: the nearer of the two is no further from it than the space between two columns
+        const off = p => Math.max(p.left - r.right, r.left - p.right, p.top - r.bottom, r.top - p.bottom);
+        const gap = Math.min(off(pen), flag ? off(flag) : Infinity);
+        return {hits: [...new Set(hits)], apart: !flag || !meet(pen, flag), near: gap <= 8,
+                inside: [pen, flag].every(p => !p || (p.left >= 0 && p.right <= innerWidth && p.top >= 0)),
+                flag: flag && [flag.left, flag.top, flag.right, flag.bottom].map(Math.round), pen: [pen.left, pen.top, pen.right, pen.bottom].map(Math.round),
+                line: [...row.parentNode.querySelectorAll(':scope > .row')].filter(x => x.getBoundingClientRect().top < r.top - 4).length > 0 ? 2 : 1};
+      }, n);
+    };
+    // the chunks of the first two levels that wrap onto a second line of the flow (of the first two, where none does), in order
+    const wrapped = page => page.evaluate(() => {
+      const all = [...document.querySelectorAll('main .pass.p2')].filter(p => p.querySelector(':scope > .row'));
+      const wraps = all.filter(p => new Set([...p.querySelectorAll(':scope > .row')].map(r => Math.round(r.getBoundingClientRect().top / 8))).size >= 2);
+      return (wraps.length ? wraps : all).slice(0, 2).flatMap(p => [...p.querySelectorAll(':scope > .row')].map(r => r.dataset.c));
+    });
+    // a real Shift held and a real click at a point of the window; what the clipboard then holds
+    const shiftClickAt = async (page, x, y) => {
+      await page.evaluate(() => navigator.clipboard.writeText('nothing yet'));
+      await page.keyboard.down('Shift');
+      await page.mouse.click(x, y);
+      await page.keyboard.up('Shift');
+      await sleep(300);
+      return page.evaluate(() => navigator.clipboard.readText());
+    };
+    // the bare places of a level: between its first two columns, and after the last column of its first line
+    const bare = page => page.evaluate(() => {
+      const rtl = document.documentElement.dir === 'rtl';
+      const p2 = [...document.querySelectorAll('main .pass.p2')].find(p => p.querySelectorAll(':scope > .row').length >= 3);
+      p2.scrollIntoView({block: 'center'});
+      const rows = [...p2.querySelectorAll(':scope > .row')], R = rows.map(r => r.getBoundingClientRect()), P = p2.getBoundingClientRect();
+      const line = R.filter(b => Math.abs(b.top - R[0].top) < 12), last = line[line.length - 1];
+      const at = (x, y) => ({x, y, on: document.elementFromPoint(x, y) === p2});
+      const say = e => textOf(e).trim(), p1 = p2.closest('.sub').querySelector('.pass.p1');
+      const texts = rows.map(r => say(r.querySelector('.fa')));
+      return {between: at((rtl ? R[0].left + R[1].right : R[0].right + R[1].left) / 2, R[0].top + 12),
+              after: at(rtl ? (P.left + last.left) / 2 : (last.right + P.right) / 2, last.top + 12), room: rtl ? last.left - P.left : P.right - last.right,
+              spaced: [texts.join(' '), texts.join('')], p1: say(p1), tr: rows.map(r => r.querySelector('.gl .tr')).filter(Boolean).map(e => e.textContent.trim()).filter(Boolean)[0] || null};
+    });
+
+    // ---- on a computer: a right-to-left book, a left-to-right one, one with a reading, and a reader built long ago
+    for (const code of ['fa', 'en', 'ja', 'old-fa']) {
+      const page = await newPage(DESK, 'flow ' + code);
+      await open(page, code);
+      eq(await state(page), [false, null, false], `${code}: off to begin with: no class on the body, nothing stored`);
+      const was = await boxes(page), f0 = await flowOf(page);
+      eq([f0.full, f0.firstLine, f0.blocks, f0.vocInRow], [true, 1, 0, true], `${code}: the page as it was: every chunk a row as wide as the level, one to a line, its vocabulary in it, no block`);
+      await gearOpen(page);
+      eq(await rowText(page, 'flow').then(r => [r.name, r.help, r.why]), [ROW.name, ROW.help, ''], `${code}: the gear has the row, with its name and its sentence`);
+      eq(await page.evaluate(() => { const g = [...document.querySelectorAll('.pg-panel [data-pg-group=levels] [data-pg-row]')].filter(r => !r.hidden).map(r => r.dataset.pgRow);
+                                     return [g[g.indexOf('gloss') + 1], g[g.indexOf('flow') + 1]]; }), ['flow', 'hover'], `${code}: right after Glosses, before the cloud`);
+      eq(await chips(page), [['In rows', 'true', false], ['Side by side', 'false', false]], `${code}: two choices, "In rows" chosen`);
+      await choose(page, 'Side by side');
+      eq(await state(page), [true, '1', true], `${code}: Side by side: body.chunkflow, bk_flow 1`);
+      eq(await chips(page), [['In rows', 'false', false], ['Side by side', 'true', false]], `${code}: and the row says so`);
+      await gearClose(page);
+      const f = await flowOf(page);
+      console.log(`  ${code}:`, JSON.stringify({n: f.n, tops: f.tops, firstLine: f.firstLine, off: f.off, block: f.block && f.block.lines}));
+      assert(f.firstLine >= 2 && !f.full && f.inside, `${code}: the chunks of a sentence share a line (${f.firstLine} of ${f.n} on the first), none wider than the level`);
+      eq([f.rtl, f.firstAtStart, f.secondAfter], [code === 'fa' || code === 'old-fa', true, true],
+         `${code}: the first chunk is at the ${f.rtl ? 'RIGHT' : 'left'}, where the language starts, and the second follows it`);
+      eq([f.under, f.shrunk], [true, true], `${code}: each chunk is a column as wide as its widest line, its gloss under its text`);
+      assert(f.off <= 2, `${code}: the reading, the transliteration and the meaning start on the text's own edge (${f.off.toFixed(2)}px off at most)`);
+      eq([f.trStyle, f.enInk], [['normal', false], true], `${code}: the transliteration upright and muted, the meaning in the text's ink`);
+      eq(f.vocInRow, false, `${code}: no vocabulary line is drawn inside a column`);
+      eq([f.block.shown, f.block.last, f.block.below, f.block.wide, f.block.chunkish, f.block.cls], [true, true, true, true, 0, ['fv']],
+         `${code}: the vocabulary block is the level's last child, under the flow, as wide as the level, and holds nothing that is a chunk`);
+      eq([f.block.lines, f.block.text], [f.withVoc, f.block.src], `${code}: one line for each chunk that has a vocabulary line, in order, saying what the chunk's says`);
+      eq(await page.evaluate(() => [...document.querySelectorAll('main .pass.p2')].every(p => p.querySelectorAll(':scope > .fvoc').length === (p.querySelector('.row .gl .voc') ? 1 : 0))), true,
+         `${code}: every level of the page has its block, and one without vocabulary has none`);
+      await shot(page, `flow-${code}`);
+      // glosses off: the chunks alone
+      await page.evaluate(() => document.querySelector('[data-toggle=nogloss]').click());
+      let g = await flowOf(page);
+      eq([g.glShown, g.block.shown, g.firstLine >= 2], [false, false, true], `${code}: glosses off: no gloss line and no vocabulary block, the chunks still side by side`);
+      await shot(page, `flow-${code}-nogloss`);
+      await page.evaluate(() => document.querySelector('[data-toggle=nogloss]').click());
+      // hover mode: the level is put away, and the row rests
+      await gearOpen(page);
+      await flip(page, 'hover');
+      eq([await chips(page).then(c => c.map(x => x[2])), (await rowText(page, 'flow')).why, await page.evaluate(() => document.querySelector('main .pass.p2').getClientRects().length)],
+         [[true, true], 'Hover mode shows the glosses in the cloud instead.', 0], `${code}: hover mode: the Chunks level is put away as ever, and the row rests, saying why`);
+      await flip(page, 'hover');
+      eq([await chips(page).then(c => c.map(x => x[2])), (await rowText(page, 'flow')).why, (await flowOf(page)).firstLine >= 2], [[false, false], '', true], `${code}: hover mode off: the row works again and the layout is as it was left`);
+      // the Chunks level unticked hides it, as it always did
+      await page.evaluate(() => document.querySelector('[data-toggle=no2]').click());
+      eq(await page.evaluate(() => document.querySelector('main .pass.p2').getClientRects().length), 0, `${code}: the Chunks level unticked is not drawn, side by side or not`);
+      await page.evaluate(() => document.querySelector('[data-toggle=no2]').click());
+      await gearClose(page);
+      // a reload keeps it, and the page arrives already laid out
+      await page.reload({waitUntil: 'load'});
+      await page.waitForSelector('[data-parseh-gear]', {state: 'attached'}); await sleep(500);
+      const again = await flowOf(page);
+      eq([await state(page), again.firstLine, again.block.lines], [[true, '1', true], f.firstLine, f.block.lines], `${code}: a reload keeps the layout, and its blocks`);
+      // off again: the page it was, box for box
+      await choose(page, 'In rows');
+      await gearClose(page);
+      eq(await state(page), [false, '0', false], `${code}: In rows: the class is gone, bk_flow 0`);
+      eq([(await flowOf(page)).blocks, await boxes(page) === was], [0, true], `${code}: no block is left in the page, and every box of the level is where it was measured before`);
+      await page.context().close();
+    }
+
+    // ---- two tabs of one browser, the toolbox's store, a chapter that arrives later, a chunk written again
+    {
+      const A = await newPage(DESK, 'flow tab A');
+      await open(A, 'lazy-fa');
+      const Bt = await A.context().newPage();
+      Bt.on('pageerror', e => { errors.push('flow tab B: ' + e.message); });
+      await open(Bt, 'lazy-fa');
+      await choose(A, 'Side by side');
+      await gearClose(A);
+      await until(Bt, () => document.body.classList.contains('chunkflow') && document.querySelectorAll('.fvoc').length > 0, null, 'the other tab to follow');
+      assert(true, 'a second tab of the same browser follows: side by side, with its blocks');
+      await gearOpen(Bt);
+      eq(await chips(Bt).then(c => c.map(x => x[1])), ['false', 'true'], 'and its gear says so');
+      await choose(Bt, 'In rows');
+      await until(A, () => !document.body.classList.contains('chunkflow') && document.querySelectorAll('.fvoc').length === 0, null, 'the first tab to follow back');
+      assert(true, 'turned off in the second, the first follows back and takes its blocks out');
+      await choose(Bt, 'Side by side');
+      await gearClose(Bt);
+      await until(A, () => document.body.classList.contains('chunkflow'), null, 'the first tab on again');
+      await Bt.close();
+      await sleep(2200);                            // prefs.js tells the toolbox after a short grace
+      const kept = await serverPrefs();
+      eq(Object.keys(kept).filter(k => /flow/.test(k)), [], 'the choice stays on the device: nothing of it reaches the toolbox\'s store');
+      // a chapter that is fetched when it is asked for arrives laid out, with its blocks
+      const before = await A.evaluate(() => document.querySelectorAll('main .pass.p2').length);
+      await A.evaluate(() => { const s = [...document.querySelectorAll('section.chapter')].pop(); s.scrollIntoView(); });
+      await until(A, n => document.querySelectorAll('main .pass.p2').length > n, before, 'a later chapter to arrive');
+      await until(A, () => [...document.querySelectorAll('main .pass.p2')].every(p => p.querySelectorAll(':scope > .fvoc').length === (p.querySelector('.row .gl .voc') ? 1 : 0)), null, 'the blocks of the chapter that arrived');
+      assert(true, 'a chapter that arrives later has its vocabulary blocks too');
+      // a chunk written again with the pencil: the page repaints its row, and the block follows
+      await A.evaluate(() => scrollTo(0, 0));
+      const n = await A.evaluate(() => document.querySelector('main .pass.p2 .row .gl .voc').closest('.row').dataset.c);
+      await A.locator(`main .pass.p2 .row[data-c="${n}"] .fa`).first().hover();
+      await A.waitForSelector('#chpen', {state: 'visible'});
+      const pen = await penOver(A, n);
+      eq([pen.hits, pen.apart, pen.inside, pen.near, pen.flag !== null], [[], true, true, true, true],
+         'the pencil of a column and the flag beside it stand at the column, on no letter of the page, each in its own room');
+      await shot(A, 'flow-pencil');
+      await A.locator('#chpen').click();
+      await A.waitForSelector('#chbox', {state: 'visible'});
+      const said = await A.evaluate(() => document.getElementById('chvoc').value);
+      await A.locator('#chvoc').fill(said + ' ; side by side');
+      await A.locator('#chsave').click();
+      await until(A, n => /side by side/.test(document.querySelector(`main .pass.p2 .row[data-c="${n}"] .gl .voc`).textContent), n, 'the row to be painted again', 20000);
+      await until(A, n => /side by side/.test((document.querySelector(`main .pass.p2 .fvoc .fv[data-for="${n}"]`) || {}).textContent || ''), n, 'the block to follow the row');
+      eq(await A.evaluate(n => { const row = document.querySelector(`main .pass.p2 .row[data-c="${n}"]`), b = row.parentNode.querySelector(':scope > .fvoc');
+                                 return [b.querySelector(`.fv[data-for="${n}"]`).textContent === row.querySelector('.gl .voc').textContent, row.parentNode.lastElementChild === b, row.parentNode.querySelectorAll(':scope > .fvoc').length]; }, n),
+         [true, true, 1], 'a chunk written again with the pencil: its line in the block says the new vocabulary, and there is still one block, last');
+      if (await A.evaluate(() => !document.getElementById('chbox').hidden)) await A.locator('#chcancel').click();
+      await A.waitForSelector('#chbox', {state: 'hidden'});
+      // a shift-click on a line of the block copies the chunk's own text, as a click on its gloss in a row does
+      await A.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+      await A.locator(`main .pass.p2 .fvoc .fv[data-for="${n}"]`).first().click({modifiers: ['Shift'], position: {x: 4, y: 4}});
+      await sleep(300);
+      eq(await A.evaluate(n => navigator.clipboard.readText().then(t => t === textOf(document.querySelector(`main .pass.p2 .row[data-c="${n}"] .fa`))), n), true,
+         'a shift-click on a vocabulary line copies the text of the chunk it is for');
+      // ... and BESIDE the columns, where the click is on the level itself, the sentence: the chunks' texts and nothing else
+      for (const code of ['lazy-fa', 'en', 'ja']) {
+        const page = code === 'lazy-fa' ? A : await A.context().newPage();
+        if (page !== A) { page.on('pageerror', e => { errors.push('flow copy ' + code + ': ' + e.message); }); await open(page, code); }
+        await gearClose(page);
+        const at = await bare(page);
+        eq([at.between.on, await shiftClickAt(page, at.between.x, at.between.y).then(t => at.spaced.indexOf(t) >= 0)], [true, true],
+           `${code}: a shift-click between two columns is on the level, and copies the sentence -- the chunks' own texts, no gloss, no vocabulary`);
+        if (at.room > 30) {
+          const got = await shiftClickAt(page, at.after.x, at.after.y);
+          eq([at.after.on, at.spaced.indexOf(got) >= 0, !at.tr || got.indexOf(at.tr) < 0], [true, true, true], `${code}: and so does one in the room after a line's last column`);
+        }
+        eq((await shiftClickAt(page, at.between.x, at.between.y)) === at.spaced[/\S\s+\S/.test(at.p1) ? 0 : 1], true,
+           `${code}: joined as the language writes its sentence (${/\S\s+\S/.test(at.p1) ? 'with spaces' : 'with none'})`);
+        if (page !== A) await page.close();
+      }
+      await A.evaluate(() => scrollTo(0, 0));
+      await choose(A, 'In rows');
+      await gearClose(A);
+      await A.context().close();
+    }
+
+    // ---- a reading over some chunks of a line and not over others: the columns stay in step
+    for (const [code, opts] of [['ruby-ja', DESK], ['ruby-zh', DESK], ['ruby-ja', PHONE], ['ruby-zh', PHONE]]) {
+      const phone = opts === PHONE;
+      const page = await newPage(opts, 'flow ' + code + (phone ? ' phone' : ''), ctxFlow(phone));
+      await open(page, code);
+      const m = await page.evaluate(() => {
+        const all = [...document.querySelectorAll('main .pass.p2')].filter(p => p.querySelector(':scope > .row .fa rt') && [...p.querySelectorAll(':scope > .row')].some(r => !r.querySelector('.fa rt')));
+        const p2 = all[all.length - 1];
+        if (!p2) return null;
+        p2.scrollIntoView({block: 'center'});
+        const g = document.createRange();
+        const cols = [...p2.querySelectorAll(':scope > .row')].map(r => {
+          const fa = r.querySelector('.fa'), gl = r.querySelector('.gl');
+          // where the letters of the text itself stand: its first text that is no reading
+          const w = document.createTreeWalker(fa, NodeFilter.SHOW_TEXT); let base = null;
+          for (let t; (t = w.nextNode());) if (!t.parentNode.closest('rt, rp') && /\S/.test(t.nodeValue)) { g.selectNodeContents(t); base = g.getClientRects()[0]; break; }
+          const rt = fa.querySelector('rt');
+          return {n: r.dataset.c, ruby: !!(rt && rt.getClientRects().length), top: r.getBoundingClientRect().top, base: base.top, baseBottom: base.bottom,
+                  gl: gl.getClientRects().length ? gl.getBoundingClientRect().top : null, faLines: Math.round(fa.getBoundingClientRect().height / parseFloat(getComputedStyle(fa).lineHeight))};
+        });
+        // the columns that share the first line of the flow, by where their letters stand
+        const first = cols.filter(c => c.base < cols[0].baseBottom && c.baseBottom > cols[0].base);
+        const spread = k => Math.max(...first.map(c => c[k])) - Math.min(...first.map(c => c[k]));
+        return {n: cols.length, first: first.length, mixed: [first.some(c => c.ruby), first.some(c => !c.ruby)], base: spread('base'),
+                gl: (() => { const one = first.filter(c => c.gl !== null && c.faLines <= 1); return one.length > 1 ? Math.max(...one.map(c => c.gl)) - Math.min(...one.map(c => c.gl)) : 0; })(),
+                rows: cols.map(c => c.n), sideways: document.documentElement.scrollWidth - innerWidth};
+      });
+      assert(m && m.first >= 2 && m.mixed[0] && m.mixed[1], `${code}${phone ? ', phone' : ''}: a line of the flow has columns with a reading over their words and one without (${m && m.first} of ${m && m.n})`);
+      assert(m.base <= 1 && m.gl <= 1 && m.sideways <= 0, `${code}${phone ? ', phone' : ''}: their texts stand on one line and their gloss lines start level (text ${m.base.toFixed(2)}px, gloss ${m.gl.toFixed(2)}px apart)`);
+      await shot(page, `flow-${code}${phone ? '-phone' : ''}`);
+      if (!phone) {
+        let n = 0;
+        for (const c of m.rows) {
+          const pen = await penOver(page, c);
+          eq([pen.hits, pen.apart, pen.inside, pen.near], [[], true, true, true], `${code}: chunk ${c}: the pencil and the flag cover no letter and no reading, stand apart, at the column`);
+          if (!n++) await shot(page, `flow-${code}-pencil`);
+        }
+      }
+      await page.context().close();
+    }
+
+    // ---- the pencil on every chunk of levels that wrap, in a wide window and in narrow ones (a computer's window made
+    //      narrow, not a phone: a phone has no pencil).  An English line of three chunks wraps only in the narrowest.
+    for (const [code, width, wraps] of [['fa', 1280, true], ['en', 1280, false], ['fa', 620, true], ['en', 620, false], ['ja', 620, false], ['en', 430, true], ['fa', 430, true]]) {
+      const page = await newPage({viewport: {width, height: 800}}, `flow pencil ${code} ${width}`, ctxFlow(false));
+      await open(page, code);
+      const ns = await wrapped(page);
+      let second = 0, shown = false;
+      const bad = [];
+      for (const c of ns) {
+        const pen = await penOver(page, c);
+        if (pen.line === 2) second++;
+        if (!pen.apart || !pen.inside || !pen.near || pen.hits.length) bad.push([c, pen]);
+        if ((pen.line === 2 || !wraps) && !shown) { shown = true; await shot(page, `flow-pencil-${code}-${width}`); }
+      }
+      assert(ns.length > 0 && (second > 0 || !wraps), `${code}, ${width}px: ${ns.length} chunks to point at, ${second} of them on a later line of their flow`);
+      eq(bad, [], `${code}, ${width}px: on every one of them the pencil and the flag are at the column, inside the window, apart, and on no letter`);
+      await page.context().close();
+    }
+
+    // ---- on a phone, at 390px
+    for (const code of ['fa', 'en', 'ja']) {
+      const page = await newPage(PHONE, 'flow phone ' + code, MOBILE_MODE);
+      await open(page, code);
+      const was = await boxes(page), f0 = await flowOf(page);
+      eq([f0.firstLine, f0.blocks], [1, 0], `phone, ${code}: off to begin with, one chunk to a line`);
+      await gearReach(page, 'flow');
+      const size = await page.evaluate(() => [...document.querySelectorAll('.pg-panel [data-pg-row=flow] .pg-chip')].map(c => { const r = c.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
+      assert(size.length === 2 && size.every(([w, h]) => w >= 44 && h >= 44), `phone, ${code}: the row is in the sheet, its two choices a finger's size (${JSON.stringify(size)})`);
+      await choose(page, 'Side by side');
+      eq(await state(page), [true, '1', true], `phone, ${code}: a tap on "Side by side" turns it on`);
+      // the index says it, after the levels' names
+      await tap(page, '.pg-panel .pg-back');
+      await page.waitForFunction(() => document.querySelector('.pg-panel').getAttribute('data-pg-stage') === 'index');
+      await sleep(240);
+      const sum = await page.evaluate(() => document.querySelector('.pg-panel .pg-irow[data-pg-index=levels] .pg-isum').textContent);
+      const names = levelsOf(code).filter(p => NUM[p.key]).map(p => p.name).join(', ');
+      assert(sum.startsWith(names) && / · side by side$/.test(sum), `phone, ${code}: the index says the levels first and then "side by side": "${sum}"`);
+      await gearClose(page);
+      const f = await flowOf(page);
+      assert(f.firstLine >= 2 && f.inside && f.sideways <= 0, `phone, ${code}: chunks share a line (${f.firstLine} of ${f.n}), inside the level, and nothing scrolls sideways (${f.sideways})`);
+      eq([f.firstAtStart, f.secondAfter, f.under, f.vocInRow, f.block.shown, f.block.below, f.block.lines], [true, true, true, false, true, true, f.withVoc],
+         `phone, ${code}: from the side the language reads from, the gloss under the text, the vocabulary below the flow`);
+      assert(f.off <= 2, `phone, ${code}: the lines of a column start on the text's edge (${f.off.toFixed(2)}px)`);
+      eq(await page.evaluate(() => [...document.querySelectorAll('main .pass.p2 > *')].every(e => { const b = e.getBoundingClientRect(); return b.left >= -0.5 && b.right <= innerWidth + 0.5; })), true,
+         `phone, ${code}: every column and every block is inside the window`);
+      await shot(page, `flow-phone-${code}`);
+      await choose(page, 'In rows');
+      await gearClose(page);
+      eq([await state(page), (await flowOf(page)).blocks, await boxes(page) === was], [[false, '0', false], 0, true], `phone, ${code}: off again: the page it was, box for box`);
+      await page.context().close();
+    }
     await resetPrefs();
   }
 

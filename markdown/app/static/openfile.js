@@ -131,7 +131,12 @@
           const at = windows.indexOf(api);
           if (at >= 0) windows.splice(at, 1);
           ov.remove();
-          if (back && back.isConnected && back.focus) back.focus();
+          // the keyboard goes back to what opened the window -- or, when that is an entry of a menu that has shut
+          // since (the library's Open / import ▾, a0.6.2), to the menu's button, which can take it
+          if (back && back.isConnected && back.focus) {
+            const shut = back.closest && back.closest("details:not([open])");
+            ((shut && !back.matches("summary") && shut.querySelector("summary")) || back).focus();
+          }
           resolve(value === undefined ? null : value);
         },
         busy(on) { busy = on; $$("button", row).forEach(b => { b.disabled = on; }); },

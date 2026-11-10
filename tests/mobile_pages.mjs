@@ -1710,7 +1710,11 @@ async function partStudio() {
                                 !!document.querySelector('.m-topbar [data-parseh-mode]')]),
      ['mobile', 'none', true, true],
      'the library: the mobile bar is drawn, the browser one is display:none, and the switch is in it');
-  for (const no of ['.topbar-actions', '#btn-stop', '#download-shown', '#btn-restore', '#btn-paste-answer'])
+  // …nor the row of what is done with every document shown, which is under the filters and not in the bar (a0.6.2)
+  for (const no of ['.topbar-actions', '#btn-stop', '#download-shown', '#btn-restore', '#btn-paste-answer',
+                    '.shownrow', '#shown-say', '#btn-download-shown', '#btn-make-drawings', '#make-drawings-state',
+                    '#btn-make-stop', '#btn-new', '#btn-upload', '#btn-open-file', '#btn-backup', '#btn-llm-prompt',
+                    '#menu-llm', '#menu-open', '#menu-backup'])
     assert(!(await isDrawn(page, no)), 'the library: no ' + no);
   await page.waitForFunction(() => document.querySelectorAll('#cards .card').length > 0, null, {timeout: 20000});
   eq(await page.evaluate(() => {

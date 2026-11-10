@@ -54,10 +54,12 @@ const FILES = {
   'levels-names':      'books/shots/levels-names.png',                   // the Levels rows, one level renamed
   'diacritics-on':     'books/shots/diacritics-on.png',                  // a Persian line with its marks ...
   'diacritics-off':    'books/shots/diacritics-off.png',                 // ... and without
+  'reader-flow':       'books/shots/reader-flow.png',                    // the chunks side by side, their vocabulary under them
   // the video's player
   'player':            'videos/shots/player.png',
   'gear-player':       'getting-started/shots/gear-player.png',
   'player-below':      'videos/shots/player-below.png',                  // the glosses under the line, a book's chunks level
+  'player-flow':       'videos/shots/player-flow.png',                   // ... and its phrases side by side, each over its gloss
   'moving-text':       'videos/shots/moving-text.png',                   // "move text": the card by a word, the words it would move lit
   // the studio's pages
   'doc-linked':        'studio/shots/linked-from.png',                   // a document, its bars, its drawer
@@ -67,6 +69,8 @@ const FILES = {
   'editor':            'studio/shots/editor.png',
   'add-exercise':      'dialect-exercises/shots/add-exercise.png',       // Exercises ▾ → Add exercise…: the grid of the sixteen activities
   'follow-up':         'dialect-exercises/shots/follow-up.png',          // a follow-up half-way: Step 2 of 3, the first step checked and locked
+  'studio-library':    'studio/shots/library.png',                       // the studio's library: its bar, the filters, the row of the documents shown, the cards
+  'studio-library-menus': 'studio/shots/library-menus.png',              // ... and its bar with the menu Open / import ▾ open (taken by 'studio-library')
   'open-file':         'studio/shots/open-file.png',                     // "Open a file…": the file browser, a Markdown file chosen
   'open-file-bar':     'studio/shots/open-file-bar.png',                 // a file's page: the bar says what the file holds
   'open-file-format':  'studio/shots/open-file-format.png',              // what a Markdown file cannot hold: the zip beside it, or the text only
@@ -435,6 +439,15 @@ const PICS = {
     await save(page, 'reader');
     await ctx.close();
   },
+  async 'reader-flow'() {
+    // the device chose the layout earlier (bk_flow): the page arrives laid out, as it does for a person
+    const ctx = await context(DESK(1000), {bk_flow: '1'});
+    const page = await openReader(ctx, 'fa', {width: 1000, height: 640});
+    await page.waitForSelector('main .pass.p2 > .fvoc');
+    await sleep(300);
+    await save(page, 'reader-flow');
+    await ctx.close();
+  },
   async 'reader-switch'() {
     const ctx = await context(DESK(1000));
     const page = await openReader(ctx, 'fa');
@@ -531,6 +544,18 @@ const PICS = {
     await save(page, 'player-below');
     await ctx.close();
   },
+  async 'player-flow'() {
+    const ctx = await context(DESK(1000));
+    const page = await openPlayer(ctx, {width: 1000, height: 700});
+    await page.click('#sbs');
+    // the gear's rows press the page's own buttons, which the bar does not draw
+    await page.evaluate(() => { document.getElementById('below').click(); document.getElementById('flow').click(); });
+    await sleep(500);
+    await page.evaluate(() => { ParsehPlayer.seek(12); ParsehPlayer.pause(); });
+    await sleep(900);
+    await save(page, 'player-flow');
+    await ctx.close();
+  },
   async 'moving-text'() {
     const ctx = await context(DESK(1000));
     const page = await openPlayer(ctx, {width: 1000, height: 560});
@@ -616,13 +641,53 @@ const PICS = {
     await save(page, 'editor');
     await ctx.close();
   },
+  /* The studio's library (a0.6.2): the short bar -- + New, the three menus, Stop server apart -- and, under the filters, the
+     row of the documents shown.  A few documents more, in other languages and with tags, are made for the picture and
+     taken away after it, so that every other picture meets the library it always met. */
+  async 'studio-library'() {
+    const extra = [];
+    for (const [title, lang, tags, body] of [
+      ['سلام و احوال‌پرسی', 'fa', ['greetings', 'beginner'], '[سلام]{tl} = *hello*.'],
+      ['あいさつ', 'ja', ['greetings', 'beginner'], '[こんにちは]{tl} = *hello*.'],
+      ['Phrasal verbs', 'en', ['verbs'], '[to give up]{tl}, [to look after]{tl}.'],
+      ['Il passato prossimo', 'it', ['grammar', 'verbs'], '[Ho mangiato una mela.]{tl}']])
+      extra.push(await makeDoc(`---\ntitle: ${title}\ntarget: ${lang}\n---\n\n${body}\n`, tags));
+    const ctx = await context(DESK(1280));
+    try {
+      const page = await newPage(ctx, {width: 1100, height: 760});
+      await page.goto(`${B}/studio/`, {waitUntil: 'load'});
+      await page.waitForSelector('#cards .card:not([hidden])', {timeout: 15000});
+      await page.waitForSelector('#btn-open-file:not([hidden])', {state: 'attached', timeout: 15000});
+      await page.waitForFunction(() => !/ 0 shown/.test(document.querySelector('#btn-download-shown').textContent));
+      await page.evaluate(() => document.fonts.ready);
+      await sleep(500);
+      // down to the end of the second row of cards, and no further
+      const foot = await page.evaluate(() => {
+        const cards = [...document.querySelectorAll('#cards .card:not([hidden])')];
+        const tops = [...new Set(cards.map(c => Math.round(c.getBoundingClientRect().top)))].sort((a, b) => a - b);
+        const upTo = tops.length > 2 ? tops[2] : Infinity;
+        return Math.ceil(Math.max(...cards.filter(c => c.getBoundingClientRect().top < upTo).map(c => c.getBoundingClientRect().bottom))) + 8;
+      });
+      await save(page, 'studio-library', {x: 0, y: 0, width: 1100, height: Math.min(foot, 760)});
+      await page.locator('#menu-open > summary').click();
+      await page.waitForSelector('#btn-open-file', {state: 'visible'});
+      await sleep(200);
+      const under = await page.evaluate(() => Math.ceil(document.querySelector('#menu-open .menu').getBoundingClientRect().bottom) + 14);
+      await save(page, 'studio-library-menus', {x: 0, y: 0, width: 1100, height: under});
+      await page.keyboard.press('Escape');
+    } finally {
+      await ctx.close();
+      for (const id of extra) { const r = await fetch(`${B}/studio/api/docs/${id}`, {method: 'DELETE'}); await r.body?.cancel(); }
+    }
+  },
   /* "Open a file…": the browser on a person's own folder, the file's page with its bar, and the question a Markdown file raises */
   async 'open-file'() {
     const ctx = await context(DESK(1280));
     const page = await newPage(ctx, {width: 1100, height: 700});
     await page.goto(`${B}/studio/`, {waitUntil: 'load'});
-    await page.waitForSelector('#btn-open-file:not([hidden])', {timeout: 15000});
+    await page.waitForSelector('#btn-open-file:not([hidden])', {state: 'attached', timeout: 15000});
     await page.evaluate(() => document.fonts.ready);
+    await page.locator('#menu-open > summary').click();      // the bar's "Open / import ▾" menu (a0.6.2)
     await page.locator('#btn-open-file').click();
     await page.waitForSelector('.of-modal .of-path');
     await page.fill('.of-path', MINE + '/');
@@ -637,7 +702,8 @@ const PICS = {
     const ctx = await context(DESK(1280));
     const page = await newPage(ctx, {width: 1100, height: 330});
     await page.goto(`${B}/studio/`, {waitUntil: 'load'});
-    await page.waitForSelector('#btn-open-file:not([hidden])', {timeout: 15000});
+    await page.waitForSelector('#btn-open-file:not([hidden])', {state: 'attached', timeout: 15000});
+    await page.locator('#menu-open > summary').click();      // the bar's "Open / import ▾" menu (a0.6.2)
     await page.locator('#btn-open-file').click();
     await page.waitForSelector('.of-modal .of-path');
     await page.fill('.of-path', MINE + '/Verbs of motion.md');
@@ -661,7 +727,8 @@ const PICS = {
     const ctx = await context(DESK(1280));
     const page = await newPage(ctx, {width: 1100, height: 600});
     await page.goto(`${B}/studio/`, {waitUntil: 'load'});
-    await page.waitForSelector('#btn-open-file:not([hidden])', {timeout: 15000});
+    await page.waitForSelector('#btn-open-file:not([hidden])', {state: 'attached', timeout: 15000});
+    await page.locator('#menu-open > summary').click();      // the bar's "Open / import ▾" menu (a0.6.2)
     await page.locator('#btn-open-file').click();
     await page.waitForSelector('.of-modal .of-path');
     await page.fill('.of-path', MINE + '/Greetings.md');

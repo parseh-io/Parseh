@@ -420,7 +420,8 @@ html[data-mode=mobile] :is(body[data-page=index],body[data-page=doc]){
    that uploads, downloads, backs up, creates or deletes */
 html[data-mode=mobile] body[data-page=index] :is(.topbar-actions,#btn-stop,#download-shown,
   #download-form,#download-sink,.card-del,.card-build,.dropdown,#btn-restore,
-  #btn-paste-answer,#file-upload,#backup-file,.select-all,.card-check){display:none!important}
+  #btn-paste-answer,#file-upload,#backup-file,.select-all,.card-check,
+  .shownrow,#btn-make-drawings,#make-drawings-state,#btn-make-stop,#btn-upload,#btn-open-file,#btn-new){display:none!important}
 html[data-mode=mobile] body[data-page=index] main.container{max-width:var(--m-col);margin:0 auto;
   padding:12px 16px 14vh}
 html[data-mode=mobile] body[data-page=index] .searchrow{flex-wrap:wrap;gap:8px}

@@ -1,5 +1,10 @@
 ## [a0.6.2] - unreleased
 ### Added
+- Chunks side by side: a book's chunks level can flow along the line, each chunk a small column of text, reading and meaning, with the vocabulary under the sentence (⚙ page → Chunks laid out)
+- Phrases side by side: the video player's glosses below the line can be drawn the same way, with vocabulary and notes under the columns (⚙ page → Phrases laid out)
+
+### Changed
+- The studio library's bar is four controls: + New, With an LLM ▾, Open / import ▾, Backup ▾; what acts on the documents shown sits by the search
 
 ## [a0.6.1] - 2026-11-03
 ### Added

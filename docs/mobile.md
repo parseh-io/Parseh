@@ -290,7 +290,8 @@ mobile mode:
   the head or a tap on its grab line, remembered on the device (`parseh_gear_tall`); a
   borrowed node (the Keep buttons) stands in its row only while its theme is on stage.
   The themes are: *Levels & reading* (the levels, each with its tick
-  and its name, Diacritics, gloss, the cloud, hide the bars), *Listening* (keep going,
+  and its name, Diacritics, gloss, the chunks laid out in rows or side by side -- `bk_flow`,
+  `lib/chunkflow.js`, whose summary word is "side by side" --, the cloud, hide the bars), *Listening* (keep going,
   repeat and the pause between repeats, wait at each new chapter, pause while a gloss is
   open, how far ↺ and ↻ move, the speed, listen on its own), *Looking a word up* (the
   dictionary, its definitions and the way to get one), *Text*, *Zoom*, *Colours* and

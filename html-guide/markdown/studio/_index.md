@@ -24,9 +24,12 @@ The studio lives at `/studio/` and has four pages, each a step of the same
 work:
 
 - **The library** (`/studio/`) lists every document, filters them by
-  language, tag and words, and is where documents come in and go out:
-  **+ New**, **Paste LLM answer**, **Upload .md / .zip**, **Backup**,
-  **Load from backup**, **Download N shown** — and **Open a file…**, which
+  language, tag and words, and is where documents come in and go out.
+  Its bar is short: **+ New**, then three menus — **With an LLM ▾**
+  (**LLM prompt**, **Paste LLM answer**), **Open / import ▾**
+  (**Upload .md / .zip**, **Open a file…**) and **Backup ▾** (**Backup the
+  whole library**, **Load from backup**); **Download N shown** and **Make drawings of N
+  shown** are in a row above the cards. **Open a file…** is the one that
   opens a Markdown or zip file where it is, on the computer Parseh runs on, instead of
   bringing it in ([Opening a file from your computer](open-files.md)).
 - **The editor** (`/studio/doc/<id>/edit`, or `/studio/new` for a document

@@ -8,7 +8,7 @@ description: Open a Markdown or zip file where it lives on your computer, edit i
 The library holds the documents the studio keeps. But a note you wrote in a
 folder of your own, a zip a colleague sent you, a Markdown file in a project
 you are working on are not in it — and they do not have to be.
-**Open a file…** on the library's bar opens one **where it is**, in the
+**Open a file…**, in the **Open / import ▾** menu of the library's bar, opens one **where it is**, in the
 studio's own pages, with its editor, its preview, its PDF and everything
 else a document has, and **without copying it into the library**.
 

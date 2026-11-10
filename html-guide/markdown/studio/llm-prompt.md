@@ -9,8 +9,8 @@ A language model knows Markdown but not the studio's dialect: it does not
 know that `## کتاب | ketâb | …` is a vocabulary entry, that a sentence of
 the target language goes in `[…]{tl}`, or that a gloss's translation is
 written in italics so that the glossary can find where it ends. The
-**LLM prompt** page, `/studio/prompt` — the library's **LLM prompt**
-button — holds the text that teaches it all that, ready to copy in front of
+**LLM prompt** page, `/studio/prompt` — **LLM prompt** in the library's
+**With an LLM ▾** menu — holds the text that teaches it all that, ready to copy in front of
 your question. The model then answers with a document the studio reads as
 it is, typeset and verified.
 

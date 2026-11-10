@@ -639,6 +639,15 @@ function toast(msg, isErr) {
   }, isErr ? 4200 : 2200);
 }
 
+/* Give the keyboard back to what had it before a window opened.  An entry of a menu cannot take it once its menu
+   is shut (a0.6.2: the library's actions are entries of menus): the menu's own button takes it instead. */
+function focusBack(el) {
+  if (!el || !el.isConnected || typeof el.focus !== "function") return;
+  const shut = el.closest && el.closest("details:not([open])");
+  const to = shut && !el.matches("summary") ? shut.querySelector("summary") || el : el;
+  to.focus();
+}
+
 /* A QUESTION IN THE STUDIO'S OWN WINDOW, where the browser's confirm() would
    be a box in another theme.  The same window the exercise decks ask in
    (decks.js `dialog`): Cancel is the first button and has the focus, Escape
@@ -690,7 +699,7 @@ function confirmDialog({title, hint = "", ok = "OK", danger = false, run = null,
       settled = true;
       document.removeEventListener("keydown", onKey, true);
       ov.remove();
-      if (back && back.isConnected && typeof back.focus === "function") back.focus();
+      focusBack(back);
       resolve(value);
     };
     const hold = on => { busy = on; noBtn.disabled = yesBtn.disabled = on; };
@@ -3746,8 +3755,11 @@ function initIndex() {
   let makeShown = 0, makeTimer = 0, makeWatching = false;
   const btnDownload = $("#btn-download-shown");
   const dlBox = $("#download-shown");
+  const shownSay = $("#shown-say");
   function refreshDownloadShown(n) {
     refreshMakeShown(n);
+    // the row the two buttons stand in says whose they are (a0.6.2)
+    if (shownSay) shownSay.textContent = n === 0 ? "No documents shown:" : `The ${n} document${n === 1 ? "" : "s"} shown:`;
     if (!btnDownload) return;
     btnDownload.textContent = `Download ${n} shown`;
     btnDownload.title = `Download the ${n} document${n === 1 ? "" : "s"} shown`;
@@ -3960,6 +3972,53 @@ function initIndex() {
     await loadTags();
     await loadDocs();
   }
+  /* THE BAR'S MENUS (a0.6.2), and "Download N shown" with them.  A menu is a <details>, which opens and shuts by
+     itself on its summary (a click, Enter, Space); what it does not do by itself is go away: Escape shuts the one
+     that is open and gives the keyboard back to its button, a click anywhere else shuts it, choosing an entry shuts
+     it, and opening one shuts the others.  A menu that would pass the right edge of the window hangs from the right
+     side of its button instead (.menu-end, static/app.css). */
+  const menus = () => $$("details.dropdown").filter(d => !d.closest(".modal, .of-modal"));
+  function placeMenu(d) {
+    const m = $(".menu", d);
+    if (!m) return;
+    d.classList.remove("menu-end");
+    const wide = document.documentElement.clientWidth;
+    if (m.getBoundingClientRect().right > wide - 8) {
+      d.classList.add("menu-end");
+      // …unless that side is the worse one (a button near the left edge of a narrow window)
+      if (m.getBoundingClientRect().left < 8) d.classList.remove("menu-end");
+    }
+  }
+  menus().forEach(d => d.addEventListener("toggle", () => {
+    if (!d.open) return;
+    menus().forEach(o => { if (o !== d) o.open = false; });
+    placeMenu(d);
+  }));
+  window.addEventListener("resize", () => menus().forEach(d => { if (d.open) placeMenu(d); }));
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape" || $("#modal-root > *") || $(".of-modal")) return;
+    const d = menus().find(o => o.open);
+    if (!d) return;
+    e.preventDefault();
+    d.open = false;
+    const sum = $("summary", d);
+    if (sum) sum.focus();
+  });
+  document.addEventListener("click", e => {
+    menus().forEach(d => {
+      if (d.open && (!d.contains(e.target) || e.target.closest(".menu a, .menu button"))) d.open = false;
+    });
+  });
+  // …and the keyboard that walks out of a menu (Tab past its last entry, Shift+Tab before its button) shuts it
+  // behind itself.  Only when the focus has GONE somewhere: a focus that merely left (a click on the page, another
+  // window) says nothing, and the click has its own rule above.
+  menus().forEach(d => d.addEventListener("focusout", e => {
+    if (d.open && e.relatedTarget && !d.contains(e.relatedTarget)) d.open = false;
+  }));
+  // "Upload .md / .zip" is an entry of a menu now: the file chooser is the hidden input's, as Load from backup's is
+  const btnUpload = $("#btn-upload"), fileUpload = $("#file-upload");
+  if (btnUpload && fileUpload) btnUpload.addEventListener("click", () => fileUpload.click());
+
   const btnRestore = $("#btn-restore"), backupFile = $("#backup-file");
   if (btnRestore && backupFile) {
     btnRestore.addEventListener("click", () => backupFile.click());

@@ -332,7 +332,9 @@ try {
   console.log('c) the library: paste, upload, backup, duplicate');
   page.on('dialog', d => d.accept());
   await page.goto(`${origin}${S}/`);
-  await page.waitForSelector('#btn-paste-answer');
+  // "Paste LLM answer" is an entry of the bar's "With an LLM ▾" menu (a0.6.2): the menu is opened first
+  await page.waitForSelector('#btn-paste-answer', {state: 'attached'});
+  await page.click('#menu-llm > summary');
   const pasted = '---\ntitle: Grammar\nsubtitle:\nnote:\nlang: en\ntarget: en\n---\n\nPasted text.\n';
   await page.click('#btn-paste-answer');
   await page.fill('.modal textarea', pasted);

@@ -109,6 +109,9 @@ SHARED = (
     # Diacritics (parseh.js loads it into every reader beside the toolkit; a kept book
     # without it has a ⚙ that opens on nothing)
     "/lib/gear-reader.js",
+    # the chunks side by side, a layout of the Chunks level that the gear offers (parseh.js
+    # loads it into every reader; a kept book without it would lose the layout its device chose)
+    "/lib/chunkflow.js",
     # keeping, and the chip that says the computer cannot be reached: without
     # it a kept page would open offline and say nothing about being offline
     "/lib/keep.js",

@@ -106,6 +106,80 @@ body[data-theme="dark"] .btn:hover { color: var(--accent); }
 .dropdown .menu .danger { color: var(--danger); }
 .dropdown .menu a.disabled { opacity: .4; pointer-events: none; }
 
+/* THE LIBRARY'S BAR (a0.6.2).  + New first, three menus named in words, and Stop server apart at the far end: the
+   actions follow the name of the page instead of being pushed to the right, so the eye meets them in reading order.
+   A menu hangs from the side of its button that keeps it inside the window: from the left by default, from the
+   right when app.js finds it would pass the edge (.menu-end), and never wider than the window.  An entry is the
+   action's own name with a line under it that says what it does. */
+body[data-page="index"] .topbar-actions { margin-left: .5rem; flex: 1 1 auto; flex-wrap: nowrap; }
+body[data-page="index"] .topbar-actions > #btn-stop { margin-left: auto; }
+.dropdown.bar-menu .menu { left: 0; right: auto; min-width: 235px; max-width: calc(100vw - 16px); }
+.dropdown.menu-end .menu { left: auto; right: 0; }
+.dropdown.bar-menu .menu a, .dropdown.bar-menu .menu button {
+  display: block; width: 100%; font-family: inherit; line-height: 1.25; white-space: normal;
+}
+.dropdown.bar-menu .menu small {
+  display: block; margin-top: .1rem; font-size: .76rem; color: var(--chrome-mut); font-weight: 400;
+}
+.dropdown.bar-menu .menu [hidden] { display: none; }
+body[data-page="index"] .dropdown[open] > summary.btn { border-color: var(--accentlt); color: var(--accent); }
+body[data-page="index"] .dropdown .menu :is(a, button):focus-visible {
+  outline: 2px solid var(--accentlt); outline-offset: -2px;
+}
+/* WIDTHS ARE THE PAGE'S, NOT THE WINDOW'S.  The ⚙ zoom (lib/pagezoom.js) leaves a media query reading the window as
+   it is, so at 200 % a 1280px window holds a page 640px wide that no media query would fold.  The bar's widths are
+   therefore container queries on the body, which count in the page's own pixels at every zoom. */
+body[data-page="index"] { container-type: inline-size; }
+/* one row down to a page 700px wide: the bar gives up air before it gives up its row */
+@container (max-width: 860px) {
+  body[data-page="index"] .topbar { gap: .35rem; padding-left: .5rem; padding-right: .5rem; }
+  body[data-page="index"] .topbar-actions { margin-left: .15rem; gap: .3rem; }
+  body[data-page="index"] .topbar .btn { padding-left: .5rem; padding-right: .5rem; }
+}
+/* narrower than that, two rows: the two names and Stop server on the first, the four that make and bring in on the
+   second.  The bar is in the flow of the page (sticky), so a taller bar pushes the page down and covers nothing.
+   WHERE THERE IS NO HOVER (a tablet, a phone in the browser interface) lib/explain.js adds its "?" to the end of the
+   bar, 48px of it, and the one row has no room for that under 760px: there the bar folds sooner.  The "?" stays
+   what it is on every page, the last thing of the bar's first row, after Stop server. */
+@container (max-width: 699px) {
+  body[data-page="index"] .topbar { flex-wrap: wrap; row-gap: .4rem; }
+  body[data-page="index"] .topbar-actions { display: contents; }
+  body[data-page="index"] .topbar-actions > #btn-stop { order: 1; }
+  body[data-page="index"] .topbar > .px-ask { order: 1; }
+  body[data-page="index"] .topbar::after { content: ""; order: 2; flex: 0 0 100%; height: 0; margin-top: -.4rem; }
+  body[data-page="index"] .topbar-actions > :is(.btn.primary, .dropdown) { order: 3; }
+}
+@media (hover: none) { @container (max-width: 759px) {
+  body[data-page="index"] .topbar { flex-wrap: wrap; row-gap: .4rem; }
+  body[data-page="index"] .topbar-actions { display: contents; }
+  body[data-page="index"] .topbar-actions > #btn-stop { order: 1; }
+  body[data-page="index"] .topbar > .px-ask { order: 1; }
+  body[data-page="index"] .topbar::after { content: ""; order: 2; flex: 0 0 100%; height: 0; margin-top: -.4rem; }
+  body[data-page="index"] .topbar-actions > :is(.btn.primary, .dropdown) { order: 3; }
+} }
+/* and on a phone held upright the four of the second row give up their air too, so that they stay ONE row down to a
+   page 360px wide (three rows only in a page narrower than any phone's) */
+@container (max-width: 430px) {
+  body[data-page="index"] .topbar { column-gap: .2rem; }
+  body[data-page="index"] .topbar-actions > .btn.primary,
+  body[data-page="index"] .topbar-actions > .dropdown > summary.btn {
+    padding-left: .3rem; padding-right: .3rem; font-size: .84rem;
+  }
+}
+
+/* THE DOCUMENTS SHOWN (a0.6.2): what is done with all of them at once, under the filters that decide which they are */
+.shownrow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .8rem;
+  padding: .45rem .6rem; border: 1px solid var(--chrome-line); border-radius: 8px; background: var(--chrome-panel);
+}
+.shownrow .shown-say { font-size: .88rem; color: var(--chrome-mut); margin-right: .15rem; }
+.shownrow .dropdown .menu { left: 0; right: auto; max-width: calc(100vw - 16px); }
+.shownrow .dropdown.menu-end .menu { left: auto; right: 0; }
+.shownrow + .cards { margin-top: .7rem; }
+/* it opens a menu and says so, as every menu of the studio does; drawn here, since the button's own words are a count
+   the script rewrites */
+.shownrow #btn-download-shown::after { content: "▾"; }
+
 /* A document's PDF options: a menu of settings rather than of actions, so
    it stays open while they are changed (only a menu button shuts a menu),
    and it is never wider than the screen it hangs in. */

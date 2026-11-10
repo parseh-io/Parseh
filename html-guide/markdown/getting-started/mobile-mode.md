@@ -158,7 +158,7 @@ stays so on this phone until you make it half again. **✕**, the back gesture o
 puts it away. Every
 row is a finger high and says in a sentence what it does. The themes are the
 browser's groups ([The ⚙ settings of a page](page-settings.md#a-books-gear)): **Levels &
-reading** (the levels, **Diacritics** in Persian and Arabic, **Glosses**,
+reading** (the levels, **Diacritics** in Persian and Arabic, **Glosses**, **Chunks laid out** — in rows or [side by side](../books/reader.md#chunks-side-by-side) —,
 **Glosses in a cloud** — a tap on a chunk opens its gloss —, **Hide the bars**), **Listening**
 (**Keep playing into the next line**, **Repeat this line**, **Wait at each new chapter**,
 **Pause while a gloss is open** — the narration waits while a gloss is open —,

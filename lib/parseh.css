@@ -772,3 +772,68 @@ html.pg-sheet :is(.pf-bar,.kp-bar){display:none!important}
 .sreading .sreadl{color:var(--dim);font-size:12px;margin-top:1px}
 .sfits{border-inline-start:3px solid var(--accent);padding-inline-start:7px}
 .sfits>.dfits{margin:0 0 2px;display:table}
+
+/* ------------- THE CHUNKS SIDE BY SIDE, in a book's reader (a0.6.2) -------------
+   A further layout of the Chunks level (`.pass.p2`), chosen on the device in
+   the gear ("Chunks laid out": bk_flow, body.chunkflow -- lib/chunkflow.js).
+   The rows the build has always written become the columns: the chunks of a
+   sentence follow one another along the line and wrap, from the side the
+   language reads from, each as wide as its widest line -- the text, and under
+   it the reading, the transliteration and the meaning, all on the text's
+   start edge -- and the vocabulary is listed under the flow (`.fvoc`, the
+   copies lib/chunkflow.js keeps there).
+   IT IS HERE, and not in the reader's own sheet, so that it reaches every
+   reader however old with no rebuild.  This sheet is linked BEFORE the page's
+   inline one, so each rule is written to outweigh the page's (`.row .fa`, the
+   560px stacking, body.nogloss) and SETS EVERYTHING IT RELIES ON, whatever an
+   old build wrote.  The level's own hiding (a level unticked, hover mode) is
+   left to the page: the layout is only for a level that is drawn.
+   Sizes are the page's own Aa tokens: --rd-fa the text, --rd-gl the gloss. */
+/* THE COLUMNS OF A LINE STAND ON THEIR TEXT'S FIRST BASELINE.  With one font
+   and nothing over the letters that is the same as standing on their tops; but
+   a chunk that wears a reading over its words (ruby: Japanese, Chinese) has a
+   taller first line than its neighbour that wears none, and set by their tops
+   the two texts, and every gloss line under them, would be out of step. */
+body.chunkflow:not(.no2):not(.hovermode) .pass.p2{display:flex;flex-flow:row wrap;
+  align-items:baseline;justify-content:flex-start;align-content:flex-start;
+  font-size:calc(var(--rd-fa,20px) - 1px);gap:.55em .82em}
+body.chunkflow .pass.p2>.row{display:flex;flex-direction:column;flex-wrap:nowrap;
+  align-items:stretch;justify-content:flex-start;gap:0;flex:0 1 auto;
+  box-sizing:border-box;width:auto;min-width:0;max-width:min(100%,22em);margin:0;padding:0}
+body.chunkflow .pass.p2>.row>.fa{display:block;flex:0 0 auto;width:auto;max-width:100%;
+  margin:0;padding:0;font-family:var(--tl-font,serif);font-size:calc(var(--rd-fa,20px) - 1px);
+  line-height:calc(1.6 * var(--rd-lead,1));text-align:start;overflow-wrap:break-word}
+body.chunkflow .pass.p2>.row>.gl{display:block;flex:0 0 auto;width:auto;max-width:100%;
+  margin:0;padding:0;font-size:var(--rd-gl,12.5px);line-height:1.4;color:var(--ink);
+  text-align:left;overflow-wrap:break-word}
+/* the gloss cell wears the GLOSS language's direction, so its lines are put on
+   the edge the BOOK's text starts from by name: a line that wraps under a
+   right-to-left chunk still hugs the right */
+html[dir=rtl] body.chunkflow .pass.p2>.row>.gl,
+html[dir=rtl] body.chunkflow .pass.p2>.row>.gl>:is(.kana,.tr,.en){text-align:right}
+body.chunkflow .pass.p2>.row>.gl>:is(.kana,.tr,.en){display:block;margin:0;padding:0;text-align:left}
+body.chunkflow .pass.p2>.row>.gl>.kana{font-family:var(--tl-font,serif);color:var(--ink);
+  font-size:calc(var(--rd-gl,12.5px) + 1.5px)}
+body.chunkflow .pass.p2>.row>.gl>.tr{font-style:normal;color:var(--dim);font-size:var(--rd-gl,12.5px)}
+body.chunkflow .pass.p2>.row>.gl>.en{font-style:normal;color:var(--ink);font-size:var(--rd-gl,12.5px)}
+/* a line with nothing in it takes no room (an old build writes the cell empty) */
+body.chunkflow .pass.p2>.row>.gl>:is(.kana,.tr,.en):empty{display:none}
+/* the vocabulary stays in its row for the page to read, and is drawn below */
+body.chunkflow .pass.p2>.row>.gl>.voc{display:none}
+body.chunkflow .pass.p2>.fvoc{display:block;flex:0 0 100%;order:1;box-sizing:border-box;
+  width:100%;min-width:0;margin:.2em 0 0;padding:0;font-size:var(--rd-gl,12.5px);
+  line-height:1.5;color:var(--ink);cursor:auto}
+body.chunkflow .pass.p2>.fvoc>.fv{display:block;margin:0;padding:1px 0;text-align:left;
+  overflow-wrap:break-word}
+html[dir=rtl] body.chunkflow .pass.p2>.fvoc>.fv{text-align:right}
+body.chunkflow .pass.p2>.fvoc bdi.v{font-family:var(--tl-font,serif);
+  font-size:calc(var(--rd-gl,12.5px) + 3px)}
+body.chunkflow .pass.p2>.fvoc i{font-style:normal;color:var(--dim)}
+/* glosses off: the columns are the chunks alone, and nothing is listed under them */
+body.chunkflow.nogloss .pass.p2>.row>.gl,
+body.chunkflow.nogloss .pass.p2>.fvoc{display:none}
+/* the pencil of a column, and the flag beside it, where the lines above and
+   below leave less room than the two are tall (lib/chunkflow.js, liftPen) */
+#chpen.flowtight,.later-flag.flowtight{padding-top:var(--flowpad,1px);padding-bottom:var(--flowpad,1px)}
+/* a block met while the layout is off (another tab has just turned it off) */
+body:not(.chunkflow) .pass.p2>.fvoc{display:none}

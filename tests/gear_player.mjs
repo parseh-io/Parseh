@@ -28,6 +28,8 @@
 //      a theme's rows, Aa on Text (a second press shuts it), the Keep buttons only while their theme is on stage
 //   j) the phone held sideways and its whole screen: no gear, its own small Aa, the lines around
 //   k) nothing overflows, from 320 to 1280, with the panel up and shut; the three themes
+//   l) the glosses below the line on a phone, and the whole-screen subtitle without them
+//   m) the phrases side by side on a phone (a0.6.2): columns that wrap, a finger's phrase, the same whole screen
 import {chromium} from 'npm:playwright-core@1.52.0';
 
 const root = await Deno.realPath(new URL('..', import.meta.url));
@@ -91,7 +93,22 @@ const ZH = {folder: 'chinese', id: 'zh-lines-e4f5a6', lang: 'zh', title: 'Chines
     ['你好，', 'hello,', '你 nǐ you; 好 hǎo good', 'nǐ hǎo'], ['我想要一杯茶', 'I would like a cup of tea', '茶 chá tea', 'wǒ xiǎng yào yì bēi chá']]},
   {start: 4, text: '绿茶， 谢谢', chunks: [['绿茶，', 'green tea,', '绿茶 lǜchá green tea', 'lǜchá'], ['谢谢', 'thank you', '谢谢 xièxie thanks', 'xièxie']]},
 ]};
-const VIDEOS = [FA, AR, FAPLAIN, EN, JA, ZH];
+// a0.6.2, the phrases side by side: a Persian line of six phrases (more than a phone's width holds), one with a
+// vocabulary line and one with a vocabulary line and a note; no other part opens it
+const FLOW = {folder: 'persian', id: 'fa-flow-c4d5e6', lang: 'fa', title: 'Side by side', caps: [
+  {start: 0, text: 'Welcome.', plain: true},
+  {start: 2, text: 'امروز می‌خوام با دوستام برم شمال چون هوا خیلی خوبه.', chunks: [
+    ['امروز', 'today', '', 'emruz'],
+    ['می‌خوام', 'I want', 'خواستن xāstan to want · می‌خوام mixām I want (spoken)', 'mi-xām'],
+    ['با دوستام', 'with my friends', '', 'bā dustām'],
+    {fa: 'برم شمال', en: '(that) I go north', voc: 'شمال šomāl north; here: the Caspian coast', tr: 'beram šomāl', note: 'spoken for بروم'},
+    ['چون هوا', 'because the weather', '', 'čun havā'],
+    ['خیلی خوبه.', 'is very good', '', 'xeyli xube']]},
+  {start: 6, text: 'جاده چالوس چطوره؟', chunks: [['جاده چالوس', 'the Chalus road', '', 'jādde-ye čālus'], ['چطوره؟', 'how is it?', '', 'četowre']]},
+  // phrases of one and two letters: the narrowest columns there are, for a finger
+  {start: 10, text: 'من و تو به خانه', chunks: [['من', 'I', '', 'man'], ['و', 'and', '', 'o'], ['تو', 'you', '', 'to'], ['به', 'to', '', 'be'], ['خانه', 'home', '', 'xāne']]},
+]};
+const VIDEOS = [FA, AR, FAPLAIN, EN, JA, ZH, FLOW];
 // what the dictionaries hold: English's senses are English definitions (the switches under the
 // dictionary are offered only for it), Persian's are translations
 const DICTS = {
@@ -294,6 +311,22 @@ const drawnGroups = page => page.evaluate(sel => {
                [...g.querySelectorAll('[data-pg-row]')].filter(seen).map(r => r.dataset.pgRow)]);
 }, PANEL);
 const switchOn = (page, g, r) => page.evaluate(s => document.querySelector(s + ' .pg-switch').getAttribute('aria-checked') === 'true', ROW(g, r));
+// a choice's chip, pressed by its words
+async function choose(page, g, r, label) {
+  await openGear(page, g);
+  const chip = page.locator(ROW(g, r) + ' .pg-chip', {hasText: label}).first();
+  await chip.scrollIntoViewIfNeeded();
+  if (page.touch) await chip.tap(); else await chip.click();
+  await sleep(120);
+}
+// «Phrases laid out», read from the page behind it and from its row
+const layout = page => page.evaluate(sel => {
+  const r = document.querySelector(sel), why = r.querySelector('.pg-why'), chips = [...r.querySelectorAll('.pg-chip')];
+  return {on: document.querySelector('#flow').classList.contains('on'), key: localStorage.getItem('yt_flow'),
+          body: document.body.classList.contains('glossflow'),
+          flow: (n => !n ? 'none' : n === document.querySelectorAll('#segs .rows').length ? 'every line' : 'some')(document.querySelectorAll('#segs .rows.flow').length),
+          chips: chips.map(c => c.getAttribute('aria-checked')), off: chips.map(c => c.disabled), why: why && !why.hidden ? why.textContent : ''};
+}, ROW('watching', 'flow'));
 async function flip(page, g, r) {
   const sel = ROW(g, r) + ' .pg-switch';
   await openGear(page, g);
@@ -362,8 +395,8 @@ async function partB() {
      ['Watching & reading', 'Looking a word up', 'Playback', 'Text'].concat(zoom ? ['Zoom'] : [], ['Colours', 'Interface']),
      'the groups, in the plan\'s order: watching, looking a word up, playback, text, (zoom,) colours, interface');
   const rows = Object.fromEntries(got.map(g => [g[0], g[2]]));
-  eq(rows.watching, ['follow', 'hoverpause', 'below', 'reflow', 'sbs', 'pin', 'size'],
-     'Watching & reading on a computer: keep in view, pause, glosses below the line, move text between lines, beside the text, keep the video, its size -- no reading, no marks, no lines');
+  eq(rows.watching, ['follow', 'hoverpause', 'below', 'flow', 'reflow', 'sbs', 'pin', 'size'],
+     'Watching & reading on a computer: keep in view, pause, glosses below the line, how its phrases are laid out, move text between lines, beside the text, keep the video, its size -- no reading, no marks, no lines');
   eq(rows.looking, ['dict', 'defs', 'defsmt', 'help'], 'Looking a word up: the dictionary, its definitions, their translation, the link');
   eq(rows.playback, ['skip'], 'Playback on a computer: the skip distance alone (the page has no speed control of its own)');
   eq(rows.text, ['fa', 'gl', 'width', 'lead', 'reset'], 'Text: the language, the glosses, the width, the spacing, the way back (no subtitles: that is the phone\'s)');
@@ -404,6 +437,10 @@ async function partB() {
   eq(w.hoverpause.startsWith('While a gloss is open the video waits'), true, 'the sentence of «pause while a gloss is open» speaks of the video');
   eq(w.below.startsWith('Shows each phrase’s gloss as text under the line, as a book does'), true, 'the sentence of «glosses below the line» says what it draws');
   eq((await rowWords(page, 'watching', 'below')).name, 'Glosses below the line', 'the row is named for what it does');
+  eq(await rowWords(page, 'watching', 'flow'),
+     {name: 'Phrases laid out', help: 'In rows: a row for each phrase, its gloss beside it. Side by side: the phrases follow one another under the line, ' +
+        'each with its transliteration and its meaning under it, and the vocabulary and the notes below them.'},
+     'the row under it is named «Phrases laid out», and its sentence says what each of the two is');
   await shutGear(page);
 
   // THE OTHER LANGUAGES' ROWS: a language's own name on the text row, and the rows only some have
@@ -420,7 +457,7 @@ async function partB() {
   await open(ja, JA);
   await openGear(ja);
   const jaRows = await drawnGroups(ja);
-  eq(jaRows.find(g => g[0] === 'watching')[2], ['follow', 'hoverpause', 'below', 'reflow', 'aloud', 'sbs', 'pin', 'size'], 'a Japanese video: the reading-only row is there');
+  eq(jaRows.find(g => g[0] === 'watching')[2], ['follow', 'hoverpause', 'below', 'flow', 'reflow', 'aloud', 'sbs', 'pin', 'size'], 'a Japanese video: the reading-only row is there');
   eq(jaRows.find(g => g[0] === 'text')[2], ['fa', 'gl', 'width', 'lead', 'cjkSpace', 'kanaContrast', 'kanaSize', 'reset'],
      'a Japanese video: space between characters, furigana contrast and furigana size');
   eq(await ja.evaluate(() => document.querySelector('#aloud').textContent), 'kana only', 'and its button is «kana only»');
@@ -497,10 +534,28 @@ async function partC() {
   eq(await page.evaluate(() => [document.querySelector('#below').classList.contains('on'), localStorage.getItem('yt_below'),
                                 document.body.classList.contains('glossbelow')]), [true, '1', true],
      'glosses below the line: the page\'s own button is on, the key is kept and the page says what it draws');
+  // -- ...and how its phrases are laid out: the page's own button again, and the columns in place of the rows
+  eq(await layout(page), {on: false, key: null, body: false, flow: 'none', chips: ['true', 'false'], off: [false, false], why: ''},
+     'phrases laid out: In rows until it is chosen otherwise, and free to choose while the glosses are below the line');
+  await choose(page, 'watching', 'flow', 'Side by side');
+  await page.waitForFunction(() => document.querySelectorAll('#segs .rows.flow').length > 0);
+  eq(await layout(page), {on: true, key: '1', body: true, flow: 'every line', chips: ['false', 'true'], off: [false, false], why: ''},
+     'Side by side: the page\'s own button is on, the key is kept, the page says what it draws and every glossed line has its columns');
+  await choose(page, 'watching', 'flow', 'In rows');
+  await page.waitForFunction(() => document.querySelectorAll('#segs .rows.flow').length === 0 && document.querySelectorAll('#segs .rows').length > 0);
+  eq(await layout(page), {on: false, key: '0', body: false, flow: 'none', chips: ['true', 'false'], off: [false, false], why: ''},
+     'and In rows put the rows back');
+  await choose(page, 'watching', 'flow', 'Side by side');
+  await page.waitForFunction(() => document.querySelectorAll('#segs .rows.flow').length > 0);
   await flip(page, 'watching', 'below');
   await page.waitForFunction(() => document.querySelectorAll('#segs .row').length === 0);
   eq(await page.evaluate(() => [localStorage.getItem('yt_below'), document.body.classList.contains('glossbelow')]), ['0', false],
      'and the row put the rows away again');
+  // the layout is kept and rests: it says nothing while the glosses are in the cloud
+  eq(await layout(page), {on: true, key: '1', body: false, flow: 'none', chips: ['false', 'true'], off: [true, true], why: 'Turn on Glosses below the line first.'},
+     'with the glosses back in the cloud the layout rests, says why, and draws nothing');
+  await page.evaluate(() => { document.querySelector('#flow').onclick(); });
+  eq(await page.evaluate(() => [localStorage.getItem('yt_flow'), document.querySelectorAll('#segs .rows').length]), ['0', 0], '(put back to In rows for what follows)');
   // -- move text between lines: the row turns the mode on, the page and the row agree, and the dock's Done turns it off
   await flip(page, 'watching', 'reflow');
   await page.waitForFunction(() => document.body.classList.contains('reflowing'));
@@ -1027,7 +1082,7 @@ async function partI() {
   eq(groups.map(g => g[1]), ['Watching & reading', 'Looking a word up', 'Playback', 'Text'].concat(zoom ? ['Zoom'] : [], ['Colours', 'Interface']), 'the same groups, in the same order');
   const kp = await page.evaluate(() => document.querySelectorAll('.kp-btn').length);
   const rows = Object.fromEntries(groups.map(g => [g[0], g[2]]));
-  eq(rows.watching, ['follow', 'hoverpause', 'below', 'sbs', 'pin', 'size', 'lines'], 'Watching & reading on a phone gains «show the lines around», and has the glosses below the line');
+  eq(rows.watching, ['follow', 'hoverpause', 'below', 'flow', 'sbs', 'pin', 'size', 'lines'], 'Watching & reading on a phone gains «show the lines around», and has the glosses below the line and how its phrases are laid out');
   eq(rows.playback, ['skip', 'speed'], 'Playback gains the speed: the page has a control of its own for it, the dock');
   eq(rows.text, ['fa', 'sub', 'gl', 'width', 'lead', 'reset'], 'Text gains the subtitles\' size');
   assert(rows.interface[0] === 'mode' && (kp ? rows.interface[1] === 'keep' : true), 'Interface holds the Browser | Mobile choice' + (kp ? ' and the Keep buttons' : ' (no Keep buttons on this page)') + ': ' + JSON.stringify(rows.interface));
@@ -1307,7 +1362,129 @@ async function partK() {
   }
 }
 
-const RUN = {a: partA, b: partB, c: partC, d: partD, e: partE, f: partF, g: partG, h: partH, i: partI, j: partJ, k: partK, l: partL};
+// ================================================================== m) the phrases side by side, on a phone
+async function partM() {
+  console.log('m) the phrases side by side, on a phone');
+  const page = await pageFor(PHONE, 'mobile', {}, {});
+  await open(page, FLOW);
+  await openGear(page, 'watching');
+  eq(await layout(page), {on: false, key: null, body: false, flow: 'none', chips: ['true', 'false'], off: [true, true], why: 'Turn on Glosses below the line first.'},
+     'on a phone too the layout rests until the glosses are below the line, and says why');
+  await flip(page, 'watching', 'below');
+  await page.waitForFunction(() => document.querySelectorAll('#segs .row').length > 0);
+  const chips = await page.evaluate(sel => [...document.querySelectorAll(sel + ' .pg-chip')].map(c => { const b = c.getBoundingClientRect(); return [Math.round(b.width) >= 44, Math.round(b.height) >= 44]; }),
+                                    ROW('watching', 'flow'));
+  eq(chips, [[true, true], [true, true]], 'its two chips are a finger\'s size');
+  await choose(page, 'watching', 'flow', 'Side by side');
+  await page.waitForFunction(() => document.querySelectorAll('#segs .rows.flow').length > 0);
+  eq(await layout(page), {on: true, key: '1', body: true, flow: 'every line', chips: ['false', 'true'], off: [false, false], why: ''},
+     'a tap on Side by side: the key is kept and every glossed line has its columns');
+  // what the index of themes says of it
+  await tap(page, PANEL + ' .pg-back');
+  await page.waitForFunction(() => ParsehGear.mounted().stage() === 'index');
+  await sleep(240);
+  const sum = await page.evaluate(sel => document.querySelector(sel + ' .pg-irow[data-pg-index=watching] .pg-isum').textContent, PANEL);
+  assert(/gloss below · side by side/.test(sum), 'the index says it beside «gloss below»: ' + sum);
+  await shutGear(page);
+  const geo = () => page.evaluate(() => {
+    const rows = document.querySelector('#segs .seg[data-i="1"] .rows'), box = rows.getBoundingClientRect();
+    const ink = e => { const r = document.createRange(); r.selectNodeContents(e); return [...r.getClientRects()].filter(b => b.width > 0); };
+    return {box: [box.left, box.right], sideways: document.documentElement.scrollWidth > innerWidth + 1,
+            cols: [...rows.querySelectorAll('.row')].map(r => { const b = r.getBoundingClientRect(), f = r.querySelector('.rfa').getBoundingClientRect(),
+              g = r.querySelector('.rgl').getBoundingClientRect(), w = ink(r.querySelector('.rfa .w'));
+              return {t: b.top, b: b.bottom, l: b.left, r: b.right, w: b.width, head: f.height, under: g.top >= f.bottom - 1,
+                      edge: [...r.querySelectorAll('.rgl > *')].every(e => ink(e).every(x => Math.abs(x.right - Math.max(...w.map(y => y.right))) <= 2)),
+                      dir: getComputedStyle(r).flexDirection}; }),
+            under: (u => { const b = u.getBoundingClientRect(); return {t: b.top, w: b.width, n: u.children.length}; })(rows.querySelector('.fvoc'))};
+  });
+  const g = await geo();
+  const first = g.cols.filter(c => Math.abs(c.t - g.cols[0].t) <= 1), rest = g.cols.filter(c => c.t > g.cols[0].t + 5);
+  assert(first.length >= 2 && first.every((c, k) => !k || c.r < first[k - 1].l + 1) && Math.abs(first[0].r - g.box[1]) <= 1,
+         'the columns stand side by side on a phone, the first at the right: ' + JSON.stringify(first.map(c => [Math.round(c.l), Math.round(c.r)])));
+  assert(rest.length >= 1 && Math.abs(rest[0].r - g.box[1]) <= 1, 'six phrases are more than a phone is wide: they wrap, and the next row starts at the right again');
+  assert(g.cols.every(c => c.w < g.box[1] - g.box[0] - 20), 'no column is stretched to the screen\'s width: ' + JSON.stringify(g.cols.map(c => Math.round(c.w))));
+  assert(g.cols.every(c => c.dir === 'column' && c.under && c.edge), 'in each the gloss is under the phrase, against its right edge');
+  assert(g.cols.every(c => c.head >= 44), 'the phrase at the head of each column is a finger high: ' + JSON.stringify(g.cols.map(c => Math.round(c.head))));
+  assert(!g.sideways, 'nothing runs sideways');
+  assert(g.under.n === 3 && g.under.t >= Math.max(...g.cols.map(c => c.b)) - 1 && Math.abs(g.under.w - (g.box[1] - g.box[0])) <= 1,
+         'the vocabulary and the note are under the columns, across the line');
+  await shot(page, 'm-flow-phone');
+  // a tap on a phrase of the line replays the line and opens nothing
+  await page.evaluate(() => { __yt.calls.length = 0; });
+  await tap(page, '#segs .seg[data-i="1"] .fa .w[data-j="0"]');
+  await sleep(250);
+  assert(await page.evaluate(() => document.getElementById('cloud').hidden && __yt.calls.some(c => c[0] === 'seek')),
+         'a tap on a phrase of the line opens no cloud and plays the line');
+  // a tap on the head of a column -- beside the phrase's letters, where the column is wider than its phrase -- is the phrase's
+  const wide = await page.evaluate(() => { const r = document.querySelector('#segs .seg[data-i="1"] .row[data-j="4"]'), f = r.querySelector('.rfa').getBoundingClientRect(),
+    w = r.querySelector('.w').getBoundingClientRect(); return {x: f.left + 4, y: f.top + 4, clear: f.left + 4 < w.left}; });
+  assert(wide.clear, 'a column wider than its phrase has room beside the phrase');
+  await page.evaluate(() => { __yt.calls.length = 0; });
+  await page.touchscreen.tap(wide.x, wide.y);
+  await page.waitForFunction(() => !document.getElementById('cloud').hidden);
+  eq(await page.evaluate(() => { const c = document.getElementById('cloud');
+       return [!!c.querySelector('.en, .tr, .voc, .note'), !!c.querySelector('.mkcopy'), !!c.querySelector('.mklater'), __yt.calls.some(x => x[0] === 'seek'),
+               document.querySelector('#segs .seg[data-i="1"] .row[data-j="4"] .w').classList.contains('hot')]; }),
+     [false, true, true, false, true], 'a tap anywhere on the head of a column opens that phrase\'s tools — copy, review later — with no gloss over the gloss, and does not replay the line');
+  await shot(page, 'm-flow-phone-tools');
+  await tap(page, '#segs .seg[data-i="1"] .row[data-j="4"] .rfa .w');
+  await page.waitForFunction(() => document.getElementById('cloud').hidden);
+  assert(true, 'and a second tap shuts them');
+  // THE WHOLE COLUMN IS THE PHRASE TO TAP, and half the gap on either side: a one-letter phrase is no strip to aim at
+  await page.evaluate(() => document.querySelector('#segs .seg[data-i="3"]').scrollIntoView({block: 'center'}));
+  await sleep(250);
+  const small = await page.evaluate(() => {
+    const rows = document.querySelector('#segs .seg[data-i="3"] .rows.flow'), gap = parseFloat(getComputedStyle(rows).columnGap);
+    const at = (x, y) => { const e = document.elementFromPoint(x, y), w = e && e.closest('.w'), r = w && w.closest('.row'); return r ? r.dataset.j : null; };
+    return {gap, cols: [...rows.querySelectorAll('.row')].map(r => { const b = r.getBoundingClientRect(), f = r.querySelector('.rfa').getBoundingClientRect(),
+      g = r.querySelector('.rgl').getBoundingClientRect(), l = r.querySelector('.w').getBoundingClientRect(), y = f.top + f.height / 2;
+      return {j: r.dataset.j, text: r.querySelector('.w').textContent, w: b.width, letters: l.width, l: b.left, r: b.right, gy: g.top + g.height / 2,
+              // what a finger finds: inside the column beside the letters, on the gloss, and just inside each half of the gap
+              head: at(b.left + 2, y), gloss: at(b.left + b.width / 2, g.top + g.height / 2), before: at(b.right + gap / 2 - 2, y), after: at(b.left - gap / 2 + 2, y),
+              // ...and just past the middle of the gap it is the neighbour's
+              past: at(b.left - gap / 2 - 2, y)}; })};
+  });
+  const one = small.cols[1];
+  eq([one.text, one.letters < 28], ['و', true], 'a one-letter phrase: its letters are narrower than a finger (' + Math.round(one.letters) + 'px)');
+  assert(small.cols.every(c => c.w >= 28 && c.w + small.gap >= 44), 'yet no column is under 28px, and with half the gap on each side every target is 44px wide: ' +
+         JSON.stringify(small.cols.map(c => Math.round(c.w + small.gap))));
+  eq(small.cols.map(c => [c.head, c.gloss, c.before, c.after]), small.cols.map(c => [c.j, c.j, c.j, c.j]),
+     'the phrase is what a finger finds anywhere on its column — beside the letters, on the gloss — and on its half of the gap on either side');
+  eq(small.cols.slice(0, -1).map(c => c.past), small.cols.slice(1).map(c => c.j), 'past the middle of the gap it is the next phrase\'s: the targets meet and do not overlap');
+  await page.evaluate(() => { __yt.calls.length = 0; });
+  await page.touchscreen.tap(one.l + one.w / 2, one.gy);
+  await page.waitForFunction(() => !document.getElementById('cloud').hidden);
+  eq(await page.evaluate(() => { const c = document.getElementById('cloud');
+       return [document.querySelector('#segs .seg[data-i="3"] .row[data-j="1"] .w').classList.contains('hot'), document.querySelectorAll('#segs .w.hot').length,
+               !!c.querySelector('.en, .tr'), !!c.querySelector('.mkcopy'), __yt.calls.some(x => x[0] === 'seek')]; }),
+     [true, 1, false, true, false], 'a tap on the gloss under «و» opens the tools of «و», of no neighbour, and replays nothing');
+  await shot(page, 'm-flow-phone-oneletter');
+  await page.touchscreen.tap(one.l + one.w / 2, one.gy);
+  await page.waitForFunction(() => document.getElementById('cloud').hidden);
+  assert(!(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)), 'and still nothing runs sideways');
+  await page.context().close();
+
+  // held sideways, the video on the whole screen: the subtitle is the line alone
+  const land = await pageFor(LAND, 'mobile', {yt_below: '1', yt_flow: '1'}, {});
+  await open(land, FLOW);
+  await land.waitForFunction(() => window.ParsehMobilePlayer && document.querySelector('.m-vfull') && !document.querySelector('.m-vfull').hidden);
+  assert(await land.evaluate(() => document.querySelectorAll('#segs .rows.flow .row').length > 0), 'sideways the transcript has its columns too');
+  await shot(land, 'm-flow-sideways');
+  await land.evaluate(() => document.querySelector('#segs .seg[data-i="1"] .lab').click());
+  await land.waitForFunction(() => { const s = document.querySelector('#segs .seg.on-air'); return s && +s.dataset.i === 1; });
+  await tap(land, '.m-vfull');
+  await land.waitForFunction(() => document.documentElement.classList.contains('m-vfullon'));
+  await sleep(500);
+  eq(await land.evaluate(() => [document.querySelectorAll('.m-subs .seg').length, document.querySelectorAll('.m-subs :is(.rows, .row, .fvoc, .rgl)').length]),
+     [1, 0], 'on the whole screen the subtitle is the line alone: no column and no vocabulary is laid over the picture');
+  await tap(land, '.m-subs .w');
+  await land.waitForFunction(() => !document.getElementById('cloud').hidden);
+  assert(await land.evaluate(() => !!document.getElementById('cloud').querySelector('.en')), 'and a tap on its phrase opens the gloss itself in the cloud');
+  await shot(land, 'm-flow-whole-screen');
+  await land.context().close();
+}
+
+const RUN = {a: partA, b: partB, c: partC, d: partD, e: partE, f: partF, g: partG, h: partH, i: partI, j: partJ, k: partK, l: partL, m: partM};
 // every part runs, whatever the one before it did: a part that fails says where and the next goes on,
 // so that one run tells everything that is wrong and not only the first thing
 const failed = [];

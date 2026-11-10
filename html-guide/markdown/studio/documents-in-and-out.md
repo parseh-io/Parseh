@@ -5,24 +5,26 @@ weight: 2
 description: Paste LLM answer, Upload .md / .zip and its header dialog, Download N shown, Make drawings of N shown, Backup and Load from backup.
 ---
 
-Five buttons on the library's bar move documents across the studio's
-border. Three bring documents in — each makes **new** documents, except
+Six buttons of the library move documents across the studio's border.
+Three bring documents in — each makes **new** documents, except
 **Load from backup**, which puts back the very documents a backup took
-away — and two take them out.
+away — and three take them out or work on many at once. Four are in the
+menus of [the library's bar](library.md#the-bar); the two that act on the
+documents shown are in [the row above the cards](library.md#the-documents-shown).
 
-| Button | What it does |
-|---|---|
-| **Paste LLM answer** | a new document from a model's reply pasted into a box |
-| **Upload .md / .zip** | new documents from Markdown files, or from zips of them with their pictures and recordings |
-| **Load from backup** | the documents of a **Backup** zip put back as they were |
-| **Download N shown** | the documents the library is showing, in one zip |
-| **Make drawings of N shown** | every [LaTeX drawing](../dialect/latex-drawings.md) those documents need, made in the background without opening them |
-| **Backup** | the whole library, in one zip |
+| Button | Where it is | What it does |
+|---|---|---|
+| **Paste LLM answer** | the bar's **With an LLM ▾** menu | a new document from a model's reply pasted into a box |
+| **Upload .md / .zip** | the bar's **Open / import ▾** menu | new documents from Markdown files, or from zips of them with their pictures and recordings |
+| **Load from backup** | the bar's **Backup ▾** menu | the documents of a **Backup** zip put back as they were |
+| **Backup** (in full, **Backup the whole library**) | the bar's **Backup ▾** menu | the whole library, in one zip |
+| **Download N shown** | the row of the documents shown, above the cards | the documents the library is showing, in one zip |
+| **Make drawings of N shown** | the same row | every [LaTeX drawing](../dialect/latex-drawings.md) those documents need, made in the background without opening them |
 
 A document's own page has **Download ▾** too, for that one document: see
 [the document page](document-page.md#download).
 
-A sixth button, **Open a file…**, is not like these: it brings nothing in. It
+One more entry of **Open / import ▾**, **Open a file…**, is not like these: it brings nothing in. It
 opens a Markdown or zip file from anywhere on the computer Parseh runs on,
 where it is, and changes it only when you save: see
 [Opening a file from your computer](open-files.md).

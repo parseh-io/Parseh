@@ -89,6 +89,40 @@ remembered in this browser. A level has a name, which you can change
 ([Levels and their names](levels.md)), and in a Persian or an Arabic book
 **Diacritics**, in the panel, puts the vowel marks away from the first two.
 
+## Chunks side by side {#chunks-side-by-side}
+
+The chunks level puts each chunk on a row of its own, with its gloss beside
+it. **⚙ page → Levels & reading → Chunks laid out → Side by side** lays the same
+chunks out the other way: they follow one another **along the line** and wrap,
+starting from the side the language reads from — the right in Persian and
+Arabic — and each is a small column, as wide as its longest line.
+
+![A Persian book with its chunks side by side: the chunks of each sentence follow one another from the right, each with its transliteration and its meaning under it, and the vocabulary lines listed under them](shots/reader-flow.png){width=80 align=center}
+
+- **In a column.** The chunk's text; under it the reading, in a Japanese book;
+  then the transliteration, smaller and paler; then the meaning. A line a
+  chunk has not got takes no room. The chunks of a line stand on one
+  baseline, also where some of them wear a reading over their words and
+  others none.
+- **Under the chunks.** The vocabulary, one line for each chunk that has one,
+  in the order of the chunks.
+- **What stays the same.** A chunk is still the chunk: a click on one nobody
+  has glossed looks its words up, **Alt**+click makes a card, **Shift**+click
+  copies it — and **Shift**+click in the space beside the chunks copies the
+  sentence, the chunks' own words —, the pencil writes it, and **gloss** hides
+  the gloss lines and the vocabulary and leaves the chunks alone. **Aa** sizes the text
+  and the glosses as it does in rows.
+
+The pencil, and the flag beside it, are put where no text is drawn: on the
+column's corner, over the space between two lines, or beside the chunk's first
+line, or under the column. Where the lines above and below are close, the two
+buttons are made a little lower to fit; only where a page is so full that
+nothing is free do they stand on the place that covers the least.
+
+**In rows** puts the page back exactly as it was. The choice is kept on this
+device, for every book, and a phone has the same row in its ⚙ sheet. It rests
+while **hover** is on, which puts the chunks level away.
+
 ## Hover mode and the gloss cloud
 
 **hover** (or **H**) strips the glosses out of the page, so you read the

@@ -53,6 +53,11 @@ The buttons come in the order of the table. In Persian and Arabic the first
 level has the vowel marks, the third has none and is not a hovering text —
 there is no cloud on it, so it is the sentence as a printed page has it.
 
+The **Chunks** level can be laid out in two ways, in every language: in rows,
+each chunk with its gloss beside it, or **side by side**, the chunks following
+one another along the line with their gloss under them
+([Chunks side by side](reader.md#chunks-side-by-side)).
+
 ## Hiding a level
 
 Press a level's button to show or hide it — the level goes and comes back, and

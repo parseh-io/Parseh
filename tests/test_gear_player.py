@@ -120,6 +120,10 @@ class ThePageItselfTests(unittest.TestCase):
         # row, the M key and -- only where the header has room -- a button
         self.assertIn('id="below"', self.html)
         self.assertIn("html.pg-player header #below{display:none}", self.css)
+        # a0.6.2: and so is the layout of those glosses, the phrases side by side
+        self.assertRegex(self.html, r'<button id="flow"[^>]*>side by side</button>')
+        self.assertIn("html.pg-player header #flow{display:none}", self.css)
+        self.assertLess(self.html.index('id="below"'), self.html.index('id="flow"'), "next to «gloss below»")
         self.assertIn('id="reflow"', self.html)
         self.assertIn("@media (max-width:1479px){\n  header #reflow{display:none}", self.css)
 
@@ -171,6 +175,21 @@ class TheRowsTests(unittest.TestCase):
             "How big the video is. You can also drag the bar under it; double-click it to reset.",
             "label: 'Show the lines around'",
             "On the whole-screen video, shows the caption before above and the caption after below the one being said.")
+
+    def test_the_phrases_side_by_side_hang_under_the_glosses_below_the_line(self):
+        # a0.6.2: a choice of two, under the switch it depends on, resting with its reason while that is off
+        self.in_order(
+            "label: 'Pause while a gloss is open'",
+            "{id: 'below', kind: 'switch', label: 'Glosses below the line', short: 'gloss below',",
+            "{id: 'flow', kind: 'choice', indent: 1, label: 'Phrases laid out',",
+            "options: [{value: 'rows', label: 'In rows'}, {value: 'flow', label: 'Side by side'}],",
+            "In rows: a row for each phrase, its gloss beside it. Side by side: the phrases follow one another under the line, "
+            "each with its transliteration and its meaning under it, and the vocabulary and the notes below them.",
+            "disabled: function () { return opts.below ? false : 'Turn on Glosses below the line first.'; },",
+            "set: function (v) { press('#flow', v === 'flow', function () { return opts.flow; }); }},",
+            "label: 'Move text between lines'")
+        # what the phone's list of themes says of it: beside «gloss below», and only while both are on
+        self.assertIn("if (r.id === 'below' && opts.below && opts.flow) out.push('side by side');", self.code)
 
     def test_looking_a_word_up_hangs_each_row_from_the_one_above(self):
         self.in_order("label: 'Look words up in a dictionary'",

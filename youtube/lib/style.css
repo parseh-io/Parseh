@@ -50,6 +50,8 @@ header button.on{background:var(--accent);color:var(--accent-fg);border-color:va
 html.pg-player header :is(#hoverpause,#defmode,#defmt,#lookupset){display:none}
 /* ...and so is «gloss below» (a0.5.8), which is the gear's row alone: the header holds no more at 1280px */
 html.pg-player header #below{display:none}
+/* ...and «side by side» (a0.6.2), the layout of those glosses: the gear's choice under that row */
+html.pg-player header #flow{display:none}
 /* the gear is the last thing on the bar and stays at its right end, on a second row of its own when the bar
    wraps (the popover opens under it, right edges together) */
 html.pg-player header .pg-gear{margin-inline-start:auto}
@@ -1155,6 +1157,52 @@ body.synced .seg.on-air .rows,body.synced .seg.near .rows,body.synced .seg:hover
   .seg .row,html[data-dir="rtl"] .seg .row{flex-direction:column;gap:2px}
   .seg .row .rfa{flex:0 0 auto}
 }
+
+/* ---------------- the phrases side by side (the gear's «Phrases laid out», a0.6.2) ----------------
+   The other layout of the glosses below the line: the phrases of a line follow one another under it and
+   wrap, from the side the language reads from, each a small column as wide as its widest line -- the
+   phrase, and under it its reading, its transliteration (smaller, upright, quieter) and its meaning (as
+   small, in full ink).  Every line of a column stands against the edge the TEXT starts from: under a
+   Persian phrase an English meaning is still an English paragraph, and it hugs the right.  Nothing is
+   drawn between the columns, no box and no rule.  Under them, across the whole width, the vocabulary of
+   each phrase that has one and the notes (.fvoc).
+   The flow says its own direction (dir, set by player.js): this page's <html> says none.  Sizes are the
+   Aa panel's own (--yt-fa, --yt-gl, --yt-lead), the gaps em of the text's size.  Only under .rows.flow,
+   which is on the page only when the layout is chosen: the rows above are what they were. */
+/* (the columns of one row stand on the first line's baseline: tops together wherever the phrases are plain
+   text, and where one phrase carries readings over it and its neighbour none, the two are still one line) */
+.seg .rows.flow{display:flex;flex-wrap:wrap;align-items:baseline;gap:.55em .82em;
+  font-size:var(--yt-fa,20px);padding-top:6px}
+.seg .rows.flow .row{display:flex;flex-direction:column;align-items:stretch;gap:0;
+  flex:0 1 auto;min-width:0;max-width:min(100%,22em);padding:0;border-radius:6px}
+.seg .rows.flow .row.lit{box-shadow:0 0 0 4px var(--hl)}
+/* the line being played is itself the highlight's colour, and a column lit in that colour would light
+   nothing: there it is lifted in the card's, as a phrase pointed at is (.w.hot) */
+.seg.on-air .rows.flow .row.lit{background:var(--card);
+  box-shadow:0 0 0 4px var(--card),0 2px 8px rgba(0,0,0,.14)}
+.seg .rows.flow .row .rfa{flex:0 0 auto;font-size:1em;line-height:calc(1.6 * var(--yt-lead,1));
+  text-align:start;overflow-wrap:break-word}
+/* the phrase in its column is still the thing to point at for its tools, and says so when it is pointed
+   at; at rest it carries no underline, for the columns are text to read (a mark for a later review keeps
+   its own, lib/later.css) */
+.seg .rows.flow .rfa .w{text-decoration-line:none}
+.seg .rows.flow .row .rgl{flex:0 0 auto;direction:inherit;font-size:var(--yt-gl,12.5px);line-height:1.4;
+  color:var(--ink)}
+.seg .rows.flow .rgl:empty{display:none}
+.seg .rows.flow .rgl > *{margin:0;overflow-wrap:break-word}
+.seg .rows.flow[dir="rtl"] :is(.rgl,.fvoc) > *{text-align:right}
+.seg .rows.flow[dir="ltr"] :is(.rgl,.fvoc) > *{text-align:left}
+.seg .rows.flow .rgl .kana{font-size:calc(var(--yt-gl,12.5px) + 1.5px);line-height:1.4}
+.seg .rows.flow .rgl .tr{font-style:normal;color:var(--dim);font-size:var(--yt-gl,12.5px)}
+.seg .rows.flow .rgl .en{color:var(--ink);margin-top:0}
+.seg .rows.flow .fvoc{flex:0 0 100%;min-width:0;font-size:var(--yt-gl,12.5px);line-height:1.5;color:var(--ink)}
+.seg .rows.flow .fvoc:empty{display:none}
+.seg .rows.flow .fvoc > *{margin:0;overflow-wrap:break-word}
+.seg .rows.flow .fvoc > * + *{margin-top:.25em}
+.seg .rows.flow .fvoc .fn{color:var(--dim)}
+.seg .rows.flow .fvoc .fph{font-family:var(--tl-font,serif);font-size:calc(var(--yt-gl,12.5px) + 2.5px);
+  color:var(--ink);margin-inline-end:.35em}
+.seg .rows.flow .fvoc bdi.v{font-family:var(--tl-font,serif);font-size:calc(var(--yt-gl,12.5px) + 1px);font-style:normal}
 
 /* THE BAR'S «move text» is the review-later door's case again, and a harder one: the header is as full as a
    window of 1280px holds it, and the button, even as a glyph, sent it on to a second row (every line of the

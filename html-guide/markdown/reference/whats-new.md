@@ -17,6 +17,24 @@ guide and rebuilds the readers by itself.
 
 ## a0.6.2 — not yet released
 
+### Chunks side by side
+
+A book's chunks level and a video's glosses below the line can be drawn **side by side**: the chunks follow one another along
+the line and wrap as text does, each one a small column — its text, how it is read, what it means — and the vocabulary of the
+sentence comes under the columns, each entry beginning with its chunk. It is a choice of the page, off until you make it:
+**⚙ page → Chunks laid out** in a book, **⚙ page → Phrases laid out** in a video (under *Glosses below the line*), **In rows**
+or **Side by side**. Everything the rows did still works in the columns: the click that plays, the pencil, the dictionary,
+review later, a phrase's tools in a video. Hover mode is as it was.
+[In a book](../books/reader.md#chunks-side-by-side) · [in a video](../videos/the-player.md#phrases-side-by-side).
+
+### The studio library's bar
+
+The bar over the studio's library had grown into a long row of buttons. It now has four controls: **+ New**, **With an LLM ▾** (the prompt, and
+pasting an answer), **Open / import ▾** (upload a file, open one where it is) and **Backup ▾** (the whole library, and loading
+one back), each entry with a line saying what it does. The two actions on the documents the search and the filters leave —
+*Download N shown* and *Make drawings of N shown* — moved to a row of their own beside them.
+[The library](../studio/library.md).
+
 ## a0.6.1 — 3 November 2026
 
 ### Catalan

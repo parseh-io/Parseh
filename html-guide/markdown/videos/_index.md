@@ -56,7 +56,7 @@ the videos have no mobile version of their own yet.
   the channels, the cards and what their tags say, taking a video off the
   shelf.
 - [The video player](the-player.md) — every control in the bar and the ⚙ panel, reading a
-  transcript, the glosses below the line, beside the text, the grip, review later, phones.
+  transcript, the glosses below the line in rows or side by side, beside the text, the grip, review later, phones.
 - [Reading help](reading-help.md) — the dictionary under a phrase nobody
   has glossed, the definitions, the readings of Japanese and Chinese, and
   **Decompose Kanji**.

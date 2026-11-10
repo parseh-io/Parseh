@@ -989,6 +989,50 @@ html[data-sheet="dark"] :is(.pz,.modal-overlay) .btn:hover{color: var(--accent);
 :is(.pz,.modal-overlay) .dropdown .menu a:hover,:is(.pz,.modal-overlay) .dropdown .menu button:hover{background: var(--chrome-bg);}
 :is(.pz,.modal-overlay) .dropdown .menu .danger{color: var(--danger);}
 :is(.pz,.modal-overlay) .dropdown .menu a.disabled{opacity: .4; pointer-events: none;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar-actions{margin-left: .5rem; flex: 1 1 auto; flex-wrap: nowrap;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar-actions > #btn-stop{margin-left: auto;}
+:is(.pz,.modal-overlay) .dropdown.bar-menu .menu{left: 0; right: auto; min-width: 235px; max-width: calc(100vw - 16px);}
+:is(.pz,.modal-overlay) .dropdown.menu-end .menu{left: auto; right: 0;}
+:is(.pz,.modal-overlay) .dropdown.bar-menu .menu a,:is(.pz,.modal-overlay) .dropdown.bar-menu .menu button{display: block; width: 100%; font-family: inherit; line-height: 1.25; white-space: normal;}
+:is(.pz,.modal-overlay) .dropdown.bar-menu .menu small{display: block; margin-top: .1rem; font-size: .76rem; color: var(--chrome-mut); font-weight: 400;}
+:is(.pz,.modal-overlay) .dropdown.bar-menu .menu [hidden]{display: none;}
+body[data-page="index"] :is(.pz,.modal-overlay) .dropdown[open] > summary.btn{border-color: var(--accentlt); color: var(--accent);}
+body[data-page="index"] :is(.pz,.modal-overlay) .dropdown .menu :is(a, button):focus-visible{outline: 2px solid var(--accentlt); outline-offset: -2px;}
+body[data-page="index"] :is(.pz,.modal-overlay){container-type: inline-size;}
+@container (max-width: 860px){
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar{gap: .35rem; padding-left: .5rem; padding-right: .5rem;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar-actions{margin-left: .15rem; gap: .3rem;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar .btn{padding-left: .5rem; padding-right: .5rem;}
+}
+@container (max-width: 699px){
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar{flex-wrap: wrap; row-gap: .4rem;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar-actions{display: contents;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar-actions > #btn-stop{order: 1;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar > .px-ask{order: 1;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar::after{content: ""; order: 2; flex: 0 0 100%; height: 0; margin-top: -.4rem;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar-actions > :is(.btn.primary, .dropdown){order: 3;}
+}
+@media (hover: none){
+@container (max-width: 759px){
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar{flex-wrap: wrap; row-gap: .4rem;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar-actions{display: contents;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar-actions > #btn-stop{order: 1;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar > .px-ask{order: 1;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar::after{content: ""; order: 2; flex: 0 0 100%; height: 0; margin-top: -.4rem;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar-actions > :is(.btn.primary, .dropdown){order: 3;}
+}
+}
+@container (max-width: 430px){
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar{column-gap: .2rem;}
+body[data-page="index"] :is(.pz,.modal-overlay) .topbar-actions > .btn.primary,body[data-page="index"] :is(.pz,.modal-overlay) .topbar-actions > .dropdown > summary.btn{padding-left: .3rem; padding-right: .3rem; font-size: .84rem;}
+}
+:is(.pz,.modal-overlay) .shownrow{display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .8rem;
+  padding: .45rem .6rem; border: 1px solid var(--chrome-line); border-radius: 8px; background: var(--chrome-panel);}
+:is(.pz,.modal-overlay) .shownrow .shown-say{font-size: .88rem; color: var(--chrome-mut); margin-right: .15rem;}
+:is(.pz,.modal-overlay) .shownrow .dropdown .menu{left: 0; right: auto; max-width: calc(100vw - 16px);}
+:is(.pz,.modal-overlay) .shownrow .dropdown.menu-end .menu{left: auto; right: 0;}
+:is(.pz,.modal-overlay) .shownrow + .cards{margin-top: .7rem;}
+:is(.pz,.modal-overlay) .shownrow #btn-download-shown::after{content: "▾";}
 :is(.pz,.modal-overlay) .dropdown .menu.pdf-options{width: 19rem; max-width: calc(100vw - 1.8rem); padding: .5rem .7rem;
   gap: .5rem; font-size: .86rem; white-space: normal;}
 :is(.pz,.modal-overlay) .pdf-options fieldset{border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .15rem;}

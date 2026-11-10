@@ -759,6 +759,18 @@ html.m-player[data-mode=mobile] .seg .row,html.m-player[data-mode=mobile][data-d
   flex-direction:column;align-items:stretch;gap:2px;padding:6px}
 html.m-player[data-mode=mobile] .seg .row .rfa{flex:0 0 auto;padding:4px 0}
 html.m-player[data-mode=mobile] .seg .row .rgl{flex:0 0 auto}
+/* ...AND THE PHRASES SIDE BY SIDE («Phrases laid out», a0.6.2): the columns stay columns on a phone, one
+   after another and wrapping, never each the width of the screen; the phrase at the head of a column is a
+   finger's height.  THE WHOLE COLUMN IS THE PHRASE TO TAP, and half the gap on either side of it (the
+   ::after lies over the column, not over the head alone): the column of a one-letter word is a few pixels
+   wide, and with a floor on its width (28px, and .41em of gap each side) no phrase is a strip a finger
+   has to aim at.  The neighbours' targets meet in the middle of the gap and never overlap. */
+html.m-player[data-mode=mobile] .seg .rows.flow .row,html.m-player[data-mode=mobile][data-dir=rtl] .seg .rows.flow .row{
+  position:relative;flex-direction:column;align-items:stretch;gap:0;padding:0;min-width:28px}
+html.m-player[data-mode=mobile] .seg .rows.flow .row .rfa{display:flex;align-items:center;
+  min-height:44px;padding:0}
+html.m-player[data-mode=mobile] .seg .rows.flow .row .rfa .w{position:static}
+html.m-player[data-mode=mobile] .seg .rows.flow .row .rfa .w::after{content:"";position:absolute;inset:0 -.41em}
 /* NOTHING THAT WRITES THE VIDEO, and no sheet of one: the card, the chunk's
    own fields, the division of a chunk, the note's editor, the timings -- and
    the cloud's colour marks, which write the phrase's colour into the video's

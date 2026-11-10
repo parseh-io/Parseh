@@ -5,10 +5,10 @@ description: Every document on one page — searched, filtered by language and b
 ---
 
 The library is the studio's front page, `/studio/`: every document as a
-card, and above them the ways to find one and the buttons that bring
-documents in and take them out.
+card, above them the ways to find one, and at the top a short bar that
+starts a document, brings documents in and keeps the library safe.
 
-![The studio's library: the buttons in the bar, the search row, the language chips, the tags and the cards](shots/library.png)
+![The studio's library: the bar with + New and its three menus, the search row, the language chips, the tags, the row of the documents shown, and the cards](shots/library.png)
 
 ## A document's card
 
@@ -153,25 +153,65 @@ the link works — the starter shows you how links by name behave.
 
 ## The bar
 
-The bar across the top of the library holds, from the left: **Parseh**
-(back to the hub), **Studio** (this page), and:
+The bar across the top of the library is short on purpose. From the left
+it holds **Parseh** (back to the hub) and **Studio** (this page); then
+what you do most, **+ New**; then three menus, each named for what it is
+for; and, apart at the far end, **Stop server**.
 
-- **LLM prompt** opens [the prompt page](llm-prompt.md).
-- The five buttons **Paste LLM answer**, **Upload .md / .zip**,
-  **Backup**, **Load from backup** and **Download N shown** bring documents
-  in and take them out: see
-  [Bringing documents in and out](documents-in-and-out.md).
-- **Open a file…** opens a Markdown or zip file from anywhere on the computer,
-  where it is, without bringing it into the library: see
+![The library's bar with the menu Open / import ▾ open: Upload .md / .zip and Open a file…, each with a line that says what it does](shots/library-menus.png)
+
+- **+ New.** Starts a document, as above. It is the first button and the
+  coloured one.
+- **With an LLM ▾.** The two halves of having a chatbot write a document:
+  **LLM prompt** opens [the prompt page](llm-prompt.md), and **Paste LLM
+  answer** takes the document out of what the chatbot answered
+  ([Bringing documents in and out](documents-in-and-out.md#paste-llm-answer)).
+- **Open / import ▾.** **Upload .md / .zip** adds a copy of a file to the
+  library ([Bringing documents in and out](documents-in-and-out.md#upload-md--zip)).
+  **Open a file…** opens a Markdown or zip file from anywhere on the
+  computer, where it is, without bringing it into the library: see
   [Opening a file from your computer](open-files.md). Any device Parseh
   lets in may use it: it browses the computer Parseh runs on. While a file
   is open, a list **Files open now** appears above the tags, with **Read**,
   **Edit** and **Close** for each.
-- **+ New** starts a document, as above.
-- **Stop server** stops the whole of Parseh — every door, not only the
+- **Backup ▾.** **Backup the whole library** downloads every document as
+  one zip, and **Load from backup** puts such a zip back
+  ([Bringing documents in and out](documents-in-and-out.md#backup)).
+- **Stop server.** Stops the whole of Parseh — every door, not only the
   studio. It asks first, and names what is still running (a PDF being
   built, a backup going up), since stopping cuts that off. The page then
   says the server has stopped and can be closed.
+
+A menu opens on a click, or with Enter while its button has the keyboard,
+and every entry has a line under its name that says what it does. It
+closes when you choose an entry, press Escape, click anywhere else, open
+another menu, or walk out of it with Tab. In a narrow window the bar stays
+one row down to about 700 pixels, then folds into two: the names and
+**Stop server** above, **+ New** and the three menus below. On a touch
+screen a **?** that explains the buttons joins the end of the bar, and the
+bar folds a little sooner to make room for it. A menu never hangs outside
+the window.
+
+## The documents shown {#the-documents-shown}
+
+Under the search row, the language chips and the tags, just above the
+cards, a row says how many documents the page is showing — *The 12
+documents shown:* — and holds the two buttons that act on exactly those:
+
+- **Download N shown.** Downloads them as one zip, as Markdown or as
+  Markdown with their pictures and recordings
+  ([Download N shown](documents-in-and-out.md#download-n-shown)).
+- **Make drawings of N shown.** Makes every LaTeX drawing they need, in
+  the background, without opening them; while it works the button counts
+  the drawings and **Stop** stands beside it
+  ([Make drawings of N shown](documents-in-and-out.md#make-drawings-of-n-shown)).
+
+The row is here, and not in the bar, because **N** is decided here: type
+in the search box, pick a chip or a tag, and both buttons follow. With
+nothing shown both are greyed out.
+
+The row and the bar's buttons are not on a phone in the mobile interface:
+nothing there writes the library.
 
 On a phone the bar goes away as the page moves down and comes back on the
 smallest move up.

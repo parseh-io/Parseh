@@ -95,6 +95,39 @@ phrase in its row opens its tools (**copy**, **review later**, the dictionary).
 A video on the whole screen, held sideways, shows the line alone over the picture,
 and a tap on a phrase of it opens the gloss in the cloud, as it always did.
 
+### Side by side {#phrases-side-by-side}
+
+![A Persian video with its phrases side by side: under the sentence the phrases follow one another from the right, each with its transliteration and its meaning under it, and the vocabulary under them](shots/player-flow.png)
+
+Under **Glosses below the line**, the row **Phrases laid out** chooses between two
+ways of setting those glosses. **In rows** is the layout described above. **Side by
+side** sets the phrases of a line **one after another under it**, the way an
+interlinear text is printed: each phrase is a small column, as wide as its widest
+line, with the phrase on top and under it its **transliteration** (smaller and
+quieter) and its **meaning** — and, in Japanese, its reading first. The columns
+start from the side the language reads from (a Persian line from the right, an
+Italian one from the left), wrap onto as many rows as they need, and every line of
+a column stands against the edge its phrase starts from. A line that is empty takes
+no room: a phrase without a transliteration has its meaning right under it, and a
+phrase nobody has glossed is its text alone.
+
+**Under the columns**, across the whole line, come the **vocabulary line** of each
+phrase that has one and the **notes**, each note led by the phrase it is about.
+
+Everything a row does, a column does: pointing at a phrase of the line lights its
+column, pointing at the phrase at the head of a column opens its **tools**, a
+phrase written with ✎ changes its column, the lines under the columns and the line
+itself together, and a colour marks the phrase in both places. The sizes are the Aa
+panel's own — the text size for the phrases, the gloss size for what is under them.
+
+The choice is kept on this device, for every video, and it rests while **Glosses
+below the line** is off. If you choose a layout while a phrase is open in ✎ edit,
+the page is drawn in it as soon as the editor closes. On a phone the columns stay
+side by side and wrap, the phrase at the head of a column is a finger high, and a
+tap anywhere on a column — on the phrase or on what is under it, even under a
+one-letter word — opens that phrase's tools; the whole-screen video still shows
+the line alone.
+
 ## A sound instead of a video {#a-sound}
 
 A video whose media is a **sound** — a recording added by its path or sent
@@ -351,7 +384,8 @@ A phone has nothing to hover with, so a **tap** on a phrase opens its cloud
 and a second tap closes it — on any screen, including one that claims a
 hover it never delivers. A tap elsewhere on the line still plays it from its
 beginning. With **Glosses below the line** on ([above](#glosses-below-the-line)),
-the glosses are on the page instead and the cloud is the phrase's tools. On a narrow screen the bar slides out of the way as the page
+the glosses are on the page instead and the cloud is the phrase's tools; **Phrases laid out** sets them in rows or
+[side by side](#phrases-side-by-side), as on a computer. On a narrow screen the bar slides out of the way as the page
 moves down and comes back on the smallest move up, bringing the video with
 it; a desktop is left exactly as it is. On a phone the bar has **⚙**:
 the page's panel opens as a sheet from the foot of the screen — first a list of themes, each
