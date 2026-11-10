@@ -1,3 +1,6 @@
+## [a0.6.2] - unreleased
+### Added
+
 ## [a0.6.1] - 2026-11-03
 ### Added
 - Catalan, a twelfth language: books, videos, the studio, its dictionary's rules, verb entries, linguistic analysis, speech to text
