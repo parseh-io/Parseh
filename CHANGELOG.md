@@ -1,3 +1,6 @@
+## [a0.6.3] - unreleased
+### Added
+
 ## [a0.6.2] - 2026-11-10
 ### Added
 - Chunks side by side: a book's chunks level can flow along the line, each chunk a small column of text, reading and meaning, with the vocabulary under the sentence (⚙ page → Chunks laid out)
