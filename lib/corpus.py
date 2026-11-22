@@ -105,9 +105,11 @@ CREATE INDEX tok_ix ON tok(word);
 
 
 def path_for(code, gloss):
+    """corpus/<code>-<gloss>.db -- and for a variety of a language (Arabic's
+    dialects, lib/languages.py) its own file under its key: ar.egy-en.db."""
     L = languages.get_or_default(code)
     G = languages.get_or_default(gloss)
-    return os.path.join(CORPUS_DIR, "%s-%s.db" % (L.code, G.code))
+    return os.path.join(CORPUS_DIR, "%s-%s.db" % (L.key, G.code))
 
 
 def create(path):
@@ -229,14 +231,16 @@ def look_up(code, gloss, text, limit=MAX_PAIRS, offset=0):
         offset = max(0, int(offset))
     except (TypeError, ValueError):
         limit, offset = MAX_PAIRS, 0
-    out = {"available": available(L.code, G.code), "source": {},
+    # L.key, not L.code: a variety's corpus is its own file (ar.egy-en.db);
+    # its words are folded as its language's (words_of(L.code, ...))
+    out = {"available": available(L.key, G.code), "source": {},
            "pairs": [], "more": False}
     if not out["available"]:
         return out
-    c = _conn(L.code, G.code)
+    c = _conn(L.key, G.code)
     if c is None:
         return out
-    out["source"] = about(L.code, G.code)
+    out["source"] = about(L.key, G.code)
     words = words_of(L.code, text)[:MAX_WORDS]
     if not words:
         return out
@@ -375,9 +379,72 @@ def installed():
         if not n.endswith(".db") or "-" not in n:
             continue
         code, _, gloss = n[:-3].partition("-")
-        if code in languages.LANGS and gloss in languages.LANGS:
+        if gloss not in languages.LANGS:
+            continue
+        if code in languages.LANGS or is_variety(code):
             out.append((code, gloss))
     return out
+
+
+def is_variety(code):
+    """Is `code` the key of a variety the registry knows (ar.egy)?"""
+    base, dot, v = (code or "").partition(".")
+    return bool(dot and base in languages.LANGS and languages.LANGS[base].variety_of(v))
+
+
+# ------------------------------------------------------- a variety's sentences
+def look_up_variety(code, variety, gloss, text, limit=MAX_PAIRS, offset=0):
+    """look_up() for a text written in a variety of `code` (Arabic's `egy`):
+    THE VARIETY'S SENTENCES FIRST, then the language's own, as one ranking
+    that `offset` and `limit` page as look_up's does.  Each pair says which
+    it is: `variety` is the variety's key, or "" for the standard language's.
+
+    A variety's corpus is small (Tatoeba's Egyptian Arabic is about 1 300
+    pairs), so all of its matches are read at once and the standard ones are
+    paged after them.  With no variety, or one the language has not, this is
+    look_up() itself, its pairs marked as the standard language's."""
+    try:
+        limit = max(1, min(50, int(limit)))
+        offset = max(0, int(offset))
+    except (TypeError, ValueError):
+        limit, offset = MAX_PAIRS, 0
+    base = languages.get_or_default(code)
+    V = base.with_variety(variety) if variety else base
+    if not V.variety:
+        out = look_up(code, gloss, text, limit=limit, offset=offset)
+        for p in out["pairs"]:
+            p["variety"] = ""
+        return out
+    mine, at, vsource = [], 0, {}
+    if available(V.key, gloss):
+        while True:
+            r = look_up(V.key, gloss, text, limit=50, offset=at)
+            vsource = r.get("source") or vsource
+            mine += r["pairs"]
+            if not r["more"] or not r["pairs"]:
+                break
+            at += len(r["pairs"])
+    for p in mine:
+        p["variety"] = V.variety
+    page = mine[offset:offset + limit]
+    more = len(mine) > offset + len(page)
+    std = {"available": False, "source": {}, "pairs": [], "more": False}
+    if available(base.code, gloss):
+        want = limit - len(page)
+        # a page the variety's sentences fill asks the standard ones for one,
+        # only to know whether there is a next page
+        std = look_up(base.code, gloss, text, limit=max(want, 1),
+                      offset=max(0, offset - len(mine)))
+        for p in std["pairs"]:
+            p["variety"] = ""
+        if want > 0:
+            page += std["pairs"][:want]
+            more = more or std["more"]
+        else:
+            more = more or bool(std["pairs"])
+    return {"available": bool(vsource) or std["available"],
+            "source": std.get("source") or vsource, "variety_source": vsource,
+            "pairs": page, "more": more}
 
 
 def _cli(argv):

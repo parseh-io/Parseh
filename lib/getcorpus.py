@@ -66,7 +66,40 @@ MEASURED = {
     ("tr", "en"): (37_700_000, 191_300_000),
     ("fa", "en"): (25_400_000, 3_300_000),
     ("es", "en"): (None, 83_000_000),
+    # a variety's (below), built 2026-11-22: the English export (25.0 MB) and
+    # the dialect's own few kilobytes
+    ("ar.egy", "en"): (24_982_000, 430_000),
+    ("ar.lev", "en"): (24_963_000, 123_000),
 }
+
+# A VARIETY'S SENTENCES (Arabic's dialects): Tatoeba files a dialect under its
+# own ISO code, the same codes kaikki does (the registry's `kaikki` rows:
+# arz, ajp and apc, afb and acw, ary), so a variety's corpus is built from
+# each of its codes' exports and kept as corpus/ar.egy-en.db.  Only sentences
+# in the language's own script are kept: Tatoeba's Levantine is half Arabizi
+# (`Ma b7ebb 2Alis.`), which Parseh does not read.
+#
+# HOW MANY THERE ARE, built 2026-11-22 from Tatoeba's exports: sentence pairs
+# in Arabic script with an English translation, per variety (Egyptian 1 338
+# sentences, Levantine 250 + 38, Gulf 80, Moroccan 66; a sentence translated
+# twice is two pairs).  A variety is OFFERED on the reading help when it has
+# at least VARIETY_FLOOR of them --
+# below that, the 25 MB English export is fetched for a few dozen sentences,
+# and the chance that a dialect word of a book is among them is small; the
+# panel says plainly that there are none yet instead.  Tatoeba grows: count
+# again at each release (docs/lang/ar.md says how).
+VARIETY_PAIRS = {("ar.egy", "en"): 1399, ("ar.lev", "en"): 321,
+                 ("ar.gulf", "en"): 81, ("ar.mor", "en"): 76}
+VARIETY_FLOOR = 100
+VARIETY_COUNTED = "2026-11-22"
+
+
+def offered(key, gloss="en"):
+    """Is the corpus of a variety (`ar.egy`) glossed in `gloss` worth a
+    download -- one Tatoeba has VARIETY_FLOOR sentence pairs of or more?
+    -> (bool, the count or None when never counted)."""
+    n = VARIETY_PAIRS.get((key, gloss))
+    return (n is not None and n >= VARIETY_FLOOR), n
 
 # NO CORPUS MEASURED BUILT BIGGER THAN ABOUT FIVE TIMES ITS DOWNLOAD
 # (Italian-English 4.8, Turkish-English 5.1: the exports are bzip2, and the
@@ -84,17 +117,22 @@ def _url(iso, name):
     return "%s/%s/%s" % (BASE, iso, name)
 
 
-def _fetch(url, dest, say=print, progress=None, cancel=None):
+def _fetch(url, dest, say=print, progress=None, cancel=None, missing_ok=False):
     """Download to `dest`, reporting as it goes.  The files are kilobytes
     to 25 MB, and the three of a pair used to be fetched whole each time;
     now lib/download.py resumes whichever of them a dropped line or Stop
     cut short, and `dest` is only ever a whole file -- which is what lets
-    build() trust one it finds already here."""
+    build() trust one it finds already here.  `missing_ok`: a file Tatoeba
+    has not (one of a variety's codes with no sentences yet, Hijazi's acw)
+    is said and skipped -> False."""
     say("    %s" % url.rsplit("/", 1)[-1])
     try:
         download.fetch(url, dest, say=say, progress=progress, cancel=cancel,
                        headers={"User-Agent": UA})
     except urllib.error.HTTPError as e:
+        if e.code == 404 and missing_ok:
+            say("    Tatoeba has none: skipped")
+            return False
         if e.code == 404:
             raise SystemExit(
                 "getcorpus: Tatoeba has no %s.\n"
@@ -119,8 +157,10 @@ def _lines(path, at=None):
             yield line
 
 
-def _sentences(path, want=None, at=None):
-    """{id: text} out of a Tatoeba sentences export, keeping only `want`.
+def _sentences(path, want=None, at=None, written=None):
+    """{id: text} out of a Tatoeba sentences export, keeping only `want`
+    (and, given `written`, a compiled pattern, only sentences it finds a
+    letter of: a variety's sentences in its language's own script).
 
     The English export is a million and a half sentences and the links name
     a few thousand of them; reading the whole file is unavoidable but
@@ -135,9 +175,21 @@ def _sentences(path, want=None, at=None):
         if want is not None and sid not in want:
             continue
         text = parts[2].strip()
+        if written is not None and not written.search(text):
+            continue
         if text and len(text) <= MAX_LEN:
             out[sid] = text
     return out
+
+
+def _script_of(L):
+    """A variety's sentences are kept only in its language's letters (the
+    registry's `chars`): None for a language, whose exports are read whole
+    as they always were."""
+    if not L.variety or not L.chars:
+        return None
+    import re
+    return re.compile("[%s]" % L.chars.replace("\\u200C", ""))
 
 
 def _links(path, at=None):
@@ -160,8 +212,15 @@ def _known(code, what):
     `corpus/it-fa.db`, and reported it built -- a file whose name is a claim
     about what is in it.  Refused here, where the build begins, so that the
     button on the reading-help page is answered the same as the command
-    line."""
-    L = languages.LANGS.get((code or "").strip().lower())
+    line.
+
+    A VARIETY IS KNOWN BY ITS KEY (`ar.egy`, lib/languages.py) as the
+    language and never as the gloss: a dialect's sentences are glossed in a
+    language, not the other way round."""
+    key = (code or "").strip().lower()
+    L = languages.LANGS.get(key)
+    if L is None and what == "language" and corpus.is_variety(key):
+        L = languages.get(key)
     if L is None:
         raise SystemExit("getcorpus: %r is not a language Parseh knows (%s): "
                          "the %s was not understood, and nothing was built"
@@ -169,12 +228,25 @@ def _known(code, what):
     return L
 
 
+def _isos(L):
+    """The codes Tatoeba files a language's sentences under: its `iso3`, or
+    for a variety each of its own (the registry's `kaikki` rows: Levantine
+    is ajp and apc)."""
+    if L.variety:
+        v = L.variety_of(L.variety) or {}
+        return [c for _n, c in v.get("kaikki") or []]
+    return [L.iso3]
+
+
 def _files(L, G):
-    """The three exports a pair is built from, as (iso3 folder, name):
-    the links, the language's sentences, the gloss language's."""
-    return [(L.iso3, "%s-%s_links.tsv.bz2" % (L.iso3, G.iso3)),
-            (L.iso3, "%s_sentences.tsv.bz2" % L.iso3),
-            (G.iso3, "%s_sentences.tsv.bz2" % G.iso3)]
+    """The exports a pair is built from, as (iso3 folder, name): for each of
+    the language's codes its links and its sentences, then the gloss
+    language's sentences -- three for a language, five for Levantine."""
+    out = []
+    for iso in _isos(L):
+        out += [(iso, "%s-%s_links.tsv.bz2" % (iso, G.iso3)),
+                (iso, "%s_sentences.tsv.bz2" % iso)]
+    return out + [(G.iso3, "%s_sentences.tsv.bz2" % G.iso3)]
 
 
 def _download_dir():
@@ -193,7 +265,7 @@ def plan(code, gloss="en", keep=False, *, probe=True):
     for the three sizes, and is given room for BOUND times them."""
     L = _known(code, "language")
     G = _known(gloss, "gloss language")
-    dl, kept = MEASURED.get((L.code, G.code), (None, None))
+    dl, kept = MEASURED.get((L.key, G.code), (None, None))
     measured = dl is not None
     have, sizes = 0, []
     for iso, name in _files(L, G):
@@ -248,8 +320,12 @@ WRITE_WEIGHT = 18
 
 
 def _shares(f_links, f_src, f_dst):
-    """Each step's share of the build's bar, from the three exports' sizes."""
-    w = [os.path.getsize(f) for f in (f_links, f_src, f_dst)]
+    """Each step's share of the build's bar, from the exports' sizes (the
+    links and the language's sentences may each be several files: a
+    variety's codes)."""
+    def size(f):
+        return sum(os.path.getsize(x) for x in f) if isinstance(f, (list, tuple)) else os.path.getsize(f)
+    w = [size(f) for f in (f_links, f_src, f_dst)]
     w.append(WRITE_WEIGHT * w[0])
     whole = float(sum(w) or 1)
     return [x / whole for x in w]
@@ -287,16 +363,16 @@ def build(code, gloss="en", keep=False, say=print, progress=None,
             "  %s dictionary first (Settings, Reading help), then this."
             % (L.name, L.name))
     os.makedirs(corpus.CORPUS_DIR, exist_ok=True)
-    db = corpus.path_for(L.code, G.code)
+    db = corpus.path_for(L.key, G.code)
     tmp = _download_dir()
     os.makedirs(tmp, exist_ok=True)
     got = []
     files = _files(L, G)
 
-    # ONE BAR FOR THE THREE DOWNLOADS, which needs their sizes before the
-    # first starts: asked of Tatoeba (a HEAD each, no body) only when
-    # somebody is watching a bar.  Where one does not say, each file
-    # reports its own bar instead of one bar guessing.
+    # ONE BAR FOR THE DOWNLOADS, which needs their sizes before the first
+    # starts: asked of Tatoeba (a HEAD each, no body) only when somebody is
+    # watching a bar.  Where one does not say, each file reports its own bar
+    # instead of one bar guessing.
     sizes = {}
     if progress is not None:
         for iso, name in files:
@@ -307,35 +383,54 @@ def build(code, gloss="en", keep=False, say=print, progress=None,
              else None)
     before = [0]
 
-    def grab(iso, name):
+    def grab(iso, name, missing_ok=False):
         dest = os.path.join(tmp, name)
         with download.lock(dest):         # another pair may be fetching it
             if os.path.isfile(dest):
                 say("    already here: %s" % name)
-            else:
-                _fetch(_url(iso, name), dest, say,
-                       progress=download.shifted(progress, before[0], whole),
-                       cancel=cancel)
+            elif _fetch(_url(iso, name), dest, say,
+                        progress=download.shifted(progress, before[0], whole),
+                        cancel=cancel, missing_ok=missing_ok) is False:
+                return None
         before[0] += sizes.get(name) or 0
         got.append(dest)
         return dest
 
-    say("  %s glossed in %s, from %s" % (L.name, G.name, SOURCE))
-    f_links, f_src, f_dst = [grab(iso, name) for iso, name in files]
+    say("  %s glossed in %s, from %s" % (L.variety_name or L.name, G.name, SOURCE))
+    # a variety's codes may be missing at Tatoeba (Hijazi has no sentences
+    # yet): each is skipped, and the variety is built from those it has
+    fetched = [grab(iso, name, missing_ok=bool(L.variety) and k < len(files) - 1)
+               for k, (iso, name) in enumerate(files)]
+    f_dst = fetched[-1]
+    mine = [(fetched[k], fetched[k + 1]) for k in range(0, len(fetched) - 1, 2)
+            if fetched[k] and fetched[k + 1]]
+    if not mine:
+        raise SystemExit("getcorpus: Tatoeba has no %s sentences glossed in %s"
+                         % (L.variety_name or L.name, G.name))
+    f_links = [a for a, _b in mine]
+    f_srcs = [b for _a, b in mine]
 
     meter = download.Meter(progress, cancel)
     step, at = [], 0.0
-    for share in _shares(f_links, f_src, f_dst):
+    for share in _shares(f_links, f_srcs, f_dst):
         step.append(meter.share(at, at + share))
         at += share
     say("  reading the links")
-    links = _links(f_links, step[0])
+    links = []
+    for k, f in enumerate(f_links):
+        links += _links(f, step[0] if len(f_links) == 1 else None)
+        step[0]((k + 1) / float(len(f_links)))
     if not links:
-        say("  Tatoeba has no %s-%s pairs at all." % (L.iso3, G.iso3))
+        say("  Tatoeba has no %s-%s pairs at all." % ("+".join(_isos(L)), G.iso3))
     src_want = {a for a, _b in links}
     dst_want = {b for _a, b in links}
-    say("  reading %s (%d wanted)" % (os.path.basename(f_src), len(src_want)))
-    src = _sentences(f_src, src_want, step[1])
+    written = _script_of(L)
+    src = {}
+    for k, f in enumerate(f_srcs):
+        say("  reading %s (%d wanted)" % (os.path.basename(f), len(src_want)))
+        src.update(_sentences(f, src_want, step[1] if len(f_srcs) == 1 else None,
+                              written=written))
+        step[1]((k + 1) / float(len(f_srcs)))
     say("  reading %s (%d wanted)" % (os.path.basename(f_dst), len(dst_want)))
     dst = _sentences(f_dst, dst_want, step[2])
 
@@ -376,9 +471,10 @@ def build(code, gloss="en", keep=False, say=print, progress=None,
         c.executemany("INSERT INTO df (word, n) VALUES (?,?)", sorted(df.items()))
         for k, v in (("source", SOURCE), ("licence", LICENCE),
                      ("lang", L.code), ("gloss", G.code),
+                     ("variety", L.variety or ""),
                      ("pairs", str(seen_pairs)), ("words", str(len(df))),
                      ("built", time.strftime("%Y-%m-%d")),
-                     ("url", _url(L.iso3, "%s-%s_links.tsv.bz2" % (L.iso3, G.iso3)))):
+                     ("url", _url(files[0][0], files[0][1]))):
             c.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?,?)", (k, v))
         c.commit()
         c.close()
@@ -404,7 +500,7 @@ def build(code, gloss="en", keep=False, say=print, progress=None,
         except OSError:
             pass
     say("  %s-%s: %s pairs, %s words, %.1f MB"
-        % (L.code, G.code, "{:,}".format(seen_pairs).replace(",", " "),
+        % (L.key, G.code, "{:,}".format(seen_pairs).replace(",", " "),
            "{:,}".format(len(df)).replace(",", " "),
            os.path.getsize(db) / 1e6))
     return seen_pairs
@@ -415,7 +511,8 @@ def status(say=print):
     say("")
     have = dict.fromkeys(corpus.installed())
     for L in languages.LANGS.values():
-        rows = [(a, b) for (a, b) in have if a == L.code]
+        # the language's own, then its varieties' (ar.egy)
+        rows = [(a, b) for (a, b) in have if a == L.code or a.startswith(L.code + ".")]
         if rows:
             for a, b in rows:
                 m = corpus.about(a, b)

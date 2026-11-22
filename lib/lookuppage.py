@@ -161,7 +161,32 @@ def corpora():
         out.append({"code": L.code, "name": L.name, "native": L.native,
                     "have": rows,
                     "needs_dict": bool(not L.spaced
-                                       and not lookup.available(L.code))})
+                                       and not lookup.available(L.code)),
+                    "varieties": variety_corpora(L, have)})
+    return out
+
+
+def variety_corpora(L, have):
+    """The translated sentences of each variety of L (Arabic's dialects): a
+    corpus of its own (corpus/ar.egy-en.db), read first for a book or a video
+    written in it.  Per variety: the pairs installed (as corpora() gives a
+    language's), and, per gloss Tatoeba was counted in, how many it has and
+    whether that is worth a download (getcorpus.offered)."""
+    import getcorpus
+    out = []
+    for v in L.varieties:
+        key = "%s.%s" % (L.code, v["key"])
+        rows = []
+        for g in sorted(have.get(key, [])):
+            m = corpus.about(key, g) or {}
+            try:
+                size = os.path.getsize(corpus.path_for(key, g))
+            except OSError:
+                size = 0
+            rows.append({"gloss": g, "pairs": m.get("pairs", ""), "built": m.get("built", ""), "size": size})
+        counted = {g: {"pairs": n, "offered": n >= getcorpus.VARIETY_FLOOR}
+                   for (k, g), n in getcorpus.VARIETY_PAIRS.items() if k == key}
+        out.append({"key": key, "name": v.get("name") or v["key"], "have": rows, "counted": counted})
     return out
 
 
@@ -294,6 +319,8 @@ def sizes():
         out["dict:" + code] = known_plan("dict", code)
         for v in languages.LANGS[code].varieties:
             out["dict:%s.%s" % (code, v["key"])] = known_plan("dict", "%s.%s" % (code, v["key"]))
+            # a variety's translated sentences: only English is counted (getcorpus.VARIETY_PAIRS)
+            out["corpus:%s.%s-en" % (code, v["key"])] = known_plan("corpus", "%s.%s-en" % (code, v["key"]))
         for gloss in codes:
             if gloss == code:
                 continue
@@ -370,11 +397,13 @@ def view(state=None, jobs=None, queues=None):
             "books": int(s.get("books") or 0), "videos": int(s.get("videos") or 0),
             "gloss": gloss, "spaced": bool(L.spaced),
             "dict": dicts[L.code], "corpora": corp[L.code]["have"],
+            "corpus_varieties": corp[L.code]["varieties"],
             "needs_dict": corp[L.code]["needs_dict"],
             "models": mods[L.code]["have"], "can_model": mods[L.code]["can"],
             "pack": decomposition.PREFERRED.get(L.code)})
     kept = sum(d["size"] + sum(v["size"] for v in d.get("varieties") or []) for d in dicts.values())
     kept += sum(r["size"] for c in corp.values() for r in c["have"])
+    kept += sum(r["size"] for c in corp.values() for v in c["varieties"] for r in v["have"])
     kept += sum(r["size"] for m in mods.values() for r in m["have"])
     kept += sum(p.get("size") or 0 for p in packs.values())
     kept += (syn.get("size") or 0) + (eng.get("size") or 0)
@@ -387,6 +416,7 @@ def view(state=None, jobs=None, queues=None):
             "speech": getstt.status(),
             "glosses": glosses(), "examples": examples(),
             "parts": PARTS, "synonym": SYNONYM,
+            "variety_floor": __import__("getcorpus").VARIETY_FLOOR,
             "credits": {k: {"who": v[0], "licence": v[1]} for k, v in who.items()},
             "sizes": sizes(), "jobs": jobs or {}, "queues": queues or {},
             "kept": kept, "free": free,
@@ -666,6 +696,28 @@ SCRIPT = r"""
         r.why = 'A language glossed in itself has nothing to translate: pick what its glosses are written in above.'; }
       else if (!c && L.needs_dict) { r.after = true;
         r.why = L.name + ' is written without spaces between its words, so its dictionary comes first: the sentences are cut into words with it.'; }
+      rows.push(r);
+    });
+    // the translated sentences of its varieties (Arabic's dialects), each read first for a book or a video written
+    // in it; a variety Tatoeba has too few of is shown as such, and its panel says so
+    (L.corpus_varieties || []).forEach(function (cv) {
+      var c = cv.have.filter(function (x) { return x.gloss === g; })[0], n = (cv.counted || {})[g];
+      var pair = cv.name + '–' + nameOf(g);
+      var r = {kind: 'corpus', key: cv.key + '-' + g, name: 'Sentences people translated · ' + cv.name, lang: L.code,
+               'for': 'Sentences written in ' + cv.name + ' and a person’s translation, shown before ' + L.name +
+                      '’s own in a book or a video written in it (each says which it is).',
+               have: !!c, credit: lic.corpus, pair: pair,
+               facts: c ? pair + ' · ' + num(c.pairs) + ' sentence pairs · ' + MB(c.size) + ' · ' + built(c.built) : '',
+               kept: c ? c.size : 0, get: 'getcorpus', drop: 'dropcorpus', body: {code: cv.key, gloss: g}};
+      if (!c && !(n && n.offered)) {
+        r.na = true; r.naWord = n ? 'Too few yet' : 'None yet';
+        r.why = n
+          ? 'Tatoeba has only ' + num(n.pairs) + ' sentences in ' + cv.name + ' translated into ' + nameOf(g) +
+            ', too few to be worth the download (Parseh offers ' + num(S.variety_floor) + ' or more). A book or a ' +
+            'video written in it says so in its dictionary panel, and shows ' + L.name + '’s sentences.'
+          : 'Parseh offers ' + cv.name + '’s sentences translated into English: Tatoeba has few or none into ' +
+            nameOf(g) + '.';
+      }
       rows.push(r);
     });
     var mpairs = [g];

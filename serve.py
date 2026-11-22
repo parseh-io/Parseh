@@ -947,6 +947,24 @@ def variety_answer(lang, got):
             "varieties": [{"key": v["key"], "name": v.get("name") or v["key"]} for v in (L.varieties if L else [])]}
 
 
+def corpus_variety(code, variety, gloss):
+    """What the translated sentences of a text's variety are, for the dictionary panel's plain line -- None for a
+    text in the standard language.  {key, name, standard_name, have: installed here, offered: Tatoeba has enough of
+    them to be worth a download (getcorpus.VARIETY_FLOOR), counted: how many it had, about: the installed one's
+    meta}.  The panel says "none yet" from this, rather than drawing an empty block."""
+    L = languages.LANGS.get(code)
+    V = L.with_variety(variety) if (L and variety) else None
+    if not V or not V.variety:
+        return None
+    import getcorpus
+    have = corpus.available(V.key, gloss)
+    offered, counted = getcorpus.offered(V.key, gloss)
+    about = corpus.about(V.key, gloss) if have else {}
+    return {"key": V.variety, "name": V.variety_name, "standard_name": L.standard_name or L.name,
+            "have": have, "offered": offered, "counted": counted, "floor": getcorpus.VARIETY_FLOOR,
+            "pairs": int(about.get("pairs") or 0) if have else 0, "about": about}
+
+
 def chunk_way(body):
     """Which way a request asked for its text to be cut.
 
@@ -2062,6 +2080,9 @@ def reading_check(kind, key):
             return "unknown decomposition source", 400
     elif kind in ("corpus", "model"):
         code, _, gloss = (key or "").partition("-")
+        # a variety's sentences (ar.egy-en: Arabic's dialects) are a corpus of their own; a model is not
+        if kind == "corpus" and corpus.is_variety(code) and gloss in languages.LANGS:
+            return "", 200
         if code not in languages.LANGS or gloss not in languages.LANGS:
             return "no such language", 404
         if code == gloss:
@@ -4274,7 +4295,10 @@ class Handler(SimpleHTTPRequestHandler):
         if body is None:
             body = self._json_body()
         have = lookup.available(code)
-        has_corpus = corpus.available(code, gloss)
+        # A TEXT IN A VARIETY (Arabic's dialects) reads the variety's own translated sentences first, then the
+        # standard language's; `corpus_variety` says what the variety has, for the panel's plain line
+        said = corpus_variety(code, variety, gloss)
+        has_corpus = corpus.available(code, gloss) or bool(said and said["have"])
         out = {"ok": True, "lang": code, "gloss": gloss,
                "available": have,
                "corpus_available": has_corpus,
@@ -4286,7 +4310,9 @@ class Handler(SimpleHTTPRequestHandler):
                # both readers keep behind a switch of their own
                "definitions": bool(have and lookup.defines(code)),
                "source": lookup.about(code) or {},
-               "corpus": corpus.about(code, gloss) if has_corpus else {}}
+               "corpus": (corpus.about(code, gloss) or (said or {}).get("about") or {}) if has_corpus else {}}
+        if said:
+            out["corpus_variety"] = {k: v for k, v in said.items() if k != "about"}
         text = (body.get("text") or "")[:LOOKUP_TEXT]
         if not body.get("about") and text.strip():
             corpus_only = bool(body.get("corpus_only"))
@@ -4378,8 +4404,8 @@ class Handler(SimpleHTTPRequestHandler):
                 except (TypeError, ValueError):
                     offset, limit = 0, corpus.MAX_PAIRS
                 try:
-                    m = corpus.look_up(code, gloss, text, limit=limit,
-                                       offset=offset)
+                    m = (corpus.look_up_variety(code, variety, gloss, text, limit=limit, offset=offset)
+                         if said else corpus.look_up(code, gloss, text, limit=limit, offset=offset))
                 except Exception:
                     m = {}
                 out["pairs"] = m.get("pairs") or []

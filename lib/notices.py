@@ -284,7 +284,8 @@ def fetched():
     out = [work("Dictionaries", "One per language, in <code>dict/</code>: what the words of "
                 "a chunk nobody has glossed mean.", *who["dict"]),
            work("Sentences people have translated", "One file per pair of languages, in "
-                "<code>corpus/</code>: a word shown in use.", *who["corpus"]),
+                "<code>corpus/</code>: a word shown in use; and one per Arabic dialect Tatoeba has enough of "
+                "(Egyptian and Levantine Arabic, translated into English).", *who["corpus"]),
            work("Translation models", "One per pair of languages, in <code>mt/</code>: what "
                 "translates a chunk, inside the page.", *who["model"]),
            work("The translation engine", "In <code>mt/</code>: what runs the models, inside "

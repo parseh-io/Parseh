@@ -1328,6 +1328,7 @@
     box.removeAttribute('data-fill');
     wireDefs(box);
     defsInto(box);
+    MT.variety = j.corpus_variety || null;   // a dialect's text goes to the standard language's model: mtHTML says so
     mtInto(box, ch, sg, words);
     pairsInto(box, j, ch, sg);
     if (!box.childNodes.length)
@@ -1411,6 +1412,8 @@
                   : 'a machine\'s reading of the caption — not a gloss') +
            '</div><div class="mtout">' + body + '</div>' +
            (!whole && out ? '<div class="dnone">' + esc(mtWhy(span, 'phrase')) + '</div>' : '') +
+           (MT.variety && Parseh.varietyPairs
+             ? '<div class="dnone dmtvar">' + esc(Parseh.varietyPairs.mt(MT.variety)) + '</div>' : '') +
            '<div class="dsrc">' + esc(src) + '</div>';
   }
 
@@ -1436,21 +1439,27 @@
      the dictionary lists without anybody guessing.                        */
   function pairHTML(p, j) {
       var marked = Parseh.pairMarkup(p, j, L, G);
+      // a text in a variety: whose sentence this is, beside the words it shares
+      var why = [Parseh.varietyPairs ? Parseh.varietyPairs.from(p, j) : '',
+                 (p.matched && p.matched.length) ? 'shares ' + p.matched.join(', ') : '']
+        .filter(Boolean).join(' · ');
       return '<div class="dpair"><div class="psrc" lang="' + esc(L.code) + '"' +
            (L.dir === 'rtl' ? ' dir="rtl"' : '') + '>' + marked.src + '</div>' +
            '<div class="pdst"' + GATTRS + '>' + marked.dst + '</div>' +
-           ((p.matched && p.matched.length)
-             ? '<div class="pwhy">shares ' + esc(p.matched.join(', ')) + '</div>'
-             : '') + '</div>';
+           (why ? '<div class="pwhy">' + esc(why) + '</div>' : '') + '</div>';
   }
 
   function pairsInto(box, j, ch, sg) {
     var pairs = (j.pairs || []).slice();
-    if (!pairs.length) return;
+    // a text in a variety whose own sentences are not here says so plainly, even with nothing below it
+    var note = Parseh.varietyPairs ? Parseh.varietyPairs.note(j, G.name) : '';
+    if (!pairs.length && !note) return;
     var wrap = document.createElement('div');
     wrap.className = 'dpairs';
     wrap.innerHTML = '<div class="dhead">a sentence somebody translated — not this one</div>' +
+                     (note ? '<div class="dnone dpvar">' + esc(note) + '</div>' : '') +
                      '<div class="dpair-list"></div>';
+    if (!pairs.length) { box.appendChild(wrap); return; }
     var list = wrap.querySelector('.dpair-list');
     function addPair(p) {
       var holder = document.createElement('div');
@@ -2620,9 +2629,12 @@
   function srcPairs(box, j) {
     box.textContent = '';
     var pairs = (j && j.pairs) || [];
+    // a text in a variety: the line saying its own sentences are not here, and each sentence's variety
+    var VP = Parseh.varietyPairs, note = VP ? VP.note(j, G.name) : '';
+    if (note) box.innerHTML = '<div class="snone spvar">' + esc(note) + '</div>';
     if (!pairs.length) {
-      box.innerHTML = '<div class="snone">nothing in the corpus is about ' +
-                      'this phrase</div>';
+      if (!note) box.innerHTML = '<div class="snone">nothing in the corpus is about ' +
+                                 'this phrase</div>';
       return;
     }
     pairs.forEach(function (p) {
@@ -2630,7 +2642,14 @@
       var row = srcRow(box, marked.src, p.dst,
               [['its meaning \u2192', 'put the translation in the meaning',
                 function () { srcPut('en', p.dst); }]]);
-      if (row.querySelector('.ssub')) row.querySelector('.ssub').innerHTML = marked.dst;
+      var sub = row.querySelector('.ssub');
+      if (sub) sub.innerHTML = marked.dst;
+      var from = VP ? VP.from(p, j) : '';
+      if (from && sub) {
+        var f = document.createElement('div');
+        f.className = 'snone spfrom'; f.textContent = from;
+        sub.parentNode.insertBefore(f, sub.nextSibling);
+      }
     });
   }
   function closeEditor() {
