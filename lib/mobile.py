@@ -1275,6 +1275,8 @@ def _channel_card(c):
         tags.append('<span class="tag">%d fully glossed</span>' % glossed)
     for lvl in levels:
         tags.append('<span class="tag">%s</span>' % esc(lvl))
+    import ytpages
+    tags += ytpages.variety_tags(c["videos"])
     if not readable:
         tags.append('<span class="tag no">nothing glossed yet</span>')
     href = "/m/videos/%s/" % c["slug"]

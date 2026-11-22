@@ -92,6 +92,12 @@ shutil.copytree(str(REPO / 'tests/fixtures/books' / rel), str(b), ignore=shutil.
 r = subprocess.run([sys.executable, 'lib/tex2html.py', '--book', str(b)], capture_output=True, text=True)
 if r.returncode:
     raise SystemExit(r.stderr or r.stdout)
+rdr = b / 'reader'
+climb = os.path.relpath(str(REPO), str(rdr)).replace(os.sep, '/') + '/'
+for name in os.listdir(str(rdr)):
+    if name.endswith('.html'):
+        pth = rdr / name
+        pth.write_text(pth.read_text(encoding='utf-8').replace(climb, '/'), encoding='utf-8')
 out['book'] = {'rel': rel, 'json': str(b / 'book.json')}
 print(json.dumps(out, ensure_ascii=False))
 `;
@@ -311,7 +317,9 @@ try {
   eq(await text(mshelf, '[data-variety="mor"]'), 'Moroccan Arabic', 'and so does the phone\'s shelf');
   eq((await post('/youtube/api/variety', {video: B0.video.id, variety: 'lev'})).variety, 'lev', 'the player\'s door writes Levantine');
   const idx = await open('/youtube/', 'video index');
-  eq(await text(idx, '[data-variety="lev"]'), 'Levantine Arabic', 'the video\'s card on the index says Levantine Arabic');
+  eq(await text(idx, 'a.chan [data-variety="lev"]'), 'Levantine Arabic', 'the channel\'s card on the index says Levantine Arabic');
+  const cp = await open(await idx.evaluate(() => new URL(document.querySelector('a.chan').href).pathname), 'channel page');
+  eq(await text(cp, '[data-variety="lev"]'), 'Levantine Arabic', 'and the video\'s card on its channel page');
   const mv = await open('/m/videos/', 'phone channels', phone);
   const chan = await mv.evaluate(() => { const a = document.querySelector('a[href^="/m/videos/"][href$="/"]:not([href="/m/videos/"])');
     return a && a.getAttribute('href'); });
@@ -320,7 +328,7 @@ try {
 
   /* ---------------- f) adding a video ---------------- */
   console.log('\nf) adding a video in a dialect');
-  const add = await open('/youtube/add/', 'add a video');
+  const add = await open('/youtube/add/?src=yt&by=empty', 'add a video');
   await add.selectOption('#lang', 'ar');
   await add.waitForSelector('#variety_lbl:not([hidden])');
   assert(await add.evaluate(() => document.querySelector('#tracknote').hidden), 'the standard language: no word about tracks');
@@ -334,6 +342,9 @@ try {
   /* ---------------- g) a book made in place ---------------- */
   console.log('\ng) a book made in place');
   const nb = await open('/books/add/', 'add a book');
+  await nb.waitForSelector('#paths .path[data-path="new"]');
+  await nb.click('#paths .path[data-path="new"]');
+  await nb.waitForFunction(() => !document.querySelector('#lane-new').hidden);
   await nb.selectOption('#lang', 'ar');
   await nb.waitForSelector('#variety_lbl:not([hidden])');
   await nb.selectOption('#variety', 'mor');

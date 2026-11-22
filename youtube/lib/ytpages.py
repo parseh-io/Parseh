@@ -421,6 +421,17 @@ def video_card(m):
             "".join(tags)))
 
 
+def variety_tags(videos):
+    """The tags that name the varieties a channel's videos are in (Arabic's dialects), each once, by name."""
+    seen = []
+    for m in videos:
+        v = m.get("variety")
+        name = languages.get_or_default(m.get("_lang")).variety_name_of(v)
+        if name and (v, name) not in seen:
+            seen.append((v, name))
+    return ['<span class="tag" data-variety="%s">%s</span>' % (esc(v), esc(name)) for v, name in seen]
+
+
 def channel_card(c):
     n = len(c["videos"])
     # "fully glossed" has to mean no chunk left blank, or a video started
@@ -434,6 +445,7 @@ def channel_card(c):
         tags.append('<span class="tag">%d fully glossed</span>' % glossed_videos)
     for lvl in levels:
         tags.append('<span class="tag">%s</span>' % esc(lvl))
+    tags += variety_tags(c["videos"])
     return (
         '<a class="book chan" href="%s/c/%s/" data-lang="%s">\n'
         '  <div class="chname">%s</div>\n'
