@@ -1443,7 +1443,12 @@ def external_start(token, source_sha256, task, word_ids=None, divide=False):
         previous = job.get("correction_result")
         base = previous if word_ids is not None and previous and previous.get("task") == task else None
         job["external_review"] = {"id": secrets.token_urlsafe(18), "task": task, "index": 0,
-                                  "batches": batches, "divided": divided, "answers": {}, "attempts": {}, "finished": not batches, "base": base, "prompt": first}
+                                  "batches": batches, "divided": divided, "answers": {}, "attempts": {}, "finished": not batches, "base": base, "prompt": first,
+                                  "was": [job.get("last_method"), job.get("last_word_ids", [])]}
+        # THE LATEST METHOD IS THIS ONE (TO-DO a0.6.3 G2): a second pass Whisper ran by itself while transcribing left
+        # last_method "whisper-second", and the review's outcomes (asrwalk.js) read the second pass instead of the pasted
+        # answer -- an edit it proposed was counted as "agrees with Whisper".  Cancel puts the one before back.
+        job["last_method"], job["last_word_ids"] = "external", sorted(set().union(*(asrexternal.ids(batch) for batch in batches)))
         job["review_choice"] = "external"
         job["state"], job["finished"] = DONE, _now()
         job["correction"] = {"state": "awaiting-paste" if batches else "complete", "complete": not batches,
@@ -1497,6 +1502,10 @@ def external_action(token, source_sha256, session, action, index=None, answer=No
         job = _external_job(token, source_sha256, session)
         ext = job["external_review"]
         if action == "cancel":
+            was = ext.get("was") or [None, []]
+            job["last_method"], job["last_word_ids"] = was[0], was[1]
+            if was[0] is None:
+                job.pop("last_method", None); job.pop("last_word_ids", None)
             job.pop("external_review", None); job["review_choice"] = None
             job["correction_result"] = None; job["correction"] = {"state": "not-requested", "complete": False}
             job["state"], job["finished"] = REVIEW_CHOICE, _now()
