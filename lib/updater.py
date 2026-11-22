@@ -524,6 +524,16 @@ def save_settings(root, **changes):
         if k in ("daily", "checked", "latest", "error", "detail"):
             doc[k] = v
     doc["_format"] = STORE_FORMAT
+    # A FILE THERE THAT DOES NOT PARSE was read as the defaults: it is set
+    # aside under a dated name before this write, never written over
+    # (lib/storeguard.py, TO-DO §2.29).  Imported here and not at the top: the
+    # helper copy of this file imports nothing of Parseh's, and never saves this.
+    try:
+        import storeguard
+    except ImportError:
+        pass
+    else:
+        storeguard.set_aside(store(root), ok=lambda d: isinstance(d, dict))
     _write_json(store(root), doc)
     return doc
 

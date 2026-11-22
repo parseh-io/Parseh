@@ -41,12 +41,13 @@ allowlist, so a book downloaded and handed on carries the edition, not
 somebody's progress through it.
 """
 import functools
-import itertools
 import json
 import os
 import re
 import threading
 import time
+
+import storeguard
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORE = os.path.join(ROOT, "config", "prefs.json")
@@ -101,8 +102,7 @@ MAX_PLACES = 2000        # one per book ever opened; far more than a shelf holds
 # that a function holding it may call another that takes it.
 LOCK = threading.RLock()
 # and a temporary name no other write can share, between threads and between
-# two servers over one config/ alike
-_SEQ = itertools.count(1)
+# two servers over one config/ alike: lib/storeguard.py gives every write its own
 
 
 def _locked(fn):
@@ -137,22 +137,12 @@ def _write(doc):
     """Written whole, through a temporary file beside it: a reader asking for
     the place while it is being written gets the old file or the new one, and
     never half of either.  The temporary name is this write's own (process,
-    then a number), and the whole is held under LOCK."""
+    then a number), and the whole is held under LOCK.  A file there that does
+    not parse is set aside under a dated name first, never written over
+    (lib/storeguard.py, TO-DO §2.29)."""
     with LOCK:
-        folder = os.path.dirname(STORE)
-        os.makedirs(folder, exist_ok=True)
-        tmp = "%s.%d.%d.tmp" % (STORE, os.getpid(), next(_SEQ))
-        try:
-            with open(tmp, "w", encoding="utf-8") as fh:
-                json.dump(doc, fh, ensure_ascii=False, indent=1, sort_keys=True)
-                fh.write("\n")
-            os.replace(tmp, STORE)
-        finally:
-            # a write that failed half way leaves nothing behind
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
+        storeguard.write_json(STORE, doc, ok=lambda d: isinstance(d, dict),
+                              indent=1, sort_keys=True)
     return doc
 
 

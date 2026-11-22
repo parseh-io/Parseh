@@ -493,12 +493,12 @@ def _write(doc):
     """Written whole, through a temporary file beside it (lib/prefs.py's
     way): a reader gets the old file or the new one, never half of either."""
     doc = dict(doc, format=STORE_FORMAT)
-    os.makedirs(os.path.dirname(STORE), exist_ok=True)
-    tmp = STORE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(doc, fh, ensure_ascii=False, indent=1)
-        fh.write("\n")
-    os.replace(tmp, STORE)
+    # a file there that does not parse, or holds no list of themes, is set
+    # aside under a dated name first, never written over (TO-DO §2.29);
+    # storeguard is standard library only, and imported here, at the write
+    import storeguard
+    storeguard.write_json(STORE, doc, ok=lambda d: isinstance(d, dict)
+                          and isinstance(d.get("themes"), list))
     return doc
 
 

@@ -159,6 +159,7 @@ import shelf               # noqa: E402  a whole shelf of either, backed up and 
 import texwrite            # noqa: E402  one chunk of a chapter, edited in place
 import glossregion         # noqa: E402  a region glossed by an LLM: the prompt, the answer put back
 import reading              # noqa: E402  what somebody decided about the text itself
+import storeguard           # noqa: E402  a damaged store is set aside, never written over (§2.29)
 import prefs                # noqa: E402  the reading place and the settings that follow a person
 import later                # noqa: E402  the chunks a person flagged to review later: the same file, its own door (a0.5.0)
 import laterpage            # noqa: E402  /later/, the flags across every book and video
@@ -1149,6 +1150,61 @@ def mode_switch():
     return mobile.mode_switch()
 
 
+# A PERSONAL STORE THAT COULD NOT BE READ (TO-DO §2.29, lib/storeguard.py).
+# Every store of the person's in config/ sets a file that does not parse
+# aside under a dated name before its first write, instead of writing over
+# it; the hub says so, in plain words, until somebody has read it.
+def damaged_folders():
+    return sorted(set(os.path.dirname(os.path.abspath(str(p))) for p in (
+        prefs.STORE, network.STORE, prompts.STORE, latexthemes.STORE,
+        lmlikelihoodconfig.CONFIG, updater.store(ROOT),
+        os.path.join(ROOT, "config", "x"))))
+
+
+def damaged_notice():
+    try:
+        rows = storeguard.found(damaged_folders())
+    except Exception:       # noqa: BLE001 -- a notice must never stop the hub
+        return ""
+    if not rows:
+        return ""
+
+    def where(path):
+        rel = os.path.relpath(path, ROOT)
+        return path if rel.startswith("..") else rel.replace(os.sep, "/")
+    items = "".join(
+        "<li>On %s, %s could not read <code>%s</code> (%s). The file is kept, as it was, "
+        "under the name <code>%s</code>, and %s started that store fresh.</li>"
+        % (esc(r["at"]), NAME, esc(where(os.path.join(r["folder"], r["store"]))),
+           esc(storeguard.WHAT.get(r["store"], "one of your settings")), esc(where(r["path"])), NAME)
+        for r in rows)
+    names = esc(json.dumps([r["name"] for r in rows]))
+    one = len(rows) == 1
+    return """<section class="hub-damaged" role="alert" data-damaged="%(names)s"
+  style="border:2px solid var(--warn);border-radius:8px;padding:.6rem 1rem;margin:.6rem 0 1rem;text-align:start">
+  <p style="margin:.2rem 0"><b>%(n)s of your files could not be read, and %(name)s did not write over %(them)s.</b></p>
+  <ul style="margin:.3rem 0 .5rem">%(items)s</ul>
+  <p style="margin:.2rem 0">What was in %(them)s is still there, in the %(name)s folder: open %(them)s with any
+  text editor to see what can be saved. %(name)s goes on without %(them)s.</p>
+  <p style="margin:.4rem 0 .2rem"><button type="button" class="parseh-btn" data-damaged-seen>I have read this</button></p>
+  <script>
+  (function () {
+    var b = document.querySelector('[data-damaged-seen]');
+    if (!b) return;
+    b.addEventListener('click', function () {
+      var box = b.closest('[data-damaged]');
+      fetch('/__damaged/seen', {method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({names: JSON.parse(box.getAttribute('data-damaged'))})})
+        .then(function (r) { return r.json(); })
+        .then(function (j) { if (j.ok) box.remove(); else b.textContent = j.error || 'not marked'; })
+        .catch(function () { b.textContent = 'not marked: the computer did not answer'; });
+    });
+  })();
+  </script>
+</section>""" % {"names": names, "items": items, "name": NAME,
+                 "n": "One" if one else str(len(rows)), "them": "it" if one else "them"}
+
+
 def hub_page():
     bks = book_stats()
     try:
@@ -1225,6 +1281,7 @@ def hub_page():
 </div>
 <main class="hub">
   <div id="hub-activity"></div>
+  %(damaged)s
   <div class="hub-browser" data-layout="browser">
   <div class="brand"><span class="fa" lang="fa" data-lang="fa">&#x67E;&#x627;&#x631;&#x633;&#x647;</span><span class="lat">%(name)s</span></div>
   %(row)s
@@ -1399,7 +1456,7 @@ def hub_page():
   </div>
 </main>
 </body></html>
-""" % {"name": NAME, "version": version.VERSION,
+""" % {"name": NAME, "version": version.VERSION, "damaged": damaged_notice(),
        "row": row, "mrow": mrow, "modes": mode_switch(), "apphead": mobile.app_head(),
        # The four doors' counts are whole tags, each carrying what every
        # language has: pick a chip and they say that language's number.
@@ -3369,6 +3426,20 @@ class Handler(SimpleHTTPRequestHandler):
             except (ValueError, OSError) as e:
                 return self.send_json({"ok": False, "error": str(e)}, 400)
             return self.send_json(out)
+        if path == "/__damaged/seen":
+            # the hub's "I have read this" under a store that was set aside
+            # (TO-DO §2.29): the names go into damaged-seen.json beside them;
+            # the files themselves stay where they are
+            if method != "POST":
+                return self._method_not_allowed()
+            names = self._json_body().get("names")
+            if not isinstance(names, list):
+                return self.send_json({"ok": False, "error": "which files?"}, 400)
+            try:
+                marked = storeguard.seen(damaged_folders(), [str(x) for x in names[:100]])
+            except OSError as e:
+                return self.send_json({"ok": False, "error": str(e)}, 500)
+            return self.send_json({"ok": True, "marked": marked})
         if path == "/__later":
             # THE CHUNKS A PERSON FLAGGED TO REVIEW LATER (lib/later.py, a0.5.0).
             # The same file as the reading place, its own door, so that they do

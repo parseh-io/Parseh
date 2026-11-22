@@ -850,10 +850,16 @@ def _deck_summary(d, meta, now):
             "next_due": q["next_due"]}
 
 
-def list_decks(lang=None, now=None):
+def list_decks(lang=None, now=None, damaged=None):
     """Every deck (of one language, when given), by name.  Reads only: DIR
     is never created, dot directories (.trash, an import being staged) and
-    directories without a readable deck.json are skipped."""
+    directories without a readable deck.json are skipped.
+
+    A DECK THAT CANNOT BE READ IS NOT LEFT OUT IN SILENCE (TO-DO §2.29): when
+    `damaged` is a list, each folder whose deck.json is there but does not
+    parse, or whose files break its summary, is appended to it as
+    {"folder", "slug", "path", "lang", "language", "why"} -- the decks page
+    draws it as a damaged card, and its files stay exactly as they are."""
     now = _clock(now)
     wanted = [_language(lang)] if lang else list(languages.LANGS.values())
     if not DIR.is_dir():
@@ -870,6 +876,8 @@ def list_decks(lang=None, now=None):
                 continue
             meta = _read_deck(d)
             if meta is None:
+                if damaged is not None and (d / "deck.json").exists():
+                    damaged.append(_damaged(L, name, "its deck.json cannot be read"))
                 continue
             try:                # one broken deck must not blind the rest
                 out.append(_deck_summary(d, meta, now))
@@ -877,8 +885,16 @@ def list_decks(lang=None, now=None):
             # and float can hold (OverflowError)
             except (OSError, ValueError, TypeError, ArithmeticError) as e:
                 print("[decks] skipping %s/%s: %s" % (L.folder, name, e))
+                if damaged is not None:
+                    damaged.append(_damaged(L, name, str(e)[:300], meta.get("name")))
     out.sort(key=lambda s: (languages.fold(s["name"]), s["folder"], s["slug"]))
     return out
+
+
+def _damaged(L, slug, why, name=None):
+    return {"folder": L.folder, "slug": slug, "path": "%s/%s" % (L.folder, slug),
+            "lang": L.code, "language": L.name,
+            "name": name if isinstance(name, str) and name.strip() else slug, "why": why}
 
 
 def create_deck(name, lang):

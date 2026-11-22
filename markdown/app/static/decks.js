@@ -716,7 +716,7 @@ function initDecks() {
   const cardsEl = $("#deck-cards");
   const empty = $("#decks-empty"), emptyLang = $("#decks-empty-lang");
   const chipRow = $(".parseh-langs");
-  let decks = [];
+  let decks = [], damaged = [];
 
   /* The language chip row: rendered by the server for the first paint,
      rebuilt from the decks after every change (a deck created, deleted or
@@ -758,9 +758,9 @@ function initDecks() {
       c.hidden = !on;
       if (on) shown++;
     });
-    empty.hidden = decks.length > 0;
+    empty.hidden = decks.length + damaged.length > 0;
     $(".lang-name", emptyLang).textContent = (LANG_BY_CODE[pick] || {}).name || pick;
-    emptyLang.hidden = !(decks.length > 0 && shown === 0);
+    emptyLang.hidden = !(decks.length + damaged.length > 0 && shown === 0);
   }
 
   if (chipRow) chipRow.addEventListener("click", e => {
@@ -841,6 +841,32 @@ function initDecks() {
     return card;
   }
 
+  /* A DECK THAT CANNOT BE READ (TO-DO §2.29): drawn where it would stand,
+     as a card that says so and where its files are, never left out in
+     silence.  Nothing on it changes anything: its files stay as they are. */
+  function damagedCard(d) {
+    const l = LANG_BY_CODE[d.lang] || {code: d.lang, name: d.language || d.lang, native: d.lang, dir: "ltr"};
+    const card = el("article", "card dk-card dk-damaged");
+    card.dataset.lang = d.lang;
+    card.dataset.path = d.path;
+    card.dataset.damaged = "";
+    card.style.borderColor = "var(--danger)";
+    card.innerHTML = `
+      <h3 class="dk-card-title"></h3>
+      <div class="badges">
+        <span class="badge lang" lang="${escAttr(l.code)}" dir="${escAttr(l.dir)}"
+              title="${escAttr(l.name)}"></span>
+        <span class="badge dk-bad">damaged</span>
+      </div>
+      <div class="dk-card-study"></div>`;
+    $(".dk-card-title", card).textContent = d.name;
+    $(".badge.lang", card).textContent = l.native;
+    $(".dk-card-study", card).append(el("span", "",
+      `This deck cannot be read (${d.why}). Its files are kept as they are, ` +
+      `in exercises/${d.path}/ in the Parseh folder; nothing was changed or deleted.`));
+    return card;
+  }
+
   let loadSeq = 0;
   async function load() {
     const seq = ++loadSeq;
@@ -849,7 +875,8 @@ function initDecks() {
     catch (e) { toast("Could not read the decks: " + e.message, true); return; }
     if (seq !== loadSeq) return;            // a newer reload is on its way
     decks = data.decks || [];
-    cardsEl.replaceChildren(...decks.map(deckCard));
+    damaged = data.damaged || [];
+    cardsEl.replaceChildren(...decks.map(deckCard), ...damaged.map(damagedCard));
     refreshChips();
     applyLangFilter();
   }

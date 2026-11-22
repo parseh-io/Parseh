@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Small host-persisted speech preferences; no runtime or model management."""
 import json
-import os
+import os  # noqa: F401  (tests patch speechconfig.os.replace: the write goes through storeguard)
 from pathlib import Path
 import re
-import tempfile
 import threading
 
 STORE_FORMAT = 1
@@ -44,16 +43,9 @@ def load(path=None):
 
 
 def _write(value):
-    CONFIG.parent.mkdir(parents=True, exist_ok=True)
-    fd, name = tempfile.mkstemp(prefix='speech-', suffix='.tmp', dir=CONFIG.parent)
-    try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            json.dump(value, f)
-            f.write('\n')
-        os.replace(name, CONFIG)
-    finally:
-        if os.path.exists(name):
-            os.unlink(name)
+    # an unreadable file there is set aside, never written over (TO-DO §2.29)
+    import storeguard
+    storeguard.write_json(str(CONFIG), value, ok=lambda d: isinstance(d, dict), indent=None)
     return value
 
 

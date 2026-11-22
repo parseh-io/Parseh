@@ -68,6 +68,7 @@ if LIB not in sys.path:
     sys.path.insert(0, LIB)
 import languages                                                # noqa: E402
 import promptkit                                                # noqa: E402
+import storeguard                                               # noqa: E402
 
 # found the way lib/prefs.py finds config/: from this file's path as it was
 # imported, so that a test tree that links lib/ in reads the config/ of its own
@@ -398,12 +399,11 @@ def _write(doc):
     a reader gets the old file or the new one, never half of either."""
     out = {"format": STORE_FORMAT, "prompts": doc["prompts"] + doc["unread"],
            "moved": doc["moved"]}
-    os.makedirs(os.path.dirname(STORE), exist_ok=True)
-    tmp = STORE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, ensure_ascii=False, indent=1)
-        fh.write("\n")
-    os.replace(tmp, STORE)
+    # a file there that does not parse, or is not a store of prompts, is set
+    # aside under a dated name first, never written over (lib/storeguard.py,
+    # TO-DO §2.29)
+    storeguard.write_json(STORE, out, ok=lambda d: isinstance(d, dict)
+                          and isinstance(d.get("prompts"), list))
 
 
 def all_of():

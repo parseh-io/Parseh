@@ -61,6 +61,8 @@ import socket
 import threading
 import time
 
+import storeguard
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORE = os.path.join(ROOT, "config", "network.json")
 # the shape of STORE, as a number (lib/version.py FORMATS): RAISE IT when the
@@ -186,19 +188,13 @@ def _write(doc):
     """Written whole, through a temporary file beside it, as lib/prefs.py
     writes its own store: a request asking who may come in while a save is in
     flight reads the old file or the new one, never half of either."""
-    folder = os.path.dirname(STORE)
-    os.makedirs(folder, exist_ok=True)
-    tmp = STORE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(doc, fh, ensure_ascii=False, indent=1, sort_keys=True)
-        fh.write("\n")
-    try:
-        # the tokens in it are as good as keys: nobody else's business, even
-        # on a computer with more than one account
-        os.chmod(tmp, 0o600)
-    except OSError:
-        pass
-    os.replace(tmp, STORE)
+    # private: the tokens in it are as good as keys, nobody else's business
+    # even on a computer with more than one account.  A file there that does
+    # not parse is set aside under a dated name first, never written over
+    # (lib/storeguard.py, TO-DO §2.29); and every write has a temporary name
+    # of its own, fsync'd before it is moved in.
+    storeguard.write_json(STORE, doc, ok=lambda d: isinstance(d, dict), private=True,
+                          indent=1, sort_keys=True)
     return doc
 
 

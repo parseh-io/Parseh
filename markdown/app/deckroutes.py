@@ -324,7 +324,9 @@ def serve_audio(h, folder, slug, name):
 # ---------------------------------------------------------------- decks
 
 def api_decks_list(h):
-    h.send_json({"ok": True, "decks": decks.list_decks(_q1(h, "lang") or None)})
+    damaged = []
+    found = decks.list_decks(_q1(h, "lang") or None, damaged=damaged)
+    h.send_json({"ok": True, "decks": found, "damaged": damaged})
 
 
 def api_decks_create(h):
