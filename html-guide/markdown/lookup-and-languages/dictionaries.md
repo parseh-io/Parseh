@@ -332,6 +332,20 @@ give 53–67%.
   text). The vowels stay standard Arabic's; the dialect's own dictionary
   writes its words as they are said.
 
+**Sentences somebody translated** come in a dialect too, where Tatoeba has
+enough of them: **Egyptian** (about 1,400 sentence pairs) and **Levantine**
+(about 320) are downloads of their own on the same card (*Sentences people
+translated · Egyptian Arabic*). In a text written in the dialect its
+sentences come first, then standard Arabic's, each labelled with which it
+is. Gulf and Moroccan Arabic have fewer than a hundred each, too few to be
+worth the download: their row says *Too few yet*, and the panel says plainly
+that there are no translated sentences for that dialect yet. See
+[Sentences somebody translated](translated-sentences.md#arabic-dialects).
+
+**The translation model reads standard Arabic.** A dialect text is sent to
+it as it is, and the panel says so under the machine's reading: a word only
+the dialect has may come back wrong or untranslated.
+
 **The linguistic analysis is not used for a dialect.** Its programs read
 standard Arabic, and their reading of a dialect word is often another
 word's (Gulf *أبي*, *I want*, read as *أب*, *father*): the panel does not

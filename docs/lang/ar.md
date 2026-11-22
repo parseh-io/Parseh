@@ -300,3 +300,54 @@ its `en` keeps that order (*went the students*); the `\vb` gives the form number
 the imperfect, the masdar and, in its parenthesis, the preposition the verb
 governs; a noun gives its plural and its root in parentheses; the article and
 the prepositions are never glossed.
+
+## Dialect sentences and machine translation (a0.6.3, TO-DO 12.33)
+
+A word only a dialect has found nothing among the translated sentences,
+because the corpus (`lib/corpus.py`, built by `lib/getcorpus.py` from
+Tatoeba's exports) and the translation models (`lib/getmt.py`) were standard
+Arabic's. What was looked at, on 2026-11-22:
+
+| Source | What it is | Licence | Used |
+|---|---|---|---|
+| Tatoeba | sentences with people's translations; a dialect under its own ISO code | CC BY 2.0 FR, as the rest of the corpus | **yes**, Egyptian and Levantine |
+| MADAR (CAMeL Lab, NYU Abu Dhabi) | 25 city dialects + MSA, parallel; the English side held by the U-Star consortium | internal research and evaluation only, no redistribution | no |
+| PADIC | 6 dialects (Algiers, Annaba, Tunisian, Moroccan, Syrian, Palestinian) + MSA, about 6,400 sentences | GPL-3.0 on SourceForge | no: no English side, so nothing to show as a translation |
+| FLORES-200 / FLORES+ | about 2,000 sentences translated from English, among them `arz_Arab`, `ary_Arab`, `apc_Arab`, `acm_Arab`, `aeb_Arab` | CC BY-SA 4.0 | not now: a gated download, and news-register prose that a learner's dialect word is rarely in; the candidate if Tatoeba stays thin |
+
+**Tatoeba, counted from its per-language exports** (sentences in Arabic
+letters with an English translation; a sentence translated twice is two
+pairs):
+
+| Variety | Codes | Sentences (Arabic script, with English) | Pairs built | Offered |
+|---|---|---|---|---|
+| Egyptian | `arz` | 1,338 of 1,595 | 1,399 | yes |
+| Levantine | `ajp`, `apc` | 250 + 38 (apc: 49 of 160 in Arabic letters, the rest Arabizi) | 321 | yes |
+| Gulf | `afb`, `acw` (none at Tatoeba) | 80 | 81 | no |
+| Moroccan | `ary` | 66 | 76 | no |
+
+Also at Tatoeba, not a Parseh variety: Algerian `arq` (1,769 with English),
+Mesopotamian `acm` (24). Tunisian `aeb` and Najdi `ars` have no export.
+
+**The threshold is 100 pairs** (`getcorpus.VARIETY_FLOOR`): the English
+export a pair needs is 25 MB whatever the dialect brings, and under a
+hundred sentences a dialect word of a book is seldom among them (in the
+Gulf set, *شلون*, *وايد* and *أبي* are in none). Below it the Reading help
+row says *Too few yet* and the panel says plainly that there are no
+translated sentences for that dialect yet. The counts are a table in
+`getcorpus.VARIETY_PAIRS`, counted again at each release: the four `*-eng_links`
+and `*_sentences` exports of a variety, read with `bzcat`, the sentence ids
+of the links kept when the sentence has an Arabic letter.
+
+**How it is built.** `getcorpus.build("ar.egy")` fetches each of the
+variety's codes' exports (the registry's `kaikki` rows, the same codes),
+skips a code Tatoeba has none of, keeps only sentences in Arabic letters,
+and writes `corpus/ar.egy-en.db`, indexed with standard Arabic's folding.
+The lookup of a text in a variety (`corpus.look_up_variety`) reads the
+dialect's matches first and standard Arabic's after them, as one paged list,
+each pair marked with its `variety`.
+
+**Machine translation: no dialect model.** Mozilla's models are Arabic
+(MSA) to English; there is no dialect pair, and none runs in the browser
+engine Parseh uses. A dialect text is sent to the Arabic model as it is,
+and the panel says so under the machine's reading.

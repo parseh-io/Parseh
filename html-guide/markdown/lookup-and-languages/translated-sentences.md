@@ -81,6 +81,39 @@ Every other language's corpus stands on its own: it needs no dictionary,
 and a corpus alone is enough for the reader to show its **dictionary**
 switch.
 
+### Arabic dialects
+
+A book or a video written in an Arabic dialect
+([Arabic dialects](dictionaries.md#arabic-dialects)) looks first in the
+dialect's own sentences, then in standard Arabic's. Tatoeba files a dialect
+under its own code, so each is a download of its own, on Arabic's card
+under the standard pair: **Sentences people translated · Egyptian Arabic**,
+and so on. They are translated into English only.
+
+Parseh offers a dialect's sentences when Tatoeba has **a hundred or more**
+of them in Arabic letters: fewer finds a sentence for a word too seldom to
+be worth the 25 MB the English half costs to download. Counted on
+22 November 2026:
+
+| Dialect | Sentence pairs | Offered |
+|---|---|---|
+| Egyptian Arabic | 1,399 | yes, about 0.4 MB once built |
+| Levantine Arabic | 321 | yes, about 0.1 MB once built |
+| Gulf Arabic | 81 | no: *Too few yet* |
+| Moroccan Arabic | 76 | no: *Too few yet* |
+
+Sentences in Latin letters (*Arabizi*, half of Tatoeba's North Levantine)
+are left out, because Parseh does not read Arabizi.
+
+In the panel each sentence says which it is, *Egyptian Arabic* or *Modern
+Standard Arabic*, beside the words it shares. Where the dialect's sentences
+are not on this computer, the block says so in a plain line: *no sentences
+translated from Egyptian Arabic here yet: Settings → Reading help gets
+Tatoeba's 1,399*, or, for Gulf and Moroccan, that Tatoeba has too few to
+offer. The standard Arabic sentences under that line are still shown, and
+say so. The sources column of the chunk editor shows the same line and the
+same labels.
+
 ## In the reader and the player
 
 With the **dictionary** switch on, open a chunk (a phrase, in the player)

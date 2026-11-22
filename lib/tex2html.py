@@ -4949,6 +4949,7 @@ function dictFill(box, j) {
     box.appendChild(dd);
     defsInto(dd);
   }
+  MT.variety = j.corpus_variety || null;     // a dialect's text goes to the standard language's model: mtShow says so
   mtInto(box, cloudC, j.text || '', j.words || []);
   pairsInto(box, j);
   if (!box.childNodes.length) {
@@ -4970,13 +4971,23 @@ function dictFill(box, j) {
    reader should be able to see why a sentence is being offered.           */
 function pairsInto(box, j) {
   const pairs = (j.pairs || []).slice();
-  if (!pairs.length) return;
+  // a text in a variety whose own sentences are not here says so plainly, even with nothing below it
+  const VP = window.Parseh && Parseh.varietyPairs;
+  const note = VP ? VP.note(j, GLOSS.name) : '';
+  if (!pairs.length && !note) return;
   const wrap = document.createElement('div');
   wrap.className = 'dpairs';
   const h = document.createElement('div');
   h.className = 'dhead';
   h.textContent = 'a sentence somebody translated — not this one';
   wrap.appendChild(h);
+  if (note) {
+    const n = document.createElement('div');
+    n.className = 'dnone dpvar';
+    n.textContent = note;
+    wrap.appendChild(n);
+  }
+  if (!pairs.length) { box.appendChild(wrap); return; }
   const list = document.createElement('div');
   list.className = 'dpair-list';
   wrap.appendChild(list);
@@ -4995,10 +5006,12 @@ function pairsInto(box, j) {
     if (GLOSS.dir === 'rtl') b.setAttribute('dir', 'rtl');
     b.innerHTML = marked.dst;
     one.appendChild(a); one.appendChild(b);
-    if (p.matched && p.matched.length) {
+    const from = VP ? VP.from(p, j) : '';
+    if ((p.matched && p.matched.length) || from) {
       const m = document.createElement('div');
       m.className = 'pwhy';
-      m.textContent = 'shares ' + p.matched.join(', ');
+      m.textContent = [from, p.matched && p.matched.length ? 'shares ' + p.matched.join(', ') : '']
+        .filter(Boolean).join(' · ');
       one.appendChild(m);
     }
     list.appendChild(one);
@@ -5111,6 +5124,12 @@ function mtShow(wrap, out, probe, words, whole) {
   }
   wrap.appendChild(t);
   if (!whole && out) wrap.appendChild(mtWhy(span, 'chunk'));
+  if (MT.variety && window.Parseh && Parseh.varietyPairs) {
+    const vn = document.createElement('div');
+    vn.className = 'dnone dmtvar';
+    vn.textContent = Parseh.varietyPairs.mt(MT.variety);
+    wrap.appendChild(vn);
+  }
   const srcline = document.createElement('div');
   srcline.className = 'dsrc';
   srcline.textContent = (MT.about && MT.about.source ? MT.about.source : 'a model') +
@@ -9514,8 +9533,16 @@ function sideFill(n) {
 function sidePairs(box, j) {
   box.textContent = '';
   const pairs = (j && j.pairs) || [];
+  // a text in a variety: the line saying its own sentences are not here, and each sentence's variety
+  const VP = Parseh.varietyPairs, note = VP ? VP.note(j, GLOSS.name) : '';
+  if (note) {
+    const n = document.createElement('div');
+    n.className = 'snone spvar';
+    n.textContent = note;
+    box.appendChild(n);
+  }
   if (!pairs.length) {
-    box.innerHTML = '<div class="snone">nothing in the corpus is about this chunk</div>';
+    if (!note) box.innerHTML = '<div class="snone">nothing in the corpus is about this chunk</div>';
     return;
   }
   for (const p of pairs) {
@@ -9524,6 +9551,13 @@ function sidePairs(box, j) {
     row.parentNode.querySelector('.stxt').innerHTML = marked.src;
     const sub = row.parentNode.querySelector('.ssub');
     if (sub) sub.innerHTML = marked.dst;
+    const from = VP ? VP.from(p, j) : '';
+    if (from && sub) {
+      const f = document.createElement('div');
+      f.className = 'snone spfrom';
+      f.textContent = from;
+      sub.parentNode.insertBefore(f, sub.nextSibling);
+    }
     sideBtn(row, 'its meaning \u2192', 'put the translation in the meaning',
             () => put(CH.en, p.dst));
   }
