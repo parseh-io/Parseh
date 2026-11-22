@@ -102,6 +102,9 @@ SHARED = (
     # player's page loads it itself) and the book reader's four ways to flag, its marks and
     # its going to a chunk (lib/later-reader.js, which parseh.js loads into every reader)
     "/lib/later-cards.js", "/lib/later-reader.js",
+    # the vocabulary list: the list and its sheet, and what a reader gives it (parseh.js
+    # loads them into every reader; the player's page loads lib/vocab.js itself)
+    "/lib/vocab.js", "/lib/vocab.css", "/lib/vocab-reader.js",
     # what a reader of a book an agent is making adds to itself (parseh.js loads it
     # into every reader; it asks one question and does nothing for any other book)
     "/lib/making.js",

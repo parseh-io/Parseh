@@ -1,0 +1,66 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Parseh — the vocabulary list (lib/vocab.js): its door and its rows.  The
+   panel itself is Review later's (lib/later.css: .lp-wrap, .lp-panel, the
+   tools), so the two look and close alike; what is here is only what the list
+   of words has that the list of chunks has not.  Colours are parseh.css's
+   tokens with the light theme's behind them, as in lib/later.css. */
+
+/* the door, beside «⚑ later» */
+.vocab-btn{font:inherit;font-size:13px;display:inline-flex;align-items:center;padding:5px 10px;
+  border:1px solid var(--rule,#e3d9dd);background:var(--bg,#f3eff1);color:var(--ink,#241e21);
+  border-radius:6px;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.vocab-btn:hover{border-color:var(--accent,#be3455)}
+.vocab-btn[aria-expanded=true]{border-color:var(--accent,#be3455);box-shadow:inset 0 0 0 1px var(--accent,#be3455)}
+.vocab-btn:focus-visible{outline:2px solid var(--accent,#be3455);outline-offset:2px}
+@media (pointer:coarse){.vocab-btn{min-height:48px;min-width:48px;justify-content:center}}
+/* on a phone the door is in the gear's sheet (a node row), as tall as a finger */
+.pg-panel .vocab-btn,.pg-sheet .vocab-btn{min-height:48px;font-size:15px;padding:6px 14px;border-radius:10px}
+
+/* ON A COMPUTER THE PAGE STAYS LIVE beside the panel: no backdrop, nothing dimmed,
+   so that a word's places can be gone through one click after another with the
+   text in view (Review later's panel shades the page; this one is read beside it) */
+.vocab-wrap.lp-side{left:auto;width:min(420px,100%)}
+.vocab-wrap.lp-side .lp-back{display:none}
+
+/* the tools: two switches, the filter */
+.vocab-panel .lp-scope{flex-wrap:wrap}
+.vocab-find{box-sizing:border-box;width:100%;margin:0;padding:7px 10px;font:inherit;font-size:14px;
+  border:1px solid var(--rule,#e3d9dd);border-radius:8px;background:var(--card,#fff);color:var(--ink,#241e21)}
+.vocab-find:focus-visible{outline:2px solid var(--accent,#be3455);outline-offset:1px}
+.lp-sheet .vocab-find,html[data-mode=mobile] .vocab-find{min-height:48px;font-size:16px}
+
+/* ONE ROW PER WORD: the word as the reader prints it and its count on one line,
+   the meanings under it.  The word's own line runs in the language's direction,
+   so a Persian or an Arabic word stands at the right with its romanisation after
+   it, leftwards; the count stays at the end of the row whatever the language. */
+.vr{padding:8px 12px 9px 14px;border-bottom:1px solid var(--rule,#e3d9dd)}
+.vr-go{display:flex;align-items:baseline;gap:10px;width:100%;margin:0;padding:2px 0;font:inherit;
+  text-align:start;border:0;background:none;color:var(--ink,#241e21);cursor:pointer;border-radius:6px}
+.vr-go:hover .vr-w{text-decoration:underline;text-decoration-color:var(--accent,#be3455)}
+.vr-head{flex:1 1 auto;min-width:0;display:block;text-align:start;unicode-bidi:isolate;overflow-wrap:anywhere;
+  line-height:1.6}
+.vr-w{font-family:var(--tl-font,inherit);font-size:19px;unicode-bidi:isolate}
+.vr-rom{font-style:italic;font-size:14px;color:var(--ink,#241e21);unicode-bidi:isolate}
+.vr-lab{font-size:13px;color:var(--dim,#635358);unicode-bidi:isolate}
+.vr-n{flex:0 0 auto;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--dim,#635358)}
+.vr-mean{margin:1px 0 0;font-size:13.5px;line-height:1.5;color:var(--dim,#635358);overflow-wrap:anywhere}
+.vr-none{font-style:italic}
+.vr-show{margin:2px 0 0;padding:2px 8px;font:inherit;font-size:13px;border:1px dashed var(--rule,#e3d9dd);
+  border-radius:6px;background:none;color:var(--dim,#635358);cursor:pointer}
+.vr-show:hover{color:var(--ink,#241e21);border-color:var(--accent,#be3455)}
+html[data-mode=mobile] .vr-go,.lp-sheet .vr-go{min-height:44px}
+html[data-mode=mobile] .vr-show,.lp-sheet .vr-show{min-height:40px}
+
+/* PRINT: the list alone, as a table, and nothing of the page around it */
+.vocab-print{display:none}
+@media print{
+  html.vocab-printing body > *:not(.vocab-print){display:none!important}
+  html.vocab-printing .vocab-print{display:block;font:12pt/1.45 serif;color:#000}
+  .vocab-print h1{font-size:15pt;margin:0 0 4pt}
+  .vocab-print p{margin:0 0 10pt;font-size:10pt}
+  .vocab-print table{border-collapse:collapse;width:100%}
+  .vocab-print td{padding:3pt 6pt;border-bottom:.5pt solid #999;vertical-align:baseline}
+  .vocab-print .vp-n{text-align:right;white-space:nowrap;font-size:9pt}
+  .vocab-print .vr-w{font-size:14pt}
+  .vocab-print tr{break-inside:avoid}
+}

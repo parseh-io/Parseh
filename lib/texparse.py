@@ -263,6 +263,142 @@ def _voc_runs(s, lang):
     return out
 
 
+# --- the vocabulary line as ENTRIES (TO-DO 11.14) ----------------------------
+# The vocabulary of a chapter, a book or a video as a list needs the line cut
+# into words, each with its meaning.  The cut, made on top of the same reading
+# as parse_voc (and made again in lib/vocline.js, held equal to this by
+# tests/fixtures/vocline.json):
+#   - each \dw, \vb and \bw at the top of the line starts an entry;
+#   - so does a \pw that OPENS a stretch of the line (at its start or after a
+#     `;`) -- `\pw{que} who, which` is a word of its own -- but a \pw after
+#     other text is a word inside a meaning (`fox, pl. \pw{ثعالب}`), which is
+#     what its button says it is, and it stays in that meaning;
+#   - an entry's meaning is the text after it up to the next `;` or the next
+#     entry, read as plain text (voc_text); a \vb's meaning starts with its own
+#     last group, a \bw's with its phrase.  The punctuation that only joins it
+#     to the word (`, ` `: ` ` — `) is taken off its front;
+#   - a macro inside a group is part of that group, never an entry.
+# Text before the first entry of a stretch (`here \pw{vivia}, imperf.`) is in
+# no entry.  A line parse_voc cannot read raises as parse_voc does.
+ENTRY_MACROS = ("dw", "vb", "bw", "pw")
+_LEAD = " ,:;·—–"
+
+
+def _tidy(s):
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def voc_entries(s, lang=None):
+    """-> [{kind, word, rom, head, meaning, key}] in the order the line has them.
+
+    `word` is the form the entry is listed under (a \\vb's first form), `rom`
+    its romanisation, `head` the runs the reader prints for the word itself
+    (a \\vb with its stems and the language's labels: parse_voc's runs of the
+    macro with its meaning left blank), `meaning` the plain text of the
+    meaning, and `key` the word's comparison form (vocab_key)."""
+    if lang is None:
+        lang = _LANG
+    elif isinstance(lang, str):
+        lang = languages.get_or_default(lang)
+    s = s or ""
+    parse_voc(s, lang)              # a line that cannot be read raises here, as parse_voc does
+    out, cur, i, stretch = [], None, 0, 0
+
+    def close(end):
+        if cur is None:
+            return
+        tail = s[cur["tail"]:end]
+        src = cur.pop("lead") + tail
+        cur.pop("tail")
+        cur["meaning"] = voc_text(src, lang).lstrip(_LEAD).rstrip(" ,")
+        out.append(cur)
+
+    while i < len(s):
+        c = s[i]
+        if c == ";":
+            close(i)
+            cur = None
+            i += 1
+            stretch = i
+            continue
+        if c != "\\":
+            i += 1
+            continue
+        m = re.match(r"\\([a-zA-Z]+)", s[i:])
+        if not m:
+            i += 2
+            continue
+        name, at = m.group(1), i
+        i += m.end()
+        if name not in VOC_MACROS:
+            continue
+        starts = name in ("dw", "vb", "bw") or (name == "pw" and not s[stretch:at].strip())
+        if name == "bw":
+            probe, k = read_args(s, i, 2)
+            j = k
+            while j < len(s) and s[j] in " \t":
+                j += 1
+            if j < len(s) and s[j] != "{":          # \bw{x}{y} meaning: the meaning as loose text
+                end = s.find(";", j)
+                end = end if end >= 0 else len(s)
+                close(at)
+                cur = _entry("bw", probe[0], probe[1], lang, lead=s[j:end], tail=end)
+                i = end
+                continue
+        args, i = read_args(s, i, VOC_MACROS[name])
+        if not starts:
+            continue
+        close(at)
+        if name == "vb":
+            cur = _entry("vb", args[0], args[1], lang, lead=args[6], tail=i,
+                         head="\\vb{%s}{%s}{%s}{%s}{%s}{%s}{}" % tuple(args[:6]))
+        elif name == "bw":
+            cur = _entry("bw", args[0], args[1], lang, lead=args[2], tail=i)
+        elif name == "dw":
+            cur = _entry("dw", args[0], args[1], lang, lead="", tail=i)
+        else:
+            cur = _entry("pw", args[0], "", lang, lead="", tail=i)
+    close(len(s))
+    return out
+
+
+def _entry(kind, word, rom, lang, lead, tail, head=None):
+    w, r = voc_text(word, lang), voc_text(rom, lang)
+    if head is None:
+        head = "\\dw{%s}{%s}" % (word, rom)
+    return {"kind": kind, "word": w, "rom": r,
+            "head": [list(x) for x in parse_voc(head, lang)],
+            "key": vocab_key(w, lang), "lead": lead, "tail": tail}
+
+
+# The comparison form of a word: one word written two ways is one entry.
+# What lib/lookup.py's _fold takes off before it looks a word up -- the
+# language's own marks (the harakat), the zero-width joiners, the case, and
+# Turkish's two i's -- plus the two letters Persian is typed with from an
+# Arabic keyboard (ي ى for ی, ك for ک), which the shelf's own intake
+# (timestamp.py, extract_pdf.py) folds the same way.  Arabic keeps its ي ى
+# apart: there they are two letters (علي, على).
+_ZWJ = "‌‍"
+_FA_LETTERS = str.maketrans({"ي": "ی", "ى": "ی", "ك": "ک"})
+
+
+def vocab_key(word, lang=None):
+    """The form two entries are compared by: same key, same word."""
+    if lang is None:
+        lang = _LANG
+    elif isinstance(lang, str):
+        lang = languages.get_or_default(lang)
+    w = unicodedata.normalize("NFC", word or "")
+    w = lang.strip(w)
+    for z in _ZWJ:
+        w = w.replace(z, "")
+    if lang.code == "fa":
+        w = w.translate(_FA_LETTERS)
+    if lang.code == "tr":
+        w = w.replace("İ", "i").replace("I", "ı")
+    return re.sub(r"\s+", " ", w.lower()).strip()
+
+
 # --- model ------------------------------------------------------------------
 class Chunk:
     __slots__ = ("col", "fa", "kana", "tr", "voc", "en", "glossed", "t0", "t1",

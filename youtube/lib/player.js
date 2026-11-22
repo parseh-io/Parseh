@@ -7842,6 +7842,12 @@
     iface.rows.push({id: 'keep', kind: 'node', layouts: 'mobile', label: 'Use it without the computer',
       help: 'Keep this video on this phone, so it still works when the computer cannot be reached.',
       el: function () { return document.querySelector('.kp-btn'); }});
+    // the vocabulary list (vocabStart, below): its door is in the header on a computer and here on a phone
+    // (and in a window under 1480px wide, whose header has no room for the door: youtube/lib/style.css)
+    iface.rows.push({id: 'vocab', kind: 'action', label: 'Vocabulary',
+      help: 'Every word of the vocabulary lines of this video, once, with its meaning (V).',
+      when: function () { return !!vocabPanel; },
+      onClick: function () { if (vocabPanel) ParsehVocab.openAfter(vocabPanel, function () { if (gear) gear.close(); }); }});
 
     var header = document.querySelector('header');
     try {
@@ -8242,7 +8248,70 @@
     laterFromLink();
   })();
 
+  /* ---- THE VOCABULARY LIST (a0.6.3, TO-DO 11.14) ----
+     Every word of the video's vocabulary lines, once, with its meanings and how often
+     it comes (lib/vocab.js draws the list, in Review later's panel).  Read from the
+     phrases this page already holds -- the whole video, or the captions up to where
+     the video is now -- so nothing is asked of the computer and nothing is kept.  A
+     row goes to the caption of the word's first phrase and lights it, and a second
+     click to the next.  A line in plain text (a video glossed before the macros) has
+     no words to cut out, and the list says so.  The door: «vocabulary» beside
+     «⚑ later»; on a phone, a row of the gear's sheet; the V key. */
+  var vocabPanel = null;
+  function vocabChunks(scope) {
+    return laterLoaded().then(function () {
+      var now = Infinity, out = [];
+      if (scope === 'upto') { try { now = (player && ready) ? (player.getCurrentTime() || 0) : 0; } catch (e) { now = 0; } }
+      segs.forEach(function (sg, i) {
+        if (sg.start > now + 0.01) return;
+        (sg.chunks || []).forEach(function (ch, j) {
+          if (typeof ch.voc === 'string' && ch.voc.trim()) out.push({ at: { i: i, j: j }, voc: ch.voc });
+        });
+      });
+      return out;
+    });
+  }
+  function vocabGo(at) {
+    var sg = segs[at.i];
+    if (!sg || !(sg.chunks || [])[at.j]) return Promise.reject(new Error('not here'));
+    if (els[at.i]) els[at.i].scrollIntoView({ behavior: 'auto', block: 'center' });
+    laterFlash({ i: at.i, j: at.j });
+    seek(sg.start);
+    return Promise.resolve();
+  }
+  function vocabSheet(w, at) {
+    var sg = segs[at.i], ch = sg && (sg.chunks || [])[at.j];
+    if (!ch) return Promise.resolve(null);
+    if (laterSession) laterSession.finish('closed');
+    openAnki(w.word, ch, sg, undefined, { i: at.i, j: at.j, k: null, line: '' });
+    A.kana.value = '';
+    A.tr.value = w.rom || '';
+    A.en.value = w.meanings.join(' · ');
+    laterSession = laterNewSession(sheetSeq);
+    return Promise.resolve(laterSession);
+  }
+  (function vocabStart() {
+    if (!window.ParsehVocab) return;
+    vocabPanel = ParsehVocab.panel({
+      kind: 'video', lang: L, title: vidTitle,
+      scopes: [{ id: 'all', label: 'Whole video' }, { id: 'upto', label: 'Up to here' }],
+      scope: function () { return 'all'; },
+      chunks: vocabChunks, goTo: vocabGo,
+      card: { can: function () { return !mobileNow(); }, open: vocabSheet }
+    });
+    var after = laterBtn || document.querySelector('header .ttl'), hd = document.querySelector('header');
+    if (after && after.parentNode) after.parentNode.insertBefore(vocabPanel.button, after.nextSibling);
+    else if (hd) hd.appendChild(vocabPanel.button);
+    // one panel on the right at a time
+    vocabPanel.onToggle(function (open) { if (open && laterPanel && laterPanel.isOpen()) laterPanel.close('other'); });
+    if (laterPanel) laterPanel.onToggle(function (open) { if (open && vocabPanel.isOpen()) vocabPanel.close('other'); });
+    ParsehVocab.key(vocabPanel, function () {
+      return !!(ankiOpen || editing || dvOn || vmOpen || ntOn || dsheet);
+    });
+  })();
+
   window.ParsehPlayer = {
+    vocab: { panel: function () { return vocabPanel; }, chunks: vocabChunks, go: vocabGo },
     later: { panel: function () { return laterPanel; }, find: laterFind, toggle: laterToggle, paint: laterPaint,
              go: laterGo, record: function (node) { var p = laterPhrase(node); return p ? laterParts(p.sg, p.ch) : null; } },
     kind: function () { return CFG.media ? 'film' : 'youtube'; },

@@ -401,7 +401,7 @@ async function partB() {
   eq(rows.playback, ['skip'], 'Playback on a computer: the skip distance alone (the page has no speed control of its own)');
   eq(rows.text, ['fa', 'gl', 'width', 'lead', 'reset'], 'Text: the language, the glosses, the width, the spacing, the way back (no subtitles: that is the phone\'s)');
   eq(rows.colours, ['theme'], 'Colours');
-  eq(rows.interface, ['mode'], 'Interface: the Browser | Mobile choice, and no Keep (that is the phone\'s)');
+  eq(rows.interface, ['mode', 'vocab'], 'Interface: the Browser | Mobile choice and the vocabulary list (whose door the header has no room for under 1480px), and no Keep (that is the phone\'s)');
   // the first line, the foot, and where each group says its settings are kept
   const frame = await page.evaluate(sel => ({
     title: document.querySelector(sel + ' .pg-title').textContent, first: document.querySelector(sel + ' .pg-first').textContent,

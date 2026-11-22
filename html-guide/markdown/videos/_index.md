@@ -38,7 +38,8 @@ the videos have no mobile version of their own yet.
 1. **Find a video**: pick a channel on the videos page, then a video.
 2. **Watch and read**: hover a phrase for its gloss; click a line to hear
    it again; turn on **Pause while a gloss is open** (in the ⚙ panel) to have the video wait while you read, and
-   press **L** on a phrase to flag it for later ([Review later](../books/review-later.md)).
+   press **L** on a phrase to flag it for later ([Review later](../books/review-later.md)); press
+   **V** for every word of the video's vocabulary lines in one list ([The vocabulary as a list](../books/vocabulary.md)).
 3. **Add a video**: the **＋ Add a video** card asks where the video is and
    who writes the glosses — an LLM whose answer the page checks, or you,
    in the player.

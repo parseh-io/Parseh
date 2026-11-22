@@ -518,6 +518,9 @@ STATIC_FILES = {"/lib/lmlikelihoodsettings.js", "/youtube/lib/asrreview.js", "/y
                 # from the list (lib/later-cards.js) and the reader's four ways to flag,
                 # its marks and its going to a chunk (lib/later-reader.js)
                 "/lib/later-cards.js", "/lib/later-reader.js",
+                # the vocabulary of a chapter, a book or a video as a list (lib/vocab.js,
+                # lib/vocab.css; the reader's side, lib/vocab-reader.js)
+                "/lib/vocab.js", "/lib/vocab.css", "/lib/vocab-reader.js",
                 # keeping a thing on the phone, and saying when the computer
                 # cannot be reached (lib/keep.js, TO-DO §19.2, §19.5)
                 "/lib/keep.js",
@@ -3784,6 +3787,21 @@ class Handler(SimpleHTTPRequestHandler):
             if method != "POST":
                 return self._method_not_allowed()
             return self._book_build(book)
+        # A BOOK'S VOCABULARY LINES, read from its sources and cut into entries,
+        # each chunk with its address (lib/vocab.py, TO-DO 11.14).  Read-only;
+        # the search across every book (5.29) is meant to stand on it
+        m = re.match(r"^(/books/.+?)(?:/reader)?/__vocab/?$", path)
+        if m:
+            if method != "GET":
+                return self._method_not_allowed()
+            book = book_dir(m.group(1))
+            if not book:
+                return self.send_json({"ok": False, "error": "no book here"}, 404)
+            import vocab
+            try:
+                return self.send_json(vocab.book_vocabulary(book))
+            except (OSError, ValueError) as e:
+                return self.send_json({"ok": False, "error": str(e)}, 500)
         # the panel of a book being made, from its card, its reader (which asks
         # relative to itself) and the add page: what it is on, an ask, a part of
         # the text, the folder opened, Finish -- addressed by the book's own path

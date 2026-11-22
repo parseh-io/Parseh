@@ -411,6 +411,11 @@ header #lookupset:hover{color:var(--accent);border-color:var(--accent)}
 @media (max-width:1479px){
   header .later-btn .lb-word{display:none}
 }
+/* THE VOCABULARY LIST's door (lib/vocab.js) has no room in that header below 1480px either, where it would
+   send the header on to a second row: there it is the gear's row «Vocabulary» and the V key */
+@media (max-width:1479px){
+  header .vocab-btn{display:none}
+}
 
 /* ---------------- the reader's own mark: the four colours ----------------
    The same four names as the books (\Cred and friends in the .tex, hl-red
