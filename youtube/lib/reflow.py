@@ -30,10 +30,29 @@ lists and the ✎ form fills.  A language that writes no spaces moves whole phra
 only.
 
 THE TIME.  The caption that gains or loses its first words starts somewhere else.
-Nothing here hears the sound: the new start is worked out from the TEXT, as much
-of the line's time as the moved words are of its characters, rounded to a tenth.
-It is an estimate and the answer says so; the timings sheet is where it is put
-right by ear.
+Where the video was transcribed here, the speech to text kept the time each word
+was HEARD (wordtimes.json, wordtimes.py; docs/word-times.md): the line now begins
+with a word, so it begins when that word was heard -- or where a person set that
+word's start by ear (a pin).  That is the rule the add page's ✂ split keeps
+("a new caption starts at its first moved atom, never halfway to the next one").
+Where there are no word times, or they do not cover that word (it was typed in
+afterwards, or its time falls outside the two lines), the new start is worked out
+from the TEXT instead, as much of the line's time as the moved words are of its
+characters, rounded to a tenth.  That is an estimate, and the answer says which
+of the two it used and why; the timings sheet is where either is put right by
+ear.
+
+THE WORD TIMES ARE A FILE THAT CARRIES THE BOUNDARY TOO.  wordtimes.json is a tape
+of timed words cut into the captions; a move cuts the same tape elsewhere
+(wordtimes.repartition), so it is written with the rest, and Undo cuts it back.
+No word is said anew, so no word's time changes.
+
+SENTENCE ENDS WITHOUT FULL STOPS.  The page marks a line that stops in the middle
+of a sentence by its punctuation; auto-captions often have none.  `marks` reads
+the word times for what stands in for it: a pause in the speech of at least
+tidy.AUDIO_PAUSE_LEAST between two heard words (the cue the add page's "tidy by
+the recording" uses), and which words have a heard time at all, so that the
+card can say before a move which of the two ways the new start will be found.
 
 EVERYTHING THAT NAMES A CAPTION BY ITS START follows the start that moved, as in
 captimes: transcript.txt, the batches a legacy video still carries under parts/
@@ -47,6 +66,7 @@ because putting back an older state over newer work would lose it.
 Standard library only: this is imported by the server.
 """
 import copy
+import json
 import os
 import re
 import statistics
@@ -54,6 +74,7 @@ import statistics
 import annwrite
 import captimes
 import chunkdiv
+import wordtimes
 from check_annotations import (departs, parse_transcript_text, stamp_of,
                                transcript_text, video_language)
 
@@ -164,6 +185,123 @@ def _load(video_dir):
     return ann, segs, L, caps, annwrite._errors(ann, L, caps)
 
 
+def _words(video_dir):
+    """The video's word times, or None: none were kept, or the file is not
+    word times (it is then left exactly as it is)."""
+    try:
+        with open(os.path.join(video_dir, "wordtimes.json"), encoding="utf-8") as f:
+            return wordtimes.clean(json.load(f))
+    except (OSError, ValueError, TypeError, RecursionError):
+        return None
+
+
+def _panel(segs, caps):
+    """The captions as the word times know them: the transcript's, which is
+    the panel the tape was adopted for."""
+    return [{"text": c.get("text") or "", "chapter": c.get("chapter")}
+            for c in (caps if caps is not None else segs)]
+
+
+def _cut(doc, segs, caps, L):
+    """The tape cut into the captions as they now are -> the document, or None
+    where the two do not line up caption for caption."""
+    if doc is None:
+        return None
+    try:
+        got, _how = wordtimes.repartition(doc, _panel(segs, caps),
+                                          doc.get("language") or L.code)
+    except ValueError:
+        return None
+    if len(got.get("captions") or []) != len(segs):
+        return None
+    return got
+
+
+def _heard_start(doc, i, lo, hi):
+    """(start, how, word) of caption `i` from the word times, or (None, why,
+    word) -- `why` the reason, in a sentence, that the text decides instead.
+    A start must fall strictly between `lo` and `hi`, the starts around it."""
+    if doc is None:
+        return None, ("this video has no word times (they are kept only for a "
+                      "transcript made here by speech to text)"), ""
+    row = doc["captions"][i]
+    atoms = doc.get("atoms") or []
+    first, last = int(row.get("first") or 0), int(row.get("last") or 0)
+    if not (0 <= first < last <= len(atoms)):
+        return None, "the line has no spoken word to time it by", ""
+    atom = atoms[first]
+    word = atom.get("surface") or ""
+    if row.get("start_pin") is not None:
+        t, how = float(row["start_pin"]), "person"
+    elif wordtimes.heard(atom):
+        t, how = float(atom["start"]), atom.get("time_source") or "whisper"
+    else:
+        return None, ("“%s” has no time of its own: it was not heard by the "
+                      "speech to text but written in afterwards" % word), word
+    t = round(t, 2)
+    if not (t > lo and (hi is None or t < hi)):
+        return None, ("the time “%s” was heard, %s, is not between the lines "
+                      "around it (were their starts moved since?)"
+                      % (word, stamp_of(t))), word
+    return t, how, word
+
+
+def marks(video_dir):
+    """What stands in for the full stops of a transcript that has none, read
+    from the word times -- for every caption, its phrases' words in the order
+    the page draws them (a phrase's words split at the language's separator; a
+    language written without spaces: the phrase as one), each a number:
+    1 = its time was heard, 2 = a pause of at least AUDIO_PAUSE_LEAST follows
+    it.  And `end` for each line: whether a pause (or the end of the video)
+    follows its last word.  {words: false} where the video has no word times
+    that fit its captions."""
+    import tidy
+    _ann, segs, L, caps, _before = _load(video_dir)
+    doc = _cut(_words(video_dir), segs, caps, L)
+    if doc is None:
+        return {"words": False, "pause": tidy.AUDIO_PAUSE_LEAST}
+    atoms = doc.get("atoms") or []
+    lang = doc.get("language") or L.code
+
+    def pause_after(t):
+        if t == len(atoms) - 1:
+            return True                          # the end of the video
+        if not 0 <= t < len(atoms) - 1:
+            return False
+        a, b = atoms[t], atoms[t + 1]
+        end = a.get("end") if a.get("end") is not None else a.get("start")
+        return wordtimes.heard(a) and wordtimes.heard(b) and end is not None \
+            and b["start"] - end >= tidy.AUDIO_PAUSE_LEAST
+
+    lines, heard = [], 0
+    for i, sg in enumerate(segs):
+        row = doc["captions"][i]
+        first, last = int(row.get("first") or 0), int(row.get("last") or 0)
+        at, flags = first, []
+        for ch in sg.get("chunks") or []:
+            fa = ch.get("fa") if isinstance(ch, dict) else ""
+            fa = fa if isinstance(fa, str) else ""
+            parts = fa.split(L.word_sep) if L.spaced and L.word_sep else [fa]
+            got = []
+            for part in parts:
+                n = len(wordtimes.pieces(part, lang))
+                if not n:
+                    got.append(0)
+                    continue
+                f = 1 if at < len(atoms) and wordtimes.heard(atoms[at]) else 0
+                at += n
+                if pause_after(at - 1):
+                    f |= 2
+                got.append(f)
+            flags.append(got)
+        if at != last:                   # the phrases do not add up to the line
+            flags = None
+        else:
+            heard += sum(1 for t in range(first, last) if wordtimes.heard(atoms[t]))
+        lines.append({"w": flags, "end": bool(last > first and pause_after(last - 1))})
+    return {"words": heard > 0, "pause": tidy.AUDIO_PAUSE_LEAST, "lines": lines}
+
+
 def _move_parts(video_dir, caps, starts, changed):
     """The starts of a legacy video's batches follow, as captimes keeps them."""
     parts = captimes._read_parts(video_dir)
@@ -191,7 +329,7 @@ def _move_parts(video_dir, caps, starts, changed):
     return written
 
 
-def _commit(video_dir, ann, segs, L, caps, before, was_starts):
+def _commit(video_dir, ann, segs, L, caps, before, was_starts, words=None):
     """Check what the edit brought in, and only then write -- every file.
 
     The check is made against the transcript as it will be READ BACK, not as it
@@ -217,6 +355,8 @@ def _commit(video_dir, ann, segs, L, caps, before, was_starts):
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(panel)
         os.replace(tmp, tpath)
+    if words is not None:
+        wordtimes._write(os.path.join(video_dir, "wordtimes.json"), words)
     written = _move_parts(video_dir, caps, starts, changed)
     return {"parts": written, "notes": captimes._move_notes(video_dir, olds),
             "changed": sorted(changed)}
@@ -316,19 +456,9 @@ def move(video_dir, seg, edge, chunk, word=None, expect=None):
     was_starts = {a: _t(segs[a]), b: _t(segs[b])}
     old_pair = [copy.deepcopy(segs[a]), copy.deepcopy(segs[b])]
 
-    # ---- the new start of the second line: the moved words' share of the line
-    # they lived in, in characters (nothing here hears the sound)
     sa, sb = _t(segs[a]), _t(segs[b])
     nxt = _t(segs[b + 1]) if b + 1 < len(segs) else None
-    share = len(moved_text) / max(1, len(text))
-    if edge == "end":
-        new_sb = sb - (sb - sa) * share
-        high = sb
-    else:
-        span = (nxt - sb) if nxt is not None else len(text) / _rate(segs)
-        new_sb = sb + span * share
-        high = nxt if nxt is not None else new_sb
-    new_sb = min(max(round(new_sb, 1), sa), max(high, sa))
+    doc = _words(video_dir)
 
     if edge == "end":
         segs[a]["chunks"], segs[a]["text"] = keep, kept_text
@@ -338,21 +468,46 @@ def move(video_dir, seg, edge, chunk, word=None, expect=None):
         segs[a]["chunks"] = segs[a]["chunks"] + take
         segs[a]["text"] = (recv_text + sep + moved_text).strip()
         segs[b]["chunks"], segs[b]["text"] = keep, kept_text
-    segs[b]["start"] = captimes._num(new_sb)
     if caps is not None:
         for k in (a, b):
             caps[k]["text"] = segs[k]["text"]
+
+    # ---- the new start of the second line: when its first word was heard,
+    # where the word times say so -- and else the moved words' share of the
+    # line they lived in, in characters (an estimate: nothing here hears)
+    words = _cut(doc, segs, caps, L)
+    if doc is not None and words is None:
+        heard_at, how, first_word = None, ("the word times kept with this video "
+                                           "do not match its lines"), ""
+    else:
+        heard_at, how, first_word = _heard_start(words, b, sa, nxt)
+    if heard_at is not None:
+        new_sb = heard_at
+        timed = {"by": "words", "source": how, "word": first_word}
+    else:
+        timed = {"by": "share", "why": how, "word": first_word}
+        share = len(moved_text) / max(1, len(text))
+        if edge == "end":
+            new_sb = sb - (sb - sa) * share
+            high = sb
+        else:
+            span = (nxt - sb) if nxt is not None else len(text) / _rate(segs)
+            new_sb = sb + span * share
+            high = nxt if nxt is not None else new_sb
+        new_sb = min(max(round(new_sb, 1), sa), max(high, sa))
+    segs[b]["start"] = captimes._num(new_sb)
+    if caps is not None:
         caps[b]["start"] = segs[b]["start"]
 
-    done = _commit(video_dir, ann, segs, L, caps, before, was_starts)
+    done = _commit(video_dir, ann, segs, L, caps, before, was_starts, words)
     moved_here = abs(_t(segs[b]) - sb) > 0.0005
     return {"pair": a, "segments": [segs[a], segs[b]], "before": old_pair,
             "moved": {"text": moved_text, "units": moved_units, "cut": cut,
                       "phrases": len(take),
                       "direction": "next" if edge == "end" else "previous",
                       "from": seg, "to": b if edge == "end" else a},
-            "start": {"i": b, "was": sb, "now": _t(segs[b])},
-            "estimated": moved_here, "parts": done["parts"], "notes": done["notes"]}
+            "start": {"i": b, "was": sb, "now": _t(segs[b])}, "timed": timed,
+            "estimated": moved_here and timed["by"] == "share", "parts": done["parts"], "notes": done["notes"]}
 
 
 def restore(video_dir, pair, expect, to):
@@ -388,7 +543,8 @@ def restore(video_dir, pair, expect, to):
         if caps is not None:
             caps[pair + k]["text"] = segs[pair + k]["text"]
             caps[pair + k]["start"] = segs[pair + k]["start"]
-    done = _commit(video_dir, ann, segs, L, caps, before, was_starts)
+    words = _cut(_words(video_dir), segs, caps, L)
+    done = _commit(video_dir, ann, segs, L, caps, before, was_starts, words)
     return {"pair": pair, "segments": [segs[pair], segs[pair + 1]],
             "start": {"i": pair + 1, "was": was_starts[pair + 1], "now": _t(segs[pair + 1])},
             "parts": done["parts"], "notes": done["notes"]}

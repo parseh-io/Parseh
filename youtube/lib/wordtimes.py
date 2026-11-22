@@ -256,6 +256,15 @@ def sync(doc, captions, lang=None):
     atoms, retired = _match(doc.get("atoms") or doc.get("raw_atoms") or [], wanted,
                             doc.get("job") or "held", revision)
     pins = dict(doc.get("pins") or {})
+    caprows = _rows_for(doc, rows, atoms)
+    doc.update({"language": language, "atoms": atoms, "captions": caprows,
+                "retired_atoms": (doc.get("retired_atoms") or []) + retired,
+                "pins": pins, "revision": revision})
+    return doc
+
+
+def _rows_for(doc, rows, atoms):
+    pins = dict(doc.get("pins") or {})
     caprows = []
     for n, row in enumerate(rows):
         first, last = row["first"], row["last"]
@@ -263,10 +272,44 @@ def sync(doc, captions, lang=None):
         caprows.append({"id": "c:%s" % first_id if first_id else "c:empty:%d" % n,
                         "first": first, "last": last, "text": row["text"],
                         "chapter": row["chapter"], "start_pin": pins.get(first_id)})
-    doc.update({"language": language, "atoms": atoms, "captions": caprows,
-                "retired_atoms": (doc.get("retired_atoms") or []) + retired,
-                "pins": pins, "revision": revision})
-    return doc
+    return caprows
+
+
+def repartition(doc, captions, lang=None):
+    """The same words cut into other captions -> (copied doc, "same words")
+    -- or, where the words are not the tape's any more, what `sync` makes of
+    them -> (copied doc, "matched").
+
+    A boundary moved between two captions of an added video (reflow.py) says
+    no new word and loses none: the tape's atoms keep their identities and
+    their times and only the partition changes, so nothing is retired, no
+    revision is counted, and putting the boundary back gives back the very
+    document it was (which is what makes the move's Undo exact here too).
+    """
+    doc = copy.deepcopy(doc or {})
+    if doc.get("format") != FORMAT:
+        raise ValueError("that is not Parseh word-time state")
+    language = lang or doc.get("language") or ""
+    rows, wanted = _caption_rows(captions, language)
+    atoms = doc.get("atoms") or []
+    if len(atoms) != len(wanted) or any(a.get("key") != w["key"]
+                                        for a, w in zip(atoms, wanted)):
+        return sync(doc, captions, lang), "matched"
+    for atom, want in zip(atoms, wanted):
+        atom["surface"] = want["surface"]
+    doc["captions"] = _rows_for(doc, rows, atoms)
+    return doc, "same words"
+
+
+# what a time of a word may come from that was HEARD (the recording, or a
+# person who set it by ear) -- never one worked out between neighbours
+HEARD = ("interpolated", "estimated", "guess")
+
+
+def heard(atom):
+    """Does this atom carry a time taken from the sound?"""
+    return isinstance(atom, dict) and atom.get("start") is not None \
+        and (atom.get("time_source") or "guess") not in HEARD
 
 
 def shift_all(doc, seconds):
