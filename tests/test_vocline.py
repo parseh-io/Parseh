@@ -208,6 +208,101 @@ class JavaScript(unittest.TestCase):
         self.assertEqual(odd[:3], [])
 
 
+ENTRY_CASES = FIXTURE["entries"]
+
+
+def entries_in_python(voc, code):
+    """voc_entries in the fixture's shape: the entries, or the error's code."""
+    L = languages.get(code)
+    try:
+        return {"entries": T.voc_entries(voc, L)}
+    except (AssertionError, IndexError):
+        return {"error": "groups"}
+    except ValueError:
+        return {"error": "unclosed"}
+
+
+def entries_in_javascript(lines):
+    """[{lang, voc}] -> what ParsehVocline.entries makes of each, under deno."""
+    codes = sorted({x["lang"] for x in lines})
+    js = """
+await import(%s);
+const V = globalThis.ParsehVocline, LINES = %s, LANGS = %s, out = [];
+for (const c of LINES) {
+  try { out.push({entries: V.entries(c.voc, LANGS[c.lang])}); }
+  catch (e) { out.push({error: e.code}); }
+}
+console.log(JSON.stringify(out));
+""" % (json.dumps("file://" + str(VOCLINE)), json.dumps(lines),
+       json.dumps({c: languages.get(c).as_json() for c in codes}))
+    with tempfile.NamedTemporaryFile("w", suffix=".mjs", delete=False, encoding="utf-8") as f:
+        f.write(js)
+    try:
+        r = subprocess.run([DENO, "run", "--quiet", "--allow-read", f.name],
+                           capture_output=True, text=True, timeout=120)
+    finally:
+        os.unlink(f.name)
+    if r.returncode:
+        raise AssertionError("deno failed: " + (r.stderr or r.stdout)[-600:])
+    return json.loads(r.stdout.strip().split("\n")[-1])
+
+
+class Entries(unittest.TestCase):
+    """The line cut into entries for the vocabulary list (TO-DO 11.14)."""
+
+    def test_python_cuts_the_fixture(self):
+        for c in ENTRY_CASES:
+            with self.subTest(voc=c["voc"]):
+                want = {k: c[k] for k in ("entries", "error") if k in c}
+                self.assertEqual(entries_in_python(c["voc"], c["lang"]), want)
+
+    def test_it_covers_what_it_is_for(self):
+        def kinds(c):
+            return [e["kind"] for e in c.get("entries", [])]
+        need = {
+            "each of the four kinds": lambda: {k for c in ENTRY_CASES for k in kinds(c)} == {"dw", "vb", "bw", "pw"},
+            "a \\pw kept in a meaning": lambda: any("\\pw{" in c["voc"] and any(
+                e["kind"] != "pw" and "\\pw{" not in e["meaning"] and len(e["meaning"]) > 0 for e in c.get("entries", []))
+                and c["voc"].count("\\pw{") > kinds(c).count("pw") for c in ENTRY_CASES),
+            "two spellings, one key": lambda: any(len({e["key"] for e in c.get("entries", [])}) < len(kinds(c))
+                                                  for c in ENTRY_CASES if c["lang"] == "fa"),
+            "right to left": lambda: any(c["lang"] in ("fa", "ar") and kinds(c) for c in ENTRY_CASES),
+            "a plain line": lambda: any(c.get("entries") == [] for c in ENTRY_CASES),
+            "both errors": lambda: {c.get("error") for c in ENTRY_CASES} >= {"groups", "unclosed"},
+        }
+        self.assertEqual([k for k, f in need.items() if not f()], [])
+
+    def test_the_key_folds_what_the_lookup_folds(self):
+        fa, ar, tr = languages.get("fa"), languages.get("ar"), languages.get("tr")
+        self.assertEqual(T.vocab_key("كتاب", fa), T.vocab_key("کِتاب", fa))
+        self.assertEqual(T.vocab_key("می‌کنم", fa), T.vocab_key("میکنم", fa))
+        self.assertNotEqual(T.vocab_key("على", ar), T.vocab_key("علي", ar))
+        self.assertEqual(T.vocab_key("Işık", tr), "ışık")
+        self.assertEqual(T.vocab_key("İyi", tr), "iyi")
+        self.assertEqual(T.vocab_key("Old", "en"), T.vocab_key("old ", "en"))
+
+    @unittest.skipUnless(os.path.exists(DENO), "no deno")
+    def test_javascript_cuts_the_fixture(self):
+        got = entries_in_javascript([{"lang": c["lang"], "voc": c["voc"]} for c in ENTRY_CASES])
+        for c, g in zip(ENTRY_CASES, got):
+            with self.subTest(voc=c["voc"]):
+                self.assertEqual(g, {k: c[k] for k in ("entries", "error") if k in c})
+
+    @unittest.skipUnless(os.path.exists(DENO), "no deno")
+    def test_and_every_line_of_every_fixture_edition_and_video(self):
+        lines = fixture_lines()
+        got = entries_in_javascript(lines)
+        self.assertEqual(len(got), len(lines))
+        langs = set()
+        for c, g in zip(lines, got):
+            with self.subTest(lang=c["lang"], voc=c["voc"]):
+                self.assertEqual(g, entries_in_python(c["voc"], c["lang"]))
+                if g.get("entries"):
+                    langs.add(c["lang"])
+        # every language of the registry has a fixture book or video with entries in it
+        self.assertEqual(sorted(set(languages.CODES) - langs), [])
+
+
 @unittest.skipUnless(os.path.exists(DENO), "no deno")
 class Buttons(unittest.TestCase):
     """lib/vocbuttons.js: the four buttons' examples, one per language and kind."""
