@@ -1524,6 +1524,93 @@ class NewText(unittest.TestCase):
         self.assertIn("carne", r["files"]["ch1.tex"])
 
 
+class Dialects(unittest.TestCase):
+    """A book or a video written in a variety (Arabic's egy, lev, gulf, mor) is never read by an analyzer: they
+    read the standard language (Farahidi took Gulf أبي, "I want", for أب "father"), and a variety keeps the code
+    `ar` (lib/languages.py with_variety), so nothing but its variety tells it apart (TO-DO 2.30).  Driven through
+    the real draft and prompt paths, with every choice on and an analyzer ready for Arabic."""
+    TEXT = "أنا عايز أروح البيت دلوقتي.\n\nهو بيشرب شاي كل يوم الصبح."
+    TRANSCRIPT = "0:00\nأنا عايز أروح البيت دلوقتي.\n0:04\nهو بيشرب شاي كل يوم الصبح.\n"
+
+    def setUp(self):
+        import draft
+        import glossregion
+        self.draft, self.GR = draft, glossregion
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        self.td = td.name
+        for p in (mock.patch.object(analysisconfig, "STORE", os.path.join(td.name, "a.json")),
+                  mock.patch.object(lookup, "DICT_DIR", td.name)):
+            p.start()
+            self.addCleanup(p.stop)
+        self.addCleanup(A.reset)
+        self.f, self.far = Fake(codes=tuple(A.SYNTAX)), Fake("farahidi", ("ar",))
+        A.reset([self.f, self.far])
+        analysisconfig.save({"evidence": "on", "chunking": "assist"})
+
+    def calls(self):
+        n = self.f.calls + self.far.calls
+        A.clear_cache()
+        return n
+
+    def book(self, variety):
+        return self.draft.book_from_text(self.TEXT, "ar", "كتاب", slug="b-" + (variety or "std"), how="phrase",
+                                         into=os.path.join(self.td, "books"), variety=variety)["dir"]
+
+    def video(self, variety):
+        return self.draft.video_from_transcript(self.TRANSCRIPT, "ar", video_id="dialect" + (variety or "std")[:4],
+                                                how="phrase", into=os.path.join(self.td, "videos"),
+                                                variety=variety)["dir"]
+
+    def test_the_standard_language_still_has_both(self):
+        n = self.calls()
+        d = self.book("")
+        self.assertGreater(self.calls(), n, "standard Arabic's new text is cut with the analyzer's help")
+        p = self.GR.book_prompt(d, 0, 1)
+        self.assertIn('"analysis"', p["prompt"])
+
+    def test_no_chunking_assist_for_a_variety(self):
+        self.assertIsNotNone(chunker.assisting("ar"))
+        for v in ("egy", "lev", "gulf", "mor"):
+            self.assertIsNone(chunker.assisting("ar", v), v)
+            n = self.calls()
+            self.draft._cut_all([self.TEXT], "ar", "phrase", v)
+            self.assertEqual(self.calls(), n, v)
+
+    def test_a_dialect_book_is_cut_and_added_to_without_an_analyzer(self):
+        n = self.calls()
+        d = self.book("egy")
+        self.draft.add_to_book(d, "هي بتحب القهوة.", how="phrase")
+        self.assertEqual(self.calls(), n, "no analyzer read the Egyptian text")
+
+    def test_a_dialect_video_is_cut_without_an_analyzer(self):
+        n = self.calls()
+        self.video("lev")
+        self.assertEqual(self.calls(), n)
+
+    def test_a_dialect_book_prompt_carries_no_analysis_and_says_why(self):
+        d = self.book("gulf")
+        n = self.calls()
+        p = self.GR.book_prompt(d, 0, 1)
+        self.assertEqual(self.calls(), n)
+        self.assertNotIn('"analysis"', p["prompt"])
+        self.assertNotIn("What `analysis` is", p["prompt"])
+        self.assertTrue(any("Gulf Arabic is a dialect" in x for x in p["notes"]), p["notes"])
+
+    def test_a_dialect_video_prompt_carries_no_analysis_and_says_why(self):
+        d = self.video("mor")
+        n = self.calls()
+        p = self.GR.video_prompt(d, 0, 1)
+        self.assertEqual(self.calls(), n)
+        self.assertNotIn('"analysis"', p["prompt"])
+        self.assertTrue(any("Moroccan Arabic is a dialect" in x for x in p["notes"]), p["notes"])
+
+    def test_off_says_nothing_of_dialects(self):
+        analysisconfig.save({"evidence": "off"})
+        p = self.GR.book_prompt(self.book("egy"), 0, 1)
+        self.assertFalse(any("dialect" in x for x in p["notes"]), p["notes"])
+
+
 class Boundaries(unittest.TestCase):
     def test_no_analyzer_is_imported_by_the_server_side_or_the_consumers(self):
         code = ("import sys; sys.path.insert(0, %r); import analyzer, getanalysis, evidence, lookupassist, chunker;"

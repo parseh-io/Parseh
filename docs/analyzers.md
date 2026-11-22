@@ -98,6 +98,14 @@ only a gloss's own fields. `parseh-gloss` carries the rule as `references/analys
 read only when a chunk has `analysis`. `parseh-book` gets one line of the method (`EVIDENCE_HELPER`)
 naming the read-only helper, and only while evidence is on.
 
+**Not for a variety.** A book or a video written in a variety (Arabic's `egy`, `lev`, `gulf`, `mor`) keeps the
+code `ar` (`languages.with_variety`), so each consumer tests the variety itself: lookup in `serve.py` (no
+`lookupassist` when the request names one), chunking in `chunker.assisting(code, variety)` (fed by `draft._cut_all`
+from the new book's, the added text's or the new video's variety), evidence in `glossregion._evidence` (no
+`for_units`; the sheet's note says the dialect gets none). The analyzers read the standard language: Farahidi took
+Gulf أبي, "I want", for أب "father". A book made in place has no variety (the make page offers none), so
+`EVIDENCE_HELPER` needs no test.
+
 Not in this version: studio prompts, `parseh-markdown`, transcript tidying, Ask LLM, a video from scratch.
 
 ## Installing, and moving a pin

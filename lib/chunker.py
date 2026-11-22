@@ -1075,12 +1075,15 @@ def exact(chunks, text):
     return not text[at:].strip()
 
 
-def assisting(code):
+def assisting(code, variety=None):
     """The `assist` of chunk() if somebody chose it on Settings -> Linguistic
-    analysis and this language has an analyzer ready, else None."""
+    analysis and this language has an analyzer ready, else None.
+
+    NOT FOR A VARIETY (`variety`, the book's or the video's: Arabic's egy, lev, gulf, mor): the analyzers read
+    the standard language, and their reading of a dialect is not one to cut it by (as for lookup, serve.py)."""
     import analysisconfig
     import analyzer
-    if analysisconfig.choice("chunking") != "assist" or not analyzer.available(code, syntax=True):
+    if variety or analysisconfig.choice("chunking") != "assist" or not analyzer.available(code, syntax=True):
         return None
     return lambda text: analyzer.analyze(code, text, syntax=True)
 

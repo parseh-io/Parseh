@@ -628,6 +628,9 @@ def _shown(ch, todo, mode, analysis=None):
     return d
 
 
+NO_ANALYSIS_FOR_A_VARIETY = "%s is a dialect, and no analysis is offered for one: the analyzers read standard %s"
+
+
 def _evidence(ctx, units, mode):
     """What an analyzer says of the chunks to do, where somebody chose that on Settings -> Linguistic analysis
     -> lib/evidence.py's Evidence, empty when it is off, not ready or has nothing to say: the prompt is then the
@@ -636,8 +639,12 @@ def _evidence(ctx, units, mode):
     import evidence
     if analysisconfig.choice("evidence") != "on":
         return evidence.Evidence()
+    L = ctx["L"]
+    # NOT FOR A VARIETY (Arabic's dialects, lib/languages.py with_variety keeps the code `ar`): the analyzers read
+    # the standard language, and their reading of a dialect would be evidence for the wrong word (as for lookup)
+    if L.variety:
+        return evidence.Evidence(diagnostics=[NO_ANALYSIS_FOR_A_VARIETY % (L.variety_name, L.name)])
     try:
-        L = ctx["L"]
         return evidence.for_units(L.code, units, lambda ch: _todo(ch, L, mode),
                                   "spoken" if ctx["surface"] == "video" else None)
     except (OSError, ValueError, RuntimeError) as e:
