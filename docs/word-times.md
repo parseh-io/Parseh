@@ -261,6 +261,28 @@ page, and a third in wordtimes.json.
    bundled or backed up. Adopted wordtimes.json is bundled/restored beside
    waveform.json with a FORMAT row and equivalent restore rule.
 
+### After the add: move text (a0.6.3)
+
+The first door after the add that reads and writes an adopted wordtimes.json is
+the player's **move text** (`youtube/lib/reflow.py`, TO-DO §7.29). Moving a
+boundary between two captions says no new word and loses none, so it is a pure
+re-partition of the tape: `wordtimes.repartition` keeps every atom, its id and
+its time, re-cuts `captions` to the transcript as written, and counts no
+revision, so moving the boundary back (Undo) gives the document back byte for
+byte. Where the panel's words are no longer the tape's (an edit made by a door
+that does not maintain the tape), it falls back to `sync`, which matches what it
+can and marks the rest as not heard.
+
+The caption that now begins with another word starts by this document's own
+resolver: the word's pin, else its heard start (`time_source` whisper/aligner; an
+interpolated, estimated or guessed time is not heard). The share-of-letters
+estimate is kept only for a word with no heard time, a video without the file, a
+file that does not line up with the captions, or a heard time outside the two
+neighbouring starts (the timings sheet moved them since). `reflow.marks` also
+reads the tape for pauses of at least `tidy.AUDIO_PAUSE_LEAST` between heard
+words, which the player shows in place of full stops for a transcript that has
+none. The timings sheet (`captimes.py`) still leaves the file as it was.
+
 ### History
 
 The editor retains exact in-memory snapshots for undo/redo, including timing

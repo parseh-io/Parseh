@@ -6435,6 +6435,12 @@ def test_server():
                               "after which annotations.json is what it was, byte for byte")
                         _post_json(port, "/youtube/api/reflow", dict(move, seg="x"),
                                    "the move-text route, a line that is not a number", want=400)
+                        j = _post_json(port, "/youtube/api/reflow", {"video": vid, "action": "marks"},
+                                       "the move-text route, the pauses of the word times (a0.6.3)")
+                        check(isinstance(j.get("words"), bool) and j.get("pause") == 0.65
+                              and (not j["words"] or len(j["lines"]) == len(after)),
+                              "which says whether the video has word times, and the pause it reads",
+                              json.dumps(j)[:200])
                     # --- THE VIDEO'S OWN METADATA: title, channel, level,
                     # blurb -- video.json, not a chunk.  The concrete case
                     # this route exists for: api_add's YouTube lookup got
