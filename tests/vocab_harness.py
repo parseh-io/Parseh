@@ -10,7 +10,12 @@ the videos), with what the vocabulary list is driven on added:
     on the shelf;
   * a PERSIAN VIDEO whose vocabulary lines are in the books' macros, one word
     of it in three captions with two meanings, and a verb;
-  * an ARABIC one the same way, right to left with its own verb labels.
+  * an ARABIC one the same way, right to left with its own verb labels;
+  * a PERSIAN and an ITALIAN video whose vocabulary lines are PLAIN TEXT, as a
+    video glossed before the macros writes them (a0.6.3 G6): words with their
+    romanisation, a verb with its stems, a word written in a macro line too,
+    a line that cannot be read with confidence and a note.  Made up for the
+    test, in the shapes real videos write.
 
     python3 tests/vocab_harness.py build <tmp>     prints one line of JSON
     python3 tests/vocab_harness.py serve <tmp> <port>
@@ -32,6 +37,8 @@ sys.path.insert(0, str(REPO / "lib"))
 
 FA_MACRO = "persian-words-b2c3d4"
 AR_MACRO = "arabic-words-e5f6a7"
+FA_PLAIN = "persian-plain-c4d5e6"
+IT_PLAIN = "italian-plain-f7a8b9"
 # [text, meaning, vocabulary line]
 FA_CAPS = [
     (0, "کتاب را دیدم", [("کتاب را", "the book", r"\dw{کتاب}{ketāb} book"),
@@ -48,6 +55,23 @@ AR_CAPS = [
                         ("الثعلب", "the fox", r"\dw{ثَعْلَب}{ṯaʿlab} fox, pl. \pw{ثَعَالِب}")]),
     (3, "رأى الثعلب", [("رأى", "saw", r"\vb{رَأَى}{raʾā}{يَرَى}{yarā}{رُؤْيَة}{ruʾya}{to see}"),
                         ("الثعلب", "the fox", r"\dw{ثعلب}{ṯaʿlab} fox")]),
+]
+
+
+# [text, meaning, vocabulary line, transliteration]
+FA_PLAIN_CAPS = [
+    (0, "کتاب را خواندم", [("کتاب را", "the book", "کتاب ketāb book, + rā the object marker", "ketāb rā"),
+                           ("خواندم", "I read", "خواندن xāndan · pres. خوان xān · past خواند xānd · to read", "xāndam")]),
+    (2, "دست من", [("دست من", "my hand", "دست dast hand; من man I, me", "dast-e man")]),
+    (4, "كتاب نیست", [("كتاب", "a book", "كتاب ketāb volume", "ketāb"),
+                      ("نیست", "is not", "colloquial نی = نیست is not", "nist")]),
+    (6, "خب", [("خب", "well", "// the speaker hesitates", "xob")]),
+]
+IT_PLAIN_CAPS = [
+    (0, "Il pane è buono", [("Il pane", "the bread", "pane bread", ""), ("è buono", "is good", "buono – good, tasty", "")]),
+    (2, "Vado al mercato", [("Vado", "I go", "andare · pres. vado · p.p. andato · to go", ""),
+                            ("al mercato", "to the market", "mercato market; al = a + il", "")]),
+    (4, "Buongiorno", [("Buongiorno", "good morning", "ciao hello", "")]),
 ]
 
 
@@ -81,13 +105,16 @@ def build(tmp):
         segs = []
         for start, text, chunks in caps:
             segs.append({"start": start, "text": text, "chunks": [
-                dict({"fa": c[0], "en": c[1]}, **({"voc": c[2]} if c[2] else {})) for c in chunks]})
+                dict({"fa": c[0], "en": c[1]}, **({"voc": c[2]} if c[2] else {}),
+                     **({"tr": c[3]} if len(c) > 3 and c[3] else {})) for c in chunks]})
         (d / "annotations.json").write_text(json.dumps(
             {"video": vid, "language": lang, "segments": segs}, ensure_ascii=False), encoding="utf-8")
 
     video("persian", FA_MACRO, "Persian words", "fa", FA_CAPS)
     video("arabic", AR_MACRO, "Arabic words", "ar", AR_CAPS)
-    made.update({"fa_macro": FA_MACRO, "ar_macro": AR_MACRO})
+    video("persian", FA_PLAIN, "Persian plain words", "fa", FA_PLAIN_CAPS)
+    video("italian", IT_PLAIN, "Italian plain words", "it", IT_PLAIN_CAPS)
+    made.update({"fa_macro": FA_MACRO, "ar_macro": AR_MACRO, "fa_plain": FA_PLAIN, "it_plain": IT_PLAIN})
     print(json.dumps(made, ensure_ascii=False))
 
 

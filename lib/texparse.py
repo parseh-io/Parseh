@@ -418,8 +418,11 @@ def vocab_key(word, lang=None):
 #     its letters, so it is taken only where something shows where it ends:
 #     the longest run of the item's first words (four at most) that the
 #     chunk's own text holds, or else the words before a separator
-#     (` · ` ` – ` ` — ` ` = ` `: ` ` - `) or a bracket.  Its romanisation is
-#     a bracket, an italic, a /…/ or […] run, or a word in IPA right after it;
+#     (` · ` ` – ` ` — ` ` = ` `: ` ` - `) or a bracket (three at most).  Its
+#     romanisation is a bracket, an italic, a /…/ or […] run, or words in IPA
+#     right after it (or ending the words before a separator: `get gɛt · …`);
+#   - a bare Latin word after a word in its own script is its romanisation
+#     only where something vouches for it (see _rom_after);
 #   - a verb is recognised by the language's two labels (`· pres. … · past …`)
 #     and listed as a \vb is, with its stems;
 #   - the meaning is the rest of the item, as a macro entry's is.
@@ -690,7 +693,7 @@ def _latin_head(s, lang, text):
         word, rom = _ipa_tail(cand) if cand else ("", "")
         if not word or len(word.split()) > 3:
             return None
-        end = best[0] + len(best[1]) if best[1] in (" = ", " - ") else best[0]
+        end = best[0] + len(best[1]) if best[1] == " - " else best[0]
         if rom:
             return word, "", rom, end
     rom, end = _rom_after(s, end, len(word.split()), None, lang)

@@ -61,8 +61,32 @@ another word's meaning — *fox, pl. ثعالب* — stays in that meaning. The 
 is everything after the word up to the next `;`.
 
 A video whose vocabulary lines are plain text, written before the vocabulary
-buttons existed, has no words marked in them, and the list says so instead of
-guessing.
+buttons existed, is read by the shape of its lines: *word romanisation
+meaning; next word …*, a verb as *دیدن didan · pres. بین bin · past دید did ·
+to see*.
+
+- **A language with its own script.** In Persian, Arabic, Hindi, Japanese
+  and Chinese, the word is what is written in that script at the start of each
+  part of the line, and the romanisation is the Latin after it, in brackets,
+  in italics or bare. A bare Latin word counts as the romanisation only when
+  something shows it is one: letters like *ā* or *š*, the chunk's own
+  transliteration, or, in Persian and Arabic, the word's own consonants.
+  Otherwise it is the start of the meaning.
+- **A language written in Latin letters.** In Italian, French, German,
+  Spanish, Catalan, Turkish and English, the word cannot be told from its
+  meaning by its letters. It is taken where the line shows where it ends:
+  the first words of the part that the chunk's own text holds, or the words
+  before a dash, a colon, an equals sign, a middle dot or a bracket. A
+  pronunciation after it is shown when it is in brackets, in italics or in
+  IPA.
+- **What it cannot read, it does not guess.** A part of a line that does not
+  start with a word — *colloquial …*, or *ciao hello* beside *Buongiorno* — is
+  left out, and a line that gives no word at all is counted: the line under
+  the buttons says *2 lines could not be read*. A line that starts with `//`
+  is a note, and is left out without being counted.
+
+A word written in a plain line and the same word written with the buttons
+are one row.
 
 ## Going to a word
 
