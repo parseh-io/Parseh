@@ -426,5 +426,187 @@ class AFilmOfItsOwn(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+# The times each word of LINES was heard, the way the speech to text keeps
+# them (wordtimes.json): a long pause in the middle of the first two lines,
+# which is where the share of letters puts a moved line's start worst.
+HEARD = [
+    ("سلام", 0.2), ("و", 0.6), ("درود", 0.8), ("به", 1.3), ("همه.", 1.6),
+    ("چقدر", 6.8), ("دلم", 7.2), ("برای", 7.6), ("این", 8.1), ("لحظه", 9.1),
+    ("برای", 10.1), ("صحبت", 10.5), ("کردن", 10.9), ("با", 11.3), ("شما.", 11.6),
+    ("امیدوارم", 16.2), ("حال", 16.9), ("دلتون", 17.3),
+    ("خوب", 20.1), ("باشه", 20.6), ("و", 21.1), ("روزگار", 21.4), ("بر", 22.0),
+    ("وفق", 22.3), ("مرادتون", 22.7), ("بگرده.", 23.3),
+    ("بعد", 30.1), ("از", 30.5), ("آن", 30.8), ("می‌گویم", 31.2),
+]
+
+
+def keep_words(d, words, lang, change=None):
+    """wordtimes.json beside a fixture video, cut into its transcript's lines
+    exactly as the add page adopts it."""
+    import wordtimes as W
+    doc = W.empty("fixturejob", lang, [{"word": w, "start": t, "end": t + 0.4}
+                                       for w, t in words], "whisper", "test")
+    with io.open(os.path.join(d, "transcript.txt"), encoding="utf-8") as f:
+        caps = CA.parse_transcript_text(f.read(), lang)
+    doc = W.sync(doc, caps, lang)
+    if change:
+        change(doc)
+    W._write(os.path.join(d, "wordtimes.json"), doc)
+    return doc
+
+
+class TheWordsOwnTimes(Base):
+    """Where the video kept the time each word was heard, a line that begins
+    with another word begins when THAT word was heard -- not where the share
+    of its letters would put it (the old way, which fails these)."""
+
+    def setUp(self):
+        Base.setUp(self)
+        self.doc = keep_words(self.d, HEARD, "fa")
+
+    def wt(self):
+        return json.loads(self.read("wordtimes.json"))
+
+    def test_the_end_of_a_line_moved_down_starts_when_its_first_word_was_heard(self):
+        out = reflow.move(self.d, 0, "end", 1)            # «چقدر دلم برای این لحظه» goes down
+        self.assertEqual(self.ann()[1]["start"], 6.8)
+        self.assertEqual(self.caps()[1]["start"], 6.8)
+        self.assertEqual(out["timed"]["by"], "words")
+        self.assertEqual(out["timed"]["word"], "چقدر")
+        self.assertFalse(out["estimated"], "a heard time is not settled into a pause")
+        self.clean()
+
+    def test_the_start_of_a_line_moved_up_starts_at_the_word_it_now_begins_with(self):
+        out = reflow.move(self.d, 1, "start", 2)          # the line begins at «امیدوارم»
+        self.assertEqual(self.ann()[1]["start"], 16.2)
+        self.assertEqual(out["timed"], {"by": "words", "source": "whisper", "word": "امیدوارم"})
+        self.clean()
+
+    def test_inside_a_phrase_too(self):
+        reflow.move(self.d, 1, "start", 0, word=2)        # begins at «کردن»
+        self.assertEqual(self.ann()[1]["start"], 10.9)
+
+    def test_the_word_times_are_cut_the_same_way_and_no_time_changes(self):
+        reflow.move(self.d, 0, "end", 1)
+        wt = self.wt()
+        self.assertEqual([a["start"] for a in wt["atoms"]], [a["start"] for a in self.doc["atoms"]])
+        self.assertEqual([c["text"] for c in wt["captions"]], [c["text"] for c in self.caps()])
+        self.assertEqual(wt["atoms"][wt["captions"][1]["first"]]["surface"], "چقدر")
+        self.assertEqual(wt["revision"], self.doc["revision"], "no word was said anew")
+
+    def test_undo_gives_back_the_word_times_byte_for_byte(self):
+        was = self.read("wordtimes.json"), self.files()
+        out = reflow.move(self.d, 1, "start", 2)
+        self.assertNotEqual(self.read("wordtimes.json"), was[0])
+        reflow.restore(self.d, out["pair"], out["segments"], out["before"])
+        self.assertEqual((self.read("wordtimes.json"), self.files()), was)
+
+    def test_a_second_move_reads_the_tape_the_first_one_cut(self):
+        reflow.move(self.d, 0, "end", 1)                  # line 1 now opens «چقدر …»
+        out = reflow.move(self.d, 1, "start", 1)          # and now at «برای» of «برای این لحظه»
+        self.assertEqual(out["timed"]["word"], "برای")
+        self.assertEqual(self.ann()[1]["start"], 7.6)
+        self.clean()
+
+    def test_a_start_a_person_set_by_ear_wins(self):
+        import wordtimes as W
+        shutil.rmtree(self.d)
+        build(self.d)
+        keep_words(self.d, HEARD, "fa",
+                   lambda doc: doc["pins"].update({doc["atoms"][5]["id"]: 6.55}))
+        out = reflow.move(self.d, 0, "end", 1)
+        self.assertEqual(self.ann()[1]["start"], 6.55)
+        self.assertEqual(out["timed"]["source"], "person")
+        self.assertTrue(W.clean(self.wt()))
+
+    def test_a_word_written_in_afterwards_falls_back_to_the_share_and_says_why(self):
+        shutil.rmtree(self.d)
+        build(self.d)
+        keep_words(self.d, HEARD, "fa",
+                   lambda doc: doc["atoms"][5].update({"time_source": "interpolated"}))
+        out = reflow.move(self.d, 0, "end", 1)
+        self.assertEqual(out["timed"]["by"], "share")
+        self.assertIn("written in afterwards", out["timed"]["why"])
+        self.assertTrue(out["estimated"])
+        self.assertNotEqual(self.ann()[1]["start"], 6.8)
+        self.clean()
+
+    def test_a_time_outside_the_two_lines_is_not_believed(self):
+        shutil.rmtree(self.d)
+        build(self.d)
+        keep_words(self.d, HEARD, "fa", lambda doc: doc["atoms"][5].update({"start": 25.0}))
+        out = reflow.move(self.d, 0, "end", 1)
+        self.assertEqual(out["timed"]["by"], "share")
+        self.assertIn("not between the lines", out["timed"]["why"])
+        self.assertTrue(0 < self.ann()[1]["start"] < 10)
+
+    def test_without_word_times_the_share_and_the_reason(self):
+        os.unlink(os.path.join(self.d, "wordtimes.json"))
+        out = reflow.move(self.d, 0, "end", 1)
+        self.assertEqual(out["timed"]["by"], "share")
+        self.assertIn("no word times", out["timed"]["why"])
+        self.assertFalse(os.path.exists(os.path.join(self.d, "wordtimes.json")))
+
+    def test_a_file_that_is_not_word_times_is_left_alone(self):
+        with io.open(os.path.join(self.d, "wordtimes.json"), "w", encoding="utf-8") as f:
+            f.write("{not json")
+        out = reflow.move(self.d, 0, "end", 1)
+        self.assertEqual(out["timed"]["by"], "share")
+        self.assertEqual(self.read("wordtimes.json"), "{not json")
+
+
+class PausesForFullStops(Base):
+    """A transcript with no full stops has the pauses of its word times."""
+
+    def test_the_pauses_and_the_heard_words(self):
+        keep_words(self.d, HEARD, "fa")
+        m = reflow.marks(self.d)
+        self.assertTrue(m["words"])
+        # «به همه.» is followed by the pause before «چقدر»; «لحظه» runs on into line 2
+        self.assertEqual(m["lines"][0]["w"], [[1, 1, 1], [1, 3], [1, 1], [1, 1, 1]])
+        self.assertFalse(m["lines"][0]["end"])
+        self.assertTrue(m["lines"][1]["end"])
+        self.assertTrue(m["lines"][3]["end"], "the last line ends the video")
+
+    def test_none_without_word_times(self):
+        self.assertEqual(reflow.marks(self.d)["words"], False)
+
+
+class AFilmOfItsOwnWithWordTimes(unittest.TestCase):
+    """Japanese writes no spaces: the phrase that moves begins at its first
+    character's heard time."""
+
+    def test_the_first_character_heard(self):
+        tmp = tempfile.mkdtemp(prefix="parseh-reflow-ja-")
+        try:
+            d = os.path.join(tmp, "fixture")
+            os.makedirs(d)
+            segs = [{"start": 0, "text": "今日は天気がいいですね。明日は",
+                     "chunks": [{"fa": "今日は天気がいいですね。", "kana": "きょうはてんきがいいですね。", "tr": "kyō wa", "en": "today"},
+                                {"fa": "明日は", "kana": "あしたは", "tr": "ashita wa", "en": "tomorrow"}]},
+                    {"start": 8, "text": "雨でしょう。",
+                     "chunks": [{"fa": "雨でしょう。", "kana": "あめでしょう。", "tr": "ame deshō", "en": "rain"}]}]
+            with io.open(os.path.join(d, "annotations.json"), "w", encoding="utf-8") as f:
+                json.dump({"video": "x", "language": "ja", "segments": segs}, f,
+                          ensure_ascii=False, indent=1)
+            with io.open(os.path.join(d, "transcript.txt"), "w", encoding="utf-8") as f:
+                f.write("0:00\n今日は天気がいいですね。明日は\n0:08\n雨でしょう。\n")
+            with io.open(os.path.join(d, "video.json"), "w", encoding="utf-8") as f:
+                json.dump({"id": "x", "title": "t", "channel": "c", "language": "ja",
+                           "level": "beginner"}, f)
+            keep_words(d, [("今日は天気がいいですね。", 0.1), ("明日は", 5.0), ("雨でしょう。", 8.1)], "ja")
+            m = reflow.marks(d)
+            self.assertEqual(m["lines"][0]["w"], [[3], [3]], "a phrase is one unit, a pause after each")
+            out = reflow.move(d, 0, "end", 0)
+            self.assertEqual(out["timed"]["by"], "words")
+            self.assertEqual(out["timed"]["word"], "明")
+            with io.open(os.path.join(d, "annotations.json"), encoding="utf-8") as f:
+                self.assertEqual(json.load(f)["segments"][1]["start"], 5)
+            errors, _w, _n = CA.check(d)
+            self.assertEqual(errors, [])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

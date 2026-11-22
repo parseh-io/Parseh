@@ -89,7 +89,24 @@ const FLOW_JA = {id: 'ja-flow-a1c3e5', folder: 'japanese', lang: 'ja', lines: [
     ['天気が', 'the weather', 'tenki ga', '天気 てんき tenki weather', 'が marks the subject', 'てんきが'],
     ['いいですね', 'is nice, isn\'t it', 'ii desu ne', '', '', 'いいですね']]],
 ]};
-const MORE = [FLOW_FA, FLOW_IT, FLOW_JA];
+// ---- the video of part f: a transcript the speech to text made here, with the time each word was heard
+// (wordtimes.json) and no full stops at all, the way auto-captions often come: a long pause after «همه» and
+// after «شما», and the first line running on into the second without one
+const TIMED = {id: 'fa-timed-d4e5f6', folder: 'persian', lang: 'fa', lines: [
+  [0, 'سلام و درود به همه چقدر دلم برای این لحظه',
+   [['سلام و درود', 'hello and greetings'], ['به همه', 'to everyone'], ['چقدر دلم', 'how much my heart'],
+    ['برای این لحظه', 'for this moment']]],
+  [10, 'برای صحبت کردن با شما امیدوارم حال دلتون',
+   [['برای صحبت کردن', 'for talking'], ['با شما', 'with you'], ['امیدوارم', 'I hope'], ['حال دلتون', 'state of your heart']]],
+  [20, 'خوب باشه و روزگار بر وفق مرادتون بگرده',
+   [['خوب باشه', 'be well'], ['و روزگار', 'and the times'], ['بر وفق مرادتون بگرده', 'turn as you wish']]],
+], words: [['سلام', 0.2], ['و', 0.6], ['درود', 0.8], ['به', 1.3], ['همه', 1.6],
+           ['چقدر', 6.8], ['دلم', 7.2], ['برای', 7.6], ['این', 8.1], ['لحظه', 9.1],
+           ['برای', 10.1], ['صحبت', 10.5], ['کردن', 10.9], ['با', 11.3], ['شما', 11.6],
+           ['امیدوارم', 16.2], ['حال', 16.9], ['دلتون', 17.3],
+           ['خوب', 20.1], ['باشه', 20.6], ['و', 21.1], ['روزگار', 21.4], ['بر', 22.0], ['وفق', 22.3],
+           ['مرادتون', 22.7], ['بگرده', 23.3]]};
+const MORE = [FLOW_FA, FLOW_IT, FLOW_JA, TIMED];
 
 const WORK = await Deno.makeTempDir({prefix: 'parseh-player-lines-'});
 const SERVE = String.raw`
@@ -145,6 +162,13 @@ for m in json.loads(sys.argv[4]):
     (dst / 'annotations.json').write_text(json.dumps(
         {'video': m['id'], 'language': m['lang'], 'segments': segs}, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
     (dst / 'transcript.txt').write_text('\n'.join(rows) + '\n', encoding='utf-8')
+    if m.get('words'):
+        # the word times as the add page adopts them: the speech to text's tape, cut into the transcript's lines
+        import wordtimes as W
+        doc = W.empty('drivejob', m['lang'], [{'word': w, 'start': t, 'end': t + 0.4} for w, t in m['words']],
+                      'whisper', 'test')
+        doc = W.sync(doc, CA.parse_transcript_text('\n'.join(rows) + '\n', m['lang']), m['lang'])
+        W._write(str(dst / 'wordtimes.json'), doc)
 import cardkit_harness
 cardkit_harness.serve_it(tmp, port, False, 'tray')
 `;
@@ -385,8 +409,8 @@ const wordOf = (i, k) => {
          tr.includes('سلام و درود به همه.'), 'and so does transcript.txt');
   assert(disk[2].start > 6 && disk[2].start < 16, 'the second line starts inside the line the words left: ' + disk[2].start);
   const said = await page.evaluate(() => document.getElementById('rfsay').textContent);
-  assert(/That line now begins at 0:10\.8 \u2014 worked out from the words, not heard/.test(said),
-         'the dock says the new start, to a tenth, and that it is an estimate: ' + said);
+  assert(/That line now begins at 0:10\.8 \u2014 estimated from the share of letters moved, not heard\. Why not the word times: this video has no word times; they are kept only for a transcript made here by speech to text\./.test(said),
+         'the dock says the new start, to a tenth, that it is an estimate, and why: ' + said);
   assert(await page.evaluate(() => !document.getElementById('rfundo').disabled &&
                              !document.getElementById('rfplay').disabled && !document.getElementById('rftune').disabled),
          'Undo, hear the join and fine-tune are live');
@@ -1003,6 +1027,79 @@ const wordOf = (i, k) => {
   eq(g.under.items.map(x => [x.c, x.f, x.lead]), [['fv', '0', null], ['fv', '1', null], ['fn', '1', '天気が']],
      'and the note is led by the phrase as it is written, without the reading hung over it');
   await shot(page, 'flow-ja');
+  await page.context().close();
+
+  /* ====================================================== f) the word times: the start heard, the pauses */
+  console.log('f) a video with the time each word was heard, and no full stops');
+  const TDIR = `${WORK}/root/youtube/videos/persian/${TIMED.id}`;
+  const tFiles = async () => Promise.all(['annotations.json', 'transcript.txt', 'wordtimes.json'].map(n =>
+    Deno.readTextFile(`${TDIR}/${n}`)));
+  const tBefore = await tFiles();
+  page = await openPage({}, 1280, TIMED);
+  await page.keyboard.press('m');
+  await page.waitForFunction(() => /pauses in the speech stand in/.test(document.getElementById('rfsay').textContent));
+  const hint = await page.evaluate(() => document.getElementById('rfsay').textContent);
+  assert(/no full stops, so the pauses in the speech stand in for them/.test(hint), 'the dock says what stands in for the full stops: ' + hint);
+  eq(await page.evaluate(() => [...document.querySelectorAll('#segs .seg')].map(s => s.classList.contains('rf-open'))),
+     [true, false, false], 'the line that runs on into the next without a pause is marked');
+  eq(await page.evaluate(() => [...document.querySelectorAll('.rf-pause')].map(e => e.textContent)), ['همه', 'شما'],
+     'a bar after each word a pause follows');
+  assert(await page.evaluate(() => !document.getElementById('rfnext').disabled), 'next open line walks them');
+  await shot(page, 'reflow-pauses');
+  const tWord = (i, k) => ({click: async () => {
+    const loc = page.locator(`.seg[data-i="${i}"] .fa .wd`).nth(k);
+    await loc.evaluate(e => e.closest('.seg').scrollIntoView({block: 'start'}));
+    await sleep(60);
+    await loc.click();
+  }});
+  await tWord(0, 4).click();                         // «همه»
+  await page.waitForSelector('#rfpop:not([hidden])');
+  const tEnd = await page.evaluate(() => document.querySelector('#rfpop .rfgo[data-edge="end"] small').textContent);
+  assert(/moves the 5 words after it down.*That line will begin when \u201c\u0686\u0642\u062f\u0631\u201d was heard\./.test(tEnd),
+         'the card says, before the move, that the new start is the time «چقدر» was heard: ' + tEnd);
+  assert(await page.evaluate(() => document.getElementById('rfnote').hidden), 'with word times the card has no note saying otherwise');
+  await shot(page, 'reflow-card-heard');
+  await page.click('#rfpop .rfgo[data-edge="end"]');
+  await page.waitForFunction(() => /^Moved/.test(document.getElementById('rfsay').textContent) &&
+                             !document.getElementById('rfdock').classList.contains('busy'));
+  const tSaid = await page.evaluate(() => document.getElementById('rfsay').textContent);
+  assert(/That line now begins at 0:06\.8, when \u201c\u0686\u0642\u062f\u0631\u201d was heard \(the word times of the speech to text\)\./.test(tSaid),
+         'the dock says the line begins when its first word was heard: ' + tSaid);
+  const tSegs = JSON.parse(await Deno.readTextFile(`${TDIR}/annotations.json`)).segments;
+  eq(tSegs.map(s => s.start), [0, 6.8, 20], 'annotations.json: the line starts at 6.8, the time «چقدر» was heard');
+  assert((await Deno.readTextFile(`${TDIR}/transcript.txt`)).includes('0:06.8\nچقدر دلم برای این لحظه برای صحبت کردن'),
+         'and so does transcript.txt');
+  const wt = JSON.parse(await Deno.readTextFile(`${TDIR}/wordtimes.json`));
+  eq(wt.captions.map(c => [wt.atoms[c.first].surface, c.text]),
+     [['سلام', 'سلام و درود به همه'], ['چقدر', 'چقدر دلم برای این لحظه برای صحبت کردن با شما امیدوارم حال دلتون'],
+      ['خوب', 'خوب باشه و روزگار بر وفق مرادتون بگرده']], 'wordtimes.json is cut the same way');
+  // the marks were read again after the move: the first line now ends on the pause after «همه»
+  await page.waitForFunction(() => !document.querySelector('.seg[data-i="0"]').classList.contains('rf-open'));
+  eq(await page.evaluate(() => [...document.querySelectorAll('#segs .seg')].map(s => s.classList.contains('rf-open'))),
+     [false, false, false], 'after the move no line runs on');
+  eq(await page.evaluate(() => [...document.querySelectorAll('.rf-pause')].map(e => e.textContent)), ['شما'],
+     'and the bars stand where the pauses now fall inside a line');
+  await page.click('#rfundo');
+  await page.waitForFunction(() => /^Taken back/.test(document.getElementById('rfsay').textContent));
+  eq(await tFiles(), tBefore, 'Undo gives back the three files byte for byte, the word times with them');
+  await page.waitForFunction(() => document.querySelector('.seg[data-i="0"]').classList.contains('rf-open'));
+  assert(true, 'and the first line is marked again');
+  await page.context().close();
+
+  console.log('   no full stops and no word times: the page says there is nothing to go by');
+  await Deno.remove(`${TDIR}/wordtimes.json`);
+  page = await openPage({}, 1280, TIMED);
+  await page.keyboard.press('m');
+  await page.waitForFunction(() => /nothing here can tell/.test(document.getElementById('rfsay').textContent));
+  assert(/no full stops and no word times, so nothing here can tell where a sentence ends/.test(
+    await page.evaluate(() => document.getElementById('rfsay').textContent)), 'it says so plainly');
+  assert(await page.evaluate(() => !document.querySelector('.rf-open') && !document.querySelector('.rf-pause') &&
+                             document.getElementById('rfnext').disabled), 'nothing is marked, and next open line is off');
+  await tWord(0, 4).click();
+  await page.waitForSelector('#rfpop:not([hidden])');
+  assert(/new start is estimated from the share of letters moved: this video has no word times/.test(await page.evaluate(() =>
+    document.getElementById('rfnote').hidden ? '' : document.getElementById('rfnote').textContent)), 'the card says, once, that the start will be estimated');
+  await page.keyboard.press('Escape');
   await page.context().close();
 
   assert(errors.length === 0, 'no page threw anything: ' + JSON.stringify(errors));

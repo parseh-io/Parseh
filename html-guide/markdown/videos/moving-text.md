@@ -2,7 +2,7 @@
 title: Moving text between lines
 linkTitle: Moving text
 weight: 11
-description: Making lines end where sentences do — the move text mode, the card by a word, what moves and what is cut, the start worked out from the words, Undo, and what it refuses.
+description: Making lines end where sentences do — the move text mode, the card by a word, what moves and what is cut, the start taken from the time a word was heard or estimated, the pauses that stand in for missing full stops, Undo, and what it refuses.
 ---
 
 ![The move text mode: a click on a word has opened the card by it, and the words that End the line here would move are outlined](shots/moving-text.png)
@@ -32,14 +32,34 @@ While it is on:
   a sentence really ends;
 - **a line that stops in the middle of a sentence** is marked with a **⋯** after
   its last word, so that the lines still to be mended can be seen at a glance —
-  **next open line**, in the dock, scrolls to the next one. The marks are drawn
-  only for a transcript that has full stops to go by: one YouTube left with no
-  punctuation at all (Persian and Arabic auto-captions) has none, and marking
-  every line would say nothing;
+  **next open line**, in the dock, scrolls to the next one. What tells where a
+  sentence ends is described under [Where a sentence ends](#where-a-sentence-ends);
 - **the cloud does not open** when you point at a phrase, since a click is
   choosing a word and a cloud would hide it.
 
 **Done** in the dock, or **Esc**, puts everything back.
+
+## Where a sentence ends
+
+**A transcript with full stops** (., ?, !, …, and the Persian, Arabic, Urdu,
+Chinese and Japanese ones) is read by them: a line that does not end on one is
+marked **⋯**.
+
+**A transcript with no full stops** — auto-captions as YouTube leaves Persian and
+Arabic, or a speech to text that wrote none — has nothing in its text to go by.
+If the video was transcribed here, by [speech to text](adding-a-video.md#speech-to-text), Parseh
+kept the time each word was heard, and **the pauses in the speech stand in for the
+full stops**: the dock says so, a **thin bar ‖** after a word marks a pause of
+0.65 seconds or more before the next word (the same measure as *tidy by the
+recording* on the add page), and a line is marked **⋯** when its last word runs
+on into the next line without one. A pause is not always the end of a sentence, and
+a sentence does not always end in a pause, so read them as suggestions: the line,
+the bar and your ear decide.
+
+**A transcript with neither** — no full stops and no word times (a video whose
+captions came from YouTube, or a file) — the dock says plainly that nothing here
+can tell where a sentence ends: no line is marked and **next open line** is off.
+Read it, or play a line (a click on its time), and choose.
 
 ## Choosing where a line ends or begins
 
@@ -51,7 +71,10 @@ Click a word. A small card opens by it, naming the word, with two choices:
 | **Start a line here** | the line begins at this word, and the words that were before it go up to the **end of the line above** |
 
 Each says how many words it moves and where (*moves the 5 words after it down
-to the start of the next line*), and **points at them before you press it**: the
+to the start of the next line*), how the new start of the line will be found
+(*That line will begin when “چقدر” was heard*, or *…estimated from the share of
+letters*, below; a video with no word times at all says that once, above the two
+choices), and **points at them before you press it**: the
 words it would move are outlined in the line while the pointer is on the choice.
 A choice that cannot be made is greyed, and says why under its name: *this is the
 last line*, *the line already begins here*, *the line before it is not glossed*, *a
@@ -89,20 +112,36 @@ the transcript is read, so that move is refused in the checker's words.
 
 ## The start of the line that gained or lost its first words
 
-The line whose first words changed starts somewhere else. **Nothing here hears
-the sound**, so its new start is worked out from the words: as much of the line's
-time as the moved words are of its characters, to a tenth of a second. The dock
-says so — *That line now begins at 0:10.8 — worked out from the words, not heard.*
-— and it is an estimate, a good first one where the speaker keeps an even pace and
-a poor one across a long pause.
+The line whose first words changed starts somewhere else: when its new first word
+is said. How Parseh finds that, in order:
+
+1. **The time the word was heard.** A video transcribed here by
+   [speech to text](adding-a-video.md#speech-to-text) keeps the time of every word
+   (`wordtimes.json`, kept through every edit on the add page). The line then
+   begins at the time its new first word was heard — or at the start you set for
+   that word by ear on the add page, which wins. The dock says so: *That line now
+   begins at 0:06.8, when “چقدر” was heard (the word times of the speech to
+   text).* It is the sound's own time, so it holds across a long pause, where an
+   estimate would not, and it is not moved again.
+2. **An estimate from the letters**, where there is no such time: a video whose
+   captions came from YouTube or a file has no word times, a word typed in after
+   the speech to text heard the rest has none of its own, and a time that falls
+   outside the two lines around it (their starts were moved since) is not
+   believed. The new start is then as much of the line's time as the moved words
+   are of its characters, to a tenth of a second — a good first guess where the
+   speaker keeps an even pace and a poor one across a long pause. The dock says
+   so, and why the word times were not used: *That line now begins at 0:10.8 —
+   estimated from the share of letters moved, not heard. Why not the word times:
+   this video has no word times; …*
 
 **Where the sound can be read** — a film on this machine, or a YouTube video whose
 sound has been drawn ([the picture of the sound](the-timings.md#the-picture-of-the-sound)) —
-the estimate is then **settled into the nearest pause**, within three seconds of it,
-as **into the quiet** does in the timings sheet, and the dock says so (*…worked out
-from the words, then settled in the nearest pause of the sound*). No pause near it, or
-no picture of the sound: it stays as worked out. Undo takes the settling back with the
-words.
+an estimate is then **settled into the nearest pause**, within three seconds of it,
+as **into the quiet** does in the timings sheet, and the dock says so (*…estimated
+from the share of letters moved, then settled in the nearest pause of the sound*). No
+pause near it, or no picture of the sound: it stays as estimated. Undo takes the
+settling back with the words. A start taken from the time a word was heard is not
+settled: it is already the sound's.
 
 Two buttons in the dock put it right:
 
@@ -133,7 +172,9 @@ all together or not at all:
 - a legacy video's **`parts/`** batches, their starts only (they are the record of
   what an LLM answered, and nothing rebuilds a video from them any more);
 
-and not `wordtimes.json`, which is the capture of the speech model as it was.
+- `wordtimes.json`, where the video has one: the same words, cut into the lines
+  the same new way. No word's time changes — no word was said anew — so a second
+  move reads the times the first one left, and Undo gives the file back as it was.
 
 The check is run before and after, and the move is refused, in its own words, if
 it would bring in an error the file did not already have.
