@@ -305,7 +305,8 @@ the imperfect, the masdar and, in its parenthesis, the preposition the verb
 governs; a noun gives its plural and its root in parentheses; the article and
 the prepositions are never glossed.
 
-## Dialect sentences and machine translation (a0.6.3, TO-DO 12.33)
+{{?note}}DIALECT SENTENCES AND MACHINE TRANSLATION (TO-DO 12.33; a word to whoever maintains this file; no prompt
+carries it).
 
 A word only a dialect has found nothing among the translated sentences,
 because the corpus (`lib/corpus.py`, built by `lib/getcorpus.py` from
@@ -354,4 +355,4 @@ each pair marked with its `variety`.
 **Machine translation: no dialect model.** Mozilla's models are Arabic
 (MSA) to English; there is no dialect pair, and none runs in the browser
 engine Parseh uses. A dialect text is sent to the Arabic model as it is,
-and the panel says so under the machine's reading.
+and the panel says so under the machine's reading.{{/note}}
