@@ -1,0 +1,19 @@
+{
+  "_comment": "Egyptian Arabic's own function words, for lib/chunker.py: read before lib/lang/ar.chunk.json for a book or a video written in Egyptian (variety ar.egy), whose word lists join Arabic's and whose other settings stay Arabic's. Only the closed classes the grammars agree on, in Arabic letters as Egyptian is written online; a word not listed here is read as standard Arabic reads it (by the dictionary). Measured with tests/dialect_bench.py --chunks on tests/fixtures/arabic-dialects/phrases/ar-egy.txt.",
+  "_sources": [
+    "Ernest T. Abdel-Massih, Zaki N. Abdel-Malek, El-Said M. Badawi, A Comprehensive Study of Egyptian Arabic, vol. 3: A Reference Grammar of Egyptian Arabic (University of Michigan, 1979): pronouns, demonstratives, negation, relative illi, the genitive exponent bitaa'.",
+    "Manfred Woidich, Das Kairenisch-Arabische: eine Grammatik (Harrassowitz, 2006): the same classes, and the demonstratives da/di/dool after their noun.",
+    "Kristen Brustad, The Syntax of Spoken Arabic: A Comparative Study of Moroccan, Egyptian, Syrian, and Kuwaiti Dialects (Georgetown University Press, 2000): negation (mish, ma-...-sh), the analytic genitive, relative clauses with illi, question words left in place."
+  ],
+  "_function_words": "PRON: the personal pronouns, the question words that stand for a noun (eeh, miin). PART: the demonstratives, which FOLLOW their noun in Egyptian (il-beet da) and so lean on the word before them, and the genitive exponent with a pronoun on it (il-kitaab bitaa'i). ADP: the bare genitive exponent, a tie (`ties`) between its noun and the noun after it, and wayya 'with'. NEG: mish and ma. CONJ: what opens a clause -- illi (the relative), 'ashaan, lamma, bass ('but'). ADV: the question words that stand for an adverb (feen, imta, izzaay, leeh) and kida; Egyptian leaves a question word in place (Brustad 2000), so it opens no clause and is not a CONJ here.",
+  "function_words": {
+    "PRON": ["أنا", "انا", "إنت", "انت", "إنتي", "انتي", "إنتو", "انتو", "هو", "هي", "إحنا", "احنا", "هما", "إيه", "ايه", "مين"],
+    "PART": ["ده", "دي", "دول", "بتاعي", "بتاعك", "بتاعه", "بتاعها", "بتاعنا", "بتاعكو", "بتاعكم", "بتاعهم", "بتاعتي", "بتاعتك", "بتاعته", "بتاعتها", "بتاعتنا", "بتاعتكو", "بتاعتهم", "بتوعي", "بتوعك", "بتوعه", "بتوعها", "بتوعنا", "بتوعهم"],
+    "ADP": ["بتاع", "بتاعة", "بتاعت", "بتوع", "ويا"],
+    "NEG": ["مش", "ما"],
+    "CONJ": ["اللي", "إللي", "عشان", "علشان", "لما", "بس"],
+    "ADV": ["فين", "إمتى", "امتى", "إزاي", "ازاي", "ليه", "كده", "كدا"]
+  },
+  "_ties": "The genitive exponent stays with the noun it follows: il-kitaab bitaa' il-walad.",
+  "ties": ["بتاع", "بتاعة", "بتاعت", "بتوع"]
+}

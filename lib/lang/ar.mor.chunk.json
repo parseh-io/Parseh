@@ -1,0 +1,107 @@
+{
+  "_comment": "Moroccan Arabic's (Darija's) own function words, for lib/chunker.py: read before lib/lang/ar.chunk.json for a book or a video written in Moroccan (variety ar.mor), whose word lists join Arabic's and whose other settings stay Arabic's. Only the closed classes the grammars agree on, in Arabic letters as Darija is written online; a word not listed here is read as standard Arabic reads it (by the dictionary). Measured with tests/dialect_bench.py --chunks on tests/fixtures/arabic-dialects/phrases/ar-mor.txt.",
+  "_sources": [
+    "Richard S. Harrell, A Short Reference Grammar of Moroccan Arabic (Georgetown University Press, 1962): pronouns, demonstratives (had, hadi, hadu, hadak, hadik), negation (ma-...-sh, mashi), the genitive exponent dyal, relative lli, the future gha/ghadi, question words (shnu, ash, fin, 'lash, kifash, shHal, qeddash, shkun), conjunctions (bash, Hit, melli, ila).",
+    "Dominique Caubet, L'arabe marocain (Peeters, 1993): the same classes.",
+    "Kristen Brustad, The Syntax of Spoken Arabic (Georgetown University Press, 2000): negation, the analytic genitive with dyal, relative clauses, question words."
+  ],
+  "_function_words": "PRON: the personal pronouns; the question words that stand for a noun (shnu, ash, shkun). DET and PRON: the demonstratives, before their noun and read in their place. PART: the genitive exponent with a pronoun on it (s-sarut dyali). ADP: the bare genitive exponent dyal, a tie (`ties`), and Hda 'beside'. PREF: the future's ghadi and gha, bound to the verb after them. AUX: khass 'must', laazem. NEG: ma, mashi. CONJ: what opens a clause -- lli, bash ('so that'), Hit ('because'), melli ('when'), ila ('if'), walakin. ADV: the question words that stand for an adverb (fin, 'lash, kifash, imta, shHal, qeddash) and hna 'here', temma 'there'.",
+  "function_words": {
+    "PRON": [
+      "أنا",
+      "انا",
+      "نتا",
+      "نتي",
+      "نتوما",
+      "هو",
+      "هي",
+      "حنا",
+      "هوما",
+      "شنو",
+      "آش",
+      "اش",
+      "شكون",
+      "هاد",
+      "هادا",
+      "هادي",
+      "هادو",
+      "هاداك",
+      "هاديك",
+      "هادوك"
+    ],
+    "DET": [
+      "هاد",
+      "هادا",
+      "هادي",
+      "هادو",
+      "هاداك",
+      "هاديك",
+      "هادوك"
+    ],
+    "PART": [
+      "ديالي",
+      "ديالك",
+      "ديالو",
+      "دياله",
+      "ديالها",
+      "ديالنا",
+      "ديالكم",
+      "ديالهم"
+    ],
+    "ADP": [
+      "ديال",
+      "حدا"
+    ],
+    "PREF": [
+      "غادي",
+      "غادية",
+      "غاديين",
+      "غا"
+    ],
+    "AUX": [
+      "خاص",
+      "خصني",
+      "خصك",
+      "خصو",
+      "خصها",
+      "خصنا",
+      "خصكم",
+      "خصهم",
+      "لازم"
+    ],
+    "NEG": [
+      "ما",
+      "ماشي"
+    ],
+    "CONJ": [
+      "اللي",
+      "باش",
+      "حيت",
+      "حيث",
+      "ملي",
+      "إلا",
+      "الا",
+      "ولكن",
+      "ولاكين"
+    ],
+    "ADV": [
+      "فين",
+      "علاش",
+      "كيفاش",
+      "إمتى",
+      "امتى",
+      "شحال",
+      "قداش",
+      "هنا",
+      "تما",
+      "تمة"
+    ]
+  },
+  "_PRON_DET": "The demonstratives are under DET and PRON both: lib/chunker.py _in_context reads one as a determiner before a noun and as a pronoun before a verb or with nothing after it.",
+  "_ties": "The genitive exponent stays with the noun it follows: l-ktab dyal khuya.",
+  "ties": [
+    "ديال"
+  ],
+  "_li": "لي, the relative lli as it is often written, is NOT listed: it is also the dative 'to me' (دير لي), and the two cannot be told apart by the word alone.",
+  "_ila": "إلا is Darija's 'if' (ila) and standard Arabic's 'except': in a Moroccan text it opens a clause either way."
+}

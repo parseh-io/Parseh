@@ -1,0 +1,12 @@
+{
+  "_comment": "How Gulf Arabic says the letters a romanisation of standard Arabic writes, for lib/translit.py: read before lib/lang/ar.ipa.json for a book or a video written in Gulf Arabic (variety ar.gulf). Whatever this file does not say is ar.ipa.json's. ONLY the one consonant correspondence every description of the Gulf gives: ق as g. The interdentals ث ذ ظ are kept, as standard Arabic writes them; vowels, endings and stress are not touched.",
+  "_sources": [
+    "Clive Holes, Gulf Arabic (Routledge Descriptive Grammars, 1990), part 3 (phonology): q > g, the interdentals kept.",
+    "Hamdi A. Qafisheh, A Short Reference Grammar of Gulf Arabic (University of Arizona Press, 1977).",
+    "Janet C. E. Watson, The Phonology and Morphology of Arabic (Oxford University Press, 2002), ch. 2."
+  ],
+  "from_standard": {
+    "_map": "A letter of the standard romanisation (the standard dictionary's hits, shown in a text written in Gulf Arabic) to the letter the Gulf says: ق is g (qalb > galb, qāl > gāl). Left out, to the research brief: ج as y (Kuwait, the Emirates, Bahrain's Arab speech) or j (Saudi Arabia, Qatar), k as č and g as j before front vowels (čalb, jiddām), which hang on the town and on the vowel.",
+    "map": {"q": "g", "Q": "G"}
+  }
+}

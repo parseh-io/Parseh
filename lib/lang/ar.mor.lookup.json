@@ -1,5 +1,5 @@
 {
-  "_comment": "How a word of a text in Moroccan Arabic (Darija, in Arabic letters) is turned into something a dictionary can be asked about: the Moroccan dictionary first, the standard one after it, these rules and then lib/lang/ar.lookup.json's. Written onto a word standard Arabic also has: the present's ka-/ta- (كيكتب, تيكتب, كنكتب = أكتب: Moroccan's first person singular is n-), the future's ġa- (غيكتب; غادي is a word of its own), the negation's ma-...-š (ماكيكتبش, three steps, so this file allows three), في ال- fused (فالدار), the pronoun written onto the verb with -l- and the dropped hamza. Words of its own (بزاف, ديال, الدراري) are the Moroccan dictionary's. Latin-letter Darija (Arabizi) is not read. Measured on TODOs/arabic-dialects/ar-mor.txt.",
+  "_comment": "How a word of a text in Moroccan Arabic (Darija, in Arabic letters) is turned into something a dictionary can be asked about: the Moroccan dictionary first, the standard one after it, these rules and then lib/lang/ar.lookup.json's. Written onto a word standard Arabic also has: the present's ka-/ta- (كيكتب, تيكتب, كنكتب = أكتب: Moroccan's first person singular is n-), the future's ġa- (غيكتب; غادي is a word of its own), the negation's ma-...-š (ماكيكتبش, three steps, so this file allows three), في ال- fused (فالدار), the pronoun written onto the verb with -l- and the dropped hamza. Words of its own (بزاف, ديال, الدراري) are the Moroccan dictionary's. Latin-letter Darija (Arabizi) is not read. Measured with tests/dialect_bench.py on tests/fixtures/arabic-dialects/ar-mor.txt.",
   "max_peel": 3,
   "affixes": [
     {
@@ -75,6 +75,11 @@
       "prefix": "فال",
       "front": "ال",
       "note": "فال- (في ال-) taken off, the article put back"
+    },
+    {
+      "prefix": "فال",
+      "min_stem_length": 3,
+      "note": "فال- (في ال-) taken off, with its article: a Moroccan word the dictionaries list without the article form (فالزنقة is زنقة)"
     },
     {
       "prefix": "ف",

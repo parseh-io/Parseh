@@ -265,6 +265,10 @@ def _conn(code):
             # which language this connection is, so a pronunciation can be
             # written the way that language writes one
             _CODE_OF[id(conn)] = L.code
+            # and the stem its romanisation rules are filed under: a variety's
+            # own dictionary (ar.egy) writes its sounds by ar.egy.ipa.json
+            # read before ar.ipa.json (translit.ipa_rules)
+            _KEY_OF[id(conn)] = L.key
             for _k in [k for k in _HAS_IPA if k[0] == id(conn)]:
                 _HAS_IPA.pop(_k, None)
         except sqlite3.Error:
@@ -1033,8 +1037,8 @@ def _hits_for(c, form, prefer=()):
         # headword, whose sound is the lemma's (`said`): which row says it
         # is translit.form_sound's business, and a language's ipa.json's.
         own = got[i]["bare"] or got[i]["named"]
-        of_form = "" if own else translit.form_sound(code, romans[i], ipas[i],
-                                                     " " in form)
+        of_form = "" if own else translit.form_sound(_sound_code(c), romans[i], ipas[i],
+                                                     " " in form, head=form)
         hit = _hit(c, full[i], notes[i], of_form,
                    form if (i in spelled and full[i]["headword"] != form) else "")
         # which tier the hit is in, for `_by_use` to keep (see _tier_of).
@@ -1205,7 +1209,7 @@ def _hit(c, r, notes, of_form, spelled=""):
     source = (r["translit"] or "").strip()
     if source.lower() in _NOT_A_SOUND:
         source = ""
-    source = translit.tidy_roman(code, source)
+    source = translit.tidy_roman(_sound_code(c), source, head=head)
     of_form = of_form or ""
     return {"entry": r["id"],
             "headword": head,
@@ -1223,6 +1227,7 @@ def _hit(c, r, notes, of_form, spelled=""):
 
 _HAS_IPA = {}
 _CODE_OF = {}
+_KEY_OF = {}
 
 
 def _has_col(c, name, table="entry"):
@@ -1255,6 +1260,13 @@ def _code_of(c):
     """Which language this connection is, so the pronunciation can be written
     the way that language writes it."""
     return _CODE_OF.get(id(c), "")
+
+
+def _sound_code(c):
+    """The stem this connection's romanisations are tidied under: the
+    language's, or a variety's own dictionary's (ar.egy), whose rules
+    translit.ipa_rules reads before the language's."""
+    return _KEY_OF.get(id(c)) or _code_of(c)
 
 
 def _known(c, form):
@@ -1550,6 +1562,7 @@ def _with_variety(c, raw, alts, V, from_model, initial):
     cv = _conn(V.key)
     own = _resolve(cv, raw, alts, V, from_model, initial) if cv is not None else []
     std = _resolve(c, raw, alts, V, from_model, initial)
+    _said_in_variety(std, V)
     # said in the note every panel shows under a hit, old readers' included
     for w in own:
         for h in w.get("hits") or []:
@@ -1570,6 +1583,26 @@ def _with_variety(c, raw, alts, V, from_model, initial):
         merged["tried"] = a.get("tried", []) + [t for t in b.get("tried", []) if t not in a.get("tried", [])]
         out.append(merged)
     return out
+
+
+def _said_in_variety(words, V):
+    """The standard dictionary's romanisation of its hits, as the variety says
+    those letters (translit.in_variety, lib/lang/ar.<v>.ipa.json): Egyptian
+    قلب is ʾalb where the standard entry writes qalb.  Only the consonants a
+    variety's file names are changed, and the standard romanisation is kept
+    beside it (`standard_translit`) for anything that wants the dictionary's
+    own.  A variety with no such file, and every language without varieties,
+    is left exactly as it was."""
+    for w in words:
+        for h in w.get("hits") or []:
+            if h.get("variety"):
+                continue
+            was = h.get("translit") or ""
+            for k in ("translit", "head_sound", "of_form"):
+                if h.get(k):
+                    h[k] = translit.in_variety(V.key, h[k])
+            if h.get("translit") != was:
+                h["standard_translit"] = was
 
 
 # What ends a sentence, and what opens one, around a word of the chunk.

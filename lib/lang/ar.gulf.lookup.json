@@ -1,5 +1,5 @@
 {
-  "_comment": "How a word of a text in Gulf Arabic is turned into something a dictionary can be asked about: the Gulf dictionary first (kaikki's Gulf and Hijazi Arabic), the standard one after it, these rules and then lib/lang/ar.lookup.json's. Gulf writes less onto its words than Egyptian or Levantine: the future's b- (بيروح, باكتب = أكتب), the progressive's qāʿid is a word of its own, and the negations ما, مب, مو are words of their own; the pronoun written onto the verb with -l- and the dropped hamza are as elsewhere. Measured on TODOs/arabic-dialects/ar-gulf.txt.",
+  "_comment": "How a word of a text in Gulf Arabic is turned into something a dictionary can be asked about: the Gulf dictionary first (kaikki's Gulf and Hijazi Arabic), the standard one after it, these rules and then lib/lang/ar.lookup.json's. Gulf writes less onto its words than Egyptian or Levantine: the future's b- (بيروح, باكتب = أكتب), the progressive's qāʿid is a word of its own, and the negations ما, مب, مو are words of their own; the pronoun written onto the verb with -l- and the dropped hamza are as elsewhere. Measured with tests/dialect_bench.py on tests/fixtures/arabic-dialects/ar-gulf.txt.",
   "max_peel": 3,
   "affixes": [
     {

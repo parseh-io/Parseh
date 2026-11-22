@@ -1,0 +1,16 @@
+{
+  "_comment": "How Levantine Arabic (the urban speech of Damascus, Beirut and Jerusalem) says the letters a romanisation of standard Arabic writes, for lib/translit.py: read before lib/lang/ar.ipa.json for a book or a video written in Levantine (variety ar.lev). Whatever this file does not say is ar.ipa.json's. ONLY the consonant correspondences every description of urban Levantine gives; vowels, endings and stress are not touched.",
+  "_sources": [
+    "Mark W. Cowell, A Reference Grammar of Syrian Arabic (Georgetown University Press, 1964), ch. 1: Damascene q > ʔ and the interdentals > stops in the inherited words.",
+    "Janet C. E. Watson, The Phonology and Morphology of Arabic (Oxford University Press, 2002), ch. 2.",
+    "Kees Versteegh, The Arabic Language, 2nd ed. (Edinburgh University Press, 2014), ch. 10 (the Syro-Lebanese dialects)."
+  ],
+  "from_standard": {
+    "_map": "A letter of the standard romanisation (the standard dictionary's hits, shown in a text written in Levantine) to the letter the cities say. ق is a glottal stop (qalb > ʾalb); ث ذ ظ are t d ḍ in the inherited words (ṯalāṯa > talāta, ḏahab > dahab, ẓahr > ḍahr). ج is LEFT j: it is ž in Damascus and Beirut and j further south, and the Levantine dictionary itself writes j (304 of its 325 entries with ج), so one sound keeps one letter in the panel. Left to the research brief with it: ق as g or k in the countryside, and the words from the written language that keep q, s, z, ẓ.",
+    "map": {"q": "ʾ", "Q": "ʾ", "ṯ": "t", "Ṯ": "T", "ḏ": "d", "Ḏ": "D", "ẓ": "ḍ", "Ẓ": "Ḍ"}
+  },
+  "roman": {
+    "_keep_initial": "The Levantine dictionary writes a word that begins with ق with its glottal stop (قلب ʔalb): that ʾ is the word's first consonant and is kept, where the hamza of a word that begins with a vowel is dropped as ar.ipa.json says.",
+    "keep_initial": "ق"
+  }
+}

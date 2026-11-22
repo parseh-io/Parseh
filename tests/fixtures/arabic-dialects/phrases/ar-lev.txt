@@ -1,0 +1,9 @@
+# Levantine Arabic, longer sentences with the sense groups a reader would want, " | " between them (2026-11-22).
+# Written and cut BEFORE lib/lang/ar.lev.chunk.json was written, by the agent of lane H1 (not a native speaker):
+# the owner, or a speaker, should check the cuts.  The bench (tests/dialect_bench.py --chunks) scores the seams.
+شو بدك تعمل | بس تخلص الشغل | اليوم المسا؟
+هاد الشب | اللي شفناه مبارح | بيشتغل بمحل جنب البيت.
+ما بعرف | وين حطيت المفاتيح تبعي.
+إذا ما في حدا بالبيت | منروح لعند جدتي.
+هيك أحسن | لأنو ما في وقت | نحكي هلق.
+مش رح نقدر نجي | عالعرس يوم الجمعة.

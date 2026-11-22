@@ -1,0 +1,23 @@
+{
+  "_comment": "Gulf Arabic's own function words, for lib/chunker.py: read before lib/lang/ar.chunk.json for a book or a video written in Gulf Arabic (variety ar.gulf), whose word lists join Arabic's and whose other settings stay Arabic's. Only the closed classes the grammars agree on, in Arabic letters as Gulf Arabic is written online; a word not listed here is read as standard Arabic reads it (by the dictionary). Measured with tests/dialect_bench.py --chunks on tests/fixtures/arabic-dialects/phrases/ar-gulf.txt.",
+  "_sources": [
+    "Clive Holes, Gulf Arabic (Routledge Descriptive Grammars, 1990): pronouns, demonstratives (haadha, haadhi, hadhool), negation (ma, mub/mu), the genitive exponent maal/maalat, the progressive gaa'id, relative illi, question words (wesh, ween, leesh), wiyya 'with'.",
+    "Hamdi A. Qafisheh, A Short Reference Grammar of Gulf Arabic (University of Arizona Press, 1977): the same classes.",
+    "Kristen Brustad, The Syntax of Spoken Arabic (Georgetown University Press, 2000), on Kuwaiti: negation, the analytic genitive, relative clauses, question words."
+  ],
+  "_function_words": "PRON: the personal pronouns; the question words that stand for a noun (wesh, eesh, minu, men). DET and PRON: the demonstratives, before their noun and read in their place. PART: the genitive exponent with a pronoun on it (is-sayyaara maalti). ADP: the bare genitive exponent maal/maalat, a tie (`ties`), and wiyya 'with'. AUX: gaa'id (the progressive), laazim 'must'. NEG: ma, mub, mu. CONJ: what opens a clause -- illi, 'ashaan, leen ('until'), lo, bas ('but'), idha. ADV: the question words that stand for an adverb (ween, leesh, shloon, mita) and chidhi/chidi 'like this', hni 'here'.",
+  "function_words": {
+    "PRON": ["أنا", "انا", "إنت", "انت", "إنتي", "انتي", "إنتوا", "انتوا", "إنتو", "هو", "هي", "إحنا", "احنا", "حنا", "هم", "همّ", "وش", "ويش", "إيش", "ايش", "منو", "مين", "هذا", "هذي", "هاذي", "هذيل", "هذولا", "هذاك", "هذيك"],
+    "DET": ["هذا", "هذي", "هاذي", "هذيل", "هذولا", "هذاك", "هذيك"],
+    "PART": ["مالي", "مالك", "ماله", "مالها", "مالنا", "مالكم", "مالهم", "مالتي", "مالتك", "مالته", "مالتها", "مالتنا", "مالتكم", "مالتهم"],
+    "ADP": ["مال", "مالت", "مالة", "ويا"],
+    "AUX": ["قاعد", "قاعدة", "قاعدين", "لازم"],
+    "NEG": ["ما", "مب", "مو"],
+    "CONJ": ["اللي", "إللي", "عشان", "علشان", "لين", "لو", "بس", "إذا", "اذا"],
+    "ADV": ["وين", "ليش", "شلون", "متى", "چذي", "جذي", "كذا", "هني"]
+  },
+  "_PRON_DET": "The demonstratives are under DET and PRON both: lib/chunker.py _in_context reads one as a determiner before a noun and as a pronoun before a verb or with nothing after it.",
+  "_ties": "The genitive exponent stays with the noun it follows: is-sayyaara maal abuuy.",
+  "ties": ["مال", "مالت", "مالة"],
+  "_mal": "مال is also standard Arabic's 'money' and the verb 'to lean': listed here because in a Gulf text after a noun it is overwhelmingly the genitive exponent (Holes 1990); before a noun with nothing in front it still reads as a tie, which costs at most a seam."
+}

@@ -223,6 +223,43 @@ chunk. A negation stays with its verb (`لَمْ يَكْتُبْ`, `لَا أَ
 conjunction clitic with the word it is written on. A very short sentence
 (`نَعَمْ`, `اُكْتُبْ`) is one chunk; that is normal and not a fault.
 
+{{?note}}THE DIALECTS, MEASURED (a word to whoever maintains this file; no prompt carries it).
+A book or a video may be written in a variety (`ar.egy`, `ar.lev`, `ar.gulf`, `ar.mor`): its dictionary and
+`lib/lang/ar.<v>.lookup.json` are read before the standard ones, `lib/lang/ar.<v>.chunk.json` (its function words)
+before `ar.chunk.json`, and `lib/lang/ar.<v>.ipa.json` (how it says q, j and the interdentals) before `ar.ipa.json`.
+The figures below are `python3 tests/dialect_bench.py` on the hand-judged sets of `tests/fixtures/arabic-dialects/`
+(one person's judgement of a small sample: a word or two is noise), with kaikki's extracts of 2026-11-22.
+
+Right entry first, as built (the held-out sets, written after the rules and never used to write one): Egyptian 85%
+(24/28), Levantine 89% (25/28), Gulf 85% (24/28), Moroccan 83% (20/24); read as standard Arabic the same sets give
+53%, 57%, 64% and 33%. On the sets the rules were written on: 81%, 81%, 77%, 72%. Standard Arabic's own set, by the
+dictionary alone: 84% (66/78).
+
+The order after the two dictionaries are merged (the dialect's entries first, then the standard's, `lookup.
+_with_variety`) is the right one: with the standard dictionary's entries first instead, the held-out sets would give
+53%, 67%, 64%, 58%. Of the 108 held-out words, 6 have the right entry on the panel but not first: 3 because the
+dialect's dictionary has the same word under its own headword and the judged answer is the standard one (اليوم,
+أبغى → بغي, الما → ما "water"), which a reader can call right; 2 because another entry of the dialect's dictionary
+comes first (Levantine روح before راح, Gulf خل before خلى); 1 because another standard entry does (خليك → خلي before
+خلى). Every other miss is a word no installed dictionary has, which no order can mend.
+
+Moroccan, a second look (2026-11-22): its misses on the working set were (a) فال- (في ال-) found nothing where the
+Moroccan dictionary lists the noun without its article form (فالزنقة, فالسبيطار): a second rule takes فال off whole,
+72% from 67%, the held-out set unchanged at 83%; (b) the Moroccan dictionary's own headword of the same word where the
+set wanted the standard one (بالزاف for بزاف, سير "to go" for سار, جا for جاء, ما for ماء, دري for دراري): the reader
+sees the right word, the judgement is strict; (c) verbs whose final hamza Darija drops or writes as ا (نقرا, مشا) and
+imperatives with a pronoun (عطيني, عافاك), left for the verbs' brief (12.30). Arabizi (Darija in Latin letters) is
+not read: no dictionary of it exists to install.
+
+Cutting into phrases, on the longer sentences of `tests/fixtures/arabic-dialects/phrases/` (cut by hand before the
+lists were written; the word sets' sentences are each one phrase), seams in the right place, standard rules → the
+dialect's lists: Egyptian 5 of 11 → 8 of 11, Levantine 2 of 9 → 5 of 9, Gulf 3 of 9 → 5 of 9, Moroccan 0 of 8 → 1 of
+8 (its verbs are mostly in no dictionary, so their class is unknown). Standard Arabic's cut is byte-identical.
+
+Romanisation: the standard dictionary's entries in a dialect text are said the dialect's way, consonants only
+(Egyptian q → ʾ, j → g, ṯ ḏ ẓ → t d ḍ; Levantine q → ʾ, ṯ ḏ ẓ → t d ḍ; Gulf q → g; Moroccan ṯ ḏ ẓ → t d ḍ); the
+dialect dictionaries' own romanisations are kept as they are, but for the ʾ of a word written with ق.{{/note}}
+
 ## Example
 
 {{?note}}No speaker has reviewed this example yet: an Arabic reader should read the

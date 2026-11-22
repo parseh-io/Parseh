@@ -1,0 +1,9 @@
+# Gulf Arabic, longer sentences with the sense groups a reader would want, " | " between them (2026-11-22).
+# Written and cut BEFORE lib/lang/ar.gulf.chunk.json was written, by the agent of lane H1 (not a native speaker):
+# the owner, or a speaker, should check the cuts.  The bench (tests/dialect_bench.py --chunks) scores the seams.
+وش تبي نسوي اليوم | بعد ما نخلص الدوام؟
+هذا الريال | اللي يشتغل وياي | ساكن قريب من البيت.
+ما أدري | وين حطيت المفاتيح مالتي.
+إذا تبي تروح | قول لي | عشان أجي وياك.
+هذي السيارة مب زينة | وايد غالية.
+ليش ما قلت لي | إنك بتسافر | باجر الصبح؟

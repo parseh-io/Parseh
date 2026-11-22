@@ -1,0 +1,129 @@
+{
+  "_comment": "Levantine Arabic's own function words, for lib/chunker.py: read before lib/lang/ar.chunk.json for a book or a video written in Levantine (variety ar.lev), whose word lists join Arabic's and whose other settings stay Arabic's. Only the closed classes the grammars agree on, in Arabic letters as Levantine is written online; a word not listed here is read as standard Arabic reads it (by the dictionary). Measured with tests/dialect_bench.py --chunks on tests/fixtures/arabic-dialects/phrases/ar-lev.txt.",
+  "_sources": [
+    "Mark W. Cowell, A Reference Grammar of Syrian Arabic (Georgetown University Press, 1964): pronouns, demonstratives (haada, haadi, hadool, the prefixed ha-), negation (ma, mish, mu), the progressive 'am, the future raH, bidd- 'want', the genitive exponent taba', relative illi, question words.",
+    "Kristen Brustad, The Syntax of Spoken Arabic (Georgetown University Press, 2000): negation, the analytic genitive, relative clauses with illi, question words."
+  ],
+  "_function_words": "PRON: the personal pronouns; the question words that stand for a noun (shu, miin, ish). DET and PRON: the demonstratives, which stand BEFORE their noun (haad il-kitaab) and are read in their place. PART: the genitive exponent with a pronoun on it (il-mafatiiH taba'i). ADP: the bare genitive exponent taba'/tab'it, a tie (`ties`), and la-'and 'to (the place of)'. PREF: the progressive 'am and the future raH, bound to the verb after them like Persian's mi. AUX: bidd- 'want' with its pronoun, and laazim 'must'. NEG: ma, mish, mu. CONJ: what opens a clause -- illi, la'innu, innu, minshaan, lamma, bass ('but'), iza. ADV: the question words that stand for an adverb (ween, leesh, eemta, addeesh) and heek, hon, hunik.",
+  "function_words": {
+    "PRON": [
+      "أنا",
+      "انا",
+      "إنت",
+      "انت",
+      "إنتي",
+      "انتي",
+      "إنتو",
+      "انتو",
+      "هو",
+      "هي",
+      "هيي",
+      "هوي",
+      "نحنا",
+      "إحنا",
+      "احنا",
+      "هني",
+      "هنن",
+      "هم",
+      "شو",
+      "مين",
+      "إيش",
+      "ايش",
+      "هاد",
+      "هادا",
+      "هادي",
+      "هاي",
+      "هدول",
+      "هيدا",
+      "هيدي",
+      "هيدول"
+    ],
+    "DET": [
+      "هاد",
+      "هادا",
+      "هادي",
+      "هاي",
+      "هدول",
+      "هيدا",
+      "هيدي",
+      "هيدول",
+      "هيداك",
+      "هيديك"
+    ],
+    "PART": [
+      "تبعي",
+      "تبعك",
+      "تبعو",
+      "تبعه",
+      "تبعها",
+      "تبعنا",
+      "تبعكن",
+      "تبعكم",
+      "تبعهن",
+      "تبعهم",
+      "تبعيتي"
+    ],
+    "ADP": [
+      "تبع",
+      "تبعت",
+      "تبعات",
+      "لعند"
+    ],
+    "PREF": [
+      "عم",
+      "رح"
+    ],
+    "AUX": [
+      "بدي",
+      "بدك",
+      "بدو",
+      "بده",
+      "بدها",
+      "بدنا",
+      "بدكن",
+      "بدكم",
+      "بدهن",
+      "بدهم",
+      "لازم"
+    ],
+    "NEG": [
+      "ما",
+      "مش",
+      "مو"
+    ],
+    "CONJ": [
+      "اللي",
+      "إللي",
+      "لأنو",
+      "لانو",
+      "لإنو",
+      "إنو",
+      "انو",
+      "منشان",
+      "مشان",
+      "لما",
+      "بس",
+      "إذا",
+      "اذا"
+    ],
+    "ADV": [
+      "وين",
+      "ليش",
+      "إيمتى",
+      "ايمتى",
+      "إمتى",
+      "امتى",
+      "قديش",
+      "هيك",
+      "هون",
+      "هنيك"
+    ]
+  },
+  "_PRON_DET": "The demonstratives are under DET and PRON both (haada mniiH 'that is good'): lib/chunker.py _in_context reads one as a determiner before a noun and as a pronoun before a verb or with nothing after it.",
+  "_ties": "The genitive exponent stays with the noun it follows: il-beet taba' jiddi.",
+  "ties": [
+    "تبع",
+    "تبعت",
+    "تبعات"
+  ]
+}

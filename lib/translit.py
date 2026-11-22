@@ -165,7 +165,7 @@ def deva_to_iast(s):
     return "".join(out)
 
 
-def tidy_roman(code, s):
+def tidy_roman(code, s, head=""):
     """A romanisation the source gives, written the way this edition writes.
 
     THE ONE THING A PRONUNCIATION CANNOT GIVE.  IPA is recorded per lemma, so
@@ -187,6 +187,12 @@ def tidy_roman(code, s):
     the hamza only inside a word, where it is a consonant somebody says
     (`saʾala`).  After the map, so that it is the edition's own letter that
     is dropped whichever of the two the source wrote.
+
+    EXCEPT WHERE THE WORD IS WRITTEN WITH A LETTER THAT IS SAID AS THAT
+    HAMZA (`roman.keep_initial`, letters of the script, and `head`, the
+    word as written): Egyptian and Levantine say ق as a glottal stop, and
+    the Egyptian dictionary's قلب is `ʔalb`, whose ʾ is the word's first
+    consonant, not a vowel's onset.  Only the first word's.
     """
     R = (ipa_rules(code).get("roman") or {})
     if not s or not R:
@@ -199,11 +205,38 @@ def tidy_roman(code, s):
         out = out.replace(a, b)
     lead = R.get("drop_initial") or ""
     if lead:
-        out = re.sub(r"(^|\s)[%s]+" % re.escape(lead), r"\1", out)
+        keep = R.get("keep_initial") or ""
+        first = (head or "").strip()[:1]
+        kept = ""
+        if keep and first and first in keep:
+            m = re.match(r"[%s]+" % re.escape(lead), out)
+            kept = m.group(0) if m else ""
+        out = kept + re.sub(r"(^|\s)[%s]+" % re.escape(lead), r"\1", out[len(kept):])
     return out
 
 
-def form_sound(code, romans, ipas=(), words=False):
+def in_variety(key, s):
+    """A romanisation of the standard language, said as a variety says its
+    letters -> the same string where the variety says nothing.
+
+    For the standard dictionary's hits shown in a text written in a variety
+    (lib/lookup.py _said_in_variety): `from_standard.map` in the variety's
+    lib/lang/<key>.ipa.json, letters of the standard romanisation to the
+    variety's, each correspondence cited in that file.  The standard
+    romanisation writes one letter for one Arabic letter (q for ق, j for ج,
+    ṯ ḏ ẓ for ث ذ ظ), so the walk is a letter for a letter; vowels and
+    endings are not touched.  A key with no file (`ar`, any language without
+    varieties) gets `s` back unchanged."""
+    if not s or "." not in (key or ""):
+        return s or ""
+    M = ((ipa_rules(key).get("from_standard") or {}).get("map") or {})
+    if not M:
+        return s
+    out = unicodedata.normalize("NFC", s)
+    return "".join(M.get(ch, ch) for ch in out)
+
+
+def form_sound(code, romans, ipas=(), words=False, head=""):
     """How a form the text holds is said, as this edition writes it, from
     the rows that reached it -- "" where none of them says.
 
@@ -242,9 +275,9 @@ def form_sound(code, romans, ipas=(), words=False):
     if want is not None:
         for r in got:
             if r and want.search(unicodedata.normalize("NFC", r)):
-                return tidy_roman(code, r)
+                return tidy_roman(code, r, head)
     if got and got[0]:
-        return tidy_roman(code, got[0])
+        return tidy_roman(code, got[0], head)
     if any(got):
         return ""
     for ipa in ipas:
@@ -275,19 +308,30 @@ def _pattern(src):
 _IPA = {}
 
 
+def _read_ipa(key):
+    try:
+        with io.open(os.path.join(HERE, "lang", "%s.ipa.json" % key), encoding="utf-8") as f:
+            got = json.load(f)
+        return got if isinstance(got, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
 def ipa_rules(code):
     """How this language turns a pronunciation into its own transliteration:
-    lib/lang/<code>.ipa.json, optional like every file of that name."""
+    lib/lang/<code>.ipa.json, optional like every file of that name.
+
+    A VARIETY'S FILE FIRST AND THE LANGUAGE'S AFTER IT (`code` a variety's key,
+    ar.egy, lib/languages.py with_variety), as lookup reads its rules: a
+    section both have (`roman`) is the language's with the variety's keys
+    over it, and whatever the variety does not say is the language's."""
     if code not in _IPA:
-        d = {}
-        path = os.path.join(HERE, "lang", "%s.ipa.json" % code)
-        try:
-            with io.open(path, encoding="utf-8") as f:
-                got = json.load(f)
-            if isinstance(got, dict):
-                d = got
-        except (OSError, ValueError):
-            d = {}
+        d = _read_ipa(code)
+        base, dot, _v = (code or "").partition(".")
+        if dot:
+            own, d = d, dict(_read_ipa(base))
+            for k, v in own.items():
+                d[k] = dict(d[k], **v) if isinstance(v, dict) and isinstance(d.get(k), dict) else v
         _IPA[code] = d
     return _IPA[code]
 
