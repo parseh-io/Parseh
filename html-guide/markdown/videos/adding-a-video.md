@@ -231,7 +231,7 @@ include the selected **Context** before and after the speech. The **−1 / −2 
 transcript timings. When a word has no timestamp, playback uses its caption's
 time and says so.
 
-Use **Needs attention**, **LLM proposals**, the text search, or **Previous
+Use **Needs attention**, **Suggested changes**, the text search, or **Previous
 issue / Next issue** to work through a long transcript. Accepted and manual
 edits appear immediately in the pending transcript. **Return to Add Video**
 pauses playback and keeps the pending draft; **Resume transcript review**
@@ -240,16 +240,17 @@ returning to the page. **Discard review** leaves the transcript box untouched.
 
 The transcript workspace opens immediately: edit by hand, listen, lock checked
 words, or use the transcript without running another tool. The **Review tools**
-buttons stay available together. Try **Whisper second pass**, **Suspect words**,
-**Whole-text review**, **Reasoning workspace**, or **LM likelihood** in any
-order on the same draft. Connected LLM tools send text and Whisper evidence
-to the destination shown only when you press their buttons. A low
+buttons stay available together. Try **Whisper second pass** or **LM
+likelihood**, and the chatbot methods (**Suspect words**, **Whole text**,
+**Reasoning workspace**) under **Use an external chatbot · copy & paste**, in
+any order on the same draft. A chatbot gets the text only when you paste it
+there yourself. A low
 Whisper score below 0.5 is marked **⚠**, a word with no meaning in an installed
-dictionary is marked **◇**, and an LLM edit proposal **✎**. The threshold stays
+dictionary is marked **◇**, and a proposed edit **✎**. The threshold stays
 0.5. Dictionary lookup uses the same normalization and base-form rules as
 the readers; names or rare terms can still be valid. The word inspector shows
 the original word's dictionary meanings and the meanings of each native Whisper
-alternative and proposed LLM replacement. Native Whisper beam alternatives, when an exact word mapping
+alternative and proposed replacement. Native Whisper beam alternatives, when an exact word mapping
 is possible, have whole-hypothesis log scores rather than word probabilities.
 Hover, focus or click/tap any word to inspect or edit it with the keyboard.
 If Whisper split a word into neighboring pieces, use **Include previous word**
@@ -267,15 +268,14 @@ text or the selected section, or **Whisper second pass for this word** in the
 word inspector. It adds alternatives from an independent audio crop; original
 words and their timestamps stay intact. Its progress counts processed words.
 Choose **Use this Whisper alternative** to put a candidate into the draft.
-Accept or reject proposals in the pending draft. LLM progress counts suspect
-words; failed sentences leave their words intact while the run continues.
-**Retry all remaining suspect words** retries unresolved words while retaining
-accepted/manual edits. **LLM responses** shows actual model output. The
-**Correction skill** panel, under **Models, preferences & skills**, provides download, installation and optional native
-Unsloth skill invocation. Only **Use this transcript**
+Accept or reject proposals in the pending draft. Sentences a chatbot did not
+answer leave their words intact. **Retry remaining suspect words** asks again
+for unresolved words while retaining accepted/manual edits. **Review
+diagnostics** shows the prompts and the answers. The **Correction skills**
+panel, under **Models, preferences & skills**, downloads the review skills for a
+chatbot that supports them. Only **Use this transcript**
 places it in the box, timed to the video's own clock (a stop to buffer does
-not shift what follows). See [LLM Integration](../lookup-and-languages/llm-integration.md).
-All three LLM methods also offer **Use an external chatbot · copy & paste**.
+not shift what follows). See [Reviewing a transcript](../lookup-and-languages/transcript-review.md).
 The additional [LM likelihood](../lookup-and-languages/lm-likelihood.md)
 method searches raw token probabilities for candidate words and ranks the
 original, all Whisper alternatives and those candidates using fixed surrounding
@@ -283,8 +283,8 @@ text. It has separate installed-model settings and sends no chatbot prompt.
 Choose the method, **Prepare external prompt**, copy it to your chatbot, then
 paste the answer and **Import answer into review**; the review then goes through
 the answers with you, one word at a time ([Go through the model's
-answers](../lookup-and-languages/llm-integration.md#go-through-the-models-answers)).
-No saved connection is required. The workspace method also downloads its transcript and CSV files.
+answers](../lookup-and-languages/transcript-review.md#go-through-the-models-answers)).
+The workspace method also downloads its transcript and CSV files.
 Its Python helper checks edits during work and checks required entries before
 the model returns its answer. Parseh independently validates imported proposals;
 no checker applies changes without your approval.

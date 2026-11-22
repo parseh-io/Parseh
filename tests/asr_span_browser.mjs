@@ -33,9 +33,10 @@ try {
       const root = document.querySelector('#review');
       if (window.spanReview) window.spanReview.clear();
       window.spanReview = ParsehAsrReview.mount(root, {cancel:()=>{},choose:(mode,skill,task,ids)=>{window.reviewChosen=ids;},
+        external:(action,values)=>{window.reviewChosen=values.word_ids;return Promise.reject(new Error('not prepared in this test'));},
         use:(decisions,manual)=>{window.applied={decisions,manual};},save:draft=>{window.saved=draft;return Promise.resolve();}});
       window.spanReview.show({text,model:'large-v3-turbo',review:{evidence:{source_sha256:suggestion?'source-2':'source',
-        language:'en',low_score_threshold:.5,segments},result:{task:'workspace',suggestions:proposals}}},'review',{configured:true,base_url:'http://saved.invalid/v1',selected_model:'fake'});
+        language:'en',low_score_threshold:.5,segments},result:{task:'workspace',suggestions:proposals}}},'review',{likelihood:null});
     }, suggestion);
   }
   await setup();
@@ -50,7 +51,9 @@ try {
   await page.click('#stt_use');
   assert.deepEqual(await page.evaluate(()=>window.applied.manual),{s0w2:{text:'notebook',word_ids:['s0w2','s0w3']}});checks++;
   await page.click('#stt_manual_reset');await page.click('#stt_lock_word');
-  await page.click('#stt_review_full');await page.waitForFunction(()=>Array.isArray(window.reviewChosen));
+  // the whole-text method takes every unlocked word: prepared for a chatbot, by copy and paste
+  await page.evaluate(()=>{document.getElementById('stt_external').open=true;});await page.selectOption('#stt_external_task','full');
+  await page.click('#stt_external_start');await page.waitForFunction(()=>Array.isArray(window.reviewChosen));
   ok(await page.evaluate(()=>!window.reviewChosen.includes('s0w2') && !window.reviewChosen.includes('s0w3')),'locking after resetting editor scope protects both saved merge members');
   ok(await page.evaluate(()=>window.saved.locked_word_ids.includes('s0w2') && window.saved.locked_word_ids.includes('s0w3')),'multiword lock persists both stable source IDs');
   await page.click('#stt_lock_word');await page.click('#stt_manual_next');

@@ -18,7 +18,7 @@ from types import SimpleNamespace
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / 'lib'), str(ROOT / 'youtube/lib'), str(ROOT / 'tests')]
 import asrcorrection
-import llmadapter
+from reviewerror import Cancellation
 import lmgguf
 import lmlikelihood
 import lmlikelihoodconfig as config
@@ -27,7 +27,7 @@ import sttjobs
 import sttworker
 import lmlikelihoodworker
 import lmlikelihoodhardware as hardware
-import test_llm_integration as existing_tests
+import test_asr_correction as existing_tests
 
 
 class TinyModel:
@@ -632,12 +632,12 @@ class ReviewJobs(unittest.TestCase):
 
     def test_explicit_method_no_chat_call_and_box_unchanged(self):
         with mock.patch('lmlikelihoodconfig.load', return_value=self.cfg), mock.patch('lmgguf.revalidate'), \
-                mock.patch('llmadapter.adapter') as chat, mock.patch('sttjobs.threading.Thread') as thread:
+                mock.patch('sttjobs.threading.Thread') as thread:
             answer = sttjobs.review_likelihood(self.token, self.source, config.revision(self.cfg))
         self.assertEqual(answer['state'], sttjobs.CORRECTING)
         self.assertEqual(self.job['review_choice'], 'likelihood')
         self.assertEqual(self.job['text'], self.fixture.panel)
-        chat.assert_not_called(); thread.return_value.start.assert_called_once()
+        thread.return_value.start.assert_called_once()
 
     def test_changed_revision_or_source_refuses_before_worker(self):
         with mock.patch('lmlikelihoodconfig.load', return_value=self.cfg), mock.patch('lmlikelihood.Session') as worker:
@@ -664,7 +664,7 @@ class ReviewJobs(unittest.TestCase):
         out = {'task': 'likelihood', 'suggestions': [], 'complete': False, 'failed_word_ids': ['s0w1']}
         with mock.patch('lmlikelihoodconfig.load', return_value=self.cfg), mock.patch('lmgguf.revalidate'), \
                 mock.patch('lmlikelihood.correct', return_value=out):
-            sttjobs._likelihood_correct(self.job, self.cfg, llmadapter.Cancellation(), 1, None, None)
+            sttjobs._likelihood_correct(self.job, self.cfg, Cancellation(), 1, None, None)
         self.assertEqual(self.job['state'], sttjobs.DONE)
         self.assertEqual(self.job['correction']['state'], 'partial')
         self.assertFalse(sttjobs.busy()); self.assertEqual(self.job['text'], self.fixture.panel)
@@ -676,13 +676,13 @@ class ReviewJobs(unittest.TestCase):
             with mock.patch('lmlikelihoodconfig.load', return_value=current_cfg), mock.patch('lmgguf.revalidate'), \
                     mock.patch('sttjobs._review_source_current', return_value=changed != 'source'), \
                     mock.patch('lmlikelihood.correct', return_value={'complete': True, 'failed_word_ids': []}):
-                sttjobs._likelihood_correct(self.job, self.cfg, llmadapter.Cancellation(), 1, None, None)
+                sttjobs._likelihood_correct(self.job, self.cfg, Cancellation(), 1, None, None)
             self.assertEqual(self.job['state'], sttjobs.REVIEW_CHOICE)
             self.assertIsNone(self.job['correction_result'])
             self.assertFalse(sttjobs.busy())
 
     def test_cancel_invalidates_late_results_and_use_checks_model(self):
-        cancel = llmadapter.Cancellation()
+        cancel = Cancellation()
         self.job.update(state=sttjobs.CORRECTING, review_choice='likelihood', llm_generation=1, llm_cancel=cancel)
         sttjobs.cancel_review(self.token)
         with mock.patch('lmlikelihoodconfig.load', return_value=self.cfg), mock.patch('lmgguf.revalidate'), mock.patch('lmlikelihood.correct') as worker:

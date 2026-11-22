@@ -236,7 +236,7 @@
     var form = el('div', 'stt-form');
     form.id = 'stt_form';
     var intro = el('p', 'fieldnote', 'Have Whisper on this computer listen to the video and write a pending transcript. ' +
-                   'Then edit it in Transcribe & review and try any correction tools you need. Connected LLM tools send text only when you run them. Audio stays on this computer.');
+                   'Then edit it in Transcribe & review and try any correction tools you need. A chatbot gets text only when you paste it there yourself. Audio stays on this computer.');
     var selModel = el('select'), selProc = el('select');
     selModel.id = 'stt_model';
     selProc.id = 'stt_proc';
@@ -371,7 +371,7 @@
         [frame, playerNote, transport, context].forEach(function (n) { media.appendChild(n); });
         [how, bar, secondProgress, sayEl].forEach(function (n) { pending.appendChild(n); });
         [rec, cancel].forEach(function (n) { jobActions.appendChild(n); });
-        // Progress stays above review, including during LLM requests.
+        // Progress stays above review, including while a review tool runs.
         work.insertBefore(bar, reviewRoot); work.insertBefore(secondProgress, reviewRoot); work.insertBefore(sayEl, reviewRoot);
         inWorkspace = true;
       }
@@ -1069,9 +1069,9 @@
       S.secondPass = null;
       S.phase = 'review';
       say('Review and edit the transcript. Try any tool, then choose Use this transcript.');
-      ask('/settings/api/llm/status', {}).then(function (r) {
+      ask('/settings/api/lm-likelihood/status', {}).then(function (r) {
         if (run !== S.run || !S.held) return;
-        LLM = r.j && r.j.ok ? r.j : {configured: false};
+        LLM = likelihoodTools(r);
         REVIEW.show(S.held.res, S.phase, res.review && res.review.evidence ? LLM : {configured: false});
       }, function () {
         if (run === S.run && S.held) REVIEW.show(S.held.res, S.phase, {configured: false});
@@ -1080,7 +1080,11 @@
       ensureReviewPlayer();
       paint();
     }
-    function retryReview(wordIds, skill, task, options) { if (wordIds.length) chooseReview(task === 'likelihood' ? 'likelihood' : 'llm', wordIds, skill, task, options); }
+    // what the review's tools need to know of this computer: only the LM likelihood's state (the connection to a model
+    // service, which this used to read as well, went with a0.6.3; a chatbot is reached by copy and paste)
+    function likelihoodTools(r) { return {likelihood: r && r.j && r.j.ok ? r.j : null}; }
+    // asking again is the likelihood's (a chatbot review asks again through its own panel, asrreview.js)
+    function retryReview(wordIds, skill, task, options) { if (wordIds.length && task === 'likelihood') chooseReview('likelihood', wordIds, skill, task, options); }
     function externalReview(action, values) {
       if (!S.held || (S.phase !== 'choice' && S.phase !== 'review') || !pendingCurrent()) {
         return Promise.reject(new Error('This review changed. Prepare a new Whisper result.'));
@@ -1123,23 +1127,13 @@
       var second = mode === 'whisper-second';
       if (!wordIds) REVIEW.resetProposals();
       S.responses = 0;
-      S.phase = mode === 'llm' || numerical || second ? 'correcting' : 'choosing';
+      S.phase = numerical || second ? 'correcting' : 'choosing';
       S.pct = null;
       REVIEW.show(S.held.res, 'correcting', LLM);
-      say(second ? 'Preparing Whisper second pass…' : numerical ? 'Loading the standalone likelihood model…' : 'Preparing the saved review model…');
+      say(second ? 'Preparing Whisper second pass…' : numerical ? 'Loading the standalone likelihood model…' : 'Keeping the Whisper result…');
       paint();
-      var started = Date.now(), preparing = mode === 'llm';
-      var prepareTimer = preparing ? setInterval(function () {
-        if (attempt !== S.reviewAttempt || run !== S.run || !S.held) { clearInterval(prepareTimer); return; }
-        REVIEW.progress('Preparing the saved model profile. Elapsed: ' + clock(Math.floor((Date.now() - started) / 1000)) + '.');
-      }, 1000) : null;
-      var body = {job: S.job, source_sha256: evidence.source_sha256,
-        task: task,
-        instruction_mode: skill ? 'skill' : 'prompt',
-        connection_id: mode === 'llm' && LLM ? LLM.connection_id : null};
-      // a reasoning workspace is handed to the model whole unless the person asked for small regions
-      if (task === 'workspace' && options && options.divide === true) body.divide = true;
-      if (wordIds) body.word_ids = wordIds; else body.mode = mode;
+      // "whisper": settle on the Whisper result as it is (sttjobs.review)
+      var body = {job: S.job, source_sha256: evidence.source_sha256, mode: mode};
       if (numerical) {
         body = {job: S.job, source_sha256: evidence.source_sha256, revision: LLM && LLM.likelihood && LLM.likelihood.revision};
         if (wordIds) body.word_ids = wordIds;
@@ -1149,34 +1143,26 @@
         body = {job:S.job, source_sha256:evidence.source_sha256};
         if (wordIds) body.word_ids = wordIds;
       }
-      var prepared = second ? post('whisper-second-pass', body) : numerical ? post('review-likelihood', body) : mode === 'llm' ? ask('/settings/api/llm/review-prepare', {task: task, connection_id: body.connection_id}, 310000).then(function (r) {
-        clearInterval(prepareTimer);
-        if (attempt !== S.reviewAttempt || run !== S.run || !S.held || S.phase !== 'correcting' || !pendingCurrent()) return null;
-        if (!r.j.ok) return r;
-        LLM = r.j; body.connection_id = LLM.connection_id;
-        return post(wordIds ? 'retry-review' : 'review', body);
-      }) : post(wordIds ? 'retry-review' : 'review', body);
+      var prepared = second ? post('whisper-second-pass', body) : numerical ? post('review-likelihood', body) : post('review', body);
       prepared.then(function (r) {
-        clearInterval(prepareTimer);
         if (run !== S.run || !S.held) return;
         if (attempt !== S.reviewAttempt) return;
         if (!r || S.phase !== 'correcting' && S.phase !== 'choosing') return;
         if (!r.j.ok) {
           if (r.j.code === 'source-changed') { discardPending(); return; }
           S.phase = 'review'; note(r.j.error, 'warn');
-          if (r.j.code === 'settings-changed' || r.j.code === 'llm-unconfigured') {
+          if (r.j.code === 'settings-changed') {
             LLM = null;
-            ask('/settings/api/llm/status', {}).then(function (fresh) {
+            ask('/settings/api/lm-likelihood/status', {}).then(function (fresh) {
               if (run !== S.run || !S.held || S.phase !== 'review') return;
-              LLM = fresh.j && fresh.j.ok ? fresh.j : {configured: false};
+              LLM = likelihoodTools(fresh);
               REVIEW.show(S.held.res, 'review', LLM);
             }, function () {});
           }
           REVIEW.show(S.held.res, 'review', LLM); paint(); return;
         }
-        if (mode === 'llm' || numerical || second) { poll(run); } else finishJob(run);
+        if (numerical || second) { poll(run); } else finishJob(run);
       }, function () {
-        clearInterval(prepareTimer);
         if (attempt !== S.reviewAttempt) return;
         if (run !== S.run || !S.held) return;
         // The start may have reached the host: recover through status, never

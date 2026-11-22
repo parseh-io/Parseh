@@ -94,11 +94,10 @@ class TheFilesAPageNames(unittest.TestCase):
     def test_the_tools_stylesheet_is_one_of_them(self):
         # the three pages of a0.4.3 and the speech door load it: if none did, the test above would say nothing of it.
         # (and the guide's pages are one of them too: the two links that went astray)
-        for page in ("/settings/llm/", "/settings/lm-likelihood/", "/settings/about/", "/settings/speech/"):
+        for page in ("/settings/lm-likelihood/", "/settings/about/", "/settings/speech/"):
             _, html = self.get(page)
             self.assertIn("/lib/settings-tools.css", html, page)
-        for page, guide in (("/settings/llm/", "/guide/site/lookup-and-languages/llm-integration.html"),
-                            ("/settings/lm-likelihood/", "/guide/site/lookup-and-languages/lm-likelihood.html")):
+        for page, guide in ((("/settings/lm-likelihood/", "/guide/site/lookup-and-languages/lm-likelihood.html"),)):
             self.assertIn(guide, names(self.get(page)[1]), page)
 
 

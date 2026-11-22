@@ -5,8 +5,9 @@ description: Compare possible transcript words using a model already installed o
 ---
 
 **LM likelihood** suggests words by comparing their fit with the surrounding
-transcript. It runs locally, using a model you already installed. Whisper and
-the [connected LLM methods](llm-integration.md) have separate settings.
+transcript. It runs locally, using a model you already installed, and is one of
+the tools of [the transcript review](transcript-review.md). Whisper has its own
+settings.
 It is an **experimental** correction method; check suggestions by listening.
 
 ## Choose a model
@@ -77,7 +78,7 @@ changed word timing needs review in the existing timing editor.
 
 If a word cannot be fully compared, its original remains available. Other
 words can still finish. Retry unresolved words or edit them yourself. The
-ordinary inspector shows choices; **Technical details** and **LLM responses**
+ordinary inspector shows choices; **Technical details** and **Review diagnostics**
 hold the numerical scores, model identity, bounded context and failure reasons.
 These scores measure language-model fit, not the probability of having heard
 the right word.

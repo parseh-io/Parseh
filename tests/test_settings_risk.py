@@ -62,8 +62,8 @@ def routes_in_serve():
     for node in ast.walk(tree):
         if not isinstance(node, ast.FunctionDef):
             continue
-        if node.name in ("_lookup_api", "_llm_api", "_likelihood_api"):
-            prefix = {"_lookup_api": "/lookup/api/", "_llm_api": "/settings/api/llm/", "_likelihood_api": "/settings/api/lm-likelihood/"}[node.name]
+        if node.name in ("_lookup_api", "_likelihood_api"):
+            prefix = {"_lookup_api": "/lookup/api/", "_likelihood_api": "/settings/api/lm-likelihood/"}[node.name]
             for c in ast.walk(node):
                 if isinstance(c, ast.Compare) and isinstance(c.left, ast.Name) \
                         and c.left.id == "what":
@@ -197,7 +197,7 @@ class Table(unittest.TestCase):
     def test_speech_to_text_is_a_door_of_its_own_and_the_only_one_that_lists_its_keys(self):
         doors = {d[0]: d for d in settingspage.DOORS}
         self.assertEqual(len(settingspage.DOORS), len(doors), "a door has an address of its own")
-        self.assertIn('/settings/llm/', doors)
+        self.assertNotIn('/settings/llm/', doors, 'the connection to a model service went with a0.6.3')
         self.assertIn('/settings/lm-likelihood/', doors)
         href, name, what, keys = doors["/settings/speech/"]
         self.assertEqual((name, keys), ("Speech to text", ("speech.get", "speech.remove", "speech.stop", "speech.preferences")))
@@ -213,7 +213,8 @@ class Table(unittest.TestCase):
                          "every setting is on some door")
         self.assertEqual(sorted(set(settingspage.ELSEWHERE) & set(listed)), [])
         row = settingspage.settings_doors("/settings/speech/")
-        self.assertEqual(row.count('<a class="sdoor'), len(settingspage.DOORS) - 2)
+        # every door but LM likelihood's, which opens only in the browser layout (data-layout comes before its class)
+        self.assertEqual(row.count('<a class="sdoor'), len(settingspage.DOORS) - 1)
         self.assertIn('class="sdoor on" href="/settings/speech/" aria-current="page"', row)
 
     def test_the_route_finder_sees_every_speech_route(self):

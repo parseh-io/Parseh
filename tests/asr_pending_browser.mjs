@@ -21,7 +21,7 @@ await writeFile(join(fake,'state.json'),JSON.stringify({runtime:true,models:['la
 await writeFile(join(fake,'fake.json'),JSON.stringify({segments:[[0,2,' سلام دنیا'],[2.5,3,' خداحافظ']]}));
 const old=await readFile('tests/add_stt.mjs','utf8');
 let boot=old.match(/const BOOT = String.raw`([\s\S]*?)`;/)[1];
-boot=boot.replace("import prefs, network, offline, llmconfig", "import prefs, network, offline, llmconfig, lmlikelihoodconfig\nlmlikelihoodconfig.CONFIG = tmp / 'config/lm-likelihood.json'\nlmlikelihoodconfig.runtime_status = lambda config: {'available': False, 'say': 'No model runtime in this test.'}");
+boot=boot.replace("import prefs, network, offline\n", "import prefs, network, offline, lmlikelihoodconfig\nlmlikelihoodconfig.CONFIG = tmp / 'config/lm-likelihood.json'\nlmlikelihoodconfig.runtime_status = lambda config: {'available': False, 'say': 'No model runtime in this test.'}\n");
 async function start(){
  logs='';server=spawn(python,['-c',boot,tree,String(number)],{cwd:root,stdio:['ignore','pipe','pipe']});
  server.stdout.on('data',b=>logs+=b);server.stderr.on('data',b=>logs+=b);
@@ -40,7 +40,7 @@ try{
  // A result is drawn at once and drawn AGAIN when the connection's status arrives a moment later (youtube/lib/addstt.js deliver): a word's
  // editor opened and typed in before that second drawing is drawn afresh under the typing.  Typing is kept now, but a click that lands in
  // the middle of the redraw is not delivered, so what a test types waits for the review to have settled.
- await page.selectOption('#lang','fa');await page.fill('#path',film);const status=page.waitForResponse(r=>r.url().includes('/settings/api/llm/status'));await page.click('#stt_go');await phase(page,'review');await status;await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,0)))));
+ await page.selectOption('#lang','fa');await page.fill('#path',film);const status=page.waitForResponse(r=>r.url().includes('/settings/api/lm-likelihood/status'));await page.click('#stt_go');await phase(page,'review');await status;await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(r,0)))));
  ok(await page.inputValue('#transcript')==='','Whisper never inserts a transcript automatically');
  await page.locator('[data-review-word="s0w0"]').click();await page.fill('#stt_manual_word','درود');
  await page.getByRole('button',{name:'Save word in draft',exact:true}).click();await page.click('#stt_lock_word');

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /* THE MODEL'S ANSWERS, ONE BY ONE (a0.5.1).  What a review method says about the words it was asked
-   about -- a chatbot's pasted answer, a connected model, LM likelihood, a second look by Whisper -- and
+   about -- a chatbot's pasted answer, LM likelihood, a second look by Whisper -- and
    the walk through it that asks, for each, whether to take it.
 
    FOUR OUTCOMES, so that nothing a model decided goes unsaid:
@@ -168,7 +168,7 @@
        changed()              the draft moved: repaint the words, save it
        caption(wordId)        the caption {text, start, end, words} the word is in
        show(word), listen(word)   put the word in view; play it
-       ask(ids)               ask the model again for these words only (the page chooses how: the pasted-answer prompt, the endpoint...)
+       ask(ids)               ask the model again for these words only (the page chooses how: the pasted-answer prompt, the likelihood...)
        use()                  press "Use this transcript"
        phase()                'review', 'external', 'correcting'...
      } */

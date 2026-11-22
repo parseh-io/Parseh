@@ -157,7 +157,8 @@ def run(cmd, cwd=None, env=None, timeout=900):
     # NOTHING IT STARTS SHARES THIS PROCESS'S STDIN.  `import asrworkspaceworker` is a program: it reads its code from
     # stdin until the end of the file, so where stdin was a terminal or a pipe nobody closed (a loop started from a tool,
     # say) the import check of that module waited its sixty seconds and the whole test died with TimeoutExpired; from a
-    # shell with its input redirected it never did
+    # shell with its input redirected it never did.  That module went with the connected review in a0.6.3; the rule stays,
+    # for any other program an import check may start
     r = subprocess.run(cmd, cwd=cwd, env=e, capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 

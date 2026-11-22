@@ -11,7 +11,7 @@ Parseh and its worker are an application protocol only.
 ## Configure and run
 
 Open **Settings → LM likelihood**. Its saved configuration is
-`config/lm-likelihood.json`, format version 1, independent of `config/llm.json`.
+`config/lm-likelihood.json`, format version 1.
 Missing or malformed settings load unconfigured. Source/path/executable/backend
 changes are host-only; any admitted browser can refresh the saved source’s
 inventory and select one of those installed models by its opaque inventory ID.

@@ -53,8 +53,7 @@ import os, runpy, sys
 root, work = os.environ["PARSEH_TEST_ROOT"], os.environ["STT_ROUTE_WORK"]
 sys.path[:0] = [os.path.join(root, "lib"), os.path.join(root, "youtube", "lib"),
                 os.path.join(root, "tests")]
-import stt_fakes, prefs, network, offline, ytpages, llmconfig
-llmconfig.ROOT = work
+import stt_fakes, prefs, network, offline, ytpages
 sys.modules["getstt"] = stt_fakes.make(os.path.join(work, "fake"))
 ytpages.VIDEOS = os.path.join(work, "videos")
 prefs.STORE = os.path.join(work, "config", "prefs.json")

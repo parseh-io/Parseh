@@ -19,7 +19,7 @@ try {
   await page.addScriptTag({path: 'youtube/lib/asrreview.js'});
   await page.evaluate(data => {
     window.calls = []; window.view = data;
-    window.connection = {configured: false, likelihood: {configured: true, available: true, revision: 'saved-revision', model: 'tiny-installed'}};
+    window.connection = {likelihood: {configured: true, available: true, revision: 'saved-revision', model: 'tiny-installed'}};
     window.review = ParsehAsrReview.mount(document.getElementById('review'), {
       choose: (...args) => calls.push(['choose', ...args]), retry: (...args) => calls.push(['retry', ...args]),
       cancel: () => calls.push(['cancel']),
@@ -28,8 +28,9 @@ try {
     });
     review.show(data, 'choice', connection);
   }, fixture);
-  for(const id of ['stt_review_llm','stt_review_full','stt_review_workspace','stt_review_likelihood'])
-    ok((await page.locator('#'+id).textContent()).includes('experimental'),'correction method is visibly experimental: '+id);
+  ok((await page.locator('#stt_review_likelihood').textContent()).includes('experimental'),'correction method is visibly experimental: stt_review_likelihood');
+  for(const id of ['stt_review_llm','stt_review_full','stt_review_workspace','stt_use_skill'])
+    ok(await page.locator('#'+id).count()===0,'the connected model\'s control is gone (a0.6.3): '+id);
   ok(await page.locator('#stt_review_whisper').count()===0,'review needs no separate Whisper-only choice');
   ok((await page.locator('#stt_external_task option').allTextContents()).every(text=>text.includes('experimental')),'external correction options are marked experimental');
   ok(await page.locator('#stt_review_likelihood').isEnabled(), 'numeric method works without a chat connection');
