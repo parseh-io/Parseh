@@ -24,7 +24,9 @@ Open the library ([The library](doc:The library)), pick a book, and read
 ([The reader](doc:The reader)). To make a book of your own, start at
 [Adding a book](doc:Adding a book); to hear one, at [Adding a
 narration](doc:Adding a narration). While you read, flag a chunk without stopping
-and come back to it later ([Review later](review-later.md)); every setting of the
+and come back to it later ([Review later](review-later.md)), or see every word of the
+vocabulary lines of a chapter or the whole book in one list ([The vocabulary as a
+list](vocabulary.md)); every setting of the
 page is in its ⚙ panel ([The ⚙ settings of a page](../getting-started/page-settings.md)).
 The pages of this section are listed at
 the foot of this one, in the order a book is usually met: finding it,
