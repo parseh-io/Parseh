@@ -342,6 +342,13 @@ class TheFoots(unittest.TestCase):
         import aboutpage
         page = aboutpage.page('host')
         main = page[page.index('<main class="settings tools">'):page.index('</main>')]
+        # the fault section (TO-DO 5.31) links the PROJECT's issue page and nothing else outside Parseh;
+        # it is taken out before the author line's links are counted
+        at = main.index('<h2 class="part" id="fault">')
+        fault = main[at:main.index('<p class="foot">', at)]
+        import project
+        self.assertEqual(set(re.findall(r'href="(https?://[^"]*)"', fault)), {project.ISSUES_URL})
+        main = main.replace(fault, '')
         self.assertIn('<dt>Author</dt><dd><code>' + author.NAME + '</code></dd>', main)
         # his name stands there as the author, so GitHub is HIS profile: "Bruno Ursino on GitHub"
         self.check_two(main, 'About settings', first=(GITHUB, PERSON_LABEL))

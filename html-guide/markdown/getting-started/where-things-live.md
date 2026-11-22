@@ -104,7 +104,8 @@ Parseh/
 | `CHANGELOG.md` | what each version changed |
 | `README.md`, `LICENSE` | what Parseh is, and its licence |
 | `.parseh-release.json` | the release's list of its own files, each with its checksum: what an [update](updating.md) reads |
-| `serve.log`, `.serve.pid` | the server's log and its process number, on Linux and macOS |
+| `serve.log`, `serve.log.1` | the server's log, and the log of the run before (its last megabyte) |
+| `.serve.pid` | the server's process number, on Linux and macOS |
 | `.setup-done` | the Windows wizard has run through |
 
 **Every kind of content is filed under its language**, in a folder named

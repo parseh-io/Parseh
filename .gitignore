@@ -51,6 +51,7 @@ markdown/latex/
 texmf/*
 !texmf/README.md
 serve.log
+serve.log.1
 .serve.pid
 .setup-done
 .tls/

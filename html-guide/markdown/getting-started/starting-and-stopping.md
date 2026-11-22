@@ -59,7 +59,10 @@ what is shown. Nothing is lost: the hub's foot, under **Reachable at**,
 always lists every address, and so does the top of `serve.log`.
 
 What the server goes on printing is kept in `serve.log`, in the Parseh
-folder, which each start begins afresh. When it is already running,
+folder. Each start begins a fresh one and keeps the one before as
+`serve.log.1`, so the error that made you restart Parseh is still there
+after the restart. **Settings → About** shows the end of both, under
+*When something goes wrong*. When it is already running,
 `./serve.sh` says so and leaves it alone:
 
 ```text
@@ -71,7 +74,9 @@ and when it cannot start — the port taken by another program, say — it
 says `failed to start -- the log says:` and shows the log.
 
 **On Windows** the server runs in the window serve.bat opened: that window
-is its log, and closing it stops Parseh. The first double-click is a
+shows its log, and closing it stops Parseh. Every line is also written to
+`serve.log`, with the run before kept as `serve.log.1`, as on Linux and
+macOS. The first double-click is a
 [setup wizard](windows-wizard.md).
 
 **Without the environment**, Parseh still serves — the pages need nothing

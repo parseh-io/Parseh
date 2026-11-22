@@ -16,12 +16,34 @@ terminal prints; a label in **bold** is a button or a link.
 When a message is not here, read it twice: most of them name the file,
 the rule or the button they are about.
 
+## Reporting a fault
+
+When Parseh stopped by itself, or a page did something wrong and no
+message here explains it, open **Settings → About** on the computer
+Parseh runs on. Under *When something goes wrong*:
+
+- **Copy a report.** Copies a short text: Parseh's version, the system,
+  the Python, which optional parts are installed, and the last error
+  found in the logs. Paste it on **the issue page** beside the button, and
+  add a line about what you were doing.
+- **What the report says.** The same text, to read before you send it.
+  Device keys, the pairing code, this network's addresses and your home
+  folder (written `~`) are taken out of it.
+- **This run** and **The run before.** The last lines of the server's log
+  for this run and for the one before it, so an error that made you
+  restart Parseh is still there.
+
+From another device the section only says where to read it: a log names
+the computer's folders and the devices let in. A server started by hand
+in a terminal writes its log there, not to a file, and the section says
+so.
+
 ## Starting Parseh and installing it
 
 | What you see | What it means, and what to do |
 |---|---|
 | The browser says the connection is not private, or the certificate is not trusted. | Expected, once per browser. Parseh makes its own certificate the first time it starts, and nobody else vouches for it — it is your server on your network. Choose **Advanced** and go on to the address. If the machine's addresses have changed (a new network, a new Tailscale address) and a device refuses the old certificate, make a fresh one: `./serve.sh cert` (Windows: `serve.bat cert`), then restart. |
-| A page will not load at all. | The server is not running, or it runs on another port. On Linux and macOS, `./serve.sh status` says `running: pid …, https port …` or `not running`, and `./serve.sh log` shows its last lines. On Windows the server runs in its own window: that window is the log. Start it again with `./serve.sh`, **Parseh.command** on a Mac, or a double-click on **serve.bat**. |
+| A page will not load at all. | The server is not running, or it runs on another port. On Linux and macOS, `./serve.sh status` says `running: pid …, https port …` or `not running`, and `./serve.sh log` shows its last lines. On Windows the server runs in its own window, which shows its log. Both write `serve.log` and keep the run before as `serve.log.1`: once Parseh is running again, **Settings → About** shows them and copies a report (below). Start it again with `./serve.sh`, **Parseh.command** on a Mac, or a double-click on **serve.bat**. |
 | *Parseh stopped. Start it again on the computer it runs on, the way you started it before (Parseh.command on a Mac, serve.bat on Windows), and reload this page.* (the studio says *Server stopped*) | Somebody pressed a stop button: **⏻ stop** on the hub, ⏻ in the video player, **stop server** in a book's reader, **Stop server** in the studio and the exercises. Nothing is lost. Start Parseh again as above — on Windows with a double-click on **serve.bat** — and reload the page. |
 | Stopping asks *1 task is still running* (or *N tasks are*) and lists them. | The server is still doing something you started — a build, an upload, a backup, a download being packed. Stopping now cuts it off. Answer **Cancel**, wait for the **Working…** pill to go, then stop. |
 | `./serve.sh` says `already running: pid … on port …` | A server is already up. Use it, or `./serve.sh restart` to replace it (after changing a file of Parseh's by hand, say; an update from Settings restarts it by itself). |

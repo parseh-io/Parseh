@@ -9,7 +9,8 @@
 #                           change there moves it for good and at once)
 #   ./serve.sh stop         stop it
 #   ./serve.sh status       is it running, and where
-#   ./serve.sh log          follow the log
+#   ./serve.sh log          follow the log (serve.log; the run before is
+#                           serve.log.1, and Settings > About shows both)
 #   ./serve.sh restart      stop, then start again
 #   ./serve.sh cert         make the server's certificate afresh (.tls/),
 #                           e.g. after the machine's addresses changed; the
@@ -184,8 +185,14 @@ for m in ("rapidfuzz",):
         sys.exit(1)
 PYEOF
 
-: > "$LOG"
+# The log of the run before is KEPT, as serve.log.1 (its last megabyte), and
+# this run starts an empty serve.log: the traceback that made somebody restart
+# Parseh must not be erased by the restart.  Settings > About shows both, and
+# makes a fault report of them (lib/faultlog.py, TO-DO 5.31).
+"$PY" "$ROOT/lib/faultlog.py" rotate "$LOG" 2>/dev/null || : > "$LOG"
 rm -f "$PIDFILE"
+# the server is told which file is its log, so the page reads the right one
+PARSEH_LOG="$LOG"; export PARSEH_LOG
 # The server records its own pid: setsid forks when it is already a process
 # group leader, so $! could be setsid's pid and not the server's.  -u because
 # Python block-buffers stdout when it is a file rather than a terminal, and a

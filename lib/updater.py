@@ -209,7 +209,7 @@ PERSONAL = ("books/", "youtube/videos/", "youtube/anki/", "markdown/library/", "
             "arasaac/")
 SCAFFOLDING = (".gitkeep", "README.md")
 NEVER = (".tls/", ".runtime/", ".git/", WORK + "/", ".claude/")
-NEVER_FILES = (".serve.pid", "serve.log", ".setup-done", ".git")
+NEVER_FILES = (".serve.pid", "serve.log", "serve.log.1", ".setup-done", ".git")
 
 # The content's small files, copied before a step back that lowers a data
 # format: everything under these folders but what is a recording, a film, a

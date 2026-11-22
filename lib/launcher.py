@@ -16,6 +16,9 @@ a log file, a pidfile -- and ./install.sh is the wizard's counterpart.  On
 Windows there is no setsid and no terminal session to lose, so the server
 simply runs in the console window this was started from: that window is the
 log, and closing it, Ctrl-C, or the stop button on any page stops the server.
+Every line the server prints is ALSO written to serve.log, the run before kept
+as serve.log.1, exactly as serve.sh keeps them (lib/faultlog.py, TO-DO 5.31):
+the window is what a person watches, the file is what Settings > About reads.
 Nothing here is Windows-only in principle; it is just that serve.sh is the
 better tool where it runs.
 
@@ -46,6 +49,7 @@ import shutil
 import ssl
 import subprocess
 import sys
+import threading
 import time
 import urllib.request
 import webbrowser
@@ -60,6 +64,7 @@ import updater                       # noqa: E402  updating in place, from Setti
 if __name__ == "__main__":
     updater.finish_first(ROOT)
 from books import all_books          # noqa: E402  where the books are (two levels: books/<language>/<slug>/)
+import faultlog                      # noqa: E402  the log file, the run before kept (TO-DO 5.31)
 import guidebuild                    # noqa: E402  the HTML guide: whether its pages are compiled, and from what
 import languages                     # noqa: E402  the registry: which web fonts travel, which language needs a system font
 import network                       # noqa: E402  the port Parseh keeps, and who may reach it
@@ -384,6 +389,27 @@ def stop(port):
     return 1
 
 
+def serve_logged(cmd, rotate=True, log=None, console=None, env=None):
+    """Start the server with its output copied to this window AND to serve.log
+    -> (the process, the thread that copies).  `rotate` keeps the run before as
+    serve.log.1 first; after an update the same run goes on in the same file,
+    as it does where serve.sh started it (lib/updater.py appends).  The file is
+    named in the server's environment, so its About page reads this one.
+
+    The server's stdout is a pipe now, not the console; Ctrl-C still reaches
+    it, because it is still attached to the console, and a window closed takes
+    both.  `log`, `console` and `env` are for the tests."""
+    log = log or faultlog.log_path(ROOT)
+    if rotate:
+        faultlog.rotate(log)
+    env = dict(env if env is not None else os.environ, PARSEH_LAUNCHER="1")
+    env[faultlog.LOG_ENV] = log
+    proc = subprocess.Popen(cmd, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    copier = threading.Thread(target=faultlog.pump, args=(proc.stdout, console, log), daemon=True)
+    copier.start()
+    return proc, copier
+
+
 def start(port, open_browser=True, updated=""):
     """Start the server in this window and wait on it.  `updated` names an
     update this window has just applied: a new version that does not come
@@ -406,7 +432,7 @@ def start(port, open_browser=True, updated=""):
     say("")
     # the server is told who waits on it: when it stops to be updated it
     # leaves with updater.LAUNCHER_EXIT, and this window runs the update
-    proc = subprocess.Popen(cmd, cwd=ROOT, env=dict(os.environ, PARSEH_LAUNCHER="1"))
+    proc, copier = serve_logged(cmd, rotate=not updated)
     url = None
     for _ in range(80):                        # up to 20 s: the first start mints the certificate
         if proc.poll() is not None:
@@ -440,6 +466,7 @@ def start(port, open_browser=True, updated=""):
         except subprocess.TimeoutExpired:
             proc.terminate()
             rc = 0
+    copier.join(5)                             # the last lines into the file before anything else is said
     if rc == updater.LAUNCHER_EXIT:
         # IT STOPPED TO BE UPDATED (Settings > Updating Parseh).  The update
         # runs here, in this window, which stays the log; then the new
