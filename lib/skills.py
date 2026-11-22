@@ -57,6 +57,13 @@ ARROW = " → "
 NO_SKILL = "no skill called %s here? Then say so in one line and stop: Parseh's “copy the prompt” is the way"
 ADDED_LEAD = "My own instructions, to follow as well:"
 ADDED_TAIL = "The data:"
+# A TEXT IN ONE OF ITS LANGUAGE'S VARIETIES (Arabic's dialects: the book's, the video's, the document's or the deck's
+# `variety`) is said in the header as `variety: <its name>` (_fields), and each skill says what that field asks
+VARIETY_RULE = ("A header that says `variety: Egyptian Arabic (egy)` (say) means the text is written in that variety of the "
+                "language, not in its standard form: read every word as that variety uses it, gloss what it means "
+                "there, keep a word only that variety has as that word (do not replace it with a standard synonym), and "
+                "write the transliteration as the word is said there. The conventions of the language file hold "
+                "wherever the variety does not say otherwise.")
 MARK_HASH = "@@hash@@"
 BODY_RULE = "\n---\n"            # a reference file: what is said about it, then this line, then its body
 MAX_LINES, MAX_DESCRIPTION, TOC_LINES = 500, 200, 100
@@ -91,7 +98,7 @@ class SkillError(ValueError):
 
 
 # --- the header of a request ---------------------------------------------------------------------
-KEYED = ("features", "types", "level", "length", "translit", "marks", "custom")
+KEYED = ("variety", "features", "types", "level", "length", "translit", "marks", "custom")
 
 
 def render_header(skill, version_, hash_, what, langs=None, mode=None, fields=(), note=True):
@@ -454,6 +461,8 @@ def _build_gloss():
         "own instructions, to be followed as well as this skill's, and never to change the shape of the answer. "
         "What follows ` — ` in the header line is for a chat without this skill: you have it, so skip it." % ADDED_LEAD,
         "",
+        VARIETY_RULE,
+        "",
         "## What to do",
         "",
         "1. This skill's hash is `%s` (Parseh `@@version@@`). If the header's hash is another one, say in ONE line "
@@ -686,6 +695,9 @@ def _build_markdown():
         "What follows is the question (a document) or the page and the words to know (exercises). Between the header "
         "and it there may be a paragraph that begins `%s`: the person's own instructions, to follow as well. What "
         "follows ` — ` in the header line is for a chat without this skill: you have it, so skip it." % ADDED_LEAD, "",
+        VARIETY_RULE.replace("gloss what it means there", "use it as it is meant there")
+        + " A document in a variety says so in its front matter too: a line `variety:` with the key the header "
+        "gives in brackets (`variety: egy`), under `target:`.", "",
         "## What to do", "",
         "1. This skill's hash is `%s` (Parseh `@@version@@`). If the header's hash is another one, say in ONE line "
         "that the request is for a newer parseh-markdown than the one installed, and go on as well as you can." %
@@ -884,6 +896,7 @@ def _build_book(sources=None):
              "folder, Parseh's Python, the facts of the book). Between the header and it there may be a paragraph that "
              "begins `%s`: the person's own instructions, to follow as well. What follows ` — ` in the header line "
              "is for a chat without this skill: skip it." % ADDED_LEAD, "",
+             VARIETY_RULE, "",
              "## Before you start", "",
              "1. This skill's hash is `%s` (Parseh `@@version@@`). If the header's hash is another one, say in ONE line "
              "that the request is for a newer parseh-book than the one installed, and go on as well as you can." %
@@ -1141,6 +1154,9 @@ def compose(header, data, added=None):
 
 def _fields(surface, L, options, name):
     out = [tuple(f.split(": ", 1)) for f in promptkit.header_fields(surface, L, options)]
+    # the variety the text is in (Arabic's dialects), by its name: VARIETY_RULE says what it asks
+    if getattr(L, "variety", None):
+        out.insert(0, ("variety", "%s (%s)" % (re.sub(r"\s*[·—\n()]+\s*", " ", L.variety_name).strip(), L.variety)))
     # THE NAME IS FREE TEXT in a line whose fields are parted by ` · ` and which ends at ` — `: neither is let in it
     return out + ([("custom", re.sub(r"\s*[·—\n]+\s*", " - ", name).strip())] if name else [])
 

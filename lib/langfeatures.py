@@ -264,6 +264,80 @@ def features(code):
     return out
 
 
+def _dictionary_of(key):
+    """What lookup says of a variety's own dictionary (ar.egy): {entries, built}, or None where it has not been
+    fetched.  Read lazily, and read as absent where lookup cannot be asked."""
+    try:
+        import lookup
+        return lookup.about(key) if lookup.available(key) else None
+    except Exception:           # noqa: BLE001 -- an unreadable dictionary is one that is not there
+        return None
+
+
+def variety_features(code, vkey):
+    """Every feature of one variety of a language (Arabic's egy, lev, gulf, mor), in the order a page lists them
+    under the language: what the variety has of its own, read first, and what it takes from the language.  Each
+    per-variety file is found by its presence (lib/lang/<code>.<v>.<what>.json), so the rows are right whichever
+    files this Parseh has."""
+    L = languages.LANGS.get(code)
+    v = L.variety_of(vkey) if L else None
+    if v is None:
+        return []
+    key, name, std = "%s.%s" % (code, v["key"]), v.get("name") or v["key"], L.standard_name or L.name
+    out = []
+
+    def add(fkey, fname, state, says, adds=""):
+        out.append(Feature(fkey, fname, state, says, adds))
+
+    about = _dictionary_of(key)
+    if about:
+        n = about.get("entries", "")
+        add("dictionary", "Dictionary", HAVE,
+            "Its own Wiktionary dictionary is fetched%s, and read before %s's." % (
+                " (%s entries)" % n if n else "", L.name))
+    else:
+        add("dictionary", "Dictionary", OPTIONAL,
+            "Its own dictionary is not fetched: its words are looked for in %s's alone." % L.name,
+            "Settings → Reading help, under %s's: Dictionary · %s" % (L.name, name))
+    for fkey, fname, what, have, without in (
+            ("lookup-rules", "Lookup rules", "lookup",
+             "Its own rules take a word apart first (lib/lang/%s.lookup.json), %s's after them." % (key, L.name),
+             "%s's rules alone take a word apart." % L.name),
+            ("ipa", "Romanisation", "ipa",
+             "Its own sounds are read first (lib/lang/%s.ipa.json), %s's where it says nothing." % (key, L.name),
+             "Romanisation proposed from the spelling is %s's." % std),
+            ("chunk-rules", "Chunking rules", "chunk",
+             "Its own function words cut a text into phrases (lib/lang/%s.chunk.json), %s's after them." % (key, L.name),
+             "Text is cut into phrases with %s's word lists." % std),
+            ("verbs", "Verb entries", "verbs",
+             "Its own forms are offered for a verb (lib/lang/%s.verbs.json)." % key,
+             "A verb is offered in %s's forms." % std)):
+        if os.path.exists(os.path.join(LANG_FILES, "%s.%s.json" % (key, what))):
+            add(fkey, fname, HAVE, have)
+        else:
+            add(fkey, fname, OPTIONAL, without, "lib/lang/%s.%s.json" % (key, what))
+    add("analysis", "Linguistic analysis", OPTIONAL,
+        "Not used: the analyzers read %s, and the dictionary and the rules read the text alone." % std)
+    add("prompts", "Prompts", HAVE,
+        "Every prompt and skill request names %s and asks for its words and its pronunciation." % name)
+    if code in _whisper():
+        add("speech", "Speech to text", OPTIONAL,
+            "Whisper is asked for %s: a transcript leans towards %s's spelling." % (L.name, std))
+    tracks = [c for _n, c in (v.get("kaikki") or []) if c]
+    if tracks:
+        add("captions", "YouTube captions", HAVE,
+            "Adding a video, the page asks for its own caption track in YouTube's transcript panel (%s), "
+            "%s's where there is none." % (", ".join(tracks), L.name))
+    return out
+
+
+def varieties(code):
+    """[{key, name, features}] of a language's varieties, for the page's sub-rows; [] for a language without."""
+    L = languages.LANGS.get(code)
+    return [{"key": v["key"], "name": v.get("name") or v["key"],
+             "features": variety_features(code, v["key"])} for v in (L.varieties if L else [])]
+
+
 def table():
     return {code: features(code) for code in languages.LANGS}
 
@@ -288,6 +362,10 @@ def render(codes=None):
         for f in features(code):
             lines.append("    %s %-26s %s%s" % (mark[f.state], f.name, f.says,
                                               ("\n%32s→ %s" % ("", f.adds)) if f.adds and f.state != HAVE else ""))
+        for v in varieties(code):
+            lines.append("    %s (%s.%s)" % (v["name"], code, v["key"]))
+            for f in v["features"]:
+                lines.append("      %s %-24s %s" % (mark[f.state], f.name, f.says))
         lines.append("")
     lines.append("✓ has it   ~ a service is asked when it is fetched   · optional, not there   ✗ missing")
     return "\n".join(lines)

@@ -36,7 +36,10 @@ from segcolour import parse_at as parse_segmented  # noqa: E402
 
 # `lang:` is the prose language (hyphenation); `target:` the language being
 # learned -- a registry code, Persian when absent (docs/languages.md, 5).
-FM_KEYS = {"title", "subtitle", "note", "lang", "target"}
+# `variety:` the variety of the target the text is written in (Arabic's egy,
+# lev, gulf, mor: lib/languages.py); absent, or one the target has not, is
+# the standard language.
+FM_KEYS = {"title", "subtitle", "note", "lang", "target", "variety"}
 
 # The line under a table's header: a cell of dashes each, as in GFM -- ONE
 # dash is enough (`|-|-|`, `:-:`); asking for two turned a table written
@@ -953,6 +956,10 @@ def parse(text, target=None, card=False):
     else:
         L = languages.get_or_default(raw_target)
     fm["target"] = L.code
+    # the variety, kept only where the target has it: the standard language is its absence
+    raw_variety = (fm.pop("variety", "") or "").strip().lower()
+    if raw_variety and L.variety_of(raw_variety):
+        fm["variety"] = raw_variety
 
     blocks = []
     fn_defs = {}

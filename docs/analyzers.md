@@ -103,10 +103,10 @@ code `ar` (`languages.with_variety`), so each consumer tests the variety itself:
 `lookupassist` when the request names one), chunking in `chunker.assisting(code, variety)` (fed by `draft._cut_all`
 from the new book's, the added text's or the new video's variety), evidence in `glossregion._evidence` (no
 `for_units`; the sheet's note says the dialect gets none). The analyzers read the standard language: Farahidi took
-Gulf أبي, "I want", for أب "father". A book made in place has no variety (the make page offers none), so
-`EVIDENCE_HELPER` needs no test.
+Gulf أبي, "I want", for أب "father". A book made in place records its variety too (a0.6.3: the add page's
+"Written in", book.json `variety`), and `making.evidence_helper` says nothing for one.
 
-Not in this version: studio prompts, `parseh-markdown`, transcript tidying, Ask LLM, a video from scratch.
+Not in this version: transcript tidying, Ask LLM, a video from scratch.
 
 ## Installing, and moving a pin
 

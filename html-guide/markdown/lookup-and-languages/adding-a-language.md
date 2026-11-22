@@ -34,6 +34,16 @@ word times, pictograms. Each says what the language is without it and what
 adds it. The same list is `python3 lib/newlang.py --features` (one language:
 `--features ca`).
 
+A language with varieties lists them under its own features, **Its
+varieties**: Arabic's Egyptian, Levantine, Gulf and Moroccan, each opening
+on what it has of its own — its dictionary (fetched on **Settings →
+Reading help** or not yet), its lookup rules, its romanisation, its
+chunking rules and its verb forms, each found by its file
+(`lib/lang/ar.egy.lookup.json` and so on) and otherwise taken from Arabic's
+— and on what is the same for all four: no linguistic analysis, prompts
+that name the dialect, speech to text that leans towards standard
+spelling, and the caption track the add-a-video page asks for.
+
 **Add a language** at the foot of the page asks for what a form can ask:
 the code, the English name and the language's own, the kind of script
 (and its characters, for *other*), a **related language**, the ISO 639-3

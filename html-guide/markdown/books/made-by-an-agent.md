@@ -13,6 +13,16 @@ about what happens after **make the book's folder** on the add page ([Adding a
 book](doc:Adding a book)): opening the folder in an agent, watching the book
 grow, steering it, and finishing it.
 
+**An Arabic book in a dialect** says so on the add page, in **Written in**
+beside the language, as any book does. The choice is written into the
+folder's `book.json` (`variety`), and the instructions and the skill's
+request tell the agent the text is Egyptian Arabic (say): to gloss each
+word as that dialect uses it and to write its transliteration as it is said
+there. They never offer the agent the linguistic analysis for it, which
+reads standard Arabic. Changed later in the reader's dictionary panel, the
+instructions are written again at once, and the panel says to tell the
+agent to read them again.
+
 **Parseh never starts an agent.** You use whichever you like — a coding
 assistant in its own app, in a terminal or in an editor: anything that works
 inside a folder — and Parseh does not name one as *the* way. It writes the

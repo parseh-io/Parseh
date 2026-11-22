@@ -1249,6 +1249,8 @@ a.wbtn{display:inline-block;text-decoration:none;color:var(--accent-fg)}
              year: val('year').trim(), blurb: val('blurb').trim(), pages: val('pages').trim(),
              title_latin_upper: (val('title_latin').trim() || slugNow()).toLocaleUpperCase(L.code),
              original: originalName || ''};
+    // the variety the text is in (Arabic's dialects), a fact of the book like its language: book.json `variety`
+    if (!$('variety_lbl').hidden && val('variety')) f.variety = val('variety');
     // the scheme of the transliteration is a fact of the book, written into it; the row says which
     var chosen = instructions ? instructions.options() : {};
     if (chosen.translit) f.translit = chosen.translit;

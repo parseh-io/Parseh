@@ -419,8 +419,14 @@ class Lang:
 
     def variety_of(self, key):
         """The row of one variety (`egy`), or None."""
-        key = (key or "").strip().lower()
+        key = key.strip().lower() if isinstance(key, str) else ""
         return next((v for v in self.varieties if v["key"] == key), None)
+
+    def variety_name_of(self, key):
+        """The name of one of its varieties ("Egyptian Arabic"), or "" for the
+        standard language and for a key it has not: what a card says."""
+        v = self.variety_of(key)
+        return (v.get("name") or v["key"]) if v else ""
 
     def with_variety(self, key):
         """This language as written in one of its varieties: the same Lang in

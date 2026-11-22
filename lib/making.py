@@ -928,7 +928,7 @@ def method_values(facts):
     book, orig = facts["book"], facts["original"]
     ref = facts.get("reference")
     ex = facts.get("examples") or []
-    L, G = languages.get(book["language"]), languages.gloss_or_default(book["gloss"])
+    L, G = book_language(book), languages.gloss_or_default(book["gloss"])
     pages = ", pages %d-%d of it (counted from 0)" % tuple(orig["pages"]) if orig.get("pages") else ""
     latin = book["title_latin"] or book["slug"]
     rule, step, example = _reading_and_words(L, facts["python"], facts["lib"], book["dir"])
@@ -958,12 +958,21 @@ def method_values(facts):
     return values
 
 
+def book_language(book):
+    """The language of the book the facts describe, as written in its variety where book.json names one
+    (Arabic's dialects, `variety`): what its instructions, its prompts and its skill are made for."""
+    L = languages.get(book["language"])
+    return L.with_variety(book["variety"]) if book.get("variety") else L
+
+
 def evidence_helper(facts, L):
     """The line of the method that says how to ask the analyzers (lib/evidence.py), or nothing where nobody chose
-    that on Settings -> Linguistic analysis, or no analyzer here covers the language."""
+    that on Settings -> Linguistic analysis, or no analyzer here covers the language.  NOTHING FOR A VARIETY
+    (Arabic's dialects): the analyzers read the standard language, and their reading of a dialect word is often
+    another word's (TO-DO 2.30)."""
     import analysisconfig
     import analyzer
-    if analysisconfig.choice("evidence") != "on" or not analyzer.available(L.code, syntax=True):
+    if L.variety or analysisconfig.choice("evidence") != "on" or not analyzer.available(L.code, syntax=True):
         return ""
     return ("A linguistic analyzer may be asked about a sentence: `%s %s %s --text \"...\"` prints what it read, "
             "and writes nothing. What it prints is evidence and can be wrong: where it disagrees with what the sentence "
@@ -996,7 +1005,7 @@ def resolved_parts(facts, options=None):
     between parts left as they are.  What a project skill is made from (skill_files), and the same words
     as AGENTS.md's -- a person's own prompt apart, which is theirs."""
     book = facts["book"]
-    L, G = languages.get(book["language"]), languages.gloss_or_default(book["gloss"])
+    L, G = book_language(book), languages.gloss_or_default(book["gloss"])
     values, asked = method_values(facts), _asked(facts, options)
     return [(name, promptkit.assemble("book-new", L, G, values=values, options=asked, template=text).instructions)
             for name, text in method_parts()]
@@ -1007,7 +1016,7 @@ def instructions_text(facts, options=None):
     (the language's conventions and the rule on the meaning come in by it), or the person's own prompt
     for it (`options["prompt"]`, an id).  The seam is write_instructions, which calls this."""
     book = facts["book"]
-    L, G = languages.get(book["language"]), languages.gloss_or_default(book["gloss"])
+    L, G = book_language(book), languages.gloss_or_default(book["gloss"])
     chosen = _chosen((options or {}).get("prompt"), L)
     try:
         made = promptkit.assemble("book-new", L, G, values=method_values(facts), options=_asked(facts, options),
@@ -1041,7 +1050,7 @@ def skill_files(facts, options=None):
     except ImportError:
         return {}
     book = facts["book"]
-    L, G = languages.get(book["language"]), languages.gloss_or_default(book["gloss"])
+    L, G = book_language(book), languages.gloss_or_default(book["gloss"])
     try:
         return dict(skills.build_for_book(L, G, _asked(facts, options), method_values(facts)).files)
     except Exception as e:                  # a bug of Parseh's, said in words and not as a stack, and nothing is written
@@ -1142,7 +1151,7 @@ def rewrite_instructions(book_dir):
                        "title_latin": meta.get("title_latin"), "title_en": meta.get("title_en"),
                        "author": meta.get("author"), "author_latin": meta.get("author_latin"),
                        "year": meta.get("year"), "blurb": meta.get("blurb"), "slug": meta.get("slug"),
-                       "translit": meta.get("translit") or ""})
+                       "translit": meta.get("translit") or "", "variety": meta.get("variety") or ""})
     first = str(meta.get("source_pdf") or "")
     if not first.startswith(ORIGINAL + "/"):
         raise ValueError("book.json does not say which file the book is made from, so the instructions "
@@ -1209,6 +1218,10 @@ def _identity(fields, need=True):
                          "behind)" % wanted)
     got.update(slug=slug or "new-book", lang=L, gloss=G,
                upper=upper or (got["title_latin"] or slug or "new-book").upper())
+    # THE VARIETY THE TEXT IS IN (Arabic's dialects), a fact of the book like the language: book.json `variety`,
+    # absent for the standard language; a key the language has not is refused in words
+    got["variety"] = draft._variety(L, fields.get("variety") if isinstance(fields.get("variety"), str)
+                                    else "").get("variety", "")
     # THE SCHEME OF THE BOOK'S TRANSLITERATION is a fact of the book (book.json "translit"), written
     # only when it is not the language's usual one: "ipa", or "" (promptkit.OPTIONS; a value that is
     # neither is refused in words)
@@ -1285,6 +1298,7 @@ def facts_for(identity, orig_file, pages, options, dest, shelf=None):
                  "title_en": identity["title_en"], "author": identity["author"],
                  "author_latin": identity["author_latin"], "year": identity["year"],
                  "blurb": identity["blurb"], "language": L.code, "language_name": L.name,
+                 "variety": identity.get("variety") or "",
                  "gloss": G.code, "gloss_name": G.name, "translit": identity["translit"]},
         "original": {"file": "%s/%s" % (ORIGINAL, orig_file), "pages": pages},
         "reference": reference, "examples": examples,
@@ -1327,7 +1341,7 @@ def skill_request_for(facts, options, chars):
     except ImportError:
         return None
     book = facts["book"]
-    L, G = languages.get(book["language"]), languages.gloss_or_default(book["gloss"])
+    L, G = book_language(book), languages.gloss_or_default(book["gloss"])
     chosen = _chosen((options or {}).get("prompt"), L)
     return skills.safe(lambda: skills.for_book(L, G, _asked(facts, options), method_values(facts), chars, chosen),
                        "parseh-book")
@@ -1403,6 +1417,8 @@ def make(fields, original, options=None, into=None):
             meta["source_pages"] = pages
         if ident["translit"]:
             meta["translit"] = ident["translit"]
+        if ident["variety"]:
+            meta["variety"] = ident["variety"]
         _write_json(os.path.join(tree, "book.json"), meta)
         values = {"TITLE": ident["title"], "AUTHOR": ident["author"],
                   "TITLE_LATIN": meta["title_latin"], "AUTHOR_LATIN": ident["author_latin"],

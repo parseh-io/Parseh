@@ -12,7 +12,11 @@ top of it is the deck; below is every exercise it holds.
 ## The deck's head
 
 - **The name**, with **✎** beside it to rename the deck, and the deck's
-  language.
+  language. A deck in Arabic has **written in** beside the language: Modern
+  Standard Arabic, or Egyptian, Levantine, Gulf or Moroccan Arabic. The
+  choice is saved at once in the deck, travels with it in an export, and is
+  shown on the deck's card on [the decks page](decks-page.md#a-decks-card).
+  A deck made before there was a choice is standard Arabic.
 - **The counts**: `8 exercises · 3 new · 2 learning · 3 in review` — every
   exercise the deck holds, by where it stands (*learning* counts the ones
   relearning after a lapse too).

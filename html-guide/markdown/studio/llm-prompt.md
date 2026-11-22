@@ -46,6 +46,12 @@ A model that cannot make a file answers in the chat instead: see
   written differently for a script of its own than for a Latin-script
   language, and, under the rules, that language's own conventions — its
   transliteration scheme, its reading rule, what to hyphenate.
+- **written in** stands beside it for Arabic: Modern Standard Arabic, or
+  one of the four dialects. With a dialect chosen the first line names it
+  (*… written in Egyptian Arabic: write `target: ar` and `variety: egy` in
+  the front matter*), and a paragraph before the conventions tells the
+  chatbot to use every word as that dialect does and to write its
+  transliteration as it is said there.
 - **Teach the model to write:** is the set of boxes below. A line above
   them says that whatever you leave unticked is still named in the prompt as
   reserved. Each box has its name, one line on what it lets the model

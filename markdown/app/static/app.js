@@ -4203,6 +4203,11 @@ function initIndex() {
     renderTagbar();
   }
 
+  // the variety the document is written in (Arabic's dialects): its name, beside the language's
+  function varietyBadge(d) {
+    return d.variety && d.variety_name
+      ? `<span class="badge variety" data-variety="${escAttr(d.variety)}">${escAttr(d.variety_name)}</span>` : "";
+  }
   function buildBadge(b) {
     if (!b || b.status === "none")
       return `<span class="badge">no PDF yet</span>`;
@@ -4256,7 +4261,7 @@ function initIndex() {
         <h3>${d.title_html || "Untitled"}</h3>
         <p class="sub">${d.subtitle_html || ""}</p>
         <div class="badges"><span class="badge lang" lang="${escAttr(l.code)}" dir="${escAttr(l.dir)}"
-            title="${escAttr(l.name)}">${escAttr(l.native)}</span>${buildBadge(d.build)}
+            title="${escAttr(l.name)}">${escAttr(l.native)}</span>${varietyBadge(d)}${buildBadge(d.build)}
           ${statBits.map(x => `<span class="badge">${x}</span>`).join("")}
         </div>
         <div class="tagrow"></div>
@@ -5305,6 +5310,34 @@ function initDoc() {
     });
   }
 
+  /* THE VARIETY THE TEXT IS WRITTEN IN (Arabic: Standard, Egyptian, Levantine, Gulf, Moroccan): a select in
+     the metabar for a language that has varieties.  A change is written into the front matter (`variety:`),
+     where the editor shows it; the prompts made from this document (its exercises) name it. */
+  const vEdit = $("#variety-edit"), vSel = $("#doc-variety"), vSaid = $("#variety-said");
+  if (vEdit && vSel && (lang().varieties || []).length) {
+    const L = lang();
+    for (const v of [{key: "", name: L.standard_name || L.name}].concat(L.varieties)) {
+      const o = document.createElement("option");
+      o.value = v.key; o.textContent = v.name;
+      vSel.appendChild(o);
+    }
+    vSel.value = meta.variety || "";
+    vEdit.hidden = false;
+    vSel.addEventListener("change", async () => {
+      vSaid.textContent = "…";
+      try {
+        const data = await api(`/api/docs/${DOC_ID}/meta`, {method: "PATCH", json: {variety: vSel.value}});
+        meta = Object.assign(meta, data.meta);
+        meta.variety = data.meta.variety || "";
+        vSel.value = meta.variety;
+        vSaid.textContent = "saved: the prompts made from this document name it";
+      } catch (e) {
+        vSel.value = meta.variety || "";
+        vSaid.textContent = "not saved: " + e.message;
+      }
+    });
+  }
+
   /* tags editor */
   const chips = $("#tag-chips"), input = $("#tag-input");
   function renderTags() {
@@ -5436,6 +5469,7 @@ function initPrompt() {
   const badge = $("#prompt-badge");
   const question = $("#question");
   const sel = $("#prompt-target");
+  const vsel = $("#prompt-variety");
   let current = {text: "", custom: false, target: "fa", target_name: "Persian",
                  lang_block: ""};
   bindStopServer();
@@ -5458,8 +5492,24 @@ function initPrompt() {
     return `target: ${current.target} — this document is about ${current.target_name}: `
       + `write \`target: ${current.target}\` in the front matter.\n\n`;
   }
+  /* THE VARIETY ("written in"): the language's varieties, from the server's answer -- shown only for a
+     language that has any (Arabic: Standard, Egyptian, Levantine, Gulf, Moroccan). */
+  function drawVarieties(p) {
+    if (!vsel) return;
+    const vs = p.varieties || [];
+    $("#prompt-variety-lbl").hidden = !vs.length;
+    const want = p.variety || "";
+    vsel.innerHTML = "";
+    for (const v of [{key: "", name: p.standard_name || p.target_name}].concat(vs)) {
+      const o = document.createElement("option");
+      o.value = v.key; o.textContent = v.name;
+      vsel.appendChild(o);
+    }
+    vsel.value = want;
+  }
   function show(p) {
     current = p;
+    drawVarieties(p);
     // WHAT THE BOX SHOWS is the prompt the server assembled (the version line, the target
     // line, the instructions, the language's conventions, the answer contract), so that what
     // it shows is what is copied; a server that does not send one is composed the old way
@@ -5488,6 +5538,8 @@ function initPrompt() {
   let timer = 0, seq = 0, making = false;
   function query(plain) {
     const q = ["target=" + encodeURIComponent(sel.value)];
+    // the variety of it the document is to be written in (Arabic's dialects), where one is chosen
+    if (vsel && vsel.value) q.push("variety=" + encodeURIComponent(vsel.value));
     // a `boxes=` with nothing after it is "none ticked" -- the key stays when the list is empty
     if (!plain && teach.boxes()) q.push("boxes=" + encodeURIComponent(teach.boxes().join(",")));
     if (!plain) for (const [k, v] of Object.entries(choices.params()))
@@ -5548,8 +5600,10 @@ function initPrompt() {
     // the menu lists the prompts of this language; a choice that is not for it is Parseh's own again, and the
     // prompt is asked for once more by the row's own say-so (onPrompt)
     if (row) await row.setLang(sel.value);
+    if (vsel) vsel.value = "";            // another language: its standard form, until a variety is chosen
     load();
   });
+  if (vsel) vsel.addEventListener("change", () => ask());
 
   /* WHAT IS COPIED: the prompt as the box shows it -- while it is being edited
      the box holds the editable text alone, and the target line and the

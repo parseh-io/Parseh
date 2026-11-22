@@ -2217,7 +2217,7 @@ def exercise_prompt(markdown, decks=(), boxes=None, types=None, level="", length
     `page_types` (all the types, when it holds no exercise)"""
     rows = _deck_vocabulary(decks)
     fm, _blocks = mdparser.parse(markdown)
-    target = languages.get_or_default(fm["target"])
+    target = doc_language(fm)            # in its variety, where the front matter names one
     options = promptkit.resolve("studio-exercises", target, promptkit.given({"translit": translit}))
     page_boxes, page_types = promptboxes.page_uses(markdown)
     page_types = page_types or list(promptboxes.TYPE_IDS)
@@ -2272,12 +2272,31 @@ def lang_block(code, options=None):
     cut to what a document needs (lib/promptkit.py) and read at request time;
     empty when the file is not there.  `options`: what the request chose of the
     scheme of the transliteration (promptkit.OPTIONS)."""
-    return promptkit.language_text("studio-doc", languages.get_or_default(code), options=options)
+    L = code if isinstance(code, languages.Lang) else languages.get_or_default(code)
+    return promptkit.language_text("studio-doc", L, options=options)
+
+
+def doc_language(fm_or_meta):
+    """The language a document or its front matter says, as written in its
+    variety when it names one (Arabic's dialects: `variety:`): what its
+    prompts are made for."""
+    L = languages.get_or_default((fm_or_meta or {}).get("target"))
+    v = (fm_or_meta or {}).get("variety")
+    return L.with_variety(v) if v else L
+
+
+def _q_language(h):
+    """The language a prompt page's query asks for: `target=`, and
+    `variety=` where the page chose one of the language's varieties."""
+    return doc_language({"target": _q1(h, "target"), "variety": _q1(h, "variety")})
 
 
 def _target_line(L):
     """The line the prompt opens with, after its version line: which language
-    the document is about."""
+    the document is about (and which variety of it, for a text in one)."""
+    if L.variety:
+        return ("target: %s — this document is about %s, written in %s: write `target: %s` and "
+                "`variety: %s` in the front matter." % (L.code, L.name, L.variety_name, L.code, L.variety))
     return ("target: %s — this document is about %s: write `target: %s` in the "
             "front matter." % (L.code, L.name, L.code))
 
@@ -2297,7 +2316,7 @@ def _prompt_tail(L, text, custom, options=None):
     """What follows the instructions on the prompt page: the language's
     conventions and, where the text lacks it, the rule for the boxes of a
     right-to-left target."""
-    blocks = [lang_block(L.code, options)]
+    blocks = [lang_block(L, options)]
     # The shipped prompt contains this rule itself so it also works when
     # copied directly from disk. Add it here for every custom override (and
     # for an older shipped prompt that lacks it), preserving the guarantee
@@ -2331,7 +2350,7 @@ def studio_prompt(L, custom_text=None, boxes=None, level="", length="", translit
     # a person's own text in place of Parseh's may lack what the shipped prompt carries (the rule for a
     # right-to-left target); Parseh's words and then theirs do not (_prompt_tail)
     tail = (_prompt_tail(L, custom_text, chosen is None or chosen.kind == "replace", options)
-            if custom else lang_block(L.code, options))
+            if custom else lang_block(L, options))
     promptkit.check(tail, "studio-doc")         # Parseh's own, put in by hand
     return promptkit.assemble("studio-doc", L, custom=chosen.name if chosen else custom, lead=_target_line(L),
                               instructions=custom_text, flags=promptboxes.flags(L, on),
@@ -2405,10 +2424,14 @@ def api_prompt_get(h):
     `text` (the editable prompt), `custom` and `lang_block` are what a page
     of before the boxes composed a prompt from, the block after the text:
     kept for it, and never used by the page that draws the boxes."""
-    L = languages.get_or_default(_q1(h, "target"))
+    L = _q_language(h)                   # in a variety, where the page chose one (Arabic's dialects)
     out = _prompt_record(L)
     out["target"] = L.code
     out["target_name"] = L.name
+    # the variety it is for, and the ones the language has: the page's "written in" select
+    out["variety"], out["variety_name"] = L.variety or "", L.variety_name or ""
+    out["varieties"] = [{"key": v["key"], "name": v.get("name") or v["key"]} for v in L.varieties]
+    out["standard_name"] = L.standard_name or L.name
     out["lang_block"] = _prompt_tail(L, out["text"], bool(out.get("custom")))
     chosen = None
     try:
