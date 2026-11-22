@@ -637,6 +637,21 @@ space: `aux. \pw{avere}/\pw{essere}` is *avere/essere* in the PDF, the reader,
 the cloud and the card. `texparse.VOC_MACROS` and `check_batch`'s argument
 count hold the seven.
 
+**A line is also cut into entries**, for the vocabulary list of a chapter, a
+book or a video (TO-DO 11.14): `texparse.voc_entries` and `vocline.js`'s
+`entries`, held equal by the `entries` cases of `tests/fixtures/vocline.json`
+and by every line of every fixture edition and video. Each `\dw`, `\vb` and
+`\bw` at the top of the line starts an entry, and so does a `\pw` that opens
+a stretch of it (its start, or after a `;`); a `\pw` after other text is a
+word inside a meaning (*fox, pl. \pw{ثعالب}*) and stays in it. The meaning is
+the text after the entry up to the next `;` or entry, a `\vb`'s own last group
+and a `\bw`'s phrase first. Two entries are one word when their
+`texparse.vocab_key` is the same: NFC, the language's `strip` marks and the
+zero-width joiners off (what `lookup._fold` takes off), Persian's ي ى ك as ی ی ک
+(Arabic keeps them apart), Turkish's two i's, lower case. `lib/vocab.py`
+(`GET <book>/__vocab`) reads a whole book's lines this way with each chunk's
+address, for what reads many books at once; the reader's own list reads SRC.
+
 **What a language adds goes inside the meaning**, as one parenthesis after
 it, items parted by `; `: `\vb{fahren}{}{fuhr}{}{gefahren}{}{to drive (er
 fährt; aux. sein)}`, `\vb{書く}{kaku}{書き}{kaki}{書いて}{kaite}{to write

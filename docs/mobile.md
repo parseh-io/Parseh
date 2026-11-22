@@ -419,6 +419,11 @@ mobile mode:
   worker refuses at once while the computer is away. Per flag the newest change
   wins and a removal is remembered for 90 days, so a device that still holds a
   flag cannot bring it back.
+* **The vocabulary list** (`lib/vocab.js`, a0.6.3) is a sheet from the foot on a
+  phone, opened from the ⚙ sheet's *Interface* (the header's first line has no
+  room for its door). It is read from what the page holds — SRC in a reader,
+  the phrases in a player — so it works offline and in a kept copy; a tap on a
+  word takes the sheet down and shows the place; no cards on a phone.
 * **A finger reaches what a key reached** (`lib/wordtouch.js`). Copying is a
   Shift-click and a card an Alt-click, and a finger holds neither: so a finger
   HELD on a word for half a second opens a small menu — *Card for “word”* ·
