@@ -1,0 +1,12 @@
+{
+  "_comment": "How Moroccan Arabic (the urban koine of Casablanca and Rabat) says the letters a romanisation of standard Arabic writes, for lib/translit.py: read before lib/lang/ar.ipa.json for a book or a video written in Moroccan (variety ar.mor). Whatever this file does not say is ar.ipa.json's. ONLY the consonant correspondences every description gives and the Moroccan dictionary agrees with; ق is kept as q (the cities say q). Vowels are NOT touched: Moroccan drops most of standard Arabic's short vowels (kataba > kteb), and where and how is the research brief's, so a standard word keeps its standard vowels here.",
+  "_sources": [
+    "Richard S. Harrell, A Short Reference Grammar of Moroccan Arabic (Georgetown University Press, 1962), ch. 1: the interdentals > stops t d ḍ, q kept in the cities, ج said ž.",
+    "Dominique Caubet, L'arabe marocain, vol. 1 (Peeters, 1993): the same.",
+    "Jeffrey Heath, Jewish and Muslim Dialects of Moroccan Arabic (RoutledgeCurzon, 2002): the regional q/g split, which is why q is left as it is."
+  ],
+  "from_standard": {
+    "_map": "A letter of the standard romanisation (the standard dictionary's hits, shown in a text written in Moroccan) to the letter the cities say: ث ذ ظ are t d ḍ (ṯalāṯa > talāta, ḏahab > dahab, ẓahr > ḍahr). ج is LEFT j: Moroccan says it ž, but the Moroccan dictionary writes it j (142 of its 151 entries with ج), so one sound keeps one letter in the panel. Left out, to the research brief: the short vowels, ق as g in the countryside, ž > z beside another sibilant (zūž).",
+    "map": {"ṯ": "t", "Ṯ": "T", "ḏ": "d", "Ḏ": "D", "ẓ": "ḍ", "Ẓ": "Ḍ"}
+  }
+}

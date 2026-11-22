@@ -1,0 +1,9 @@
+# Egyptian Arabic, longer sentences with the sense groups a reader would want, " | " between them (2026-11-22).
+# Written and cut BEFORE lib/lang/ar.egy.chunk.json was written, by the agent of lane H1 (not a native speaker):
+# the owner, or a speaker, should check the cuts.  The bench (tests/dialect_bench.py --chunks) scores the seams.
+أنا مش عارف | الكتاب بتاعي فين | عشان كنت حاطه | على الترابيزة دي.
+الراجل اللي ساكن جنبنا | بيشتغل في البنك | من سنين كتير.
+هو ده البيت | اللي اتولدت فيه | وأنا صغير.
+مش لازم تيجي بكره | لو إنت تعبان.
+إحنا كنا عايزين نروح | بس الجو كان وحش قوي.
+الحاجات دي كلها | بتاعة أختي | مش بتاعتي.

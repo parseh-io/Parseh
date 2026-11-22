@@ -140,19 +140,41 @@ STOP_MARKS = "!?…؟।॥۔"
 _RULES = {}
 
 
+def _read_rules(key):
+    try:
+        with open(os.path.join(HERE, "lang", "%s.chunk.json" % key), encoding="utf-8") as f:
+            got = json.load(f)
+        return got if isinstance(got, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
 def rules(code):
     """What this language says about its own phrases: lib/lang/<code>.chunk.json,
-    optional like every file of that name."""
+    optional like every file of that name.
+
+    A VARIETY'S FILE IS READ FIRST AND THE LANGUAGE'S AFTER IT, as lookup reads
+    ar.egy.lookup.json before ar.lookup.json: `code` is then the variety's key
+    (ar.egy, lib/languages.py with_variety).  Its function words join the
+    language's under the same headings, its lists (question words, ties ...)
+    come before the language's, and whatever else it does not say is the
+    language's.  A language with no variety reads its own file only, as always."""
     if code not in _RULES:
-        d = {}
-        path = os.path.join(HERE, "lang", "%s.chunk.json" % code)
-        try:
-            with open(path, encoding="utf-8") as f:
-                got = json.load(f)
-            if isinstance(got, dict):
-                d = got
-        except (OSError, ValueError):
-            d = {}
+        d = _read_rules(code)
+        base, dot, _v = code.partition(".")
+        if dot:
+            own, d = d, dict(_read_rules(base))
+            for k, v in own.items():
+                if k == "function_words" and isinstance(v, dict):
+                    fw = {c: list(ws) for c, ws in (d.get(k) or {}).items() if isinstance(ws, list)}
+                    for c, ws in v.items():
+                        if isinstance(ws, list):
+                            fw[c] = list(ws) + [w for w in fw.get(c, []) if w not in ws]
+                    d[k] = fw
+                elif isinstance(v, list) and isinstance(d.get(k), list):
+                    d[k] = list(v) + [w for w in d[k] if w not in v]
+                else:
+                    d[k] = v
         _RULES[code] = d
     return _RULES[code]
 
@@ -207,8 +229,8 @@ def _class(tok, code):
     language's own list of function words first, then the dictionary.  The
     cut itself reads every token in its place (_spaced)."""
     L = languages.get_or_default(code)
-    return _candidates(tok, False, L, rules(code), _lexicon(code),
-                       lookup.available(code))[0]
+    return _candidates(tok, False, L, rules(L.key), _lexicon(L.key),
+                       lookup.available(L.code))[0]
 
 
 # THE LANGUAGE'S OWN FUNCTION WORDS.  A dictionary is the wrong authority on
@@ -241,7 +263,7 @@ def _lexicon(code):
     if code not in _LEXICONS:
         L = languages.get_or_default(code)
         lex = {}
-        for cls, ws in (rules(code).get("function_words") or {}).items():
+        for cls, ws in (rules(L.key).get("function_words") or {}).items():
             if cls.startswith("_") or not isinstance(ws, list):
                 continue
             for w in ws:
@@ -254,7 +276,7 @@ def _lexicon(code):
 
 def _listed(L, R, name):
     """One of the language's word lists ("ties", "closing"), as a set."""
-    k = (L.code, name)
+    k = (L.key, name)
     if k not in _LISTS:
         _LISTS[k] = frozenset(_key(w, L) for w in (R.get(name) or []))
     return _LISTS[k]
@@ -263,10 +285,10 @@ def _listed(L, R, name):
 def _light(L, R, word):
     """Is this a light verb, the half of a compound verb that makes a verb of
     the noun before it (فکر کردن, teşekkür etmek)?"""
-    if L.code not in _LIGHT:
-        _LIGHT[L.code] = [re.compile(p) for p in (R.get("light_verbs") or [])]
+    if L.key not in _LIGHT:
+        _LIGHT[L.key] = [re.compile(p) for p in (R.get("light_verbs") or [])]
     key = _key(lookup._bare(word, L), L)
-    return any(p.search(key) for p in _LIGHT[L.code])
+    return any(p.search(key) for p in _LIGHT[L.key])
 
 
 def _cased(word):
@@ -298,14 +320,18 @@ def _candidates(tok, first, L, R, lex, have_dict):
     if key in lex:
         return list(lex[key])
     got = []
+    # the LANGUAGE's own list decides how the dictionary is read, not a
+    # variety's: Arabic lists no function words, so a word Egyptian's list
+    # does not name is read exactly as it is in standard Arabic
+    own = _lexicon(L.code) if L.key != L.code else lex
     if have_dict:
-        ranked = (lookup.pos_weights(L.code, bare) if lex
+        ranked = (lookup.pos_weights(L.code, bare) if own
                   else [(p, 0) for p in lookup.pos_of(L.code, bare)])
         for pos, _n in ranked:
             cls = CLASS.get(pos)
             if cls is None or cls in got:
                 continue
-            if lex and cls in _CLOSED_CLASSES:
+            if own and cls in _CLOSED_CLASSES:
                 continue            # the language's own list is the authority
             if pos == "name" and _cased(bare) and (first or not bare[:1].isupper()):
                 continue            # a name is a capital inside the sentence
@@ -642,7 +668,7 @@ def _spaced(text, L, R, have_dict, analysis=None):
     toks = _tokens(text, L)
     if len(toks) < 2:
         return [text.strip()] if text.strip() else []
-    lex = _lexicon(L.code)
+    lex = _lexicon(L.key)
     head_final = (R.get("np_head") or "final") == "final"
     after = (R.get("adposition") or ("after" if head_final else "before")) == "after"
     pieces, cands = [], []
@@ -1007,7 +1033,7 @@ def phrase(text, lang, analysis=None):
     L = languages.get_or_default(lang)
     if not (text or "").strip():
         return []
-    R = rules(L.code)
+    R = rules(L.key)
     if not L.spaced and (R.get("closes") or R.get("marks")):
         got = _by_words(text, L, R)
         if not got:
@@ -1019,7 +1045,7 @@ def phrase(text, lang, analysis=None):
         return got if len(got) > 1 else [text.strip()]
     have_dict = lookup.available(L.code)
     if L.spaced:
-        if analysis is not None or have_dict or _lexicon(L.code):
+        if analysis is not None or have_dict or _lexicon(L.key):
             return _spaced(text, L, R, have_dict, analysis)
         # nothing to read a class from: the punctuation is all there is
         return _clauses(text, L, R)

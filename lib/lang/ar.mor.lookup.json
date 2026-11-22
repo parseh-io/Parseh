@@ -77,6 +77,11 @@
       "note": "فال- (في ال-) taken off, the article put back"
     },
     {
+      "prefix": "فال",
+      "min_stem_length": 3,
+      "note": "فال- (في ال-) taken off, with its article: a Moroccan word the dictionaries list without the article form (فالزنقة is زنقة)"
+    },
+    {
       "prefix": "ف",
       "note": "ف- (في) taken off",
       "min_stem_length": 3

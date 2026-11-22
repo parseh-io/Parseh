@@ -1,0 +1,9 @@
+# Moroccan Arabic, longer sentences with the sense groups a reader would want, " | " between them (2026-11-22).
+# Written and cut BEFORE lib/lang/ar.mor.chunk.json was written, by the agent of lane H1 (not a native speaker):
+# the owner, or a speaker, should check the cuts.  The bench (tests/dialect_bench.py --chunks) scores the seams.
+شنو بغيتي ندير ليك | دابا فالدار؟
+هاد الراجل | اللي كيخدم معايا | ساكن حدا الدار ديالنا.
+ما عرفتش | فين حطيت الساروت ديالي.
+إلا بغيتي تمشي | قول ليا | باش نجي معاك.
+ماشي مشكل | غادي نشوفو هاد الشي غدا.
+الكتاب ديال خويا | كاين فوق الطبلة.

@@ -433,8 +433,11 @@ CH_WORDS = """\
 
 def _cut_all(texts, code, how, variety=None):
     """New text, cut: with an analyzer's help where somebody chose that (Settings -> Linguistic analysis), and
-    with nothing else different.  Never with it for text in a variety (chunker.assisting)."""
+    with nothing else different.  Never with it for text in a variety (chunker.assisting), which is cut with
+    the variety's own word lists read before the language's (lib/lang/ar.<v>.chunk.json, chunker.rules)."""
     assist = chunker.assisting(code, variety) if how != "sentence" else None
+    if variety and languages.get_or_default(code).variety_of(variety):
+        code = "%s.%s" % (languages.get_or_default(code).code, variety.strip().lower())
     return chunker.chunk_all(texts, code, how, assist) if assist else chunker.chunk_all(texts, code, how)
 
 
