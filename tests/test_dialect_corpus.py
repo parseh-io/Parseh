@@ -97,8 +97,11 @@ class Build(Case):
 
     def test_levantine_is_two_codes_and_arabizi_is_left_out(self):
         self.assertEqual(self.build("ar.lev"), 2, "ajp's one and apc's Arabic-script one; the Arabizi one dropped")
-        r = corpus.look_up("ar.lev", "en", "كتير")
-        self.assertEqual([p["dst"] for p in r["pairs"]], ["Very good."])
+        import sqlite3
+        c = sqlite3.connect(corpus.path_for("ar.lev", "en"))
+        got = sorted(r[0] for r in c.execute("SELECT dst FROM pair"))
+        c.close()
+        self.assertEqual(got, ["Very good.", "What do you want now?"])
 
     def test_a_code_tatoeba_has_not_is_skipped(self):
         self.assertEqual(self.build("ar.gulf"), 1, "afb's sentence; acw has no export")
