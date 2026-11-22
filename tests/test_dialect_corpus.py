@@ -121,27 +121,27 @@ class Read(Case):
     def setUp(self):
         super().setUp()
         os.makedirs(self.dir)
+        # each word asked for is in one sentence only: rare enough to clear corpus._floor in a corpus of six
+        fill = [("الولد في الشارع", "The boy is in the street."), ("السماء زرقاء", "The sky is blue."),
+                ("الشاي ساخن", "The tea is hot."), ("المدرسة قريبة", "The school is near.")]
         pairs_db(os.path.join(self.dir, "ar.egy-en.db"),
-                 [("انا عايز اروح دلوقتي", "I want to go now."), ("مش عايز اروح", "I don't want to go."),
-                  ("ماما مش هنا", "Mom isn't here."), ("الكتاب هنا", "The book is here.")], variety="egy")
+                 [("انا عايز دلوقتي", "I want now."), ("هو مشغول", "He is busy.")] + fill, variety="egy")
         pairs_db(os.path.join(self.dir, "ar-en.db"),
-                 [("أريد أن أروح الآن", "I want to go now."), ("أروح إلى البيت", "I go home."),
-                  ("البيت كبير", "The house is big."), ("القطة نائمة", "The cat sleeps."),
-                  ("أروح غدا", "I go tomorrow.")])
+                 [("القطة نائمة", "The cat sleeps."), ("البحر كبير", "The sea is big.")] + fill)
 
     def test_the_variety_first_then_the_standard_language(self):
-        r = corpus.look_up_variety("ar", "egy", "en", "عايز اروح أروح", limit=10)
+        r = corpus.look_up_variety("ar", "egy", "en", "عايز مشغول نائمة كبير", limit=10)
         kinds = [p["variety"] for p in r["pairs"]]
-        self.assertTrue(kinds and kinds[0] == "egy", kinds)
+        self.assertEqual(kinds, ["egy", "egy", "", ""], "Egyptian's two, then standard Arabic's two")
         self.assertIn("", kinds, "the standard language's come after")
         self.assertEqual(kinds, sorted(kinds, reverse=True), "never a standard one before a dialect one: %s" % kinds)
         self.assertFalse(r["more"])
 
     def test_pages_join_into_the_whole(self):
-        whole = corpus.look_up_variety("ar", "egy", "en", "عايز اروح أروح", limit=10)["pairs"]
+        whole = corpus.look_up_variety("ar", "egy", "en", "عايز مشغول نائمة كبير", limit=10)["pairs"]
         got, at = [], 0
         while True:
-            r = corpus.look_up_variety("ar", "egy", "en", "عايز اروح أروح", limit=1, offset=at)
+            r = corpus.look_up_variety("ar", "egy", "en", "عايز مشغول نائمة كبير", limit=1, offset=at)
             got += r["pairs"]
             at += len(r["pairs"])
             if not r["more"]:
@@ -150,13 +150,13 @@ class Read(Case):
 
     def test_no_variety_corpus_gives_the_standard_ones_marked_so(self):
         os.unlink(os.path.join(self.dir, "ar.egy-en.db"))
-        r = corpus.look_up_variety("ar", "egy", "en", "أروح", limit=10)
+        r = corpus.look_up_variety("ar", "egy", "en", "نائمة", limit=10)
         self.assertTrue(r["pairs"])
         self.assertEqual({p["variety"] for p in r["pairs"]}, {""})
 
     def test_no_variety_is_look_up(self):
-        a = corpus.look_up_variety("ar", "", "en", "أروح", limit=10)
-        b = corpus.look_up("ar", "en", "أروح", limit=10)
+        a = corpus.look_up_variety("ar", "", "en", "نائمة كبير", limit=10)
+        b = corpus.look_up("ar", "en", "نائمة كبير", limit=10)
         self.assertEqual([p["src"] for p in a["pairs"]], [p["src"] for p in b["pairs"]])
         self.assertEqual({p["variety"] for p in a["pairs"]}, {""})
 

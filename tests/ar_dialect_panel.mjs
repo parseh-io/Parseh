@@ -13,6 +13,11 @@ import { chromium } from 'npm:playwright-core@1.52.0';
 //     finds دلوقتي in Egyptian's dictionary, its card saying so, and هيكتب as كتب through the future's ha-
 //  b) the same in the player, written into video.json
 //  c) a language without varieties shows no row, and asks nothing about them
+//  e) (a0.6.3) the translated sentences: two small corpora built here (corpus/ar-en.db and corpus/ar.egy-en.db). Read
+//     as standard, only standard Arabic's, unlabelled; read as Egyptian, Egyptian's first, then standard Arabic's, each
+//     saying which it is, in the cloud and in both sources columns; a variety change makes the reader ask again;
+//     Levantine (offered, not here) and Gulf (too few at Tatoeba) say so in a plain line; Settings → Reading help has
+//     a row per dialect: Egyptian installed, Levantine offered with its size, Gulf and Moroccan "Too few yet"
 //  d) no page threw or had a request refused; the hub printed no traceback; the owner's files are untouched
 const root = await Deno.realPath(new URL('..', import.meta.url));
 Deno.chdir(root);
@@ -81,6 +86,25 @@ def dictionary(path, rows):
     c.commit(); c.close()
 dictionary(str(tmp / 'dict' / 'ar.db'), [("كتب", "verb", "to write", ["يكتب"]), ("وقت", "noun", "time", [])])
 dictionary(str(tmp / 'dict' / 'ar.egy.db'), [("دلوقتي", "adv", "now", [])])
+# e) two small corpora of translated sentences: standard Arabic's and Egyptian's (corpus/ar.egy-en.db)
+import corpus
+def sentences(path, rows):
+    c = corpus.create(path)
+    df = {}
+    for s, d in rows:
+        pid = c.execute("INSERT INTO pair (src, dst) VALUES (?,?)", (s, d)).lastrowid
+        for w in corpus.words_of('ar', s):
+            c.execute("INSERT INTO tok (word, pair_id) VALUES (?,?)", (w, pid))
+            df[w] = df.get(w, 0) + 1
+    c.executemany("INSERT INTO df (word, n) VALUES (?,?)", sorted(df.items()))
+    c.executemany("INSERT INTO meta (key, value) VALUES (?,?)", [("pairs", str(len(rows))),
+                  ("source", "Tatoeba (tatoeba.org)"), ("licence", "CC BY 2.0 FR")])
+    c.commit(); c.close()
+fill = [("الولد في البيت", "The boy is at home."), ("القطة نائمة", "The cat sleeps."),
+        ("البحر كبير", "The sea is big."), ("أنا أحب الشاي", "I like tea.")]
+(tmp / 'corpus').mkdir()
+sentences(str(tmp / 'corpus' / 'ar-en.db'), [("هيكتب الرسالة غدا", "STANDARD: he will write the letter tomorrow.")] + fill)
+sentences(str(tmp / 'corpus' / 'ar.egy-en.db'), [("انا مشغول دلوقتي", "EGYPTIAN: I'm busy now.")] + fill)
 out = {}
 vid = 'aR5nJ3xW7yZ'
 d = root / 'youtube' / 'videos' / 'arabic' / vid
@@ -146,7 +170,7 @@ offline.DIGESTS = str(tmp / 'config' / 'digests.json')
 offline.WHERES = str(tmp / 'config' / 'wheres.json')
 import lookup, corpus, getmt
 lookup.DICT_DIR = str(tmp / 'dict')
-corpus.CORPUS_DIR = str(tmp / 'nocorpus')
+corpus.CORPUS_DIR = str(tmp / 'corpus')
 getmt.MT_DIR = str(tmp / 'nomt')
 getmt.ENGINE_DIR = str(tmp / 'nomt' / 'engine')
 import clips, decks, store
@@ -217,6 +241,15 @@ const CARDS = ([word]) => {
     head: (h.querySelector('.dhead2') || {textContent: ''}).textContent.trim().split(' ')[0],
     note: (h.querySelector('.dnote') || {textContent: ''}).textContent}));
 };
+// the open cloud's block of translated sentences: its plain line, and each sentence with its "whose · shares" line
+const PAIRS = () => {
+  const b = document.querySelector('#cloud .dpairs');
+  if (!b) return null;
+  return {note: (b.querySelector('.dpvar') || {textContent: ''}).textContent,
+          pairs: [...b.querySelectorAll('.dpair')].map(p => ({
+            dst: p.querySelector('.pdst').textContent.split(':')[0],
+            why: (p.querySelector('.pwhy') || {textContent: ''}).textContent}))};
+};
 const ROW = () => {
   const r = document.querySelector('#cloud .ddict .dvariety select');
   return r ? {value: r.value, options: [...r.options].map(o => o.textContent)} : null;
@@ -285,6 +318,8 @@ try {
      'and offers the four dialects');
   eq(await reader.evaluate(CARDS, ['دلوقتي']), [], 'read as standard Arabic, دلوقتي is not found');
   eq(await reader.evaluate(CARDS, ['هيكتب']), [], 'and هيكتب finds no verb');
+  eq(await reader.evaluate(PAIRS), {note: '', pairs: [{dst: 'STANDARD', why: 'shares هيكتب'}]},
+     'read as standard Arabic, the translated sentences are standard Arabic\'s, unlabelled, and no line about a dialect');
   await reader.selectOption('#cloud .ddict .dvariety select', 'egy');
   await until(() => reader.evaluate(() => /saved/.test(document.querySelector('#cloud .dvariety').textContent)), 'saved');
   eq((await readJson(B0.book.json)).variety, 'egy', 'the choice is written into book.json');
@@ -295,6 +330,26 @@ try {
   const verb = await reader.evaluate(CARDS, ['هيكتب']);
   assert(verb && verb[0].head === 'كتب', 'and هيكتب as كتب, the future\'s ha- taken off: ' + JSON.stringify(verb));
   eq(await reader.evaluate(ROW).then(r => r.value), 'egy', 'the row says Egyptian now');
+  eq(await reader.evaluate(PAIRS), {note: '', pairs: [{dst: 'EGYPTIAN', why: 'Egyptian Arabic · shares دلوقتي'},
+                                                      {dst: 'STANDARD', why: 'Modern Standard Arabic · shares هيكتب'}]},
+     'the translated sentences: Egyptian\'s first, then standard Arabic\'s, each saying which it is');
+  // the chunk editor's sources column: the same sentences, the same labels
+  await reader.evaluate(() => { openChunk(1, document.querySelector('.row[data-c="1"]')); sideShow(true); });
+  const side = await until(() => reader.evaluate(() => {
+    const f = [...document.querySelectorAll('#chsrcbody .spfrom')].map(x => x.textContent);
+    return f.length >= 2 ? f : null;
+  }), 'the labels in the reader\'s sources column');
+  eq(side, ['Egyptian Arabic', 'Modern Standard Arabic'], 'the reader\'s sources column labels each sentence too');
+  await reader.evaluate(() => { sideShow(false); closeChunk(); });
+  // the variety changed back to standard and to Egyptian again: the chunk already looked up is asked again
+  await hoverChunk(0);
+  await reader.selectOption('#cloud .ddict .dvariety select', '');
+  await until(() => reader.evaluate(() => /saved/.test(document.querySelector('#cloud .dvariety').textContent)), 'saved');
+  await hoverChunk(1);
+  eq(await reader.evaluate(PAIRS).then(p => p.pairs.map(x => x.why)), ['shares هيكتب'],
+     'a chunk looked up under Egyptian is asked again when the variety changes (the reader empties its answers)');
+  await reader.selectOption('#cloud .ddict .dvariety select', 'egy');
+  await until(() => reader.evaluate(() => /saved/.test(document.querySelector('#cloud .dvariety').textContent)), 'saved');
 
   /* ---------------- b) the player ---------------- */
   console.log('\nb) the video player');
@@ -331,6 +386,45 @@ try {
   const pnow = await player.evaluate(CARDS, ['دلوقتي']);
   assert(pnow && pnow[0].head === 'دلوقتي' && /Egyptian Arabic/.test(pnow[0].note),
          'the next caption finds دلوقتي in Egyptian\'s dictionary: ' + JSON.stringify(pnow));
+  eq(await player.evaluate(PAIRS), {note: '', pairs: [{dst: 'EGYPTIAN', why: 'Egyptian Arabic · shares دلوقتي'},
+                                                      {dst: 'STANDARD', why: 'Modern Standard Arabic · shares هيكتب'}]},
+     'the player\'s translated sentences: Egyptian\'s first, then standard Arabic\'s, each saying which it is');
+  // the phrase editor's sources column
+  await player.click('#cloud .mkedit');
+  await player.waitForSelector('#cloud .esrc');
+  await player.click('#cloud .esrc');
+  const pside = await until(() => player.evaluate(() => {
+    const f = [...document.querySelectorAll('#cloud .esrcbody .spfrom')].map(x => x.textContent);
+    return f.length >= 2 ? f : null;
+  }), 'the labels in the player\'s sources column');
+  eq(pside, ['Egyptian Arabic', 'Modern Standard Arabic'], 'the player\'s sources column labels each sentence too');
+  await player.click('#cloud .ecancel');
+  // A DIALECT WHOSE SENTENCES ARE NOT HERE says so plainly: Levantine is offered (Tatoeba has enough), Gulf is not
+  const choose = async key => {
+    await player.selectOption('#cloud .ddict .dvariety select', key);
+    await until(() => player.evaluate(() => /saved/.test(document.querySelector('#cloud .dvariety').textContent)), 'saved ' + key);
+  };
+  await hoverSeg(B0.video.segs[0]);
+  await choose('lev');
+  await hoverSeg(B0.video.segs[1]);
+  eq(await player.evaluate(PAIRS), {
+    note: 'no sentences translated from Levantine Arabic here yet: Settings → Reading help gets Tatoeba’s 321 — ' +
+          'the sentences here are Modern Standard Arabic’s',
+    pairs: [{dst: 'STANDARD', why: 'Modern Standard Arabic · shares هيكتب'}]},
+    'Levantine, not downloaded: the plain line says where to get it, and the standard sentences say whose they are');
+  await choose('gulf');
+  await hoverSeg(B0.video.segs[0]);
+  eq(await player.evaluate(PAIRS).then(p => p.note),
+     'no translated sentences for Gulf Arabic yet: Tatoeba has only 81 translated into English, too few to offer — ' +
+     'the sentences here are Modern Standard Arabic’s', 'Gulf: the plain line says Tatoeba has too few');
+  await player.click('#cloud .mkedit');
+  await player.waitForSelector('#cloud .esrc');
+  await player.click('#cloud .esrc');
+  const gnote = await until(() => player.evaluate(() => (document.querySelector('#cloud .esrcbody .spvar') || {}).textContent),
+                            'the plain line in the sources column');
+  assert(/^no translated sentences for Gulf Arabic yet/.test(gnote), 'and the sources column says it too: ' + gnote);
+  await player.click('#cloud .ecancel');
+  await hoverSeg(B0.video.segs[1]);
   await player.selectOption('#cloud .ddict .dvariety select', '');
   await until(() => player.evaluate(() => /saved/.test(document.querySelector('#cloud .dvariety').textContent)), 'saved again');
   assert(!('variety' in (await readJson(B0.video.json))), 'the standard language again takes `variety` out of video.json');
@@ -348,6 +442,29 @@ try {
   await sleep(400);
   eq(await other.evaluate(ROW), null, 'an Italian reader shows no variety row');
   eq(varietyAsks.length, before, 'and asks nothing about varieties');
+
+  /* ---------------- e) the reading help ---------------- */
+  console.log('\ne) Settings → Reading help: a row per dialect\'s translated sentences');
+  const help = await context.newPage();
+  watch(help, 'reading help');
+  await help.goto(`${B}/settings/reading-help/`);
+  const ROWS = () => Object.fromEntries(['egy', 'lev', 'gulf', 'mor'].map(k => {
+    const r = document.querySelector(`[data-row="corpus:ar.${k}-en"]`);
+    return [k, r ? r.textContent.replace(/\s+/g, ' ') : null];
+  }));
+  let rows = await until(async () => { const r = await help.evaluate(ROWS); return r.egy ? r : null; }, 'the dialect rows', 15000)
+    .catch(async () => {
+      // Arabic's card closed: opened from its one line, as a person does
+      await help.locator('button', {hasText: 'Open'}).filter({has: help.locator('xpath=..')}).first().click().catch(() => {});
+      return until(async () => { const r = await help.evaluate(ROWS); return r.egy ? r : null; }, 'the dialect rows, its card opened');
+    });
+  assert(/Sentences people translated · Egyptian Arabic/.test(rows.egy) && /Installed/.test(rows.egy) && /5 sentence pairs/.test(rows.egy),
+         'Egyptian\'s sentences: their own row, installed: ' + rows.egy);
+  assert(/Levantine Arabic/.test(rows.lev) && /Get it/.test(rows.lev) && /25 MB to download/.test(rows.lev),
+         'Levantine\'s: offered, its size said before it starts: ' + rows.lev);
+  assert(/Too few yet/.test(rows.gulf) && /only 81 sentences in Gulf Arabic/.test(rows.gulf) && !/Get it/.test(rows.gulf),
+         'Gulf\'s: too few, no button, and why: ' + rows.gulf);
+  assert(/Too few yet/.test(rows.mor) && /only 76/.test(rows.mor), 'Moroccan\'s: too few: ' + rows.mor);
 
   /* ---------------- d) ---------------- */
   console.log('\nd) what the pages and the hub said');
