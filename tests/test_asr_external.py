@@ -467,6 +467,19 @@ class ExternalJobs(unittest.TestCase):
         self.assertEqual(cancelled["text"], self.panel)
         self.assertEqual(self.job["state"], sttjobs.REVIEW_CHOICE)
 
+    def test_the_pasted_review_is_the_latest_method_and_cancel_puts_the_second_pass_back(self):
+        # a0.6.3 G2: Whisper's own second look while transcribing left last_method "whisper-second", and the review's
+        # outcomes (asrwalk.js) read that instead of the pasted answer: an edit counted as "agrees with Whisper"
+        self.job["last_method"], self.job["last_word_ids"] = "whisper-second", ["s0w1"]
+        view = sttjobs.external_start(self.token, self.hash, "suspect")
+        self.assertEqual(view["review"]["last_method"], "external")
+        self.assertIn("s0w1", view["review"]["last_word_ids"])
+        ext = view["review"]["external"]
+        view = sttjobs.external_action(self.token, self.hash, ext["id"], "answer", 0, "sentence0: Loro hanno detto ciao.")
+        self.assertEqual(view["review"]["last_method"], "external")
+        cancelled = sttjobs.external_action(self.token, self.hash, ext["id"], "cancel")
+        self.assertEqual((cancelled["review"]["last_method"], cancelled["review"]["last_word_ids"]), ("whisper-second", ["s0w1"]))
+
     def test_open_external_review_refreshes_retention_without_inference(self):
         ext = sttjobs.external_start(self.token, self.hash, "full")["review"]["external"]
         before = self.job["finished"]

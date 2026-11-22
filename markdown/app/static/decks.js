@@ -712,6 +712,21 @@ function editExercise(deck, item, onSave, after) {
 
 /* ================================================================ decks */
 
+/* AN EXERCISE FILE THAT CANNOT BE READ (TO-DO a0.6.3 G1): the deck opens
+   with the rest, and its card and its page say which files were passed over
+   and where they are.  Nothing changes them. */
+function unreadableLine(d) {
+  const files = d.unreadable.map(f => `exercises/${d.path}/${f}`);
+  const line = el("span", "dk-unreadable",
+    (files.length === 1 ? "1 exercise file cannot be read and is left out: "
+                        : `${files.length} exercise files cannot be read and are left out: `) +
+    files.join(", ") + " (in the Parseh folder; kept as they are).");
+  line.style.color = "var(--danger)";
+  line.style.display = "block";
+  line.dataset.unreadable = "";
+  return line;
+}
+
 function initDecks() {
   const cardsEl = $("#deck-cards");
   const empty = $("#decks-empty"), emptyLang = $("#decks-empty-lang");
@@ -824,6 +839,7 @@ function initDecks() {
         study.appendChild(next);
       }
     }
+    if (d.unreadable && d.unreadable.length) study.appendChild(unreadableLine(d));
     setLinkEnabled($('[data-x="study"]', card), due > 0,
                    due ? `Study ${plural(due, "exercise")} now` : "Nothing to study now");
     $('[data-x="delete"]', card).addEventListener("click", async () => {
@@ -867,6 +883,28 @@ function initDecks() {
     return card;
   }
 
+  /* A FOLDER WITH NO deck.json (TO-DO a0.6.3 G1) is not a deck: a deck's
+     folder is made with its deck.json, so this is something left behind.
+     Said in a line under the cards, not as a card; nothing touches it. */
+  function strayLine(list) {
+    let p = $("#decks-stray");
+    if (!p) {
+      p = el("p", "dk-stray");
+      p.id = "decks-stray";
+      p.style.color = "var(--chrome-mut)";
+      cardsEl.after(p);
+    }
+    p.hidden = !list.length;
+    p.textContent = !list.length ? "" : (list.length === 1
+      ? `exercises/${list[0].path}/ is not a deck: it has no deck.json (${plural(list[0].files, "file")} in it). ` +
+        "It was probably left by a deck creation or import that did not finish. Parseh leaves it as it is; " +
+        "you may delete it, or move its files where they belong."
+      : `${list.length} folders are not decks, having no deck.json: ` +
+        list.map(x => `exercises/${x.path}/ (${plural(x.files, "file")})`).join(", ") + ". " +
+        "They were probably left by a deck creation or import that did not finish. Parseh leaves them as " +
+        "they are; you may delete them, or move their files where they belong.");
+  }
+
   let loadSeq = 0;
   async function load() {
     const seq = ++loadSeq;
@@ -877,6 +915,7 @@ function initDecks() {
     decks = data.decks || [];
     damaged = data.damaged || [];
     cardsEl.replaceChildren(...decks.map(deckCard), ...damaged.map(damagedCard));
+    strayLine(data.stray || []);
     refreshChips();
     applyLangFilter();
   }
@@ -1080,6 +1119,7 @@ function initDeck() {
       if (!due) now.appendChild(el("span", "dk-next", nextDueText(deck.next_due, rolloverOf(deck))));
       box.appendChild(now);
     }
+    if (deck.unreadable && deck.unreadable.length) box.appendChild(unreadableLine(deck));
     const study = $("#btn-study");
     study.href = studyPage(deck);
     setLinkEnabled(study, due > 0, due ? `${plural(due, "exercise")} to study now` : "Nothing to study now");

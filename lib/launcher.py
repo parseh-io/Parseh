@@ -404,16 +404,58 @@ def serve_logged(cmd, rotate=True, log=None, console=None, env=None):
         faultlog.rotate(log)
     env = dict(env if env is not None else os.environ, PARSEH_LAUNCHER="1")
     env[faultlog.LOG_ENV] = log
+    # A PIPE IS NOT THE CONSOLE (a0.6.3 G5).  Writing to the console, Python
+    # speaks UTF-16 to Windows whatever the code page; writing to a pipe it
+    # encodes with the ANSI code page (cp1252 ...) unless told otherwise -- and
+    # a Persian title in a server line would then end the server.  serve.bat
+    # sets PYTHONIOENCODING, a launcher started any other way may not: the
+    # copy below takes the bytes as UTF-8, so the server is told to write
+    # UTF-8, never to fail on a character.
+    env["PYTHONIOENCODING"] = "utf-8:backslashreplace"
+    # No creationflags: the server stays in this console's process group
+    # (no CREATE_NEW_PROCESS_GROUP), so a Ctrl-C or a Ctrl-Break in the window
+    # reaches it as it reaches this launcher.
     proc = subprocess.Popen(cmd, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     copier = threading.Thread(target=faultlog.pump, args=(proc.stdout, console, log), daemon=True)
     copier.start()
     return proc, copier
 
 
-def start(port, open_browser=True, updated=""):
+def _reap(proc, timeout=10):
+    try:
+        return proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        return proc.wait()
+
+
+def _wait_after_interrupt(proc):
+    """After a Ctrl-C (or a Ctrl-Break) in the window -> the server's exit
+    status.  The console sent it to every process attached to it, the server
+    among them, which stops by itself; one that has not after 10 s is ended.
+    A server stopped this way stopped as asked: 0, not a failure, so that
+    serve.bat does not hold the window with "press any key"."""
+    try:
+        rc = proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.terminate()
+        _reap(proc, 5)
+        return 0
+    except KeyboardInterrupt:                  # a second Ctrl-C: do not wait any more
+        proc.terminate()
+        _reap(proc, 5)
+        return 0
+    # Windows reports a process ended by the console's Ctrl-C as
+    # STATUS_CONTROL_C_EXIT (0xC000013A); POSIX as -SIGINT
+    return 0 if rc in (0, 0xC000013A, -2, 130) else rc
+
+
+def start(port, open_browser=True, updated="", append=False):
     """Start the server in this window and wait on it.  `updated` names an
     update this window has just applied: a new version that does not come
-    up is undone, and the old one started in its place."""
+    up is undone, and the old one started in its place.  `append` goes on in
+    the same serve.log (the version started again after such an undo: the
+    log of the one that failed is the reason, and stays where it is)."""
     url = server_url(port)
     if url:
         say("already running: %s" % url)
@@ -432,18 +474,30 @@ def start(port, open_browser=True, updated=""):
     say("")
     # the server is told who waits on it: when it stops to be updated it
     # leaves with updater.LAUNCHER_EXIT, and this window runs the update
-    proc, copier = serve_logged(cmd, rotate=not updated)
+    proc, copier = serve_logged(cmd, rotate=not (updated or append))
     url = None
-    for _ in range(80):                        # up to 20 s: the first start mints the certificate
-        if proc.poll() is not None:
-            break
-        url = server_url(port)
-        if url:
-            break
-        time.sleep(0.25)
+    try:
+        for _ in range(80):                    # up to 20 s: the first start mints the certificate
+            if proc.poll() is not None:
+                break
+            url = server_url(port)
+            if url:
+                break
+            time.sleep(0.25)
+    except KeyboardInterrupt:
+        # Ctrl-C while it was still starting: the console sent it to the
+        # server too.  Stopped, as after it was up -- not a traceback.
+        _wait_after_interrupt(proc)
+        copier.join(5)
+        say("stopped.")
+        return 0
     if not url:
         if proc.poll() is None:
             proc.terminate()
+        # its last lines into serve.log, and the file let go of, before
+        # anything else: on Windows a file still open cannot be renamed
+        _reap(proc)
+        copier.join(5)
         say("")
         say("failed to start -- the messages above say why")
         if updated:
@@ -451,7 +505,7 @@ def start(port, open_browser=True, updated=""):
             helper = os.path.join(ROOT, updater.WORK, "helper.py")
             if os.path.isfile(helper):
                 subprocess.call([sys.executable, helper, "rollback", ROOT], cwd=ROOT)
-                return start(port, open_browser=False)
+                return start(port, open_browser=False, append=True)
         return 1
     say("")
     say("%s is up at %s -- this window is its log.  Close it, press Ctrl-C," % (NAME, url))
@@ -461,11 +515,7 @@ def start(port, open_browser=True, updated=""):
     try:
         rc = proc.wait()
     except KeyboardInterrupt:                  # the console sent Ctrl-C to the server too
-        try:
-            rc = proc.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            proc.terminate()
-            rc = 0
+        rc = _wait_after_interrupt(proc)
     copier.join(5)                             # the last lines into the file before anything else is said
     if rc == updater.LAUNCHER_EXIT:
         # IT STOPPED TO BE UPDATED (Settings > Updating Parseh).  The update

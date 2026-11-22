@@ -157,7 +157,9 @@ class WindowsCopy(unittest.TestCase):
 
     def test_start_uses_it(self):
         src = (ROOT / "lib" / "launcher.py").read_text(encoding="utf-8")
-        self.assertIn("serve_logged(cmd, rotate=not updated)", src)
+        # a0.6.3 G5: the version started again after an undone update goes on in the same log too
+        # (tests/test_launcher_windows.py drives start() itself)
+        self.assertIn("serve_logged(cmd, rotate=not (updated or append))", src)
 
 
 class Tracebacks(unittest.TestCase):

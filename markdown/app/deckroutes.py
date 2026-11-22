@@ -324,10 +324,11 @@ def serve_audio(h, folder, slug, name):
 # ---------------------------------------------------------------- decks
 
 def api_decks_list(h):
-    damaged = []
-    found = decks.list_decks(_q1(h, "lang") or None, damaged=damaged)
-    # "damaged" only when there is one: the answer is otherwise as it was
-    h.send_json(dict({"ok": True, "decks": found}, **({"damaged": damaged} if damaged else {})))
+    damaged, stray = [], []
+    found = decks.list_decks(_q1(h, "lang") or None, damaged=damaged, stray=stray)
+    # "damaged" and "stray" only when there is one: the answer is otherwise as it was
+    h.send_json(dict({"ok": True, "decks": found}, **({"damaged": damaged} if damaged else {}),
+                     **({"stray": stray} if stray else {})))
 
 
 def api_decks_create(h):

@@ -76,7 +76,10 @@ says `failed to start -- the log says:` and shows the log.
 **On Windows** the server runs in the window serve.bat opened: that window
 shows its log, and closing it stops Parseh. Every line is also written to
 `serve.log`, with the run before kept as `serve.log.1`, as on Linux and
-macOS. The first double-click is a
+macOS. Ctrl-C in the window stops the server and says `stopped.`. An
+update from Settings runs in the same window and goes on in the same
+`serve.log`; a new version that does not start is undone there too, and the
+lines that say why stay in the log. The first double-click is a
 [setup wizard](windows-wizard.md).
 
 **Without the environment**, Parseh still serves — the pages need nothing

@@ -18,7 +18,7 @@ const number=await port(), base='http://127.0.0.1:'+number;
 for(const folder of [videos,join(tree,'config'),join(tree,'library'),join(tree,'tray'),join(tree,'exercises'),join(tree,'anki'),join(tree,'nodict'),join(tree,'nocorpus'),join(tree,'nomt'),fake])await mkdir(folder,{recursive:true});
 await symlink(join(root,'lib'),join(install,'lib'));await symlink(join(root,'youtube/lib'),join(install,'youtube/lib'));
 await writeFile(join(fake,'state.json'),JSON.stringify({runtime:true,models:['large-v3-turbo','large-v3'],cuda:{ready:false,name:'',why:''}}));
-await writeFile(join(fake,'fake.json'),JSON.stringify({segments:[[0,2,' سلام دنیا'],[2.5,3,' خداحافظ']]}));
+await writeFile(join(fake,'fake.json'),JSON.stringify({segments:[[0,2,' سلام دنیا'],[2.5,3,' خداحافظ']],word_evidence:{'دنیا':{score:0.2}}}));
 const old=await readFile('tests/add_stt.mjs','utf8');
 let boot=old.match(/const BOOT = String.raw`([\s\S]*?)`;/)[1];
 boot=boot.replace("import prefs, network, offline\n", "import prefs, network, offline, lmlikelihoodconfig\nlmlikelihoodconfig.CONFIG = tmp / 'config/lm-likelihood.json'\nlmlikelihoodconfig.runtime_status = lambda config: {'available': False, 'say': 'No model runtime in this test.'}\n");
@@ -68,6 +68,24 @@ try{
  ok((await readdir(join(videos,'.pending-transcriptions'))).length===0,'finished review returns to ordinary storage');
  ok(page.failures.length===0,'resumed review has no script errors');
  const about=await fetch(base+'/settings/about/').then(r=>r.text());ok(about.includes('serve.sh location') && about.includes('serve.bat'),'About includes cross-platform launch paths');
+ await context.close();
+ // THE COPY/PASTE REVIEW COUNTS THE PASTED ANSWER (a0.6.3 G2).  A low-score word makes Whisper take a second look by itself while it
+ // transcribes; that second look used to stay "the latest method", so the chatbot's edit of the word was counted as "agrees with
+ // Whisper" (✎ 0 edits proposed · ✔ 1 agree) while the word itself said "edit proposed".
+ ({page,context}=await newPage('/youtube/add/?src=film&by=empty'));
+ await page.selectOption('#lang','fa');await page.fill('#path',film);await page.click('#stt_go');await phase(page,'review');
+ const panel=page.locator('#stt_external');
+ if(!(await panel.evaluate(n=>n.open)))await panel.locator('summary').click();
+ await panel.locator('#stt_external_task').selectOption('suspect');await panel.locator('#stt_external_start').click();
+ await page.waitForFunction(()=>(document.getElementById('stt_external_prompt')||{}).value,null,{timeout:30000});
+ ok((await panel.locator('#stt_external_prompt').inputValue()).includes('دنیا (Whisper ASR score 0.20)'),'the prompt asks about the low-score word');
+ await panel.locator('#stt_external_answer').fill('sentence0: سلام دنیاها');await panel.locator('#stt_external_import').click();
+ await page.waitForFunction(()=>document.getElementById('stt_external_result'),null,{timeout:30000});
+ const said=await page.locator('#stt_external_result').textContent();
+ ok(said.startsWith('✎ 1 edits proposed · ✔ 0 agree with Whisper'),'the pasted edit is counted as an edit, not as agreeing with Whisper: '+said);
+ ok(/edit proposed/.test(await page.locator('[data-review-word="s0w1"]').getAttribute('aria-label')),'and the word says so too');
+ ok((await page.locator('[data-review-word="s0w1"]').getAttribute('class')).includes('asr-proposal'),'and wears the mark of a proposal');
+ ok(page.failures.length===0,'the copy/paste review has no script errors');
  console.log(`${checks} pending browser integration checks passed`);
  await context.close();
 }finally{if(browser)await browser.close();await stop();await rm(temp,{recursive:true,force:true});}
