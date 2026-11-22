@@ -159,6 +159,7 @@ import shelf               # noqa: E402  a whole shelf of either, backed up and 
 import texwrite            # noqa: E402  one chunk of a chapter, edited in place
 import glossregion         # noqa: E402  a region glossed by an LLM: the prompt, the answer put back
 import reading              # noqa: E402  what somebody decided about the text itself
+import pathlock             # noqa: E402  one writer at a time per book and per video (§3.10)
 import storeguard           # noqa: E402  a damaged store is set aside, never written over (§2.29)
 import prefs                # noqa: E402  the reading place and the settings that follow a person
 import later                # noqa: E402  the chunks a person flagged to review later: the same file, its own door (a0.5.0)
@@ -888,17 +889,30 @@ def set_narrations(b, records):
     return recs
 
 
+# THE DOORS THAT WRITE A BOOK OR A VIDEO, held one at a time per book and per
+# video (TO-DO §3.10, lib/pathlock.py).  Not here: the doors that only read
+# (a lookup, a word line proposed, a prompt made), cut a clip, estimate, or
+# start a job that runs on after the answer (__narration/align).
+BOOK_WRITES = ("__save/", "__narration/transcript", "__narration/restore",
+               "__narration/spread", "__narration/region", "__narration/remove",
+               "__reading/", "__struct/", "__edit/", "__region/apply", "__divide/",
+               "__variety")
+VIDEO_WRITES = ("/api/edit", "/api/region/apply", "/api/editmeta", "/api/divide",
+                "/api/times", "/api/reflow", "/api/variety")
+
+
 def set_book_meta(book_dir, **fields):
     """book.json with these fields set -- e.g. where the narration is."""
     p = os.path.join(book_dir, "book.json")
-    with open(p, encoding="utf-8") as f:
-        meta = json.load(f)
-    meta.update(fields)
-    tmp = p + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
-        f.write("\n")
-    os.replace(tmp, p)
+    with pathlock.held(book_dir):           # one writer at a time (TO-DO §3.10)
+        with open(p, encoding="utf-8") as f:
+            meta = json.load(f)
+        meta.update(fields)
+        tmp = pathlock.tmp(p)
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        os.replace(tmp, p)
 
 def set_variety(json_path, lang, variety):
     """A book.json's or a video.json's `variety` set to `variety` -- one the
@@ -907,15 +921,16 @@ def set_variety(json_path, lang, variety):
     import draft
     L = languages.get(lang)
     want = draft._variety(L, variety)            # refuses a key the language has not (ValueError)
-    with open(json_path, encoding="utf-8") as f:
-        meta = json.load(f)
-    meta.pop("variety", None)
-    meta.update(want)
-    tmp = json_path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
-        f.write("\n")
-    os.replace(tmp, json_path)
+    with pathlock.held(os.path.dirname(os.path.abspath(json_path))):     # TO-DO §3.10
+        with open(json_path, encoding="utf-8") as f:
+            meta = json.load(f)
+        meta.pop("variety", None)
+        meta.update(want)
+        tmp = pathlock.tmp(json_path)
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        os.replace(tmp, json_path)
     return want.get("variety", "")
 
 
@@ -4693,6 +4708,22 @@ class Handler(SimpleHTTPRequestHandler):
             return self._notes(method, d,
                                ytpages.BASE + "/v/%s/notes" % m.group(1),
                                m.group(2) or "/")
+        if method == "POST" and sub in VIDEO_WRITES and not getattr(self, "_video_held", False):
+            # ONE WRITER AT A TIME FOR EACH VIDEO (TO-DO §3.10), as for a book:
+            # the doors that change a video's files hold its lock for the whole
+            # request.  A body that will not read is left to the door to refuse.
+            try:
+                vid = self._json_body().get("video")
+            except Exception:       # noqa: BLE001 -- the door answers it
+                vid = None
+            d = self._video_dir(vid) if isinstance(vid, str) and vid else None
+            if d:
+                self._video_held = True
+                try:
+                    with pathlock.held(d):
+                        return self._youtube(method, sub)
+                finally:
+                    self._video_held = False
         if method == "POST":
             if sub == "/api/transcript":
                 return ytpages.api_transcript(self)
@@ -5245,6 +5276,22 @@ class Handler(SimpleHTTPRequestHandler):
             locked = self._book_dir()
             if locked and making.is_making(locked):
                 return self._making_locked()
+        # ONE WRITER AT A TIME FOR EACH BOOK (TO-DO §3.10): every door below
+        # that writes the book holds its lock (lib/pathlock.py) for the whole
+        # request, so two tabs or two devices editing it at once are taken one
+        # after the other and neither edit is lost.  Re-entered once, with the
+        # lock held; the doors that only read, cut a clip or start a job are
+        # not held.
+        if not getattr(self, "_book_held", False) and any(
+                w in p for w in BOOK_WRITES):
+            book = self._book_dir()
+            if book:
+                self._book_held = True
+                try:
+                    with pathlock.held(book):
+                        return self._books_post(path)
+                finally:
+                    self._book_held = False
         if p.endswith("__save/review-corrections.json"):
             return self._save()
         if p.endswith("__save/subtimes.json"):
@@ -6564,9 +6611,10 @@ class Handler(SimpleHTTPRequestHandler):
                     kept = os.path.join(adir, "timings.before-import.json")
                     shutil.copy(b.timings, kept)
                     log.append("the previous timings.json is kept as audio/timings.before-import.json")
-                with open(b.timings + ".tmp", "wb") as out:
+                tmp = pathlock.tmp(b.timings)
+                with open(tmp, "wb") as out:
                     out.write(data)
-                os.replace(b.timings + ".tmp", b.timings)
+                os.replace(tmp, b.timings)
                 log.append("timings.json: %d subparagraphs%s" % (
                     n_subs, " (from %s)" % man.get("exported", "")[:10] if man.get("exported") else ""))
         if fields:

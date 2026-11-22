@@ -66,6 +66,7 @@ import import_apkg  # noqa: E402  bootstrap a deck the store has never held
 import sync_apkg    # noqa: E402  pull Anki-side edits home before exporting
 import check_annotations as CA  # noqa: E402  the transcript parser and the checks
 import tidy as tidier          # noqa: E402  an automatic transcript, cut into sentences
+import pathlock      # noqa: E402  one writer at a time per video, a temporary name of each write's own
 import texwrite      # noqa: E402  NOT_TEXT and Refused -- edit_meta reuses both rather
                      # than restating them (its own docstring says why)
 import wavefile      # noqa: E402  the shape of a sound a transcription held for a video
@@ -1961,7 +1962,7 @@ def edit_meta(vdir, fields):
     for field in CHOICES_META:
         if checked.get(field) == "":            # the usual way is no key at all
             meta.pop(field, None)
-    tmp = path + ".tmp"
+    tmp = pathlock.tmp(path)
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
         f.write("\n")

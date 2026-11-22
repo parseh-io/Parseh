@@ -121,6 +121,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import books                                                    # noqa: E402
 import chunkdiv                                                 # noqa: E402
 import languages                                                # noqa: E402
+import pathlock                                                 # noqa: E402
 import reading                                                  # noqa: E402
 import texparse as T                                            # noqa: E402
 import wordline                                                 # noqa: E402
@@ -211,11 +212,27 @@ def _read(path):
 def _write(path, text):
     """Written beside the file and renamed over it, so a chapter is never
     left half-written by a crash or a full disk (languages.write_css does the
-    same replace)."""
-    tmp = path + ".tmp"
-    with io.open(tmp, "w", encoding="utf-8", newline="") as f:
-        f.write(text)
-    os.replace(tmp, path)
+    same replace).  The temporary name is this write's own (TO-DO §3.10): two
+    writes through one fixed name truncated each other's file."""
+    tmp = pathlock.tmp(path)
+    try:
+        with io.open(tmp, "w", encoding="utf-8", newline="") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+
+# ONE WRITER AT A TIME FOR EACH BOOK (TO-DO §3.10): an edit reads the chapter,
+# changes one chunk and writes the whole chapter back, and two of them at once
+# (two tabs, a phone and the computer) lost the earlier one's change.  Each
+# door below holds its book's lock (lib/pathlock.py) from the read to the
+# write; the server holds the same lock around the whole request.
+def _book_folder(path, *_a, **_k):
+    return os.path.dirname(os.path.abspath(path))
 
 
 def _line_starts(text):
@@ -894,6 +911,7 @@ def _lang_of(path, lang=None, book=None):
 
 
 # --- the edit -----------------------------------------------------------
+@pathlock.serialised(_book_folder)
 def edit_chunk(path, index, fields, lang=None):
     """Rewrite one chunk's argument groups, and the incipit they name.
 
@@ -1338,6 +1356,7 @@ def divide_preview(path, index, lang=None):
     return out
 
 
+@pathlock.serialised(_book_folder)
 def merge_chunks(path, index, fields=None, lang=None):
     """Join chunk `index` and the one after it into one chunk.
 
@@ -1422,6 +1441,7 @@ def merge_chunks(path, index, fields=None, lang=None):
             "chunk": _record(out, index, got[index])}
 
 
+@pathlock.serialised(_book_folder)
 def split_chunk(path, index, first, second, lang=None):
     """Cut chunk `index` into the two chunks given, in that order.
 

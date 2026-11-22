@@ -60,6 +60,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__)))), "lib"))
 import chunkdiv                                            # noqa: E402
 import wordline                                            # noqa: E402
+import pathlock                                            # noqa: E402
 from check_annotations import (CHUNK_FIELDS, COLOURS,      # noqa: E402,F401
                                check_segments, departs, parse_transcript,
                                required, unwritten, video_language)
@@ -163,7 +164,7 @@ def write(video_dir, ann):
             st = _style(f.read())
     except OSError:
         st = dict(DEFAULT_STYLE)
-    tmp = path + ".tmp"
+    tmp = pathlock.tmp(path)        # this write's own name (TO-DO §3.10)
     try:
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(ann, f, ensure_ascii=st["ensure_ascii"],
@@ -407,6 +408,7 @@ def _cannot(bad, divide=False):
         " -- " + "; ".join(why) if why else "")
 
 
+@pathlock.serialised(lambda video_dir, *_a, **_k: video_dir)
 def edit_chunk(video_dir, seg, chunk, fields):
     """Change some of one chunk's fields; return the chunk as it now is.
 
@@ -761,6 +763,7 @@ def _divide(video_dir, seg, fn, what):
     return {"segment": seg, "chunks": made, "count": len(made), "what": what}
 
 
+@pathlock.serialised(lambda video_dir, *_a, **_k: video_dir)
 def merge_chunks(video_dir, seg, chunk, fields=None):
     """Join chunk `chunk` of segment `seg` with the one after it.
 
@@ -798,6 +801,7 @@ def merge_chunks(video_dir, seg, chunk, fields=None):
     return out
 
 
+@pathlock.serialised(lambda video_dir, *_a, **_k: video_dir)
 def split_chunk(video_dir, seg, chunk, first, second):
     """Cut chunk `chunk` of segment `seg` into the two given, in that order.
 
