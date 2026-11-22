@@ -125,5 +125,7 @@
     "تبع",
     "تبعت",
     "تبعات"
-  ]
+  ],
+  "_question_words": "For youtube/lib/tidy.py alone (what ar.chunk.json's _question_words says): the question words of the lists above (shu, miin, ish, ween, leesh, eemta, addeesh), so that a transcript in this variety with no punctuation gets its question mark. Read before Arabic's own, which still count. The dialects leave a question word in place (Brustad 2000), often at the end of the sentence, and tidy reads both edges.",
+  "question_words": ["شو", "مين", "إيش", "ايش", "وين", "ليش", "إيمتى", "ايمتى", "إمتى", "امتى", "قديش"]
 }

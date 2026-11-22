@@ -1,5 +1,5 @@
 {
-  "_comment": "How Egyptian Arabic (Cairene) says the letters a romanisation of standard Arabic writes, for lib/translit.py: read before lib/lang/ar.ipa.json for a book or a video written in Egyptian (variety ar.egy). Whatever this file does not say is ar.ipa.json's. ONLY the consonant correspondences every description of Cairene gives; vowels, endings and stress are not touched (a standard verb's kataba stays kataba, where Cairo says katab).",
+  "_comment": "How Egyptian Arabic (Cairene) says the letters a romanisation of standard Arabic writes, for lib/translit.py: read before lib/lang/ar.ipa.json for a book or a video written in Egyptian (variety ar.egy). Whatever this file does not say is ar.ipa.json's. ONLY the consonant correspondences every description of Cairene gives; the case endings go (`from_standard.pausal`, the rule in ar.ipa.json: kataba > katab, kitābun > kitāb); the vowels and stress are not touched.",
   "_sources": [
     "Janet C. E. Watson, The Phonology and Morphology of Arabic (Oxford University Press, 2002), ch. 2: Cairene q > ʔ, j > g, the interdentals > stops.",
     "Manfred Woidich, Das Kairenisch-Arabische: eine Grammatik (Harrassowitz, 2006), §1 (Lautlehre).",
@@ -7,6 +7,7 @@
   ],
   "from_standard": {
     "_map": "A letter of the standard romanisation (lib/lookup.py: the standard dictionary's hits, shown in a text written in Egyptian) to the letter Cairo says. ق is a glottal stop (qalb > ʾalb); ج is g (jamīl > gamīl); ث ذ ظ are t d ḍ (ṯalāṯa > talāta, ḏahab > dahab, ẓuhr > ḍuhr). In words taken from the written language the same letters are said q, s, z, ẓ (qurʾān, ṯawra > sawra): that split is word by word and is left to the research brief, so these are the everyday words' sounds.",
+    "pausal": true,
     "map": {"q": "ʾ", "Q": "ʾ", "j": "g", "J": "G", "ṯ": "t", "Ṯ": "T", "ḏ": "d", "Ḏ": "D", "ẓ": "ḍ", "Ẓ": "Ḍ"}
   },
   "roman": {

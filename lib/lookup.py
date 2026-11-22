@@ -1591,16 +1591,25 @@ def _said_in_variety(words, V):
     قلب is ʾalb where the standard entry writes qalb.  Only the consonants a
     variety's file names are changed, and the standard romanisation is kept
     beside it (`standard_translit`) for anything that wants the dictionary's
-    own.  A variety with no such file, and every language without varieties,
-    is left exactly as it was."""
+    own.  The final case vowel and tanwīn go too, where the variety's file
+    says `pausal` (kataba > katab, kitāban > kitāb: translit.pausal), read
+    against the Arabic each string romanises -- the entry's headword for
+    the entry's own sound, the word in the text for a form's -- and, for a
+    form, against the entry's standard sound.  A variety with no such file,
+    and every language without varieties, is left exactly as it was."""
     for w in words:
         for h in w.get("hits") or []:
             if h.get("variety"):
                 continue
             was = h.get("translit") or ""
+            pos, head, std_head = h.get("pos") or "", h.get("headword") or "", h.get("head_sound") or ""
+            form = bool(h.get("of_form")) and was == h.get("of_form")
             for k in ("translit", "head_sound", "of_form"):
                 if h.get(k):
-                    h[k] = translit.in_variety(V.key, h[k])
+                    as_form = k == "of_form" or (k == "translit" and form)
+                    h[k] = translit.in_variety(V.key, h[k], pos,
+                                               w.get("word") or "" if as_form else head,
+                                               std_head if as_form else None)
             if h.get("translit") != was:
                 h["standard_translit"] = was
 

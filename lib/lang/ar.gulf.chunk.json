@@ -19,5 +19,7 @@
   "_PRON_DET": "The demonstratives are under DET and PRON both: lib/chunker.py _in_context reads one as a determiner before a noun and as a pronoun before a verb or with nothing after it.",
   "_ties": "The genitive exponent stays with the noun it follows: is-sayyaara maal abuuy.",
   "ties": ["مال", "مالت", "مالة"],
-  "_mal": "مال is also standard Arabic's 'money' and the verb 'to lean': listed here because in a Gulf text after a noun it is overwhelmingly the genitive exponent (Holes 1990); before a noun with nothing in front it still reads as a tie, which costs at most a seam."
+  "_mal": "مال is also standard Arabic's 'money' and the verb 'to lean': listed here because in a Gulf text after a noun it is overwhelmingly the genitive exponent (Holes 1990); before a noun with nothing in front it still reads as a tie, which costs at most a seam.",
+  "_question_words": "For youtube/lib/tidy.py alone (what ar.chunk.json's _question_words says): the question words of the lists above (wesh, eesh, minu, men, ween, leesh, shloon, mita), so that a transcript in this variety with no punctuation gets its question mark. Read before Arabic's own, which still count. The dialects leave a question word in place (Brustad 2000), often at the end of the sentence, and tidy reads both edges.",
+  "question_words": ["وش", "ويش", "إيش", "ايش", "منو", "مين", "وين", "ليش", "شلون", "متى"]
 }

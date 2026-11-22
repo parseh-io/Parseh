@@ -11,7 +11,8 @@ import { chromium } from 'npm:playwright-core@1.52.0';
 //  a) in the reader: the dictionary block has a "written in" row, on the standard language at first; read as standard,
 //     دلوقتي is not found and هيكتب finds no verb; Egyptian chosen in the row is written into book.json; the next chunk
 //     finds دلوقتي in Egyptian's dictionary, its card saying so, and هيكتب as كتب through the future's ha-; the standard
-//     entry قلب, romanised qalb as standard Arabic, is ʾalb once the text is Egyptian (12.29, lib/lang/ar.egy.ipa.json)
+//     entry قلب, romanised qalb as standard Arabic, is ʾalb once the text is Egyptian (12.29, lib/lang/ar.egy.ipa.json),
+//     and كتابا, kitāban as standard Arabic, is kitāb without its case ending (a0.6.3 R2)
 //  b) the same in the player, written into video.json
 //  c) a language without varieties shows no row, and asks nothing about them
 //  d) no page threw or had a request refused; the hub printed no traceback; the owner's files are untouched
@@ -58,7 +59,7 @@ function drain(stream, sink) {
   })();
 }
 
-const SENTENCE = 'هيكتب دلوقتي قلب';
+const SENTENCE = 'هيكتب دلوقتي قلب كتابا';
 const BUILD = String.raw`
 import json, os, shutil, subprocess, sys
 from pathlib import Path
@@ -78,11 +79,13 @@ def dictionary(path, rows):
         cur = c.execute("INSERT INTO entry (headword, translit, pos, sense, sense_tags) VALUES (?,?,?,?,?)",
                         (head, (tr or [""])[0], pos, sense, ""))
         for f in [head] + forms:
-            c.execute("INSERT INTO form (form, entry_id, note) VALUES (?,?,?)", (f, cur.lastrowid, ""))
+            f, roman, note = (f, "", "") if isinstance(f, str) else f
+            c.execute("INSERT INTO form (form, entry_id, note, roman) VALUES (?,?,?,?)", (f, cur.lastrowid, note, roman))
     c.executemany("INSERT INTO meta (key, value) VALUES (?,?)", [("lang", "ar"), ("source", "a fixture"), ("licence", "none")])
     c.commit(); c.close()
 dictionary(str(tmp / 'dict' / 'ar.db'), [("كتب", "verb", "to write", ["يكتب"]), ("وقت", "noun", "time", []),
-                                        ("قلب", "noun", "heart", [], "qalb")])
+                                        ("قلب", "noun", "heart", [], "qalb"),
+                                        ("كتاب", "noun", "book", [["كتابا", "kitāban", "accusative indefinite singular"]], "kitāb")])
 dictionary(str(tmp / 'dict' / 'ar.egy.db'), [("دلوقتي", "adv", "now", [])])
 out = {}
 vid = 'aR5nJ3xW7yZ'
@@ -290,6 +293,7 @@ try {
   eq(await reader.evaluate(CARDS, ['دلوقتي']), [], 'read as standard Arabic, دلوقتي is not found');
   eq(await reader.evaluate(CARDS, ['هيكتب']), [], 'and هيكتب finds no verb');
   eq((await reader.evaluate(CARDS, ['قلب'])).map(c => c.say), ['qalb'], 'and قلب is romanised as standard Arabic says it');
+  eq((await reader.evaluate(CARDS, ['كتابا'])).map(c => c.say), ['kitāban'], 'and كتابا with its case ending, as standard Arabic writes it');
   await reader.selectOption('#cloud .ddict .dvariety select', 'egy');
   await until(() => reader.evaluate(() => /saved/.test(document.querySelector('#cloud .dvariety').textContent)), 'saved');
   eq((await readJson(B0.book.json)).variety, 'egy', 'the choice is written into book.json');
@@ -302,6 +306,8 @@ try {
   eq(await reader.evaluate(ROW).then(r => r.value), 'egy', 'the row says Egyptian now');
   // 12.29: the standard dictionary's entry, in a text written in Egyptian, said as Cairo says ق (lib/lang/ar.egy.ipa.json)
   eq((await reader.evaluate(CARDS, ['قلب'])).map(c => c.say), ['ʾalb'], 'and قلب, the standard entry, is romanised as Egyptian says it');
+  // a0.6.3 R2: and without its case ending (lib/lang/ar.ipa.json `pausal`, turned on by ar.egy.ipa.json)
+  eq((await reader.evaluate(CARDS, ['كتابا'])).map(c => c.say), ['kitāb'], 'and كتابا loses its case ending: kitāb');
 
   /* ---------------- b) the player ---------------- */
   console.log('\nb) the video player');
@@ -339,6 +345,7 @@ try {
   assert(pnow && pnow[0].head === 'دلوقتي' && /Egyptian Arabic/.test(pnow[0].note),
          'the next caption finds دلوقتي in Egyptian\'s dictionary: ' + JSON.stringify(pnow));
   eq((await player.evaluate(CARDS, ['قلب'])).map(c => c.say), ['ʾalb'], 'and قلب is romanised as Egyptian says it in the player too');
+  eq((await player.evaluate(CARDS, ['كتابا'])).map(c => c.say), ['kitāb'], 'and كتابا without its case ending in the player too');
   await player.selectOption('#cloud .ddict .dvariety select', '');
   await until(() => player.evaluate(() => /saved/.test(document.querySelector('#cloud .dvariety').textContent)), 'saved again');
   assert(!('variety' in (await readJson(B0.video.json))), 'the standard language again takes `variety` out of video.json');

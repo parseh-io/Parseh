@@ -103,7 +103,8 @@ re-cuts it into **sentences**, one caption each:
    ends with the stop its language prints: `.` and `?`, `؟` in the Arabic
    script, `。` and `？` for Japanese and Chinese, `।` for Devanagari — a
    question mark where one of the language's own question words opens or
-   closes it.
+   closes it. A video written in an Arabic dialect also asks with the
+   dialect's question words, so *انت رايح فين* gets its `؟`.
 
 Every language here gives it something to read:
 

@@ -258,7 +258,11 @@ dialect's lists: Egyptian 5 of 11 → 8 of 11, Levantine 2 of 9 → 5 of 9, Gulf
 
 Romanisation: the standard dictionary's entries in a dialect text are said the dialect's way, consonants only
 (Egyptian q → ʾ, j → g, ṯ ḏ ẓ → t d ḍ; Levantine q → ʾ, ṯ ḏ ẓ → t d ḍ; Gulf q → g; Moroccan ṯ ḏ ẓ → t d ḍ); the
-dialect dictionaries' own romanisations are kept as they are, but for the ʾ of a word written with ق.{{/note}}
+dialect dictionaries' own romanisations are kept as they are, but for the ʾ of a word written with ق. The standard
+entries also lose their final case vowel and tanwīn (kataba → katab, kitāban → kitāb, madrasatun → madrasa): one rule,
+`pausal` in `lib/lang/ar.ipa.json`, which each variety's file turns on; long vowels, the -a of ة and a word's own -un
+(mudun, taʿāwun) stay. Tidying a transcript in a dialect also reads the dialect's question words (`question_words` in
+`lib/lang/ar.<v>.chunk.json`), so «انت رايح فين» ends with ؟.{{/note}}
 
 ## Example
 

@@ -1647,8 +1647,10 @@ def api_transcript(h):
                                                 what the pipeline will see
       ...with `tidy`      -> the same, the captions cut into sentences and
                              timed again first (youtube/lib/tidy.py), and
-                             `notes` saying what it did
-      ...with `prompt`    -> {prompt}: the same job written out for an LLM,
+                             `notes` saying what it did; with `variety`
+                             (egy) that variety's question words are
+                             read too
+      ...with `prompt`   -> {prompt}: the same job written out for an LLM,
                              for whoever would rather have a model read the
                              transcript than an algorithm.  The answer comes
                              back into the box as an ordinary panel, by the
@@ -1677,6 +1679,10 @@ def api_transcript(h):
         L = posted_lang(data.get("lang"))
     except KeyError as e:
         return h.send_json({"ok": False, "error": str(e.args[0])}, 400)
+    # the variety the add page says the video is in (Arabic's dialects): the
+    # tidy reads its question words too (tidy._question_words); nothing else
+    # here changes with it
+    said_in = L.with_variety(data["variety"]) if isinstance(data.get("variety"), str) else L
     notes = []
     word_doc = None
     given = data.get("captions")
@@ -1709,7 +1715,7 @@ def api_transcript(h):
             if word_doc is not None:
                 import wordtimes
                 words = wordtimes.timed_stream(word_doc)
-            clean, notes = tidier.tidy(clean, L.code, word_times=words, pause_mode=mode)
+            clean, notes = tidier.tidy(clean, said_in.key, word_times=words, pause_mode=mode)
             if word_doc is not None:
                 import wordtimes
                 word_doc = wordtimes.sync(word_doc, clean, L.code)
@@ -1728,7 +1734,7 @@ def api_transcript(h):
             if word_doc is not None:
                 import wordtimes
                 words = wordtimes.timed_stream(word_doc)
-            got, notes = tidier.tidy(got, L.code, word_times=words, pause_mode=mode)
+            got, notes = tidier.tidy(got, said_in.key, word_times=words, pause_mode=mode)
             if word_doc is not None:
                 import wordtimes
                 word_doc = wordtimes.sync(word_doc, got, L.code)
@@ -2870,7 +2876,7 @@ ADD_PAGE_JS = r'''
     var was = val('transcript');
     $('sestat').textContent = '';
     ParsehSubedit.open({
-      base: BASE, lang: val('lang'),
+      base: BASE, lang: val('lang'), variety: val('variety'),
       video: SRC === 'film' ? '' : ytId(val('url')),
       transcript: was,
       wordJob: stt && stt.words ? stt.words() : ''

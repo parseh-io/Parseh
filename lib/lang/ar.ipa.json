@@ -9,5 +9,16 @@
   },
   "drop_initial": "ʾ"
  },
- "_roman": "Wiktionary writes hamza and ʿayn with the IPA letters ʔ and ʕ, and x and ġ with an underlined k and a macron g; docs/lang/ar.md writes ʾ ʿ ḫ ġ. Unfixed, a video's verb line read `أَرَى ʔarā`, `يَبْعَدُ yabʕadu`, and the sidebar's \\dw wrote `ḵaraja`. `drop_initial` is the hamza every word that begins with a vowel carries in the source (أَسْتَطِيعُ ʔastaṭīʕu) and that the edition does not write at the start of a word: astaṭīʿu. Inside a word it is a consonant and stays (saʾala). lib/verbs/ar.py respells its own slots the same way, and applying both changes nothing twice."
+ "_roman": "Wiktionary writes hamza and ʿayn with the IPA letters ʔ and ʕ, and x and ġ with an underlined k and a macron g; docs/lang/ar.md writes ʾ ʿ ḫ ġ. Unfixed, a video's verb line read `أَرَى ʔarā`, `يَبْعَدُ yabʕadu`, and the sidebar's \\dw wrote `ḵaraja`. `drop_initial` is the hamza every word that begins with a vowel carries in the source (أَسْتَطِيعُ ʔastaṭīʕu) and that the edition does not write at the start of a word: astaṭīʿu. Inside a word it is a consonant and stays (saʾala). lib/verbs/ar.py respells its own slots the same way, and applying both changes nothing twice.",
+ "pausal": {
+  "verb": ["verb"],
+  "noun": ["noun", "adj", "name", "num"],
+  "short": "aiu",
+  "long": "āīūēō",
+  "tanwin": ["un", "an", "in"],
+  "feminine": "ة",
+  "verb_keep": ["na"],
+  "contract": {"iy": "ī", "uw": "ū"}
+ },
+ "_pausal": "Not read for standard Arabic: the rule a variety's file turns on with `from_standard.pausal` (lib/translit.py pausal), so that a standard dictionary hit shown in a dialect text loses its final case vowel and tanwīn, as every dialect and standard Arabic's own pausal reading do (kataba > katab, kitābun > kitāb, madrasatun > madrasa). `verb` and `noun` are the parts of speech it reads (a pronoun, a particle and an adverb are left as written); `short` the vowels it cuts, `long` the ones it keeps; `tanwin` the nunated endings; `feminine` the letter whose -a stays (ة); `verb_keep` the verb ending after a consonant that is a pronoun and stays (the feminine plural's -na, katabna); `contract` the -iy and -uw a cut leaves, written as the long vowel they are (qawiya > qawī). A noun entry's own romanisation is never cut: the dictionary writes it without an ending. One rule for all four dialects: their own vowels and stress are left to the dialect dictionaries' own romanisation (docs/lang/ar.md)."
 }
