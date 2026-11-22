@@ -9,8 +9,9 @@
 SRC and TIMES go by -- so a page can go straight to it; `ci` the chapter's
 index (the reader's section data-ch); `sub` the subparagraph's label; `text`
 the chunk as the .tex writes it; `voc` its vocabulary line as written; and
-`entries` the line cut into words (texparse.voc_entries), each with its
-comparison key.  Only chunks with a vocabulary line are listed.
+`entries` the line cut into words (texparse.voc_line_entries: the macros, or
+a plain-text line by its shape), each with its comparison key.  Only chunks
+with a vocabulary line are listed.
 
 The reader does not need this: it carries every chunk's source (SRC), so its
 Vocabulary panel reads the whole book in the page, offline and in an export
@@ -58,7 +59,7 @@ def book_vocabulary(book_dir):
         if not (c.voc or "").strip():
             continue
         try:
-            entries = T.voc_entries(c.voc, lang)
+            entries = T.voc_line_entries(c.voc, lang, c.fa or "", c.tr or "")
         except (AssertionError, IndexError, ValueError):
             entries = []            # a line the reader cannot read either: listed with none
         out.append({"n": n, "ci": ci, "sub": s.label, "text": c.fa, "voc": c.voc, "entries": entries})
