@@ -59,6 +59,11 @@ Each is off until you change it, and each can be set by itself. The page says in
 A book being made in place by an agent can ask too: while the gloss prompts' choice is on, the book's
 instructions tell the agent about a helper that reads a sentence and writes nothing.
 
+None of the three is used for a book or a video written in an Arabic dialect (Egyptian, Levantine,
+Gulf or Moroccan): the analyzers read standard Arabic, and their reading of a dialect word is often
+another word. Its new text is cut by the rules alone, and its gloss prompt carries no analysis; the
+sheet says so. See [Arabic dialects](dictionaries.md#arabic-dialects).
+
 ### Spoken Persian
 
 The analyzers learned Persian from written text, and the dictionary's own reading of spoken Persian knows what a

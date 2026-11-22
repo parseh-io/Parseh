@@ -431,14 +431,14 @@ CH_WORDS = """\
 """
 
 
-def _cut_all(texts, code, how):
+def _cut_all(texts, code, how, variety=None):
     """New text, cut: with an analyzer's help where somebody chose that (Settings -> Linguistic analysis), and
-    with nothing else different."""
-    assist = chunker.assisting(code) if how != "sentence" else None
+    with nothing else different.  Never with it for text in a variety (chunker.assisting)."""
+    assist = chunker.assisting(code, variety) if how != "sentence" else None
     return chunker.chunk_all(texts, code, how, assist) if assist else chunker.chunk_all(texts, code, how)
 
 
-def _cuts_for(paras, L, how):
+def _cuts_for(paras, L, how, variety=None):
     """Every sentence of the chapter, cut -> {(paragraph, sentence): [chunk]}.
 
     The whole chapter in one call, so the chapter and the count that goes
@@ -447,7 +447,7 @@ def _cuts_for(paras, L, how):
     flat = [(i, k, sent)
             for i, para in enumerate(paras)
             for k, sent in enumerate(sentences(para))]
-    got = _cut_all([f[2] for f in flat], L.code, how)
+    got = _cut_all([f[2] for f in flat], L.code, how, variety)
     return {(i, k): c for (i, k, _s), c in zip(flat, got)}
 
 
@@ -591,7 +591,7 @@ def book_from_text(text, lang, title, gloss="", slug=None, author="",
     }
     chapter_file = "ch%d.tex" % chapter
     # cut once, and hand the same cutting to the chapter and to the count
-    cuts = _cuts_for(paras, L, how)
+    cuts = _cuts_for(paras, L, how, meta.get("variety"))
     files = {
         "book.json": json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
         "main.tex": MAIN_TEX.format(
@@ -699,7 +699,9 @@ def add_to_book(book_dir, text, how=chunker.DEFAULT_WAY, chapter=None):
         _refuse_not_text(para, "paragraph %d of chapter %d" % (i, n))
     _refuse_tex_specials(paras, n)
 
-    cuts = _cuts_for(paras, L, how)
+    # the book's variety, where it has one it knows (books.Book.variety): no analyzer cuts a dialect
+    variety = meta.get("variety") if isinstance(meta.get("variety"), str) and L.variety_of(meta["variety"]) else None
+    cuts = _cuts_for(paras, L, how, variety)
     written, num = {}, lambda k: L.to_native_digits(str(k))     # noqa: E731
     if where == "new":
         written["ch%d.tex" % n] = _chapter_tex(paras, L, G, n, how, cuts)
@@ -900,7 +902,8 @@ def video_from_transcript(transcript, lang, gloss="", video_id=None, url="",
             for ci, cap in enumerate(captions) if not cap["plain"]
             for si, sent in enumerate(sentences(cap["text"]))]
     vcuts = {(ci, si): c for (ci, si, _t), c
-             in zip(flat, _cut_all([f[2] for f in flat], L.code, how))}
+             in zip(flat, _cut_all([f[2] for f in flat], L.code, how,
+                                   _variety(L, variety).get("variety")))}
     nchunks = 0
     for ci, cap in enumerate(captions):
         sg = {"start": cap["start"]}

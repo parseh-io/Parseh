@@ -319,7 +319,9 @@ of an Egyptian, Gulf or Moroccan text and 89% of a Levantine one, against
 **The linguistic analysis is not used for a dialect.** Its programs read
 standard Arabic, and their reading of a dialect word is often another
 word's (Gulf *أبي*, *I want*, read as *أب*, *father*): the panel does not
-mark a reading *fits this sentence* in a text written in a dialect.
+mark a reading *fits this sentence* in a text written in a dialect, new
+text in a dialect is cut into phrases by the rules alone, and its gloss
+prompts carry no analysis.
 
 The prompts for a chatbot say the dialect too: a book's or a video's
 prompt tells it the text is Egyptian Arabic (say), to gloss each word as
