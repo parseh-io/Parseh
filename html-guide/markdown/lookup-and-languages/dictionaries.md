@@ -313,8 +313,24 @@ language does not need:
 
 Measured on sentences written for the purpose and held out from the work
 on the rules, the entry that fits comes first for about 85% of the words
-of an Egyptian, Gulf or Moroccan text and 89% of a Levantine one, against
-33–64% when the same texts were read as standard Arabic.
+of an Egyptian, Gulf or Moroccan text (83–85%) and 89% of a Levantine one,
+against 33–64% when the same texts were read as standard Arabic. The
+dialect's entries come before the standard dictionary's because that is
+the order that is right more often: the other way round, the same sets
+give 53–67%.
+
+- **Phrases.** New text in a dialect is cut into phrases with the
+  dialect's own small words — its negation (*مش*, *مو*, *ماشي*), its
+  pronouns and demonstratives (*ده*, *هاد*), *اللي*, the possessive *بتاع*,
+  *تبع*, *مال* or *ديال*, Levantine *عم* and *رح*, Moroccan *غادي* — as
+  well as standard Arabic's, so *مش عارف* stays together and *اللي* opens
+  the clause it begins.
+- **Romanisation.** A word found only in the standard dictionary is
+  romanised the way the dialect says its letters: ق as *ʾ* in Egyptian and
+  Levantine and as *g* in the Gulf, ج as *g* in Egyptian, ث ذ ظ as *t d ḍ*
+  in Egyptian, Levantine and Moroccan (*qalb* is *ʾalb* in an Egyptian
+  text). The vowels stay standard Arabic's; the dialect's own dictionary
+  writes its words as they are said.
 
 **The linguistic analysis is not used for a dialect.** Its programs read
 standard Arabic, and their reading of a dialect word is often another
