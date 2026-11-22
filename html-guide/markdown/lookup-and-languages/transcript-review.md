@@ -218,11 +218,15 @@ preferences or sync.
 Expand **Correction skills**, under **Models, preferences & skills**, to
 download the suspect-word skill (`parseh-asr-correction`), the whole-text skill
 (`parseh-asr-audit`) or the reasoning workspace skill (`parseh-asr-workspace`).
-Each ZIP contains its skill folder with its `SKILL.md`. Add one to a chatbot
-that supports Agent Skills, through that chatbot's own settings. The workspace
-ZIP of a reasoning workspace review already carries its skill and helper. A
-skill supplies reusable instructions to the same model; it does not train it or
-ensure better accuracy.
+Each ZIP contains its skill folder with its `SKILL.md`. Add the one of the
+method you use to your own chatbot or agent, through that chatbot's own
+settings, then use the copy/paste review as above: copy Parseh's prompt into
+the chatbot and paste its answer back. The prompt carries the evidence; the
+skill carries the instructions and the exact form of the answer Parseh reads
+(labelled sentence lines for the two sentence methods, the proposals CSV for
+the workspace). The workspace ZIP of a reasoning workspace review already
+carries its skill and helper. A skill supplies reusable instructions to the
+same model; it does not train it or ensure better accuracy.
 
 ## Diagnosis
 
