@@ -1063,7 +1063,7 @@ const wordOf = (i, k) => {
   await page.waitForFunction(() => /^Moved/.test(document.getElementById('rfsay').textContent) &&
                              !document.getElementById('rfdock').classList.contains('busy'));
   const tSaid = await page.evaluate(() => document.getElementById('rfsay').textContent);
-  assert(/That line now begins at 0:06\.8, when \u201c\u0686\u0642\u062f\u0631\u201d was heard \(the word times of the speech to text\)\./.test(tSaid),
+  assert(/That line now begins at 0:06\.8, when \u201c\u0686\u0642\u062f\u0631\u201d was heard \(the word times kept when the video was added\)\./.test(tSaid),
          'the dock says the line begins when its first word was heard: ' + tSaid);
   const tSegs = JSON.parse(await Deno.readTextFile(`${TDIR}/annotations.json`)).segments;
   eq(tSegs.map(s => s.start), [0, 6.8, 20], 'annotations.json: the line starts at 6.8, the time «چقدر» was heard');
