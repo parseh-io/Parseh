@@ -18,7 +18,9 @@ differ, it says so.
 
 - **On a computer.** Press **vocabulary** in the header, beside **⚑ later**,
   or press the **V** key. The list opens on the right, and the page stays as it
-  was beside it: nothing is darkened, and you can go on reading.
+  was beside it: nothing is darkened, and you can go on reading. A video's
+  header is full in a window narrower than about 1500 pixels, so there the
+  button is in the ⚙ panel instead, under **Interface**; **V** works everywhere.
 - **On a phone.** Open the ⚙ panel, then **Interface**, and press
   **Vocabulary**. The list comes up from the foot of the screen.
 

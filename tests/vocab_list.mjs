@@ -341,9 +341,18 @@ await scene('b) every mini book, in every language', async () => {
 /* ====== c) videos ====== */
 await scene('c) a video', async () => {
   const ctx = await ctxOf('desk'), page = await openVideo(ctx, MADE.fa_macro, 'fa-video');
-  eq(await page.evaluate(() => document.querySelector('.later-btn').nextElementSibling.classList.contains('vocab-btn')), true,
-     'the player\'s door stands beside «⚑ later»');
-  await openList(page);
+  // at 1280px the player's header is full: the door is the gear's row (and V), and the header stays one row
+  const head = await page.evaluate(() => ({door: document.querySelector('.vocab-btn').getClientRects().length,
+                                            h: Math.round(document.querySelector('header').getBoundingClientRect().height)}));
+  assert(head.door === 0 && head.h < 60, `at 1280px the header has no room for the door and stays one row (${head.h}px)`);
+  await page.locator('[data-parseh-gear]').first().click();
+  await page.evaluate(() => ParsehGear.mounted().open('interface'));
+  const gearRow = page.locator('button.pg-action', {hasText: 'Vocabulary'}).first();
+  await gearRow.waitFor({state: 'visible', timeout: 6000});
+  await gearRow.click();
+  await page.waitForSelector('.vocab-wrap:not([hidden]) .vocab-panel');
+  await page.waitForFunction(() => !/reading/.test(document.querySelector('.vocab-wrap .lp-status').textContent));
+  assert(true, 'the gear\'s «Vocabulary» opens the list');
   eq(await page.evaluate(() => [...document.querySelectorAll('.vocab-scope .lp-sc')].map(b => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : ''))),
      ['Whole video*', 'Up to here'], 'it opens on Whole video, beside Up to here');
   eq(await rows(page), [
@@ -378,10 +387,21 @@ await scene('c) a video', async () => {
   await tool(page, 'Up to here').click();
   await page.waitForFunction(() => document.querySelectorAll('.vocab-wrap .vr').length === 3);
   eq(await words(page), ['کتاب ×1', 'دیدن ×2', 'دوست ×1'], 'Up to here, at 2.5 s: the words of the first two captions');
+  // a window wide enough has the door beside «⚑ later», and the header is still one row
+  await page.setViewportSize({width: 1600, height: 800});
+  await sleep(200);
+  const wide = await page.evaluate(() => {
+    const b = document.querySelector('.vocab-btn'), r = b.getBoundingClientRect();
+    return {beside: document.querySelector('.later-btn').nextElementSibling === b, shown: r.width > 0 && r.top >= 0,
+            h: Math.round(document.querySelector('header').getBoundingClientRect().height)};
+  });
+  assert(wide.beside && wide.shown && wide.h < 60, `at 1600px the door is drawn beside «⚑ later», the header one row (${wide.h}px)`);
   await page.close();
 
   const ar = await openVideo(ctx, MADE.ar_macro, 'ar-video');
-  await openList(ar);
+  await ar.mouse.move(300, 500);
+  await ar.keyboard.press('v');
+  await ar.waitForSelector('.vocab-wrap:not([hidden]) .vocab-panel');
   await tool(ar, 'Whole video').click();
   await ar.waitForFunction(() => document.querySelectorAll('.vocab-wrap .vr').length === 3);
   eq(await rows(ar), [{word: 'خَرَجَ', n: '×1', mean: 'to go out'}, {word: 'ثَعْلَب', n: '×2', mean: 'fox, pl. ثَعَالِب · fox'},
@@ -392,7 +412,8 @@ await scene('c) a video', async () => {
   await ar.close();
 
   const plain = await openVideo(ctx, MADE.fa_video, 'plain-video');
-  await openList(plain);
+  await plain.evaluate(() => ParsehPlayer.vocab.panel().open());
+  await plain.waitForFunction(() => !/reading/.test((document.querySelector('.vocab-wrap .lp-status') || {}).textContent || 'reading'));
   eq([await plain.evaluate(() => document.querySelectorAll('.vocab-wrap .vr').length),
       /plain text/.test(await plain.locator('.vocab-wrap .lp-status').textContent())], [0, true],
      'a video whose lines are plain text lists nothing, and says why');

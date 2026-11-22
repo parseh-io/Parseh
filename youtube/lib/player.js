@@ -7752,8 +7752,9 @@
       help: 'Keep this video on this phone, so it still works when the computer cannot be reached.',
       el: function () { return document.querySelector('.kp-btn'); }});
     // the vocabulary list (vocabStart, below): its door is in the header on a computer and here on a phone
-    iface.rows.push({id: 'vocab', kind: 'action', layouts: 'mobile', label: 'Vocabulary',
-      help: 'Every word of the vocabulary lines of this video, once, with its meaning.',
+    // (and in a window under 1480px wide, whose header has no room for the door: youtube/lib/style.css)
+    iface.rows.push({id: 'vocab', kind: 'action', label: 'Vocabulary',
+      help: 'Every word of the vocabulary lines of this video, once, with its meaning (V).',
       when: function () { return !!vocabPanel; },
       onClick: function () { if (vocabPanel) ParsehVocab.openAfter(vocabPanel, function () { if (gear) gear.close(); }); }});
 
