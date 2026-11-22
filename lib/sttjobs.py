@@ -719,10 +719,8 @@ def _say(job):
         if c.get("total", 0):
             if c.get("task") == "likelihood":
                 return "%s… %d / %d suspect spans processed." % (c.get("phase", "Scoring likelihood"), c.get("done", 0), c["total"])
-            if c.get("task") == "workspace":
-                return "%s… %d / %d ASR words processed." % (c.get("phase", "Reviewing workspace"), c.get("done", 0), c["total"])
-            return "Reviewing with the selected LLM… %d / %d ASR words reviewed." % (c.get("done", 0), c["total"])
-        return "Reviewing with the selected LLM…"
+            return "Reviewing… %d / %d ASR words reviewed." % (c.get("done", 0), c["total"])
+        return "Scoring likelihood…" if c.get("task") == "likelihood" else "Reviewing…"
     if s == DONE:
         n = (job["facts"] or {}).get("captions", 0)
         return "Done — %d caption%s." % (n, "" if n == 1 else "s")
@@ -920,7 +918,7 @@ def _review_targets(job, task, requested):
 
 def save_review_draft(token, source_sha256, draft, generation=None):
     import asrcorrection
-    import llmconfig
+    from reviewerror import LLMError
     job = _job(token)
     with LOCK:
         if not job.get("review_evidence") or source_sha256 != job["review_evidence"]["source_sha256"] or not _review_source_current(job):
@@ -958,7 +956,7 @@ def save_review_draft(token, source_sha256, draft, generation=None):
         try:
             asrcorrection.apply(job["text"], job["review_evidence"], job.get("correction_result") or {"suggestions": []},
                                 draft.get("decisions", {}), draft.get("manual_edits", {}))
-        except llmconfig.LLMError as e:
+        except LLMError as e:
             raise Refusal(e.code, e.say)
         browser = draft.get("browser", {})
         if not isinstance(browser, dict) or set(browser) - {"transcript", "hash"} or any(not isinstance(v, str) or len(v) > 2 << 20 for v in browser.values()):
@@ -1045,11 +1043,11 @@ def _review_source_current(job):
         return False
 
 
-def review(token, mode, source_sha256, connection_id=None, word_ids=None, instruction_mode="prompt", task="suspect", divide=False):
-    """Explicit browser choice. Destination and model come only from host config.  `divide`: a reasoning workspace is handed to the
-    model whole unless asked to be cut into small regions (the connected model's counterpart of the chatbot's "divide into several prompts")."""
-    import llmconfig
-    import llmadapter
+def review(token, mode, source_sha256):
+    """Settle on the Whisper result as it is: the review then waits for the person's edits or a tool.
+
+    `mode` "whisper" is the only one: the review by a connected model went with a0.6.3 (the
+    copy/paste review is external_start/external_action, the other tools have their own doors)."""
     job = _job(token)
     with LOCK:
         if job["state"] not in (REVIEW_CHOICE, DONE):
@@ -1058,186 +1056,14 @@ def review(token, mode, source_sha256, connection_id=None, word_ids=None, instru
             raise Refusal("stale-review", "That review no longer matches the Whisper result.", 409)
         if not _review_source_current(job):
             raise Refusal("source-changed", "The local film changed. Transcribe it again.", 409)
-        if mode not in ("llm", "whisper"):
+        if mode != "whisper":
             raise Refusal("bad-review", "Choose an available review tool.")
-        if instruction_mode not in ("prompt", "skill"):
-            raise Refusal("bad-review", "Choose the short prompt or installed correction skill.")
-        if task not in ("suspect", "full", "workspace"):
-            raise Refusal("bad-review", "Choose a saved transcript review method.")
-        if type(divide) is not bool:
-            raise Refusal("bad-review", "Say whether to divide the workspace into regions with true or false.")
-        previous = job.get("correction_result")
-        if word_ids is not None:
-            import asrcorrection
-            sources = asrcorrection.index(job["review_evidence"])
-            if (mode != "llm" or not isinstance(word_ids, list) or not word_ids
-                    or len(word_ids) > len(sources) or any(not isinstance(w, str) for w in word_ids)
-                    or len(set(word_ids)) != len(word_ids)
-                    or any(w not in sources or not sources[w]["reviewable"] or
-                           (task == "suspect" and not asrcorrection.suspect(sources[w])) for w in word_ids)):
-                raise Refusal("bad-review", "Choose remaining words from this review task and Whisper result.")
-        word_ids = _review_targets(job, task, word_ids) if mode == "llm" else None
-        if previous and previous.get("task", "suspect") != task:
-            previous = None
-        if mode == "whisper":
-            job.pop("external_review", None)
-            job["review_choice"] = "whisper"
-            job["correction_result"] = None
-            job["correction"] = {"state": "not-requested", "complete": False}
-            job["state"], job["finished"] = DONE, _now()
-            return _report(job)
-        if any(j is not job and j["state"] in ACTIVE for j in JOBS.values()):
-            raise Refusal("busy", "Another transcription or LLM review is running.", 409)
-        config = llmconfig.load()
-        if config is None:
-            raise Refusal("llm-unconfigured", "Set up LLM Integration, or review the Whisper result without it.", 409)
-        if instruction_mode == "skill" and task != "workspace" and config.get("adapter") != "unsloth-agent-skills":
-            raise Refusal("skills-unavailable", "Select the Unsloth Agent Skills adapter in LLM Integration before using an installed skill.", 409)
-        if connection_id != llmconfig.revision(config):
-            raise Refusal("settings-changed", "The LLM settings changed. Inspect the current destination and choose review again.", 409)
-        try:
-            llmconfig.for_review(config, task)
-            if task == "workspace":
-                import asrworkspace
-                if not asrworkspace.sandbox_status()["available"]:
-                    raise llmconfig.LLMError("workspace-unavailable", asrworkspace.sandbox_status()["say"])
-        except llmconfig.LLMError as e:
-            raise Refusal(e.code, e.say, 409)
-        if previous and job.get("llm_config_fingerprint") != llmconfig.fingerprint(config):
-            previous = None
-        _save_pending(job)
-        cancel = llmadapter.Cancellation()
-        job["llm_cancel"] = cancel
-        job["llm_generation"] = job.get("llm_generation", 0) + 1
-        generation = job["llm_generation"]
-        job["review_choice"] = "llm"
-        job['last_method'], job['last_word_ids'] = task, word_ids or []
         job.pop("external_review", None)
-        job["llm_config_fingerprint"] = llmconfig.fingerprint(config)
-        if word_ids is None:
-            job["correction_result"] = None
-            job["llm_diagnostics"] = []
-            job["llm_diagnostics_bytes"] = 0
-            job["llm_diagnostics_clipped"] = False
-        job["correction"] = {"state": "running", "complete": False, "done": 0, "total": 0,
-                             "unit": "words", "response_count": len(job.get("llm_diagnostics") or []),
-                             "instruction_mode": instruction_mode,
-                             "task": task, "divided": task == "workspace" and divide,
-                             "destination": config["base_url"], "model": llmconfig.for_review(config, task)["selected_model"],
-                             "started": _now()}
-        job["state"] = CORRECTING
-        answer = _report(job)
-    threading.Thread(target=_correct, args=(job, config, cancel, generation, word_ids, previous), daemon=True,
-                     name="asr-correction").start()
-    return answer
-
-
-def _correct(job, config, cancel, generation, word_ids=None, previous=None):
-    import asrcorrection
-    import llmadapter
-    import llmconfig
-    stamp = llmconfig.fingerprint(config)
-    task = job["correction"].get("task", "suspect")
-    feature_config = llmconfig.for_review(config, task)
-
-    def current():
-        cancel.check()
-        if not _review_source_current(job):
-            raise llmconfig.LLMError("source-changed", "The local film changed during review. Transcribe it again.")
-        if llmconfig.fingerprint(llmconfig.load()) != stamp:
-            raise llmconfig.LLMError("settings-changed", "The LLM destination or model changed. Choose review again.")
-
-    class SavedAdapter:
-        def generate_text(self, *args, **kw):
-            current()
-            return llmadapter.adapter(feature_config).generate_text(*args, **kw)
-
-        def agent_turn(self, *args, **kw):
-            current()
-            return llmadapter.adapter(feature_config).agent_turn(*args, **kw)
-
-    def progress(done, total, phase=None):
-        current()
-        with LOCK:
-            if generation == job.get("llm_generation") and job["state"] == CORRECTING:
-                job["correction"].update(done=done, total=total)
-                if phase:
-                    job["correction"]["phase"] = phase
-
-    def diagnostic(trace):
-        # Explicitly inspectable feature data, kept only with this ephemeral
-        # job. Never put prompts/replies in logs, prefs, sync or status.
-        current()
-        def redact(value):
-            if isinstance(value, str):
-                key = config.get("api_key")
-                return value.replace(key, "[redacted credential]") if key else value
-            if isinstance(value, list):
-                return [redact(v) for v in value]
-            if isinstance(value, dict):
-                return {k: redact(v) for k, v in value.items()}
-            return value
-        trace = redact(trace)
-        trace["run"] = generation
-        size = len(json.dumps(trace, ensure_ascii=False).encode("utf-8"))
-        with LOCK:
-            if generation != job.get("llm_generation") or job["state"] != CORRECTING:
-                return
-            if size > 512 * 1024:
-                job["llm_diagnostics_clipped"] = True
-                return
-            history = job.setdefault("llm_diagnostics", [])
-            while history and (job.get("llm_diagnostics_bytes", 0) + size > 512 * 1024 or len(history) >= 100):
-                old = history.pop(0)
-                job["llm_diagnostics_bytes"] -= len(json.dumps(old, ensure_ascii=False).encode("utf-8"))
-                job["llm_diagnostics_clipped"] = True
-            history.append(trace)
-            job["llm_diagnostics_bytes"] = job.get("llm_diagnostics_bytes", 0) + size
-            job["correction"]["response_count"] = job["correction"].get("response_count", 0) + 1
-
-    try:
-        if task == "workspace":
-            import asrworkspace
-            out = asrworkspace.correct(job["review_evidence"], SavedAdapter(), cancel, progress,
-                                       config.get("context_tokens", 8192), diagnostic, word_ids, bool(job["correction"].get("divided")))
-        else:
-            out = asrcorrection.correct(job["review_evidence"], SavedAdapter(), cancel, progress,
-                                        config.get("context_tokens", 8192), diagnostic, word_ids,
-                                        job["correction"].get("instruction_mode") == "skill", task)
-        current()
-        with LOCK:
-            if generation != job.get("llm_generation") or job["state"] != CORRECTING:
-                return
-            if word_ids is not None and previous:
-                selected = set(out.get("reviewed_word_ids", word_ids))
-                # A retry updates only its selected words. Other proposals and
-                # the browser's accepted/manual draft remain available.
-                out["suggestions"] = [s for s in previous["suggestions"] if not selected.intersection(s.get("word_ids", [s["word_id"]]))] + out["suggestions"]
-                if "failed_reasons" in out or previous.get("failed_reasons"):
-                    out["failed_reasons"] = dict({w: say for w, say in previous.get("failed_reasons", {}).items() if w not in selected}, **out.get("failed_reasons", {}))
-                if "allowances" in out or previous.get("allowances"):
-                    out["allowances"] = dict({w: says for w, says in previous.get("allowances", {}).items() if w not in selected}, **out.get("allowances", {}))
-                if "kept" in out or previous.get("kept"):
-                    out["kept"] = [k for k in previous.get("kept", []) if not selected.intersection(k["word_ids"])] + out.get("kept", [])
-                for key in ("failed_word_ids", "uncertain_word_ids"):
-                    out[key] = [w for w in previous.get(key, []) if w not in selected] + out[key]
-                out["assessment"] = "suggestions" if out["suggestions"] else out["assessment"]
-            out["latest_word_ids"] = list(out.get("reviewed_word_ids", word_ids or []))
-            job["correction_result"] = out
-            job["correction"].update(state="complete", complete=True,
-                                     failed_words=len(out.get("failed_word_ids", [])))
-            job["state"], job["finished"] = DONE, _now()
-            _save_pending(job)
-    except Exception as e:
-        # No tracebacks here: an unexpected exception may contain model text.
-        safe = e if isinstance(e, llmconfig.LLMError) else llmconfig.LLMError(
-            "correction-failed", "LLM review could not finish. The Whisper result is intact.")
-        with LOCK:
-            if generation != job.get("llm_generation") or job["state"] != CORRECTING:
-                return
-            job["correction_result"] = None
-            job["correction"].update(state="failed", complete=False, code=safe.code, error=safe.say)
-            job["state"], job["finished"] = REVIEW_CHOICE, _now()
+        job["review_choice"] = "whisper"
+        job["correction_result"] = None
+        job["correction"] = {"state": "not-requested", "complete": False}
+        job["state"], job["finished"] = DONE, _now()
+        return _report(job)
 
 
 def cancel_review(token):
@@ -1271,7 +1097,7 @@ def cancel_review(token):
 def review_whisper_second(token, source_sha256, word_ids=None):
     """Recheck immutable original spans; request bodies cannot choose audio/model paths."""
     import asrcorrection
-    import llmadapter
+    from reviewerror import Cancellation
     job = _job(token)
     with LOCK:
         if job['state'] not in (DONE, REVIEW_CHOICE) or job.get('review_used'):
@@ -1307,7 +1133,7 @@ def review_whisper_second(token, source_sha256, word_ids=None):
         _spec(gs, job, recheck=True)
         job['llm_generation'] = job.get('llm_generation', 0) + 1
         generation = job['llm_generation']
-        cancel = llmadapter.Cancellation()
+        cancel = Cancellation()
         job['llm_cancel'] = cancel
         job['second_pass_previous'] = {'correction': dict(job.get('correction') or {})}
         job['second_pass'] = {'done': 0, 'total': len(ids), 'failed': 0, 'failures': []}
@@ -1436,7 +1262,7 @@ def review_likelihood(token, source_sha256, revision, word_ids=None, phonetic_fi
     """Additional numeric method. Job input cannot choose a path or runtime."""
     import asrcorrection
     import lmlikelihoodconfig as lc
-    import llmadapter
+    from reviewerror import Cancellation
     from lmgguf import ScoringError, revalidate
     job = _job(token)
     with LOCK:
@@ -1474,7 +1300,7 @@ def review_likelihood(token, source_sha256, revision, word_ids=None, phonetic_fi
             raise Refusal("bad-review", "Choose mapped words from this Whisper result.")
         word_ids = _review_targets(job, "likelihood", word_ids)
         _save_pending(job)
-        cancel = llmadapter.Cancellation()
+        cancel = Cancellation()
         job["llm_cancel"] = cancel
         job["llm_generation"] = job.get("llm_generation", 0) + 1
         generation = job["llm_generation"]
@@ -1664,7 +1490,7 @@ def _external_merge(job):
 
 def external_action(token, source_sha256, session, action, index=None, answer=None):
     import asrexternal
-    import llmconfig
+    from reviewerror import LLMError
     with LOCK:
         if not isinstance(session, str) or not session:
             raise Refusal("stale-review", "Prepare an external prompt before importing an answer.", 409)
@@ -1689,35 +1515,15 @@ def external_action(token, source_sha256, session, action, index=None, answer=No
             try:
                 parsed = asrexternal.parse(job["review_evidence"], ext["task"], ext["batches"][index], answer)
                 current_prompt = asrexternal.prompt(job["review_evidence"], ext["task"], ext["batches"][index], ext.get("divided", True))
-            except llmconfig.LLMError as error:
+            except LLMError as error:
                 raise Refusal(error.code, error.say)
             ext["answers"][index] = parsed
             ext["attempts"][index] = ext["attempts"].get(index, 0) + 1
             ext.update(index=index, prompt=current_prompt, prompt_error="")
-            config = llmconfig.load() or {}
-            key = config.get("api_key")
-            def safe(text):
-                if key:
-                    # Raw pasted CSV and JSON can escape quotes in a key.
-                    variants = {key, key.replace('"', '""'), json.dumps(key, ensure_ascii=False)[1:-1]}
-                    for value in sorted(variants, key=len, reverse=True):
-                        text = text.replace(value, "[redacted credential]")
-                return text
             trace = {"run": ext["id"], "sentence_id": "external-batch%d" % index, "attempt": ext["attempts"][index], "state": "complete",
                      "source": "\n".join(unit["text"] for unit in ext["batches"][index]),
-                     "word_ids": parsed["reviewed_word_ids"], "answer": safe(answer)[:16000], "ignored_edits": parsed["ignored_edits"],
-                     "prompt": [{"role": "user", "content": safe(current_prompt)[:32000]}]}
-            # Redact strings before JSON encoding, including quoted keys in
-            # pasted explanations. Never replace JSON syntax or numeric values.
-            def redact(value):
-                if isinstance(value, str):
-                    return safe(value)
-                if isinstance(value, list):
-                    return [redact(item) for item in value]
-                if isinstance(value, dict):
-                    return {name: redact(item) for name, item in value.items()}
-                return value
-            trace = redact(trace)
+                     "word_ids": parsed["reviewed_word_ids"], "answer": answer[:16000], "ignored_edits": parsed["ignored_edits"],
+                     "prompt": [{"role": "user", "content": current_prompt[:32000]}]}
             history = job.setdefault("llm_diagnostics", [])
             history.append(trace)
             while len(history) > 100 or len(json.dumps(history, ensure_ascii=False).encode("utf-8")) > 512 * 1024:
@@ -1730,13 +1536,13 @@ def external_action(token, source_sha256, session, action, index=None, answer=No
                 try:
                     text = asrexternal.prompt(job["review_evidence"], ext["task"], ext["batches"][following], ext.get("divided", True))
                     ext.update(index=following, prompt=text)
-                except llmconfig.LLMError as error:
+                except LLMError as error:
                     # A later prompt failure must preserve this imported batch.
                     ext["prompt_error"] = error.say
         elif action == "prompt":
             try:
                 text = asrexternal.prompt(job["review_evidence"], ext["task"], ext["batches"][index], ext.get("divided", True))
-            except llmconfig.LLMError as error:
+            except LLMError as error:
                 raise Refusal(error.code, error.say)
             ext.update(index=index, prompt=text, prompt_error="")
         elif action == "finish":
@@ -1769,9 +1575,9 @@ def external_files(token, source_sha256, session, index):
 def use_review(token, source_sha256, decisions, manual_edits=None):
     """Apply only chosen validated spans. Caption clocks/boundaries stay put."""
     import asrcorrection
-    import llmconfig
     import wordtimes
     import ytpages
+    from reviewerror import LLMError
     job = _job(token)
     with LOCK:
         if job["state"] not in (DONE, REVIEW_CHOICE):
@@ -1789,7 +1595,7 @@ def use_review(token, source_sha256, decisions, manual_edits=None):
         try:
             panel, changed = asrcorrection.apply(job["text"], evidence,
                 job.get("correction_result") or {"suggestions": []}, decisions, manual_edits, skipped)
-        except llmconfig.LLMError as e:
+        except LLMError as e:
             raise Refusal(e.code, e.say)
         original = ytpages.parse_transcript_text(job["text"], job["lang"])
         caps = ytpages.parse_transcript_text(panel, job["lang"])

@@ -2,8 +2,9 @@
 
 `lib/promptkit.py` assembles every copyable prompt Parseh hands to a chatbot.
 It writes the prompt, and the relevant feature checks and files the answer.
-Browser ASR review also offers an explicit API route through the separate LLM
-adapter. This page is for whoever changes a copyable prompt.
+Parseh holds no connection to a model service (the one it had for the ASR review
+went with a0.6.3): a prompt reaches a model only through a person's copy and
+paste, or a skill. This page is for whoever changes a copyable prompt.
 
 ## A surface, and its three parts
 

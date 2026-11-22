@@ -9,7 +9,7 @@ import zipfile
 
 import asrcorrection as correction
 import asrworkspace
-from llmconfig import LLMError
+from reviewerror import LLMError
 import promptkit
 
 TASKS = ("suspect", "full", "workspace")

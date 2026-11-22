@@ -26,7 +26,7 @@ hands the serving to another harness must import it, and that one must do the
 assigning.
 
 WHAT IT DOES NOT DO.  It does not see a store whose path a function works
-out from a root it is handed (lib/llmconfig.py, lib/updater.py): there is no
+out from a root it is handed (lib/updater.py): there is no
 constant to point elsewhere.  And it cannot tell that a harness runs before
 the server does.  What watches those are the guard around the unit suite
 (tests/test_config_untouched.py), the one smoke.py has, and the one release

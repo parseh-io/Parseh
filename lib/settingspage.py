@@ -147,8 +147,6 @@ SETTINGS = {
     "speech.remove": (None, "It frees the space the program or a model took."),
     "speech.stop": (None, "It stops an install this page started."),
     "speech.preferences": (None, "It chooses speech models by language and automatic checks for suspect words."),
-    "llm.connection": (EXPOSE, "It chooses where feature text is sent and the saved credentials."),
-    "llm.model": (None, "It selects a model at the already configured endpoint; the destination and credentials stay on the host."),
     "likelihood.worker": (RUN, "It selects local model paths, an executable and runtime backend on this host."),
     "likelihood.model": (None, "It selects weights from the host’s discovered installed-model inventory."),
     # A BOOK MADE BY AN AGENT, IN PLACE (TO-DO §8.40, a0.4.2) HAS NO KEY HERE.
@@ -231,23 +229,6 @@ ROUTES = {
     "/settings/api/lm-likelihood/models": ("likelihood.model",),
     "/settings/api/lm-likelihood/select": ("likelihood.model",),
     "/settings/api/lm-likelihood/unload": ("likelihood.model",),
-    "/settings/api/llm/status": READ,
-    "/settings/api/llm/save": ("llm.connection",),
-    "/settings/api/llm/reset": ("llm.connection",),
-    "/settings/api/llm/models": ("llm.connection",),
-    "/settings/api/llm/test": ("llm.model",),
-    "/settings/api/llm/models-saved": ("llm.model",),
-    "/settings/api/llm/select-model": ("llm.model",),
-    "/settings/api/llm/profile-save": ("llm.model",),
-    "/settings/api/llm/review-model": ("llm.model",),
-    "/settings/api/llm/review-prepare": ("llm.model",),
-    "/settings/api/llm/profile-remove": ("llm.model",),
-    "/settings/api/llm/profile-apply": ("llm.model",),
-    "/settings/api/llm/skill-status": READ,
-    "/settings/api/llm/skill-install": ("llm.connection",),
-    "/settings/api/llm/audit-skill-status": READ,
-    "/settings/api/llm/audit-skill-install": ("llm.connection",),
-    "/settings/api/llm/import-link": ("llm.connection",),
     "/settings/api/ping": READ,
     "/settings/api/pair": KNOCK,
     # one body saves all four, so all four must be allowed
@@ -549,8 +530,6 @@ DOORS = (
     ("/settings/speech/", "Speech to text",
      "Local transcription models and optional checks for suspect words",
      ("speech.get", "speech.remove", "speech.stop", "speech.preferences")),
-    ("/settings/llm/", "LLM Integration",
-     "Connect Parseh to a model service", ("llm.connection", "llm.model")),
     ("/settings/lm-likelihood/", "LM likelihood · experimental",
      "Review words with a model installed on this computer", ("likelihood.worker", "likelihood.model")),
     ("/settings/prompts/", "Your prompts",
@@ -609,7 +588,7 @@ def settings_doors(here):
         out.append('<a class="sdoor%s" href="%s"%s><b>%s</b><small>%s</small>%s</a>'
                    % (" on" if on else "", esc(href), ' aria-current="page"' if on else "",
                       esc(name), esc(what), gate(settings)))
-        if href in ("/settings/llm/", "/settings/lm-likelihood/"):
+        if href == "/settings/lm-likelihood/":
             out[-1] = out[-1].replace('<a ', '<a data-layout="browser" ', 1)
     return '<nav class="sdoors" aria-label="settings">%s</nav>' % "".join(out)
 
@@ -937,7 +916,7 @@ def signed(main):
     return main[:end] + '<p class="foot">%s</p>\n' % author.foot_links(project.GITHUB_URL, project.NAME, project.WEBSITE_URL) + main[end:]
 
 
-def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_tags="", analysis_tags="",
+def hub(reading_tags="", update_tags="", speech_tags="", arasaac_tags="", analysis_tags="",
         languages_tags=""):
     """/settings/ -- the section itself.  Each door says what is behind it
     rather than only naming it, and who may change it, in the words of the
@@ -982,12 +961,6 @@ def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_ta
     <div class="dwhat">Whisper transcription models for your languages, optional word timing and
     pronunciation tools, and automatic checks for suspect words. Download once and use locally.</div>
     <div class="tags">%(speech_gate)s%(speech_tags)s</div>
-  </a>
-  <a class="door" data-layout="browser" href="/settings/llm/">
-    <div class="dname">LLM Integration</div>
-    <div class="dwhat">Connect Parseh features to an already running model endpoint.
-    Select a served model, test the connection and keep its credentials on this host.</div>
-    <div class="tags">%(llm_gate)s%(llm_tags)s</div>
   </a>
   <a class="door" data-layout="browser" href="/settings/lm-likelihood/">
     <div class="dname">LM likelihood &middot; experimental</div>
@@ -1044,7 +1017,6 @@ def hub(reading_tags="", update_tags="", speech_tags="", llm_tags="", arasaac_ta
               "prompts_gate": gate(door_keys("/settings/prompts/")),
               "arasaac_gate": gate(door_keys("/settings/arasaac/")), "arasaac_tags": arasaac_tags,
               "analysis_gate": gate(door_keys("/settings/analysis/")), "analysis_tags": analysis_tags,
-              "llm_gate": gate(door_keys("/settings/llm/")), "llm_tags": llm_tags,
               "likelihood_gate": gate(door_keys("/settings/lm-likelihood/")),
               "net_gate": gate(net),
               "where": esc(doors_said(network.settings())), "port": network.port()}

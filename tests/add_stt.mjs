@@ -113,11 +113,10 @@ tmp, port = Path(sys.argv[1]), sys.argv[2]
 # the computer's speech to text is a file (tests/addstt_fakes.py), not this machine's
 import addstt_fakes
 sys.modules['getstt'] = addstt_fakes.make(str(tmp.parent / 'fake'))
-import prefs, network, offline, llmconfig
+import prefs, network, offline
 import speechconfig
 speechconfig.CONFIG = tmp / 'config/speech.json'
 sys.modules['getstt'].preferences_file = speechconfig.CONFIG
-llmconfig.ROOT = str(tmp)
 prefs.STORE = str(tmp / 'config' / 'prefs.json')
 network.STORE = str(tmp / 'config' / 'network.json')
 import latexthemes, latexdraw, texpackages
@@ -877,14 +876,14 @@ await section('review', 'pending LLM draft, accessible details and Unicode-safe 
       span_end: Array.from(original.slice(0, original.indexOf('anno') + 4)).length};
     const res = {text: original, review: {evidence: {source_sha256:'source', low_score_threshold:.5,
       segments: [{segment_id:'s0', start:0, text:'🙂 loro anno detto ciao', words:[word]}]},
-      correction:{state:'complete',complete:true}, result:{schema_version:1, assessment:'suggestions', suggestions:[{
+      choice:'likelihood', correction:{state:'complete',complete:true}, result:{schema_version:1, assessment:'suggestions', suggestions:[{
         segment_id:'s0',word_id:'s0w2',original:'anno',error_likelihood:.8,reason:'ASR alternative and context.',
         candidates:[{text:'hanno',confidence:.7,reason:'Matches the sentence.'}]}]}}};
     window.contractReview = ParsehAsrReview.mount(root, {choose: function(mode, skill, task, ids, options){ window.reviewChosen = {mode, task, ids, options}; }, cancel: function(){},
       use: function(decisions,manual){ window.reviewApplied = decisions; window.reviewManual = manual; },
       retry: function(ids){ window.reviewRetried = ids; }});
     window.contractRes = res;
-    contractReview.show(res, 'review', {configured:true,base_url:'http://saved/v1',selected_model:'served',workspace:{available:true}});
+    contractReview.show(res, 'review', {likelihood:{configured:true,available:true,revision:'r',model:'tiny'}});
   });
   const marked = '#review-contract [data-review-word="s0w2"]';
   await page.hover(marked);
@@ -895,11 +894,11 @@ await section('review', 'pending LLM draft, accessible details and Unicode-safe 
   // what is being typed survives a redraw: the connection's status arrives a moment after the result and draws the review again
   await page.locator('#review-contract #stt_manual_word').fill('avevano');
   await page.locator('#review-contract #stt_manual_word').focus();
-  await page.evaluate(() => contractReview.show(JSON.parse(JSON.stringify(window.contractRes)), 'review', {configured:true,base_url:'http://saved/v1',selected_model:'served',workspace:{available:true}}));
+  await page.evaluate(() => contractReview.show(JSON.parse(JSON.stringify(window.contractRes)), 'review', {likelihood:{configured:true,available:true,revision:'r',model:'tiny'}}));
   eq(await page.locator('#review-contract #stt_manual_word').inputValue(), 'avevano', 'a correction typed and not yet saved is still there after the review is drawn again');
   assert(await page.evaluate(() => document.activeElement === document.querySelector('#review-contract #stt_manual_word')), 'and the cursor is still in it');
   await page.locator('#review-contract #stt_manual_word').fill('anno');
-  await page.evaluate(() => contractReview.show(JSON.parse(JSON.stringify(window.contractRes)), 'review', {configured:true,base_url:'http://saved/v1',selected_model:'served',workspace:{available:true}}));
+  await page.evaluate(() => contractReview.show(JSON.parse(JSON.stringify(window.contractRes)), 'review', {likelihood:{configured:true,available:true,revision:'r',model:'tiny'}}));
   eq(await page.locator('#review-contract #stt_manual_word').inputValue(), 'anno', 'and a word typed back to its own text stays so');
   await page.getByRole('button', {name:'Accept this alternative',exact:true}).click();
   eq(await page.evaluate(() => window.reviewApplied), null, 'accept changes only the pending draft');
@@ -920,21 +919,12 @@ await section('review', 'pending LLM draft, accessible details and Unicode-safe 
   await page.locator('#review-contract #stt_review_retry').click();
   eq(await page.evaluate(() => window.reviewRetried), ['s0w2'], 'one retry action selects the remaining suspicious words');
   assert(await page.locator('#review-contract a[download]').count() === 3, 'review offers separate correction, whole-text and workspace skill downloads');
-  assert(await page.locator('#review-contract #stt_review_full').count() === 1, 'whole-text review is an explicit choice');
-  // the connected reasoning workspace gets the whole transcript unless the box is ticked; the box is for that method alone
-  const cut = page.locator('#review-contract #stt_review_workspace_divide');
-  assert(await cut.isVisible() && !(await cut.isChecked()), 'the connected reasoning workspace is not divided into regions unless asked: the box is off');
-  await page.locator('#review-contract #stt_review_workspace').click();
-  await until(async () => await page.evaluate(() => !!window.reviewChosen), 'the review was chosen');
-  eq(await page.evaluate(() => [window.reviewChosen.task, window.reviewChosen.options.divide]), ['workspace', false], 'and the request does not ask to divide');
-  await cut.check();
-  await page.evaluate(() => { window.reviewChosen = null; });
-  await page.locator('#review-contract #stt_review_workspace').click();
-  await until(async () => await page.evaluate(() => !!window.reviewChosen), 'the review was chosen again');
-  eq(await page.evaluate(() => window.reviewChosen.options.divide), true, 'with the box ticked, it asks for regions');
-  await page.locator('#review-contract #stt_review_full').click();
-  await until(async () => await page.evaluate(() => window.reviewChosen.task === 'full'), 'another method chosen');
-  eq(await page.evaluate(() => window.reviewChosen.options.divide), true, 'the choice travels with the options (the server only divides a workspace)');
+  // the connected model's methods went with a0.6.3: the three methods are a chatbot's, by copy and paste
+  for (const id of ['stt_review_llm', 'stt_review_full', 'stt_review_workspace', 'stt_review_workspace_divide', 'stt_use_skill'])
+    assert(await page.locator('#review-contract #' + id).count() === 0, 'no connected review control: ' + id);
+  eq(await page.locator('#review-contract #stt_external_task option').evaluateAll(os => os.map(o => o.value)), ['suspect', 'full', 'workspace'],
+     'the copy/paste review offers all three methods');
+  assert(!/settings\/llm/.test(await page.locator('#review-contract').innerHTML()), 'and links to no LLM settings');
   eq(await inBox(page), '', 'review component never writes to the existing transcript box');
   await context.close();
 });

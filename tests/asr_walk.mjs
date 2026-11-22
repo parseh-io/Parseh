@@ -79,7 +79,7 @@ const SETUP = ({scenario, draft, phase, choice}) => {
     retry: (ids, skill, task) => { window.asked = {ids, task}; }, external: (action, values) => { window.externalCalls.push([action, values]); return new Promise(() => {}); }});
   const external = choice === 'external' ? {id: 'x1', task: 'workspace', finished: true, batches: 1, submitted: [0], index: 0, words_done: 5, words_total: 5, prompt: '', divided: false} : undefined;
   window.walkReview.show({text, model: 'large-v3-turbo', review: {draft, choice, external, evidence: {source_sha256: 'src', language: 'it', low_score_threshold: .5, segments}, result: results[scenario]}},
-    phase || 'review', {configured: scenario === 'loose'});
+    phase || 'review', {likelihood: null});
 };
 // (the mouse is put out of the way: a word that appears under a resting pointer shows its evidence for a moment, as a hover does)
 const setup = async (page, scenario = 'workspace', draft = undefined, phase = undefined, choice = undefined) => { await page.mouse.move(1, 1); await page.evaluate(SETUP, {scenario, draft, phase, choice}); };
@@ -225,7 +225,7 @@ try {
   eq(await page.evaluate(() => document.querySelectorAll('.asr-loose').length), 0, 'a clean answer marks no word');
   ok(!(await page.locator('.stt-walk-chip.stt-walk-loose').count()), 'and there is no "read loosely" count: nothing to say');
   ok(!(await page.locator('.stt-walk-card .stt-loosenote').count()), 'no card carries a note');
-  await setup(page, 'loose');
+  await setup(page, 'loose', undefined, undefined, 'external');
   eq(await page.locator('.stt-walk-chip').allTextContents(), ['✎ 2 edits proposed (2 sure, 0 not sure)', '✔ 1 agree with Whisper', '? 0 not sure either way', '✗ 0 with no answer', '≈ 2 read loosely'],
      'a fifth count: the words whose answer was read loosely');
   eq(await page.evaluate(() => [...document.querySelectorAll('.asr-loose')].map(b => b.dataset.reviewWord)), ['s0w1', 's1w3'],
@@ -242,7 +242,7 @@ try {
   await shot(page, 'walk-loose-card');
   ok(await page.locator('#stt_walk_ask').isVisible(), 'and offers to ask again for that word');
   await page.keyboard.press('r');
-  eq(await page.evaluate(() => window.asked), {ids: ['s0w1'], task: 'workspace'}, 'R (or the button) asks for that word alone');
+  eq(await page.evaluate(() => window.externalCalls), [['start', {task: 'workspace', word_ids: ['s0w1'], divide: false}]], 'R (or the button) asks for that word alone: a new prompt for the chatbot');
   // a chatbot review that is still open is not thrown away by it; a tool that is running is waited for
   await setup(page, 'loose', undefined, 'external');
   await page.locator('[data-review-word=s1w3]').click();
@@ -252,23 +252,24 @@ try {
   await page.locator('[data-review-word=s1w3]').click();
   ok(await page.locator('#stt_word_ask').isDisabled(), 'and while a tool runs the word\'s button waits');
   // the words, listed
-  await setup(page, 'loose');
+  await setup(page, 'loose', undefined, undefined, 'external');
   await page.locator('.stt-walk-chip.stt-walk-loose').click();
   const listed = (await page.locator('.stt-walk-loose-list li').allTextContents()).map(t => t.replace(/\s+/g, ' ').trim());
   eq(listed.length, 2, 'the chip lists both words');
   ok(listed[0].startsWith('≈ anno') && listed[0].includes('3 lines') && listed[1].startsWith('≈ blu') && listed[1].includes('looked like more of it'), 'each with what it was forgiven for');
   await page.locator('#stt_walk_ask_all').click();
-  eq(await page.evaluate(() => window.asked), {ids: ['s0w1', 's1w3'], task: 'workspace'}, 'one button asks again for them all, in the order of the transcript');
-  await setup(page, 'loose');
+  eq(await page.evaluate(() => window.externalCalls), [['start', {task: 'workspace', word_ids: ['s0w1', 's1w3'], divide: false}]], 'one button asks again for them all, in the order of the transcript');
+  await setup(page, 'loose', undefined, undefined, 'external');
   await page.locator('.stt-walk-chip.stt-walk-loose').click();
   await page.locator('.stt-walk-loose-list li >> text=Ask again').nth(1).click();
-  eq(await page.evaluate(() => window.asked), {ids: ['s1w3'], task: 'workspace'}, 'and each word has its own');
+  eq(await page.evaluate(() => window.externalCalls), [['start', {task: 'workspace', word_ids: ['s1w3'], divide: false}]], 'and each word has its own');
   // a word's own panel
-  await setup(page, 'loose');
+  await setup(page, 'loose', undefined, undefined, 'external');
   await page.locator('[data-review-word=s1w3]').click();
   ok((await page.locator('.stt-review-details .stt-loosenote').textContent()).includes('looked like more of it'), 'a word\'s own panel tells it as well, even where the model said nothing else of it');
   await page.locator('#stt_word_ask').click();
-  eq(await page.evaluate(() => window.asked), {ids: ['s1w3'], task: 'workspace'}, 'with the same button');
+  eq(await page.evaluate(() => window.externalCalls), [['start', {task: 'workspace', word_ids: ['s1w3'], divide: false}]], 'with the same button');
+  await setup(page, 'loose', undefined, undefined, 'external');     // (a prompt being prepared holds the controls)
   await page.locator('[data-review-word=s0w5]').click();
   ok(!(await page.locator('.stt-review-details .stt-loosenote').count()), 'a word read cleanly has none');
   // the end of the walk says it too

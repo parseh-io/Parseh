@@ -305,13 +305,12 @@ class DataFormats(unittest.TestCase):
         import analysisconfig
         import getarasaac
         import wordtimes
-        import llmconfig
         import lmlikelihoodconfig
         import asrpending
         import speechconfig
         got = version.formats()
         self.assertEqual(set(got), set(version.FORMATS))
-        held = {"parseh-speech": speechconfig.STORE_FORMAT, "parseh-pending-transcription": asrpending.FORMAT, "parseh-llm": llmconfig.STORE_FORMAT, "parseh-lm-likelihood": lmlikelihoodconfig.STORE_FORMAT,
+        held = {"parseh-speech": speechconfig.STORE_FORMAT, "parseh-pending-transcription": asrpending.FORMAT, "parseh-llm": version.RETIRED_LLM_FORMAT, "parseh-lm-likelihood": lmlikelihoodconfig.STORE_FORMAT,
                 "parseh-timings": timestamp.TIMINGS_FORMAT, "parseh-review": timestamp.REVIEW_FORMAT,
                 "parseh-parts": merge_parts.PARTS_FORMAT, "parseh-waveform": serve.WAVEFORM_FORMAT,
                 "parseh-wordtimes": wordtimes.WORDTIMES_FORMAT,

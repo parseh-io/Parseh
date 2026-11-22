@@ -23,7 +23,7 @@ await writeFile(join(fake,'fake.json'),JSON.stringify({segments:[[0,4,' loro ann
   {segments:[[0,4,' loro anno detto strana']],delay:2}
 ]}));
 let boot=(await readFile('tests/add_stt.mjs','utf8')).match(/const BOOT = String.raw`([\s\S]*?)`;/)[1];
-boot=boot.replace('import prefs, network, offline, llmconfig', "import prefs, network, offline, llmconfig, lmlikelihoodconfig\nlmlikelihoodconfig.CONFIG = tmp / 'config/lm-likelihood.json'\nlmlikelihoodconfig.runtime_status = lambda config: {'available': False, 'say': 'No model runtime in this test.'}");
+boot=boot.replace('import prefs, network, offline\n', "import prefs, network, offline, lmlikelihoodconfig\nlmlikelihoodconfig.CONFIG = tmp / 'config/lm-likelihood.json'\nlmlikelihoodconfig.runtime_status = lambda config: {'available': False, 'say': 'No model runtime in this test.'}\n");
 async function phase(page,value){await page.waitForFunction(value=>document.getElementById('stt').dataset.state===value,value,{timeout:30000});}
 try {
  const film=join(temp,'film.mp4');

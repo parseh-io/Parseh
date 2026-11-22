@@ -130,9 +130,6 @@ import corpus             # noqa: E402  and the sentences somebody translated
 import getmt              # noqa: E402  and the model that runs in the page
 import getstt             # noqa: E402  speech to text: its program, its models, its processor
 import lookuppage         # noqa: E402  the page that sets the dictionaries up
-import llmconfig
-import llmadapter
-import llmpage
 import lmlikelihoodpage
 import lmlikelihoodconfig
 import speechpage         # noqa: E402  Settings -> Speech to text (§7.23)
@@ -470,10 +467,14 @@ STATIC_PREFIXES = ("/lib/fonts/", "/lib/mathjax/", "/audiobook/", "/books/",
                    # the translation engine and its models: read by the
                    # reader's own worker, never written through the server
                    "/mt/")
-STATIC_FILES = {"/lib/lmlikelihoodsettings.js", "/lib/llmsettings.js", "/youtube/lib/asrreview.js", "/youtube/lib/asrwalk.js", "/lib/parseh.css", "/lib/parseh.js", "/lib/llm.js", "/lib/mt.js",
+STATIC_FILES = {"/lib/lmlikelihoodsettings.js", "/youtube/lib/asrreview.js", "/youtube/lib/asrwalk.js", "/lib/parseh.css", "/lib/parseh.js", "/lib/llm.js", "/lib/mt.js",
                 # the form and navigation styles of the Settings pages that hold
-                # forms: speech to text, LLM Integration, LM likelihood, About
+                # forms: speech to text, LM likelihood, About
                 "/lib/settings-tools.css",
+                # the transcript review's three skills, downloaded from its "Correction skills" panel
+                # (youtube/lib/asrreview.js); they were linked there and never served before a0.6.3
+                "/lib/asrskill/parseh-asr-correction.zip", "/lib/asrskill/parseh-asr-audit.zip",
+                "/lib/asrskill/parseh-asr-workspace.zip",
                 # the row of controls every page that hands out a prompt draws:
                 # copy, the size, the reminder (lib/llmrow.js, a0.4.2)
                 "/lib/llmrow.js",
@@ -6055,7 +6056,7 @@ class Handler(SimpleHTTPRequestHandler):
         other route takes only the token the job made.  Every answer is
         {"ok": true, ...} or {"ok": false, "error": <a sentence>, "code": <a
         slug>}, and none of them is a traceback."""
-        if what not in ("start", "audio", "marks", "wave", "status", "cancel", "result", "review", "review-likelihood", "whisper-second-pass", "retry-review", "cancel-review", "use", "dictionary", "external-start", "external-action", "save-draft", "pending", "resume"):
+        if what not in ("start", "audio", "marks", "wave", "status", "cancel", "result", "review", "review-likelihood", "whisper-second-pass", "cancel-review", "use", "dictionary", "external-start", "external-action", "save-draft", "pending", "resume"):
             return self.send_json({"ok": False, "error": "nothing to POST here",
                                    "code": "no-such-route"}, 404)
 
@@ -6106,16 +6107,13 @@ class Handler(SimpleHTTPRequestHandler):
                 if set(body) - {"job", "source_sha256", "word_id"}:
                     raise sttjobs.Refusal("bad-review", "The dictionary request contains unknown settings.")
                 return sttjobs.review_dictionary(token, body.get("source_sha256"), body.get("word_id"))
-            if what in ("review", "retry-review", "cancel-review", "use"):
-                allowed = ({"job", "source_sha256", "mode", "connection_id", "instruction_mode", "task", "divide"} if what == "review" else
-                           {"job", "source_sha256", "connection_id", "word_ids", "instruction_mode", "task", "divide"} if what == "retry-review" else
+            if what in ("review", "cancel-review", "use"):
+                allowed = ({"job", "source_sha256", "mode"} if what == "review" else
                            {"job", "source_sha256", "decisions", "manual_edits"} if what == "use" else {"job"})
                 if set(body) - allowed:
                     raise sttjobs.Refusal("bad-review", "The review request contains unknown settings.")
                 if what == "review":
-                    return sttjobs.review(token, body.get("mode"), body.get("source_sha256"), body.get("connection_id"), instruction_mode=body.get("instruction_mode", "prompt"), task=body.get("task", "suspect"), divide=body.get("divide", False))
-                if what == "retry-review":
-                    return sttjobs.review(token, "llm", body.get("source_sha256"), body.get("connection_id"), body.get("word_ids", []), body.get("instruction_mode", "prompt"), body.get("task", "suspect"), body.get("divide", False))
+                    return sttjobs.review(token, body.get("mode"), body.get("source_sha256"))
                 if what == "cancel-review":
                     return sttjobs.cancel_review(token)
                 return sttjobs.use_review(token, body.get("source_sha256"), body.get("decisions", {}), body.get("manual_edits", {}))
@@ -7009,7 +7007,6 @@ class Handler(SimpleHTTPRequestHandler):
             import analysispage
             return self.send_html(settingspage.hub(dict_tags(), updatepage.door_tags(ROOT),
                                                    speechpage.door_tags(),
-                                                   '<span class="tag">%s</span>' % ("configured" if llmconfig.load() else "unconfigured"),
                                                    arasaacpage.door_tags(),
                                                    analysispage.door_tags(),
                                                    languagespage.door_tags()))
@@ -7041,8 +7038,6 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._method_not_allowed()
             return self.send_html(speechpage.page(reading_jobs()["speech"], self._where(),
                                                   self._whose_device()))
-        if path in ("/settings/llm", "/settings/llm/index.html"):
-            return self._redirect("/settings/llm/")
         if path in ("/settings/about", "/settings/about/index.html"):
             return self._redirect("/settings/about/")
         if path == "/settings/about/":
@@ -7050,10 +7045,6 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._method_not_allowed()
             import aboutpage
             return self.send_html(aboutpage.page(self._where()))
-        if path == "/settings/llm/":
-            if method != "GET":
-                return self._method_not_allowed()
-            return self.send_html(llmpage.page(self._where()))
         if path in ("/settings/lm-likelihood", "/settings/lm-likelihood/index.html"):
             return self._redirect(lmlikelihoodpage.PAGE)
         if path == lmlikelihoodpage.PAGE:
@@ -7125,8 +7116,6 @@ class Handler(SimpleHTTPRequestHandler):
             if method != "POST":
                 return self._method_not_allowed()
             return self._pair()
-        if path.startswith("/settings/api/llm/"):
-            return self._llm_api(method, path)
         if path in ("/settings/api/speech/save", "/settings/api/speech/select-model"):
             if method != "POST":
                 return self._method_not_allowed()
@@ -7289,78 +7278,6 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(dict(lmlikelihoodconfig.status(settingspage.may("likelihood.worker", self._where())), ok=True))
         except ScoringError as e:
             return self.send_json({"ok": False, "code": e.code, "error": e.say}, 400)
-
-    def _llm_api(self, method, path):
-        if method != "POST":
-            return self._method_not_allowed()
-        crossed = self._cross_site(path)
-        if crossed:
-            return self.send_json({"ok": False, "error": crossed}, 403)
-        if len(self._body()) > llmconfig.MAX_CONFIG:
-            return self.send_json({"ok": False, "error": "The LLM settings request is too large."}, 413)
-        what = path.rsplit("/", 1)[-1]
-        try:
-            body = self._json_body()
-            if what in ("status", "models-saved", "test", "skill-status", "skill-install", "audit-skill-status", "audit-skill-install") and body:
-                raise llmconfig.LLMError("bad-config", "This request uses the saved connection and accepts no overrides.")
-            if what == "status":
-                out = llmconfig.view()
-                out["likelihood"] = lmlikelihoodconfig.status()
-            elif what == "save":
-                out = llmconfig.save(body)
-            elif what == "reset":
-                out = llmconfig.reset()
-            elif what == "import-link":
-                out = llmconfig.share_link(body.get("link"))
-            elif what == "models":
-                out = {"models": llmadapter.adapter(llmconfig.preview(body)).models()}
-            elif what == "select-model":
-                out = llmconfig.select_model(body)
-            elif what == "review-model":
-                out = llmconfig.review_model(body)
-            elif what == "review-prepare":
-                import llmprofiles
-                out = llmprofiles.prepare(body)
-            elif what in ("profile-save", "profile-remove", "profile-apply"):
-                import llmprofiles
-                out = {"profile-save": llmprofiles.save, "profile-remove": llmprofiles.remove,
-                       "profile-apply": llmprofiles.apply}[what](body)
-            elif what == "models-saved":
-                config = llmconfig.load()
-                if config is None:
-                    raise llmconfig.LLMError("unconfigured", "Configure an endpoint on the Parseh host first.")
-                out = {"models": llmadapter.adapter(config).models()}
-            elif what in ("skill-status", "skill-install", "audit-skill-status", "audit-skill-install"):
-                import asrcorrection
-                config = llmconfig.load()
-                if not config or config.get("adapter") != "unsloth-agent-skills":
-                    raise llmconfig.LLMError("skills-unavailable", "Select the Unsloth Agent Skills adapter in LLM Integration first.")
-                client = llmadapter.adapter(config)
-                audit = what.startswith("audit-")
-                name = asrcorrection.AUDIT_SKILL_NAME if audit else asrcorrection.SKILL_NAME
-                description = asrcorrection.AUDIT_SKILL_DESCRIPTION if audit else asrcorrection.SKILL_DESCRIPTION
-                if what.endswith("skill-install"):
-                    out = client.install_skill(name, description, asrcorrection.skill_instructions("full" if audit else "suspect"))
-                else:
-                    out = client.skill_status(name)
-            elif what == "test":
-                config = llmconfig.load()
-                if config is None:
-                    raise llmconfig.LLMError("unconfigured", "Save a connection and model first.")
-                try:
-                    test = llmadapter.adapter(config).test()
-                except llmconfig.LLMError as e:
-                    llmconfig.record_test(config, {"say": e.say, "ok": False})
-                    raise
-                out = llmconfig.record_test(config, dict(test, ok=True))
-            else:
-                return self._not_found()
-            return self.send_json(dict(out, ok=True, can_install_skill=settingspage.may("llm.connection", self._where())))
-        except llmconfig.LLMError as e:
-            return self.send_json({"ok": False, "code": e.code, "error": e.say}, 400)
-        except Exception:
-            # Never echo settings bodies, credentials or endpoint responses.
-            return self.send_json({"ok": False, "error": "The LLM connection could not be read or saved."}, 500)
 
     # ------------------------------------------------------------ updating Parseh
     def _update_api(self, method, path):

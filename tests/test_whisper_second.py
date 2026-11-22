@@ -98,7 +98,7 @@ class Rules(unittest.TestCase):
 
     def test_candidate_application_changes_only_source_span_and_rejects_stale_text(self):
         import sttpanel
-        from llmconfig import LLMError
+        from reviewerror import LLMError
         words = [word('Loro', 0, 1), word('anno,', 1, 2), word('detto', 2, 3)]
         segments = [{'start': 0, 'end': 3, 'text': 'Loro anno, detto', 'asr_words': words}]
         panel, _ = sttpanel.segments_to_panel(segments)

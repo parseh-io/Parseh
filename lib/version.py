@@ -193,6 +193,9 @@ VERSION = read()
 
 
 # ------------------------------------------------------------ the data's shapes
+# config/llm.json's last number (lib/llmconfig.py STORE_FORMAT until a0.6.3, see "parseh-llm" below)
+RETIRED_LLM_FORMAT = 1
+
 # name: (the file the number is kept in, relative to the root; the constant
 # holding it; what it is, in the words the updater says it to a person in).
 # A constant is either a stamp the files carry, "<name>/<number>", or a plain
@@ -203,7 +206,11 @@ FORMATS = {
     "parseh-speech": ("lib/speechconfig.py", "STORE_FORMAT", "speech preferences (config/speech.json)"),
     "parseh-pending-transcription": ("lib/asrpending.py", "FORMAT", "private resumable transcription drafts (youtube/videos/.pending-transcriptions/)"),
     "parseh-lm-likelihood": ("lib/lmlikelihoodconfig.py", "STORE_FORMAT", "the host-local numerical scoring settings (config/lm-likelihood.json)"),
-    "parseh-llm": ("lib/llmconfig.py", "STORE_FORMAT", "the host-local reusable LLM connection (config/llm.json)"),
+    # the connection to a model service, removed in a0.6.3: nothing writes or reads config/llm.json any more and an
+    # install keeps the file as it is.  The row stays, with the number the last writer used, so that an update from a
+    # version that wrote it is not taken for a move that lowers a store (lowered() counts a store the incoming version
+    # does not know as lowered, and the updater would ask to be insisted)
+    "parseh-llm": ("lib/version.py", "RETIRED_LLM_FORMAT", "the LLM connection of a0.6.2 and before (config/llm.json), no longer read"),
     "parseh-bundle": ("lib/bundle.py", "FORMAT",
                       "a book or a video downloaded as one file"),
     "parseh-shelf": ("lib/shelf.py", "FORMAT",

@@ -2,7 +2,6 @@
 """Offline copy/paste and dependency-free downloadable workspace contracts."""
 import copy
 import io
-import json
 from pathlib import Path
 import sys
 import subprocess
@@ -17,7 +16,7 @@ sys.path[:0] = [str(ROOT / "lib"), str(ROOT / "youtube/lib")]
 import asrcorrection as correction
 import asrexternal
 import asrworkspace
-import llmconfig
+from reviewerror import LLMError
 import sttjobs
 import sttpanel
 
@@ -80,7 +79,7 @@ class ExternalAnswers(unittest.TestCase):
         self.assertEqual(result["failed_word_ids"], ["s1w1"])
         # an answer with nothing of ours in it is refused; one with something of ours among other things is read
         for answer in ("sentence99: Wrong label.", "Here are the corrections, with no labels at all.", "", "x" * (asrexternal.MAX_ANSWER + 1), "\ud800"):
-            with self.subTest(answer=answer[:40]), self.assertRaises(llmconfig.LLMError):
+            with self.subTest(answer=answer[:40]), self.assertRaises(LLMError):
                 asrexternal.parse(request, "suspect", units, answer)
         chatty = asrexternal.parse(request, "suspect", units, "Here are the corrections:\n\n**Sentence0:** Loro hanno detto ciao.\n\nI changed the verb.\nsentence9: not ours")
         self.assertEqual([s["candidates"][0]["text"] for s in chatty["suggestions"]], ["hanno"], "a greeting, a bold label in capitals and a note do not stop it")
@@ -103,7 +102,8 @@ class ExternalAnswers(unittest.TestCase):
         _, request = source()
         units = asrexternal.batches(request, "workspace")[0]
         row = {"word_ids": "s0w1", "original": "anno", "replacement": "hanno", "reason": "Context, optionally supported by Whisper."}
-        with mock.patch("asrworkspace.Workspace.python", side_effect=AssertionError("Must never execute pasted code")):
+        with mock.patch("subprocess.run", side_effect=AssertionError("Must never execute pasted code")), \
+             mock.patch("subprocess.Popen", side_effect=AssertionError("Must never execute pasted code")):
             result = asrexternal.parse(request, "workspace", units, asrworkspace._csv([row], asrworkspace.FIELDS))
         self.assertEqual(result["suggestions"][0]["candidates"][0]["text"], "hanno")
         self.assertEqual(result["failed_word_ids"], [])
@@ -117,7 +117,7 @@ class ExternalAnswers(unittest.TestCase):
             self.assertTrue(any("Row refused" in x["reason"] for x in one["ignored_edits"]), why)
         # (a row of an ID that is nobody's cannot say whose word it was: that word is just without its row)
         self.assertIn("its row was refused", asrexternal.parse(request, "workspace", units, asrworkspace._csv([dict(row, original="different")], asrworkspace.FIELDS))["failed_reasons"]["s0w1"])
-        with self.assertRaises(llmconfig.LLMError):          # what cannot be read as rows at all is still refused
+        with self.assertRaises(LLMError):          # what cannot be read as rows at all is still refused
             asrexternal.parse(request, "workspace", units, "word_ids,original\n\"s0w1,anno\n")
         missing = asrexternal.parse(request, "workspace", units, "word_ids,original,replacement,reason\n")
         self.assertEqual(missing["failed_word_ids"], ["s0w1"])
@@ -351,9 +351,7 @@ class ExternalJobs(unittest.TestCase):
                     "text": self.panel, "facts": {}, "cancelled": False, "finished": time.time(),
                     "device": "cpu", "fell_back": False, "words": None, "notes": [], "warning": ""}
         for patch in (mock.patch.dict(sttjobs.JOBS, {self.token: self.job}, clear=True),
-                      mock.patch("wavefile.held", return_value=False), mock.patch("wordtimes.load", return_value=None),
-                      mock.patch("llmadapter.adapter", side_effect=AssertionError("No endpoint request")),
-                      mock.patch("llmconfig.load", return_value=None)):
+                      mock.patch("wavefile.held", return_value=False), mock.patch("wordtimes.load", return_value=None)):
             patch.start(); self.addCleanup(patch.stop)
         self.hash = self.request["source_sha256"]
 
@@ -451,7 +449,7 @@ class ExternalJobs(unittest.TestCase):
             view = sttjobs.external_start(self.token, self.hash, task)
             self.assertIn("asr-" + task, view["review"]["external"]["prompt"])
         original = copy.deepcopy(self.job)
-        with mock.patch("asrexternal.prompt", side_effect=llmconfig.LLMError("too-large", "Oversized prompt.")):
+        with mock.patch("asrexternal.prompt", side_effect=LLMError("too-large", "Oversized prompt.")):
             with self.assertRaises(sttjobs.Refusal):
                 sttjobs.external_start(self.token, self.hash, "full")
         self.assertEqual(self.job["correction_result"], original["correction_result"])
@@ -476,16 +474,6 @@ class ExternalJobs(unittest.TestCase):
             sttjobs.external_action(self.token, self.hash, ext["id"], "keep-alive")
         self.assertEqual(self.job["finished"], before + 600)
         self.assertNotIn(self.job["state"], sttjobs.ACTIVE)
-
-    def test_pasted_diagnostics_redact_saved_credentials(self):
-        ext = sttjobs.external_start(self.token, self.hash, "workspace")["review"]["external"]
-        key = 'private-"key'
-        answer = asrworkspace._csv([{"word_ids": "s0w1", "original": "anno", "replacement": "hanno", "reason": key}], asrworkspace.FIELDS)
-        with mock.patch("llmconfig.load", return_value={"api_key": key}):
-            sttjobs.external_action(self.token, self.hash, ext["id"], "answer", 0, answer)
-        self.assertNotIn(key, str(self.job["llm_diagnostics"]))
-        self.assertNotIn(key, json.dumps(self.job["llm_diagnostics"], ensure_ascii=False))
-        self.assertIn("[redacted credential]", str(self.job["llm_diagnostics"]))
 
 
 if __name__ == "__main__":

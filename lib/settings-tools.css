@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Forms for the Settings pages that hold them (speech to text, LLM Integration, LM likelihood, About).
+/* Forms for the Settings pages that hold them (speech to text, LM likelihood, About).
    The row of doors is NOT restyled here: it is the same on every page of Settings (lib/settingspage.py). */
 .settings.tools .sub {line-height:1.55;}
 .settings.tools fieldset {min-width:0;border:1px solid var(--rule);border-radius:10px;padding:16px 18px;margin:16px 0;background:var(--card);}

@@ -71,7 +71,6 @@ def page(where):
 <p class="foot">What is set here is kept on the Parseh computer, in <code>config/lm-likelihood.json</code>, and an
 update keeps it. The models stay where your model application keeps them: Parseh only reads them.
 <a href="/guide/site/lookup-and-languages/lm-likelihood.html">LM likelihood guide</a> &middot;
-<a href="/settings/llm/">Connected LLM settings</a> &middot;
 <a href="/licences/">Licences</a></p>
 </main><p data-layout="mobile">LM likelihood is available in the Browser interface. Switch to Browser using the interface control above.</p>''' % (settingspage.settings_doors(PAGE), settingspage.lockline('likelihood.worker', where),
     'true' if can else 'false', '' if can else 'disabled', '' if can else 'disabled', '' if can else 'disabled')

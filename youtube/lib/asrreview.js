@@ -16,7 +16,7 @@
   }
   function mount(root, opts) {
     var result = null, phase = '', config = null, decisions = {}, manualEdits = {}, suggestions = {}, words = {}, selected = null;
-    var choice, inspect, details, preview, status, use, responses, retry, useSkill = false, useBusy = false, disabledBefore = [];
+    var choice, inspect, details, preview, status, use, responses, retry, useBusy = false, disabledBefore = [];
     var wordButtons = {}, captions = {}, captionRows = [], filter = 'all', search = '', summary, activeCaption = null;
     var dictionaryCache = new Map(), editRanges = {};
     // the model's answers, walked through one by one (asrwalk.js): which it kept as Whisper wrote them and which it skipped
@@ -56,14 +56,12 @@
         }
       }); decisions = {};
     }
-    // the connected reasoning workspace gets the whole transcript unless asked for small regions (off, like the chatbot's "divide")
-    var workspaceDivide = false;
     function runMethod(mode, task, one) {
       var ids = targetIds(task, one);
       if (mode === 'whisper-second' && !one) ids = ids.filter(function (id) { return !words[id].second_pass || words[id].second_pass.state !== 'complete'; });
       if (ids && !ids.length) { status.textContent = 'No unlocked words to review in this section.'; return; }
       keepAccepted();
-      saveNow().then(function () { if (opts.choose) opts.choose(mode, task === 'workspace' ? false : useSkill, task, ids, {phonetic_filter:phonetic, divide:workspaceDivide}); }, function (e) { status.textContent = e.message || 'Save the draft before starting another method.'; });
+      saveNow().then(function () { if (opts.choose) opts.choose(mode, false, task, ids, {phonetic_filter:phonetic}); }, function (e) { status.textContent = e.message || 'Save the draft before starting another method.'; });
     }
     function selectBest() {
       if (result.review.last_method === 'whisper-second') {
@@ -128,7 +126,7 @@
       var panel = el('details', null, 'stt-review-external'); panel.id = 'stt_external';
       panel.setAttribute('data-review-disclosure', 'external'); panel.open = !!(ext && !ext.finished);
       panel.appendChild(el('summary', 'Use an external chatbot · copy & paste'));
-      panel.appendChild(el('p', 'Choose any chatbot yourself. Copy the prompt, paste its answer below, then go through what it says. This sends text only when you paste or attach it to that service. No configured endpoint is needed.'));
+      panel.appendChild(el('p', 'Choose any chatbot yourself. Copy the prompt, paste its answer below, then go through what it says. This sends text only when you paste or attach it to that service.'));
       // WHERE YOU ARE, in five steps: what was one ritual spread over this panel
       var steps = el('ol', null, 'stt-steps'); steps.id = 'stt_external_steps';
       var stepNames = ['Choose the method and prepare the prompt', 'Copy the prompt into your chatbot', 'Paste its answer here and import it', 'Go through the answers', 'Use this transcript'];
@@ -277,32 +275,13 @@
     }
 
     function skillControls() {
-      var box = el('details'); box.setAttribute('data-review-disclosure', 'skill'); box.appendChild(el('summary', 'Correction skill'));
+      // the skills a chatbot that reads Agent Skills can be given; the copy/paste review's prompts work without them
+      var box = el('details'); box.setAttribute('data-review-disclosure', 'skill'); box.appendChild(el('summary', 'Correction skills'));
       var download = el('a', 'Download suspect-word correction skill'); download.href = '/lib/asrskill/parseh-asr-correction.zip'; download.download = 'parseh-asr-correction.zip'; box.appendChild(download);
       var auditDownload = el('a', 'Download whole-text review skill'); auditDownload.href = '/lib/asrskill/parseh-asr-audit.zip'; auditDownload.download = 'parseh-asr-audit.zip'; box.appendChild(el('p')).appendChild(auditDownload);
       var workspaceDownload = el('a', 'Download reasoning workspace skill'); workspaceDownload.href = '/lib/asrskill/parseh-asr-workspace.zip'; workspaceDownload.download = 'parseh-asr-workspace.zip'; box.appendChild(el('p')).appendChild(workspaceDownload);
-      box.appendChild(el('p', 'Workspace review loads its bundled skill automatically and supplies isolated file/Python tools. The installed-skill checkbox below applies to the two sentence review methods.'));
-      var skillTask = el('select'); ['Suspect words', 'Whole text'].forEach(function (label, i) { var op = el('option', label); op.value = i ? 'audit-' : ''; skillTask.appendChild(op); }); var skillLabel = el('label', 'Skill to check or install '); skillLabel.appendChild(skillTask); box.appendChild(skillLabel);
-      box.appendChild(el('p', 'For Unsloth Studio, extract the skill folder into .agents/skills on the endpoint computer, or install it below. Enable it in Studio. Other software must support Agent Skills through its API.'));
-      var enabled = !!(config && config.configured && config.adapter === 'unsloth-agent-skills');
-      if (!enabled) useSkill = false;
-      var label = el('label', 'Use installed skill for the chosen review '), check = el('input'); check.id = 'stt_use_skill'; check.type = 'checkbox'; check.checked = useSkill;
-      check.disabled = !enabled || phase === 'correcting'; check.addEventListener('change', function () { useSkill = check.checked; }); label.appendChild(check); box.appendChild(label);
-      box.appendChild(el('p', enabled ? 'Skill requests ask Unsloth to load @parseh-asr-correction; only read_skill is enabled, with MCP off. Skills supply instructions to the same model.' : 'Select the Unsloth Agent Skills adapter in LLM Integration to use an installed skill. The short prompt remains available.'));
-      var state = el('p'); state.setAttribute('role', 'status'); state.setAttribute('aria-live', 'polite');
-      var inspectSkill, install;
-      function operation(name) {
-        inspectSkill.disabled = install.disabled = true; state.textContent = name === 'skill-install' ? 'Installing the correction skill at the saved endpoint…' : 'Checking the installed skill…';
-        fetch('/settings/api/llm/' + skillTask.value + name, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'})
-          .then(function (r) { return r.json(); }).then(function (j) {
-            if (!j.ok) throw new Error(j.error);
-            state.textContent = j.ready ? 'Selected skill is installed and enabled. Select Use installed skill before starting its review.' : j.installed ? 'Skill exists; enable it in Unsloth Studio.' : 'Selected skill is not installed.';
-          }).catch(function (e) { state.textContent = e.message || 'The endpoint did not answer.'; })
-          .finally(function () { inspectSkill.disabled = !enabled || phase === 'correcting' || useBusy; install.disabled = !enabled || !config.can_install_skill || phase === 'correcting' || useBusy; });
-      }
-      inspectSkill = btn('Check installed skill', function () { operation('skill-status'); }); inspectSkill.disabled = !enabled || phase === 'correcting'; box.appendChild(inspectSkill);
-      install = btn('Install in saved endpoint', function () { operation('skill-install'); }); install.disabled = !enabled || !config.can_install_skill || phase === 'correcting'; box.appendChild(install);
-      box.appendChild(state); root.appendChild(box);
+      box.appendChild(el('p', 'Add a skill to a chatbot that supports Agent Skills, through that chatbot\u2019s own settings. The workspace ZIP of a reasoning workspace review already carries its skill.'));
+      root.appendChild(box);
     }
 
     function showResponses(history, clipped) {
@@ -311,7 +290,7 @@
       Array.prototype.forEach.call(responses.querySelectorAll('[data-response-key]'), function (n) { open[n.getAttribute('data-response-key')] = n.open; });
       responses.textContent = '';
       responses.appendChild(el('summary', 'Review diagnostics (' + history.length + ')'));
-      responses.appendChild(el('p', 'Actual prompts and model output for this review. Kept temporarily with this job; never written to logs or synced. Reasoning is shown separately when the endpoint supplies it.'));
+      responses.appendChild(el('p', 'Actual prompts and model output for this review. Kept temporarily with this job; never written to logs or synced.'));
       if (clipped) responses.appendChild(el('p', 'Older or oversized diagnostics were clipped to keep this review bounded.'));
       if (!history.length) responses.appendChild(el('p', phase === 'correcting' ? 'Waiting for the first model response…' : 'No model responses for this review.'));
       history.forEach(function (trace, i) {
@@ -330,19 +309,10 @@
         entry.appendChild(el('h4', 'Whisper region'));
         var original = el('pre', trace.source || ''); original.dir = 'auto'; entry.appendChild(original);
         entry.appendChild(el('h4', trace.phase ? 'Assistant text (optional for tool calls)' : 'Final answer'));
-        var answer = el('pre', trace.answer || (trace.tool_calls && trace.tool_calls.length ? '(The model called workspace tools)' : '(No final answer returned)')); answer.dir = 'auto'; entry.appendChild(answer);
+        var answer = el('pre', trace.answer || '(No final answer returned)'); answer.dir = 'auto'; entry.appendChild(answer);
         if (trace.raw_answer && trace.raw_answer !== trace.answer) {
           var raw = el('details'); raw.appendChild(el('summary', 'Raw answer content'));
           var rawText = el('pre', trace.raw_answer); rawText.dir = 'auto'; raw.appendChild(rawText); entry.appendChild(raw);
-        }
-        if (trace.reasoning) {
-          var reasoning = el('details'); reasoning.appendChild(el('summary', 'Reasoning returned by the endpoint'));
-          var thought = el('pre', trace.reasoning); thought.dir = 'auto'; reasoning.appendChild(thought); entry.appendChild(reasoning);
-        }
-        if (trace.tool_calls && trace.tool_calls.length) {
-          var calls = el('details'); calls.appendChild(el('summary', 'Workspace tool calls'));
-          trace.tool_calls.forEach(function (call) { calls.appendChild(el('h4', call.function.name)); var args = el('pre', call.function.arguments); args.dir = 'auto'; calls.appendChild(args); });
-          (trace.tool_results || []).forEach(function (result) { calls.appendChild(el('h4', result.name + ' result')); var output = el('pre', result.output); output.dir = 'auto'; calls.appendChild(output); }); entry.appendChild(calls);
         }
         var prompt = el('details'); prompt.appendChild(el('summary', 'Exact request messages'));
         (trace.prompt || []).forEach(function (message) { prompt.appendChild(el('h4', message.role)); var text = el('pre', message.content || (message.tool_calls ? JSON.stringify(message.tool_calls) : '')); text.dir = 'auto'; prompt.appendChild(text); });
@@ -410,7 +380,7 @@
         button.hidden = !!suppressed[id];
         button.textContent = applied[id] == null ? words[id].text : applied[id];
         button.setAttribute('aria-label', words[id].text + (applied[id] != null ? applied[id] === words[id].text ? ', original retained in draft' : ', changed in draft to ' + applied[id] : '') +
-          (words[id].low_asr_score ? ', low Whisper ASR score' : '') + (suggestions[id] ? suggestions[id].likelihood ? ', LM likelihood evaluation available' : ', LLM edit proposed' : ''));
+          (words[id].low_asr_score ? ', low Whisper ASR score' : '') + (suggestions[id] ? suggestions[id].likelihood ? ', LM likelihood evaluation available' : ', edit proposed' : ''));
         if (words[id].dictionary_miss) button.setAttribute('aria-label', button.getAttribute('aria-label') + ', no dictionary meaning found');
         if (looseMap[id]) button.setAttribute('aria-label', button.getAttribute('aria-label') + ', the model\u2019s answer was read loosely');
         if (locked[id]) button.setAttribute('aria-label', button.getAttribute('aria-label') + ', locked');
@@ -418,7 +388,7 @@
       autosave();
       if (walkCtl && walkHost && walkHost.isConnected) walkCtl.repaint();
       if (scopeNote) scopeNote.textContent = selection.length === 2 ? 'Selected section: ' + words[selection[0]].text + ' … ' + words[selection[1]].text : selecting ? 'Choose the first word, then the last word of the section.' : 'Methods review unlocked words. Select a section to limit their targets.';
-      if (retry) { var remaining = retryWords(); retry.textContent = 'Retry remaining suspect words (' + remaining.length + ')'; retry.hidden = !result.review.result || result.review.last_method === 'whisper-second'; var configured = result.review.choice === 'likelihood' ? config && config.likelihood && config.likelihood.available : config && config.configured; retry.disabled = phase !== 'review' || !remaining.length || (result.review.choice !== 'external' && !configured); }
+      if (retry) { var remaining = retryWords(); retry.textContent = 'Retry remaining suspect words (' + remaining.length + ')'; retry.hidden = !result.review.result || result.review.last_method === 'whisper-second'; var configured = result.review.choice === 'likelihood' && !!(config && config.likelihood && config.likelihood.available); retry.disabled = phase !== 'review' || !remaining.length || (result.review.choice !== 'external' && !configured); }
       var all = Object.keys(words), low = all.filter(function (id) { return words[id].low_asr_score; }).length;
       var missing = all.filter(function (id) { return words[id].dictionary_miss; }).length;
       if (summary) summary.textContent = low + ' low-score words · ' + missing + ' dictionary misses · ' + Object.keys(suggestions).length + (result.review.choice === 'likelihood' ? ' words reviewed · ' : ' words with proposals · ') +
@@ -460,20 +430,20 @@
     function outcomeOf(id) { return outcomeMap[id] ? outcomeMap[id].kind : null; }
     function editable() { return phase !== 'correcting'; }
     // ASK AGAIN for some words by themselves -- the card of a word whose answer was read loosely, or had none: the same road
-    // as "Retry remaining suspect words" (the pasted answer's prompt, the connected model, the likelihood), with the words chosen
+    // as "Retry remaining suspect words" (the pasted answer's prompt, the likelihood), with the words chosen
     function askAgain(ids) {
       ids = ids.filter(function (id) { return words[id] && words[id].reviewable && !locked[id]; });
       if (!ids.length) { if (status) status.textContent = 'These words are locked, so they cannot be asked again.'; return; }
       var task = result.review.result && result.review.result.task || 'suspect';
-      var configured = result.review.choice === 'likelihood' ? config && config.likelihood && config.likelihood.available : config && config.configured;
+      var configured = result.review.choice === 'likelihood' && !!(config && config.likelihood && config.likelihood.available);
       if (phase === 'correcting') { if (status) status.textContent = 'A review tool is running. Ask again when it has finished.'; return; }
       // a new review of those words replaces the open one: say so rather than throw its remaining prompts away
       if (phase === 'external') { if (status) status.textContent = 'This chatbot review is still open. Import its remaining prompts, or finish with the answers received so far, and then ask again for these words.'; return; }
-      if (result.review.choice !== 'external' && !configured) { if (status) status.textContent = 'The model is not connected, so it cannot be asked again. Connect it in Settings, or use a chatbot by copy and paste.'; return; }
+      if (result.review.choice !== 'external' && !configured) { if (status) status.textContent = result.review.choice === 'likelihood' ? 'The likelihood model is not available, so it cannot be asked again. Choose one in Settings, or use a chatbot by copy and paste.' : 'Ask a chatbot about these words by copy and paste: open Use an external chatbot and prepare a prompt.'; return; }
       if (result.review.choice === 'external') {
         var panel = root.querySelector('#stt_external'); if (panel) panel.open = true;
         externalRequest('start', {task: task, word_ids: ids, divide: task === 'workspace' && !!(result.review.external && result.review.external.divided)}, root.querySelector('#stt_external_status'));
-      } else if (opts.retry) { keepAccepted(); saveNow().then(function () { opts.retry(ids, useSkill, task, {phonetic_filter: phonetic, divide: workspaceDivide}); }, function (e) { status.textContent = e.message; }); }
+      } else if (opts.retry) { keepAccepted(); saveNow().then(function () { opts.retry(ids, false, task, {phonetic_filter: phonetic}); }, function (e) { status.textContent = e.message; }); }
     }
     function retryWords() { return Object.keys(words).filter(function (id) { return words[id].reviewable && !locked[id] && inScope(words[id]) && (suspect(words[id]) || result.review.result && (result.review.result.failed_word_ids || []).indexOf(id) >= 0) && !accepted(id); }); }
     function detail(w, hover) {
@@ -693,35 +663,17 @@
       var toolbox = el('section', null, 'stt-review-toolbox'); root.appendChild(toolbox);
       toolbox.appendChild(el('h4', 'Review tools'));
       choice = el('div', null, 'stt-review-tool-buttons'); toolbox.appendChild(choice);
-      var llm = btn('Suspect words · experimental', function () { runMethod('llm', 'suspect'); });
-      var audit = btn('Whole-text review · experimental', function () { runMethod('llm', 'full'); }); audit.id = 'stt_review_full';
-      var workspace = btn('Reasoning workspace · experimental', function () { runMethod('llm', 'workspace'); }); workspace.id = 'stt_review_workspace';
       var likelihood = btn('LM likelihood · experimental', function () { runMethod('likelihood', 'likelihood'); }); likelihood.id = 'stt_review_likelihood';
       likelihood.disabled = !config || !config.likelihood || !config.likelihood.available || phase === 'correcting';
-      workspace.disabled = !config || !config.configured || !config.workspace || !config.workspace.available || phase === 'correcting';
-      audit.disabled = !config || !config.configured || phase === 'correcting';
-      llm.id = 'stt_review_llm'; llm.disabled = !config || !config.configured || phase === 'correcting';
       var second = btn('Whisper second pass', function () { runMethod('whisper-second', 'whisper-second'); }); second.id = 'stt_review_second_pass';
       var remainingSecond = targetIds('whisper-second').filter(function (id) { return !words[id].second_pass || words[id].second_pass.state !== 'complete'; });
       second.disabled = phase === 'correcting' || !result.review.second_pass_available || !remainingSecond.length;
       second.title = remainingSecond.length ? 'Recheck remaining suspect words in the chosen section. Locked words stay unchanged.' : 'Suspect words in this section have already been checked. Select a word to run it again.';
-      [second, llm, audit, workspace, likelihood].forEach(function (button) { choice.appendChild(button); });
-      // the connected reasoning workspace is one region unless asked to be cut up (the chatbot route has the same box, in its own panel)
-      var cutLabel = el('label', 'Divide the reasoning workspace into regions '), cut = el('input'); cut.type = 'checkbox'; cut.id = 'stt_review_workspace_divide';
-      cut.checked = workspaceDivide; cut.disabled = phase === 'correcting'; cut.addEventListener('change', function () { workspaceDivide = cut.checked; }); cutLabel.appendChild(cut); choice.appendChild(cutLabel);
-      choice.appendChild(el('p', 'Off: the model gets the whole transcript in one workspace, which is what a workspace is for. On: small regions of a few dozen words, one after the other, for a model that cannot hold so much. It applies to the next review you start.', 'fieldnote'));
-      var destination = el('p', config && config.configured ? 'LLM destination: ' + config.base_url + ' · Audio is never sent.' : 'Connected LLM tools are not configured. You can edit, use Whisper rechecks, or copy prompts to an external chatbot.', 'stt-review-destination');
-      var settings = el('a', 'LLM settings'); settings.href = '/settings/llm/'; settings.target = '_blank'; settings.rel = 'noopener';
-      destination.appendChild(document.createTextNode(' ')); destination.appendChild(settings);
-      toolbox.appendChild(destination);
+      [second, likelihood].forEach(function (button) { choice.appendChild(button); });
+      toolbox.appendChild(el('p', 'Model reviews of the text go through a chatbot by copy and paste: Use an external chatbot, below. Audio is never sent.', 'stt-review-destination'));
       var advanced = el('details', null, 'stt-review-options'); advanced.setAttribute('data-review-disclosure', 'options');
       advanced.appendChild(el('summary', 'Models, preferences & skills'));
       var optionsDock = el('div', null, 'stt-review-options-dock'); root.appendChild(optionsDock); optionsDock.appendChild(advanced);
-      if (config && config.configured) ['suspect', 'full', 'workspace'].forEach(function (task) {
-        var setting = config.review_models && config.review_models[task];
-        advanced.appendChild(el('p', (task === 'workspace' ? 'Reasoning workspace review' : task === 'full' ? 'Whole-text review' : 'Suspect-word review') + ': ' + (setting ? setting.model_id : config.selected_model) +
-          ' · experimental' + (setting && setting.profile_id ? ' · Saved Studio profile loads when this review starts.' : '')));
-      });
       advanced.appendChild(el('p', 'LM likelihood: ' + (config && config.likelihood && config.likelihood.model || 'No model selected') + ' · experimental'));
       var likelihoodSettings = el('a', 'Choose local model'); likelihoodSettings.href = '/settings/lm-likelihood/'; likelihoodSettings.target = '_blank'; likelihoodSettings.rel = 'noopener'; advanced.appendChild(likelihoodSettings);
       advanced.appendChild(el('p', 'Whisper rechecks use the original transcription model: ' + result.model + '.'));
@@ -737,7 +689,7 @@
       if (failedSecond.length) root.appendChild(el('p', 'Whisper could not safely recheck ' + failedSecond.length + ' words. Their original evidence is intact; retry them or edit directly.', 'warn'));
       var reviewed = result.review && result.review.result;
       if (reviewed && reviewed.failed_word_ids && reviewed.failed_word_ids.length) root.appendChild(el('p', 'No answer came back for ' + plural(reviewed.failed_word_ids.length, 'word', 'words') + '. Their Whisper text is intact. Retry the unresolved words or edit them yourself.', 'warn'));
-      if (reviewed && !reviewed.suggestions.length) root.appendChild(el('p', reviewed.assessment === 'no_flagged_words' ? 'No reviewable words had a low ASR score or a dictionary miss. No text was sent to the LLM.' : reviewed.assessment === 'no_reviewable_words' ? 'No source words could be mapped for LLM edits. Review the Whisper text.' : reviewed.failed_word_ids && reviewed.failed_word_ids.length ? 'Some sentences could not be reviewed. Their words remain unchanged.' : reviewed.assessment === 'uncertain' ? 'The model could not determine a correction. No words have changed.' : 'The model kept the words unchanged. This does not establish that they are correct.'));
+      if (reviewed && !reviewed.suggestions.length) root.appendChild(el('p', reviewed.assessment === 'no_flagged_words' ? 'No reviewable words had a low ASR score or a dictionary miss. No words were reviewed.' : reviewed.assessment === 'no_reviewable_words' ? 'No source words could be mapped for edits. Review the Whisper text.' : reviewed.failed_word_ids && reviewed.failed_word_ids.length ? 'Some sentences could not be reviewed. Their words remain unchanged.' : reviewed.assessment === 'uncertain' ? 'The model could not determine a correction. No words have changed.' : 'The model kept the words unchanged. This does not establish that they are correct.'));
       var sectionControls = el('div', null, 'stt-review-tools');
       var scopeLabel = el('label', 'Review '), scopeSelect = el('select'); scopeSelect.id = 'stt_review_scope';
       [['all','All text'],['selection','Selected section']].forEach(function (item) { var option=el('option',item[1]); option.value=item[0]; scopeSelect.appendChild(option); });
@@ -811,7 +763,7 @@
       retry = btn('Retry remaining suspect words', function () {
         var task = result.review.result && result.review.result.task || 'suspect';
         if (result.review.choice === 'external') externalRequest('start', {task: task, word_ids: retryWords(), divide: task === 'workspace' && !!(result.review.external && result.review.external.divided)}, root.querySelector('#stt_external_status'));
-        else if (opts.retry) { var ids=retryWords();keepAccepted();saveNow().then(function () {opts.retry(ids,useSkill,task,{phonetic_filter:phonetic,divide:workspaceDivide});},function(e){status.textContent=e.message;}); }
+        else if (opts.retry) { var ids=retryWords();keepAccepted();saveNow().then(function () {opts.retry(ids,false,task,{phonetic_filter:phonetic});},function(e){status.textContent=e.message;}); }
       }); retry.id = 'stt_review_retry'; actions.appendChild(retry);
       var best = btn('Select best for all', selectBest); best.id='stt_select_best'; best.disabled=!editable() || (!Object.keys(suggestions).length && !(result.review.last_method === 'whisper-second' && (result.review.last_word_ids || []).some(function (id) { return words[id] && words[id].second_pass && words[id].second_pass.best_candidate; }))); actions.appendChild(best);
       if (opts.pause) { var pause=btn('Save & pause',function () {saveNow().then(opts.pause).catch(function (e) {status.textContent=e.message || 'The review could not be paused. Keep this page open and try again.';});});pause.id='stt_pause';pause.disabled=false;actions.appendChild(pause); }
