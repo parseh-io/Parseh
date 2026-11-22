@@ -353,8 +353,10 @@ give 53–67%.
   romanised the way the dialect says its letters: ق as *ʾ* in Egyptian and
   Levantine and as *g* in the Gulf, ج as *g* in Egyptian, ث ذ ظ as *t d ḍ*
   in Egyptian, Levantine and Moroccan (*qalb* is *ʾalb* in an Egyptian
-  text). The vowels stay standard Arabic's; the dialect's own dictionary
-  writes its words as they are said.
+  text). The case ending goes, as it does in every dialect: *kataba* is
+  *katab*, *kitāban* is *kitāb*, *madrasatun* is *madrasa*. The other vowels
+  stay standard Arabic's; the dialect's own dictionary writes its words as
+  they are said.
 
 **Sentences somebody translated** come in a dialect too, where Tatoeba has
 enough of them: **Egyptian** (about 1,400 sentence pairs) and **Levantine**

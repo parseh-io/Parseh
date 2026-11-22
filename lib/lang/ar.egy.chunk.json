@@ -15,5 +15,7 @@
     "ADV": ["فين", "إمتى", "امتى", "إزاي", "ازاي", "ليه", "كده", "كدا"]
   },
   "_ties": "The genitive exponent stays with the noun it follows: il-kitaab bitaa' il-walad.",
-  "ties": ["بتاع", "بتاعة", "بتاعت", "بتوع"]
+  "ties": ["بتاع", "بتاعة", "بتاعت", "بتوع"],
+  "_question_words": "For youtube/lib/tidy.py alone (what ar.chunk.json's _question_words says): the question words of the lists above (eeh, miin, feen, imta, izzaay, leeh), so that a transcript in this variety with no punctuation gets its question mark. Read before Arabic's own, which still count. The dialects leave a question word in place (Brustad 2000), often at the end of the sentence, and tidy reads both edges.",
+  "question_words": ["إيه", "ايه", "مين", "فين", "إمتى", "امتى", "إزاي", "ازاي", "ليه"]
 }

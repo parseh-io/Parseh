@@ -127,7 +127,7 @@ TAG = re.compile(r"^[\[(（【][^\]\)）】]*[\]\)）】]$")
 
 
 def _rules(lang):
-    return chunker.rules(languages.get_or_default(lang).code)
+    return chunker.rules(languages.get_or_default(lang).key)
 
 
 def why_not(lang):
@@ -165,6 +165,11 @@ def _question_words(lang):
     stands.  A language whose file lists neither gets full stops and no
     question marks, which is right for every language whose transcript
     YouTube punctuates: the mark is already in the text.
+
+    A VARIETY'S OWN WORDS TOO: `lang` is then the variety's key (ar.egy, a
+    video written in Egyptian), and its chunk list (lib/lang/ar.egy.chunk.json
+    `question_words`, chunker.rules) comes before Arabic's, so «انت رايح فين»
+    is asked as Cairo asks it.  Arabic's own still count.
     """
     R = _rules(lang)
     L = languages.get_or_default(lang)
@@ -512,7 +517,7 @@ def tidy(captions, lang, dur=None, word_times=None, pause_mode="text"):
     half-tidied.
     """
     L = languages.get_or_default(lang)
-    R = _rules(L.code)
+    R = _rules(L.key)
     caps = [c for c in (captions or []) if isinstance(c, dict) and (c.get("text") or "").strip()]
     if len(caps) < 2:
         return list(captions or []), ["there is nothing to cut up yet"]
@@ -528,7 +533,7 @@ def tidy(captions, lang, dur=None, word_times=None, pause_mode="text"):
     if not stream:
         return list(captions), ["no words in the transcript"]
     words = [s["word"] for s in stream]
-    questions = _question_words(L.code)
+    questions = _question_words(L.key)
     # a chapter belongs to the caption it opens, and travels to whatever
     # sentence starts there
     chapters = {i: c.get("chapter") for i, c in enumerate(caps) if c.get("chapter")}

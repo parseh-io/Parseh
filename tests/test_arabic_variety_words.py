@@ -9,6 +9,9 @@
      in a variety said the variety's way (q > ʾ in Egyptian and Levantine, g in the Gulf; j > g in Egyptian; the
      interdentals > stops in Egyptian, Levantine and Moroccan), the dialect dictionary's own left as it writes them
      but for the glottal stop of a word written with ق; a standard text's romanisation byte-identical
+  3  case endings (a0.6.3, R2): a standard hit in a dialect text loses its final case vowel and tanwīn (kataba > katab,
+     kitāban > kitāb, madrasatun > madrasa), long vowels, the -a of ة and a stem's own -un kept; standard Arabic as was
+  4  question words (a0.6.3, R2): youtube/lib/tidy.py asks with a variety's own (lib/lang/ar.<v>.chunk.json)
 
     python3 -m unittest tests.test_arabic_variety_words
 """
@@ -35,7 +38,8 @@ def _dict(path, code, rows):
         cur = c.execute("INSERT INTO entry (headword, translit, pos, sense, sense_tags) VALUES (?,?,?,?,?)",
                         (head, tr, pos, sense, ""))
         for f in [head] + forms:
-            c.execute("INSERT INTO form (form, entry_id, note) VALUES (?,?,?)", (f, cur.lastrowid, ""))
+            f, roman, note = (f, "", "") if isinstance(f, str) else f        # a form of the table: its sound, its note
+            c.execute("INSERT INTO form (form, entry_id, note, roman) VALUES (?,?,?,?)", (f, cur.lastrowid, note, roman))
     c.executemany("INSERT INTO meta (key, value) VALUES (?,?)",
                   [("lang", code), ("source", "a fixture"), ("licence", "none")])
     c.commit()
@@ -151,7 +155,11 @@ class RomanisationInTheLookup(unittest.TestCase):
         cls.addClassCleanup(td.cleanup)
         _dict(os.path.join(td.name, "ar.db"), "ar",
               [("قلب", "qalb", "noun", "heart", []), ("جميل", "jamīl", "adj", "beautiful", []),
-               ("ثلاثة", "ṯalāṯa", "num", "three", [])])
+               ("ثلاثة", "ṯalāṯa", "num", "three", []), ("كتب", "kataba", "verb", "to write", []),
+               ("كتاب", "kitāb", "noun", "book", [("كتابا", "kitāban", "accusative indefinite singular")]),
+               ("مدرسة", "madrasa", "noun", "school", [("والمدرسة", "wa-l-madrasati", "definite genitive singular")]),
+               ("مدينة", "madīna", "noun", "city", [("مدن", "mudun", "plural")]),
+               ("تعاون", "taʿāwun", "noun", "cooperation", [("التعاون", "at-taʿāwun", "definite informal singular")])])
         _dict(os.path.join(td.name, "ar.egy.db"), "ar",
               [("قلب", "ʔalb", "noun", "heart", []), ("دلوقتي", "dilwaʔti", "adv", "now", [])])
         was = lookup.DICT_DIR
@@ -182,6 +190,129 @@ class RomanisationInTheLookup(unittest.TestCase):
         self.assertEqual(got["قلب"], [("galb", "galb", "qalb", False)])
         self.assertEqual(got["جميل"], [("jamīl", "jamīl", "", False)])
         self.assertEqual(got["ثلاثة"], [("ṯalāṯa", "ṯalāṯa", "", False)])
+
+
+class CaseEndings(unittest.TestCase):
+    """translit.pausal through in_variety: the rule in ar.ipa.json, turned on by each variety's file.  Moroccan, whose
+    ق stays q, unless a test names another."""
+
+    def said(self, s, pos, written, lemma=None, key="ar.mor"):
+        return translit.in_variety(key, s, pos, written, lemma)
+
+    def test_every_variety_turns_the_one_rule_on(self):
+        self.assertTrue(translit._read_ipa("ar").get("pausal"))
+        for v in VARIETIES:
+            with self.subTest(v=v):
+                self.assertIs(translit._read_ipa("ar." + v)["from_standard"].get("pausal"), True)
+                self.assertNotIn("pausal", translit._read_ipa("ar." + v), "the rule is Arabic's, not a copy")
+
+    def test_a_verb_loses_its_final_short_vowel(self):
+        self.assertEqual(self.said("kataba", "verb", "كتب"), "katab")
+        self.assertEqual(self.said("yaktubu", "verb", "يكتب", "kataba"), "yaktub")
+        self.assertEqual(self.said("katabtu", "verb", "كتبت", "kataba"), "katabt")
+        self.assertEqual(self.said("qawiya", "verb", "قوي"), "qawī")
+
+    def test_a_verb_keeps_its_long_vowels_and_its_feminine_plural(self):
+        self.assertEqual(self.said("katabū", "verb", "كتبوا", "kataba"), "katabū")
+        self.assertEqual(self.said("katabna", "verb", "كتبن", "kataba"), "katabna")
+        self.assertEqual(self.said("qālat", "verb", "قالت", "qāla"), "qālat")
+
+    def test_a_noun_loses_its_case_vowel_and_tanwin(self):
+        for form in ("kitābun", "kitāban", "kitābin"):
+            self.assertEqual(self.said(form, "noun", "كتاب", "kitāb"), "kitāb", form)
+        self.assertEqual(self.said("al-kitābi", "noun", "الكتاب", "kitāb"), "al-kitāb")
+        self.assertEqual(self.said("kitābāni", "noun", "كتابان", "kitāb"), "kitābān")
+        self.assertEqual(self.said("kātibātun", "noun", "كاتبات", "kātib"), "kātibāt")
+        self.assertEqual(self.said("kātibūna", "noun", "كاتبون", "kātib"), "kātibūn")
+
+    def test_the_feminine_a_stays(self):
+        self.assertEqual(self.said("madrasa", "noun", "مدرسة"), "madrasa")
+        self.assertEqual(self.said("madrasatun", "noun", "مدرسةٌ", "madrasa"), "madrasa")
+        self.assertEqual(self.said("wa-l-madrasati", "noun", "والمدرسة", "madrasa"), "wa-l-madrasa")
+        self.assertEqual(self.said("kabīratan", "adj", "كبيرةً", "kabīr"), "kabīra")
+
+    def test_an_n_of_the_word_itself_stays(self):
+        self.assertEqual(self.said("mudun", "noun", "مدن", "madīna"), "mudun")
+        self.assertEqual(self.said("at-taʿāwun", "noun", "التعاون", "taʿāwun"), "at-taʿāwun")
+        self.assertEqual(self.said("al-waṭan", "noun", "الوطن", "waṭan"), "al-waṭan")
+        self.assertEqual(self.said("waṭanan", "noun", "وطنا", "waṭan"), "waṭan")
+        self.assertEqual(self.said("taʿāwun", "noun", "تعاون"), "taʿāwun", "an entry's own romanisation is never cut")
+
+    def test_other_words_and_phrases(self):
+        self.assertEqual(self.said("huwa", "pron", "هو"), "huwa", "a pronoun is left as written")
+        self.assertEqual(self.said("ṭalīqu l-lisāni", "adj", "طليق اللسان", "ṭalīq"), "ṭalīqu l-lisān",
+                         "a phrase pauses once, at its end")
+
+    def test_with_each_dialects_consonants(self):
+        self.assertEqual(self.said("ḏahaba", "verb", "ذهب", key="ar.egy"), "dahab")
+        self.assertEqual(self.said("qawiya", "verb", "قوي", key="ar.egy"), "ʾawī")
+        self.assertEqual(self.said("qatala", "verb", "قتل", key="ar.gulf"), "gatal")
+        self.assertEqual(self.said("jamīlatun", "adj", "جميلة", "jamīl", key="ar.egy"), "gamīla")
+
+    def test_standard_arabic_keeps_its_endings(self):
+        for key in ("ar", "fa", ""):
+            self.assertEqual(translit.in_variety(key, "kataba", "verb", "كتب"), "kataba", key)
+            self.assertEqual(translit.in_variety(key, "kitāban", "noun", "كتابا", "kitāb"), "kitāban", key)
+
+
+class CaseEndingsInTheLookup(RomanisationInTheLookup):
+    """The same through lib/lookup.py: the standard dictionary's own rows, said in Egyptian."""
+
+    def test_standard_arabic_is_as_it_was(self):
+        got = self.said("كتب كتابا والمدرسة مدن التعاون")
+        self.assertEqual(got["كتب"], [("kataba", "kataba", "", False)])
+        self.assertEqual(got["كتابا"], [("kitāban", "kitāb", "", False)])
+        self.assertEqual(got["والمدرسة"], [("wa-l-madrasati", "madrasa", "", False)])
+
+    def test_in_egyptian_the_case_endings_go(self):
+        got = self.said("كتب كتابا والمدرسة مدن التعاون", "egy")
+        self.assertEqual(got["كتب"], [("katab", "katab", "kataba", False)])
+        self.assertEqual(got["كتابا"], [("kitāb", "kitāb", "kitāban", False)])
+        self.assertEqual(got["والمدرسة"], [("wa-l-madrasa", "madrasa", "wa-l-madrasati", False)])
+        self.assertEqual(got["مدن"], [("mudun", "madīna", "", False)])
+        self.assertEqual(got["التعاون"], [("at-taʿāwun", "taʿāwun", "", False)])
+
+    def test_the_dialect_dictionarys_own_entry_is_untouched(self):
+        got = self.said("دلوقتي", "egy")
+        self.assertEqual(got["دلوقتي"][0][1:], ("dilwaʾti", "", True))
+
+
+class QuestionWords(unittest.TestCase):
+    """youtube/lib/tidy.py: a bare transcript in a dialect gets its question mark from the dialect's own words."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, os.path.join(ROOT, "youtube", "lib"))
+        import tidy
+        cls.tidy = tidy
+        td = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(td.cleanup)
+        _dict(os.path.join(td.name, "ar.db"), "ar", [("كتاب", "kitāb", "noun", "book", [])])
+        was = lookup.DICT_DIR
+        lookup.DICT_DIR = td.name
+        _forget()
+        cls.addClassCleanup(lambda: (setattr(lookup, "DICT_DIR", was), _forget()))
+
+    def asked(self, lang, *lines):
+        # captions far apart, so that each is a sentence of its own (the silence after it)
+        caps = [{"start": 10.0 * k, "text": t} for k, t in enumerate(lines)]
+        out, _notes = self.tidy.tidy(caps, lang, dur=10.0 * len(lines))
+        return [c["text"] for c in out]
+
+    def test_an_egyptian_question_ends_with_a_question_mark(self):
+        got = self.asked("ar.egy", "انت رايح فين", "انا رايح البيت")
+        self.assertEqual(got, ["انت رايح فين\u061f", "انا رايح البيت."])
+
+    def test_each_dialect_asks_with_its_own(self):
+        for v, line in (("lev", "شو بدك انت"), ("gulf", "وين رايح انت"), ("mor", "فين ساكن انت")):
+            with self.subTest(v=v):
+                self.assertEqual(self.asked("ar." + v, line, "الكتاب هنا يا ولد")[0], line + "\u061f")
+
+    def test_standard_arabic_reads_only_its_own(self):
+        self.assertEqual(self.asked("ar", "انت رايح فين", "انا رايح البيت"),
+                         ["انت رايح فين.", "انا رايح البيت."])
+        self.assertEqual(self.asked("ar.egy", "أين الكتاب يا ولد", "الكتاب هنا يا ولد")[0], "أين الكتاب يا ولد\u061f",
+                         "and a dialect keeps Arabic's question words")
 
 
 if __name__ == "__main__":

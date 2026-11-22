@@ -103,5 +103,7 @@
     "ديال"
   ],
   "_li": "لي, the relative lli as it is often written, is NOT listed: it is also the dative 'to me' (دير لي), and the two cannot be told apart by the word alone.",
-  "_ila": "إلا is Darija's 'if' (ila) and standard Arabic's 'except': in a Moroccan text it opens a clause either way."
+  "_ila": "إلا is Darija's 'if' (ila) and standard Arabic's 'except': in a Moroccan text it opens a clause either way.",
+  "_question_words": "For youtube/lib/tidy.py alone (what ar.chunk.json's _question_words says): the question words of the lists above (shnu, ash, shkun, fin, 'lash, kifash, imta, shHal, qeddash), so that a transcript in this variety with no punctuation gets its question mark. Read before Arabic's own, which still count. The dialects leave a question word in place (Brustad 2000), often at the end of the sentence, and tidy reads both edges.",
+  "question_words": ["شنو", "آش", "اش", "شكون", "فين", "علاش", "كيفاش", "إمتى", "امتى", "شحال", "قداش"]
 }

@@ -215,7 +215,7 @@ def tidy_roman(code, s, head=""):
     return out
 
 
-def in_variety(key, s):
+def in_variety(key, s, pos="", written="", lemma=None):
     """A romanisation of the standard language, said as a variety says its
     letters -> the same string where the variety says nothing.
 
@@ -224,16 +224,100 @@ def in_variety(key, s):
     lib/lang/<key>.ipa.json, letters of the standard romanisation to the
     variety's, each correspondence cited in that file.  The standard
     romanisation writes one letter for one Arabic letter (q for ق, j for ج,
-    ṯ ḏ ẓ for ث ذ ظ), so the walk is a letter for a letter; vowels and
-    endings are not touched.  A key with no file (`ar`, any language without
-    varieties) gets `s` back unchanged."""
+    ṯ ḏ ẓ for ث ذ ظ), so the walk is a letter for a letter.  Where the
+    variety's file says `from_standard.pausal`, the word's case ending goes
+    first (`pausal`, below: kataba > katab, kitāban > kitāb); that needs the
+    hit's part of speech `pos`, the Arabic `written` the string romanises,
+    and `lemma`, the standard romanisation of the entry when `s` is one of
+    its forms (None when `s` is the entry itself).  A key with no file
+    (`ar`, any language without varieties) gets `s` back unchanged."""
     if not s or "." not in (key or ""):
         return s or ""
-    M = ((ipa_rules(key).get("from_standard") or {}).get("map") or {})
-    if not M:
-        return s
+    F = ipa_rules(key).get("from_standard") or {}
+    M = F.get("map") or {}
     out = unicodedata.normalize("NFC", s)
+    if F.get("pausal"):
+        out = pausal(key, out, pos, written, lemma)
     return "".join(M.get(ch, ch) for ch in out)
+
+
+def _last_letter(written):
+    """The last letter of an Arabic word as written, its vowel marks and
+    any punctuation after it left out ("" for none)."""
+    for ch in reversed(unicodedata.normalize("NFC", written or "")):
+        if unicodedata.category(ch).startswith("L"):
+            return ch
+    return ""
+
+
+def pausal(key, s, pos="", written="", lemma=None):
+    """A standard romanisation without its final case vowel or tanwīn, as
+    the word is said at a pause and as every dialect says it: kataba >
+    katab, yaktubu > yaktub, kitābun kitāban kitābin al-kitābi > kitāb,
+    madrasatun > madrasa.  The rule's letters and parts of speech are the
+    `pausal` section of the language's lib/lang/<code>.ipa.json (one rule,
+    which each variety's file turns on with `from_standard.pausal`).
+
+    Only the LAST word of `s` is touched: a phrase pauses once, at its end.
+    Long vowels stay (katabū, kitābā), and so does the feminine -a of a
+    word written with ة (madrasa); its -at with an ending is cut back to it.
+    A verb keeps the -na of its feminine plural (katabna, yaktubna), which
+    is a pronoun and not a mood.  A noun's tanwīn is cut only where it is
+    certainly one -- on a form of the entry `lemma` (waṭanun > waṭan, but
+    al-waṭan and at-taʿāwun keep their n), or after a long vowel and a
+    consonant (kātibātun > kātibāt, rijālun > rijāl) -- since mudun
+    'cities' and taʿāwun 'cooperation' end in -un of their own.  A noun
+    entry's own romanisation (`lemma` None) is left as it is: the
+    dictionary writes it without an ending (kitāb, waṭan; huwa's -a is the
+    word's own).  A final -iy or -uw left by the cut is written as its long
+    vowel (`contract`: qawiya > qawī, al-qāḍiyu > al-qāḍī)."""
+    P = ipa_rules(key).get("pausal") or {}
+    verb = pos in (P.get("verb") or ())
+    if not s or not (verb or pos in (P.get("noun") or ())):
+        return s
+    short, long_ = P.get("short") or "", P.get("long") or ""
+    vowels = short + long_
+    first, sep, last = s.rpartition(" ")
+
+    def after_consonant(t, n):
+        return len(t) > n and t[-n - 1] not in vowels and t[-n - 1].isalpha()
+
+    def done(t):
+        for a, b in (P.get("contract") or {}).items():
+            if t.endswith(a):
+                t = t[:-len(a)] + b
+                break
+        return first + sep + t
+
+    if verb:
+        if any(last.endswith(k) and after_consonant(last, len(k)) for k in P.get("verb_keep") or ()):
+            return s
+        if last[-1:] in short and after_consonant(last, 1):
+            return done(last[:-1])
+        return s
+    endings = sorted(list(P.get("tanwin") or ()) + list(short), key=len, reverse=True)
+    fem = P.get("feminine") or ""
+    if fem and _last_letter(written) == fem:
+        # madrasa stays; madrasatun, al-madrasati, madrasat > madrasa
+        for E in endings + [""]:
+            if last.endswith("at" + E) and len(last) > len(E) + 2:
+                return done(last[:len(last) - len(E) - 1])
+        return s
+    if lemma is None:
+        return s
+    stem_of = lemma.rpartition(" ")[2]
+    if stem_of and last.endswith(stem_of):
+        return s                       # the form is the entry's own, with no ending
+    for E in endings:
+        if not (last.endswith(E) and after_consonant(last, len(E))):
+            continue
+        stem = last[:-len(E)]
+        if E in short:
+            return done(stem)
+        if (stem_of and stem.endswith(stem_of)) or (len(stem) > 1 and stem[-2] in long_):
+            return done(stem)
+        return s
+    return s
 
 
 def form_sound(code, romans, ipas=(), words=False, head=""):

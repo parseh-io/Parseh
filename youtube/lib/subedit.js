@@ -85,6 +85,7 @@
   function start(opts, resolve) {
     var base = String(opts.base || '/youtube');
     var lang = String(opts.lang || '');
+    var variety = String(opts.variety || '');   // a dialect (egy): its question words for the tidy
     var vid = String(opts.video || '');      // a YouTube id, or "" for a film
     var wordJob = String(opts.wordJob || '');
     var caps = [], done = false;
@@ -547,7 +548,7 @@
       tidyBtn.disabled = true;
       say('reading the whole transcript\u2026');
       var was = snapshot();
-      post('/api/transcript', wordState({lang: lang, tidy: true, tidy_mode: tidyMode.value,
+      post('/api/transcript', wordState({lang: lang, variety: variety, tidy: true, tidy_mode: tidyMode.value,
                                          captions: panelCaps()})).then(function (j) {
         tidyBtn.disabled = false;
         if (done) return;
