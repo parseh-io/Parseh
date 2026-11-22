@@ -148,7 +148,8 @@ A conda user can still make the environment the usual way —
 ```
 
 The server keeps running when the terminal closes; its process id is in
-`.serve.pid` and its output in `serve.log`. A second start while one is
+`.serve.pid` and its output in `serve.log`; the run before's is kept as
+`serve.log.1`. A second start while one is
 running says `already running` and leaves it alone. (A copy of the
 source code also has `youtube/serve.sh`, which only forwards to this one,
 for old habits; a release does not carry it.)

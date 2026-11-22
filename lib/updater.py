@@ -209,7 +209,7 @@ PERSONAL = ("books/", "youtube/videos/", "youtube/anki/", "markdown/library/", "
             "arasaac/")
 SCAFFOLDING = (".gitkeep", "README.md")
 NEVER = (".tls/", ".runtime/", ".git/", WORK + "/", ".claude/")
-NEVER_FILES = (".serve.pid", "serve.log", ".setup-done", ".git")
+NEVER_FILES = (".serve.pid", "serve.log", "serve.log.1", ".setup-done", ".git")
 
 # The content's small files, copied before an update that lowers a data
 # format (the step back) OR RAISES ONE (TO-DO §13.20: a faulty migration on

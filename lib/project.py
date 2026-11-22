@@ -44,6 +44,8 @@ REPO = ORG + "/" + NAME
 GITHUB_URL = "https://github.com/" + REPO
 RELEASES_URL = GITHUB_URL + "/releases"
 LATEST_URL = RELEASES_URL + "/latest"
+# where a fault is reported: Settings -> About links it beside "Copy a report"
+ISSUES_URL = GITHUB_URL + "/issues"
 # the newest PUBLISHED release that is not a prerelease (never a draft): the one
 # Settings -> Updating Parseh looks at
 FEED = "https://api.github.com/repos/%s/releases/latest" % REPO
