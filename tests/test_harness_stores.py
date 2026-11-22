@@ -62,6 +62,7 @@ HARNESSES = {
     "mobile_harness.py": "cardkit_harness.py",
     "later_harness.py": "mobile_harness.py",
     "outline_harness.py": "mobile_harness.py",
+    "vocab_harness.py": "later_harness.py",
     "making_agent.py": "scratch copy",
 }
 

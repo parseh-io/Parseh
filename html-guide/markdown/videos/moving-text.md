@@ -120,8 +120,8 @@ is said. How Parseh finds that, in order:
    (`wordtimes.json`, kept through every edit on the add page). The line then
    begins at the time its new first word was heard — or at the start you set for
    that word by ear on the add page, which wins. The dock says so: *That line now
-   begins at 0:06.8, when “چقدر” was heard (the word times of the speech to
-   text).* It is the sound's own time, so it holds across a long pause, where an
+   begins at 0:06.8, when “چقدر” was heard (the word times kept when the video
+   was added).* It is the sound's own time, so it holds across a long pause, where an
    estimate would not, and it is not moved again.
 2. **An estimate from the letters**, where there is no such time: a video whose
    captions came from YouTube or a file has no word times, a word typed in after

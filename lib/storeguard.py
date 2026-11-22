@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """A personal store that cannot be read is never written over (TO-DO §2.29).
 
 The person's own JSON stores in config/ -- the settings and reading places

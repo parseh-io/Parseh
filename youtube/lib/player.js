@@ -4159,7 +4159,7 @@
      the two lines as they now are; they are drawn where they stand.  Nothing else on the page moves.
 
      WHEN THE LINE BEGINS.  The line that gains or loses its first words starts somewhere else.  Where the
-     speech to text kept the time each word was heard (wordtimes.json), it begins when its new first word was
+     video kept the time each word was heard (wordtimes.json), it begins when its new first word was
      heard; elsewhere the server works it out from the share of letters moved, and this page settles that
      estimate into the nearest pause of the sound where it can.  The card says before the move which of the two
      it will be, the answer says which it was, and the dock offers to play across the join and to open the
@@ -4566,7 +4566,7 @@
       if (timed.by === 'words') {
         rfSay(msg + ' That line now begins at ' + rfClock(res.start.now) + ', ' +
               (timed.source === 'person' ? 'the start set by ear for \u201c' + timed.word + '\u201d.'
-                                         : 'when \u201c' + timed.word + '\u201d was heard (the word times of the speech to text).') + tail);
+                                         : 'when \u201c' + timed.word + '\u201d was heard (the word times kept when the video was added).') + tail);
         return;
       }
       var because = timed.why ? ' Why not the word times: ' + timed.why + '.' : '';

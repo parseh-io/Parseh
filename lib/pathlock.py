@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """One writer at a time for each book and each video (TO-DO §3.10).
 
 An edit to a book or a video reads its file, changes one chunk and writes the
