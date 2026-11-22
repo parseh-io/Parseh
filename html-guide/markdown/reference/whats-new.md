@@ -23,8 +23,22 @@ A book's reader and a video's player have a **Vocabulary** panel (the door besid
 row on a phone): every word of the vocabulary lines of this chapter or the whole book — of the whole video, or up to where
 you are — once each, with its romanisation, its meanings and how often it comes. A click goes to the chunk it is in, the next
 click to the next one. The list sorts as the words come, in the language's own alphabetical order or by frequency, filters,
-copies as a table, prints, hides its meanings to test yourself, and makes the words' cards one after another.
+copies as a table, prints, hides its meanings to test yourself, and makes the words' cards one after another. It reads
+vocabulary lines written as plain text too, and says how many it could not read.
 [The vocabulary as a list](../books/vocabulary.md).
+
+### Arabic dialects, further
+
+A **studio document**, an **exercise deck** and a **book made by an agent** can say which Arabic they are written in, as
+books and videos could: a *Written in* choice on the document page and the deck's head, and the prompts and skills name the
+dialect. **Settings → Languages** shows each of the four dialects under Arabic, feature by feature, and the cards of books,
+videos and channels say their dialect. In a dialect text, phrases are cut with the dialect's own small words; a standard
+word is romanised as the dialect says it (*qalb* is *ʾalb* in Egyptian) and without its case ending (*kitāb*, not
+*kitāban*); tidying a transcript knows the dialect's question words (*fēn*, *šū*, *wēn*). **Egyptian** and **Levantine**
+have sentences people translated, a download of their own on Settings → Reading help, shown before standard Arabic's and
+labelled; Gulf and Moroccan have too few yet, and the panel says so. Adding a video in a dialect says which of YouTube's
+transcript tracks to paste.
+[Arabic dialects](../lookup-and-languages/dictionaries.md#arabic-dialects).
 
 ### Move text, by the words' own times
 
@@ -38,7 +52,8 @@ a line that runs on — and **next open line** walks those lines.
 
 **Settings → About**, on the computer, has a section of its own: the last lines of this run's log and of the run before —
 which a restart no longer empties — and **Copy a report**, the version, the system, what is installed and the last error, with
-tokens, codes, addresses and your folder's name taken out, for the issue page. On Windows the log is written to a file too.
+tokens, codes, addresses and your folder's name taken out, for the issue page. On Windows the log is written to a file too,
+and Ctrl-C or an update that has to be undone no longer loses its lines. A deck now names an exercise file it cannot read.
 [Reporting a fault](troubleshooting.md#reporting-a-fault).
 
 ### Nothing of yours written over

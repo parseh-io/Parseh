@@ -3,12 +3,18 @@
 - The vocabulary of a chapter, a book or a video as a list, with its places, cards and a test
 - Move text starts a moved line when its first word was heard, and shows pauses where there are no full stops
 - A fault report and the last two runs' logs on Settings → About
+- Arabic dialects: studio documents, decks and books made in place say their dialect; Settings → Languages shows each
+- Arabic dialects: their own phrase lists, romanisation and question words, translated sentences for Egyptian and Levantine
 
 ### Fixed
 - A settings file that cannot be read is set aside, never written over; a damaged deck is shown
 - Two tabs or devices editing one book or video no longer lose an edit
 - An update that raises a data format keeps a copy of your files, and can put them back
 - A dialect's gloss prompts and phrase cutting no longer use the standard-Arabic analyzers
+- The vocabulary list reads plain-text vocabulary lines too
+- A deck names an exercise file it cannot read; the chatbot review counts its proposals right
+- The transcript-review skills describe the copy-paste review, and their downloads work again
+- On Windows: the log in a file, Ctrl-C and a failed update no longer lose lines or show a traceback
 
 ### Removed
 - The connection to a model service (Settings → LLM Integration); copy-paste review and skills stay
