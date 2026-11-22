@@ -86,6 +86,16 @@ hand), its card is still on the page, marked **damaged**, with what could not
 be read and the folder its files are in. It has no buttons: nothing is changed
 or deleted, and once its files are mended it comes back as an ordinary card.
 
+When only some of a deck's exercises cannot be read (a file in its `items`
+folder cut short or broken by hand), the deck opens with the others, and both
+its card and its page say, in red, which files were left out and where they
+are. Those files are kept as they are.
+
+A folder among the decks that has no `deck.json` at all is not a deck: a
+deck's folder is always made together with its `deck.json`, so such a folder
+was left behind by a creation or an import that did not finish, or made by
+hand. The page names it in a line under the cards, and leaves it alone.
+
 ## Making a deck
 
 **+ New deck** asks for two things:

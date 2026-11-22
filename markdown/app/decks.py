@@ -466,6 +466,25 @@ def _load_items(d):
     return items
 
 
+def _unreadable_items(d):
+    """AN EXERCISE THAT CANNOT BE READ IS NOT LEFT OUT IN SILENCE (TO-DO
+    a0.6.3 G1): the files under items/ that _load_items passes over -- a
+    .json that does not parse, is not an object, or holds no markdown --
+    as their paths inside the deck ("items/<name>"), sorted.  The deck
+    still opens with the rest; these files stay exactly as they are."""
+    try:
+        names = os.listdir(d / "items")
+    except OSError:
+        return []
+    out = []
+    for n in names:
+        if not n.endswith(".json") or n.startswith("."):
+            continue
+        if not ITEM_RE.fullmatch(n[:-5]) or _read_item(d, n[:-5]) is None:
+            out.append("items/" + n)
+    return sorted(out)
+
+
 def _groups(items):
     """{link id: the ids sharing it, in the order the items are given} for
     every link that more than one exercise holds."""
@@ -843,14 +862,18 @@ def _deck_summary(d, meta, now):
         scheds[item["id"]] = sched
     q = srs.queue(entries, now, cfg, srs.today_counts(histories, now, cfg),
                   _buried(items, scheds, now, cfg))
-    return {"id": meta["id"], "name": meta["name"], "lang": L.code, "language": L.name,
-            "folder": L.folder, "slug": d.name, "path": "%s/%s" % (L.folder, d.name),
-            "created": meta.get("created", ""), "updated": meta.get("updated", ""),
-            "settings": cfg, "counts": counts, "study": q["counts"],
-            "next_due": q["next_due"]}
+    out = {"id": meta["id"], "name": meta["name"], "lang": L.code, "language": L.name,
+           "folder": L.folder, "slug": d.name, "path": "%s/%s" % (L.folder, d.name),
+           "created": meta.get("created", ""), "updated": meta.get("updated", ""),
+           "settings": cfg, "counts": counts, "study": q["counts"],
+           "next_due": q["next_due"]}
+    bad = _unreadable_items(d)
+    if bad:                 # only when there is one: the answer is otherwise as it was
+        out["unreadable"] = bad
+    return out
 
 
-def list_decks(lang=None, now=None, damaged=None):
+def list_decks(lang=None, now=None, damaged=None, stray=None):
     """Every deck (of one language, when given), by name.  Reads only: DIR
     is never created, dot directories (.trash, an import being staged) and
     directories without a readable deck.json are skipped.
@@ -859,7 +882,15 @@ def list_decks(lang=None, now=None, damaged=None):
     `damaged` is a list, each folder whose deck.json is there but does not
     parse, or whose files break its summary, is appended to it as
     {"folder", "slug", "path", "lang", "language", "why"} -- the decks page
-    draws it as a damaged card, and its files stay exactly as they are."""
+    draws it as a damaged card, and its files stay exactly as they are.
+
+    A folder with NO deck.json is not a deck: create_deck writes deck.json
+    right after making the folder, and an import is staged under a dot name
+    and renamed only once its deck.json is written -- so such a folder is
+    something left behind (a crash between the two, or a folder made by
+    hand).  When `stray` is a list, each is appended to it as
+    {"folder", "slug", "path", "lang", "language", "files"}: the decks page
+    says so in a line, not a card, and leaves it alone."""
     now = _clock(now)
     wanted = [_language(lang)] if lang else list(languages.LANGS.values())
     if not DIR.is_dir():
@@ -878,6 +909,8 @@ def list_decks(lang=None, now=None, damaged=None):
             if meta is None:
                 if damaged is not None and (d / "deck.json").exists():
                     damaged.append(_damaged(L, name, "its deck.json cannot be read"))
+                elif stray is not None and not (d / "deck.json").exists():
+                    stray.append(_stray(L, name, d))
                 continue
             try:                # one broken deck must not blind the rest
                 out.append(_deck_summary(d, meta, now))
@@ -889,6 +922,14 @@ def list_decks(lang=None, now=None, damaged=None):
                     damaged.append(_damaged(L, name, str(e)[:300], meta.get("name")))
     out.sort(key=lambda s: (languages.fold(s["name"]), s["folder"], s["slug"]))
     return out
+
+
+def _stray(L, slug, d):
+    files = 0
+    for _root, _dirs, names in os.walk(d):
+        files += len(names)
+    return {"folder": L.folder, "slug": slug, "path": "%s/%s" % (L.folder, slug),
+            "lang": L.code, "language": L.name, "files": files}
 
 
 def _damaged(L, slug, why, name=None):
