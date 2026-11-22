@@ -16,6 +16,12 @@
 /* on a phone the door is in the gear's sheet (a node row), as tall as a finger */
 .pg-panel .vocab-btn,.pg-sheet .vocab-btn{min-height:48px;font-size:15px;padding:6px 14px;border-radius:10px}
 
+/* ON A COMPUTER THE PAGE STAYS LIVE beside the panel: no backdrop, nothing dimmed,
+   so that a word's places can be gone through one click after another with the
+   text in view (Review later's panel shades the page; this one is read beside it) */
+.vocab-wrap.lp-side{left:auto;width:min(420px,100%)}
+.vocab-wrap.lp-side .lp-back{display:none}
+
 /* the tools: two switches, the filter */
 .vocab-panel .lp-scope{flex-wrap:wrap}
 .vocab-find{box-sizing:border-box;width:100%;margin:0;padding:7px 10px;font:inherit;font-size:14px;

@@ -7755,7 +7755,7 @@
     iface.rows.push({id: 'vocab', kind: 'action', layouts: 'mobile', label: 'Vocabulary',
       help: 'Every word of the vocabulary lines of this video, once, with its meaning.',
       when: function () { return !!vocabPanel; },
-      onClick: function () { if (gear) gear.close(); if (vocabPanel) vocabPanel.open(); }});
+      onClick: function () { if (vocabPanel) ParsehVocab.openAfter(vocabPanel, function () { if (gear) gear.close(); }); }});
 
     var header = document.querySelector('header');
     try {
