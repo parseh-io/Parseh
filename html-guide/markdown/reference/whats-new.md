@@ -17,6 +17,51 @@ guide and rebuilds the readers by itself.
 
 ## a0.6.3 — not yet released
 
+### The vocabulary as a list
+
+A book's reader and a video's player have a **Vocabulary** panel (the door beside *⚑ later*, the **V** key, or the gear's
+row on a phone): every word of the vocabulary lines of this chapter or the whole book — of the whole video, or up to where
+you are — once each, with its romanisation, its meanings and how often it comes. A click goes to the chunk it is in, the next
+click to the next one. The list sorts as the words come, in the language's own alphabetical order or by frequency, filters,
+copies as a table, prints, hides its meanings to test yourself, and makes the words' cards one after another.
+[The vocabulary as a list](../books/vocabulary.md).
+
+### Move text, by the words' own times
+
+When **move text** gives a line its new first words, the line now begins when that word was **heard**, from the word times
+speech to text kept, and the card says so before you choose; the share of letters moved is only the fallback, for captions
+that came with no word times. A transcript without full stops shows where the speaker paused — a bar after the word, a mark on
+a line that runs on — and **next open line** walks those lines.
+[Where a sentence ends](../videos/moving-text.md#where-a-sentence-ends).
+
+### When something goes wrong
+
+**Settings → About**, on the computer, has a section of its own: the last lines of this run's log and of the run before —
+which a restart no longer empties — and **Copy a report**, the version, the system, what is installed and the last error, with
+tokens, codes, addresses and your folder's name taken out, for the issue page. On Windows the log is written to a file too.
+[Reporting a fault](troubleshooting.md#reporting-a-fault).
+
+### Nothing of yours written over
+
+A settings file of yours that can no longer be read is set aside under a dated name, never written over, and the hub says
+which and where; a deck whose files cannot be read shows as a damaged card instead of disappearing. Two tabs or two devices
+editing one book or one video no longer lose an edit. An update that raises the format of your files keeps a copy of them, and
+**Settings → Updating Parseh** can put them back.
+[Where things live](../getting-started/where-things-live.md) · [Updating Parseh](../getting-started/updating.md).
+
+### A dialect is never read as standard Arabic
+
+The gloss prompts of a book or a video in Egyptian, Levantine, Gulf or Moroccan Arabic no longer carry the standard-Arabic
+analyzers' reading, and new text in a dialect is cut into phrases without them.
+[Linguistic analysis](../lookup-and-languages/linguistic-analysis.md).
+
+### The connection to a model service is gone
+
+**Settings → LLM Integration**, the direct connection to a model service for reviewing a transcript, is removed. Reviewing a
+transcript with a chatbot of your choice, by copying a prompt and pasting its answer, stays, with the skills, the Whisper
+second pass and LM likelihood.
+[Reviewing a transcript](../lookup-and-languages/transcript-review.md).
+
 ## a0.6.2 — 10 November 2026
 
 ### Chunks side by side
@@ -342,7 +387,7 @@ edits**. A change the model made that could not be used no longer passes for
 "the model agrees": the word has **✗ no answer** and the model's own words as the
 reason. It holds for every method, including the connected model, the
 likelihood comparison and Whisper's second look, which says why when it failed
-([When an answer had to be read loosely](../lookup-and-languages/llm-integration.md#when-an-answer-had-to-be-read-loosely)).
+([When an answer had to be read loosely](../lookup-and-languages/transcript-review.md#when-an-answer-had-to-be-read-loosely)).
 
 ### The model's answers, one by one
 
@@ -360,7 +405,7 @@ edits, then look at the rest** and **Accept all the edits** take them together.
 A chatbot's workspace answer now says **sure** or **unsure** for every row, in a
 fifth column the prompt asks for; an answer without it is still read. The
 external panel shows five steps and where you are in them
-([Go through the model's answers](../lookup-and-languages/llm-integration.md#go-through-the-models-answers)).
+([Go through the model's answers](../lookup-and-languages/transcript-review.md#go-through-the-models-answers)).
 
 ### The reasoning workspace is not divided unless you ask
 
@@ -370,7 +415,7 @@ ZIP already holds the whole transcript, which is the point of a workspace, so
 it is now one prompt, and the prompt only says where everything is. **Divide
 into several prompts**, under the method and off by default, gives it parts
 again, for a chatbot that cannot open files
-([Use an external chatbot](../lookup-and-languages/llm-integration.md#use-an-external-chatbot)).
+([Use an external chatbot](../lookup-and-languages/transcript-review.md#use-an-external-chatbot)).
 **Suspect words** and **Whole text** are divided as before.
 
 The same goes for the connected model: its reasoning workspace used to be handed
@@ -563,7 +608,7 @@ invoked through Unsloth's Agent Skills API.
 Saved Studio share links load installed model variants/options through the API.
 Separate review models and skills support a whole-text check, including confident
 Whisper words and spans split across ASR pieces. See
-[LLM Integration](../lookup-and-languages/llm-integration.md).
+[Reviewing a transcript](../lookup-and-languages/transcript-review.md).
 Word playback pauses shortly after the selected span. Installed dictionaries
 add a separate suspect-word cue using the readers' base-form rules, and the
 inspector compares meanings for the original, Whisper alternatives and proposed

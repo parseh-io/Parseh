@@ -1,5 +1,17 @@
 ## [a0.6.3] - unreleased
 ### Added
+- The vocabulary of a chapter, a book or a video as a list, with its places, cards and a test
+- Move text starts a moved line when its first word was heard, and shows pauses where there are no full stops
+- A fault report and the last two runs' logs on Settings → About
+
+### Fixed
+- A settings file that cannot be read is set aside, never written over; a damaged deck is shown
+- Two tabs or devices editing one book or video no longer lose an edit
+- An update that raises a data format keeps a copy of your files, and can put them back
+- A dialect's gloss prompts and phrase cutting no longer use the standard-Arabic analyzers
+
+### Removed
+- The connection to a model service (Settings → LLM Integration); copy-paste review and skills stay
 
 ## [a0.6.2] - 2026-11-10
 ### Added

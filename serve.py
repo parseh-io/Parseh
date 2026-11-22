@@ -1174,10 +1174,10 @@ def mode_switch():
 # aside under a dated name before its first write, instead of writing over
 # it; the hub says so, in plain words, until somebody has read it.
 def damaged_folders():
-    return sorted(set(os.path.dirname(os.path.abspath(str(p))) for p in (
-        prefs.STORE, network.STORE, prompts.STORE, latexthemes.STORE,
-        lmlikelihoodconfig.CONFIG, updater.store(ROOT),
-        os.path.join(ROOT, "config", "x"))))
+    stores = (prefs.STORE, network.STORE, prompts.STORE, latexthemes.STORE,
+              lmlikelihoodconfig.CONFIG, updater.store(ROOT))
+    return sorted(set(os.path.dirname(os.path.abspath(str(p))) for p in stores)
+                  | {os.path.abspath(os.path.join(ROOT, "config"))})
 
 
 def damaged_notice():

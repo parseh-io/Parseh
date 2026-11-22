@@ -628,7 +628,7 @@ def _shown(ch, todo, mode, analysis=None):
     return d
 
 
-NO_ANALYSIS_FOR_A_VARIETY = "%s is a dialect, and no analysis is offered for one: the analyzers read standard %s"
+NO_ANALYSIS_FOR_A_VARIETY = "%s is a dialect, and the analyzers read only standard %s"
 
 
 def _evidence(ctx, units, mode):
