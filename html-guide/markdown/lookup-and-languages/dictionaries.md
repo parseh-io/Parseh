@@ -290,7 +290,31 @@ Standard Arabic**, the default, or one of four dialects — **Egyptian**,
 **Levantine**, **Gulf** or **Moroccan**. It is chosen on the add page
 (**Written in**, beside the language) and changed later from the reader's
 or the player's dictionary panel, whose last line is **written in** with a
-menu of the five.
+menu of the five. The book's card on the library and the video's card on
+the index, on the computer and on the phone, name the dialect.
+
+The same choice is everywhere else a text says its language:
+
+- **a studio document**, in **Written in** on its page, beside the tags
+  ([more](../studio/document-page.md#written-in)), and on the studio's
+  prompt page, beside **target language**;
+- **an exercise deck**, beside the language in its head
+  ([more](../exercises/deck-page.md#the-decks-head));
+- **a book made in place**, on the add page like any book
+  ([more](../books/made-by-an-agent.md)).
+
+What follows the dialect there is what follows it in a book: the prompts and
+the skills' requests name it. The studio and the decks have no dictionary
+panel of their own. **Settings → Languages** shows the four as sub-rows of
+Arabic, each with what it has of its own
+([more](adding-a-language.md#from-settings)).
+
+**Adding a video in a dialect.** Parseh does not fetch captions; you paste
+YouTube's transcript panel. With a dialect chosen, the add page says which
+track to take from the panel's language menu: the dialect's own (Egyptian
+Arabic is `arz`; Levantine `ajp` or `apc`; Gulf `afb` or `acw`; Moroccan
+`ary`) where the video has one, and Arabic's otherwise. Whichever you paste
+is read as the dialect.
 
 A word of a text in a dialect is looked for in two ways the standard
 language does not need:

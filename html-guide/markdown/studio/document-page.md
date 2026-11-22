@@ -42,6 +42,25 @@ filters find the document.
 On the right of the same bar are the badges of the last PDF build: see
 [Printing to PDF](pdf.md#the-badges).
 
+## Written in {#written-in}
+
+A document about Arabic says which Arabic it is written in: **Written
+in**, beside the tags, is a menu of five — **Modern Standard Arabic**, the
+default, or **Egyptian**, **Levantine**, **Gulf** or **Moroccan Arabic**.
+The choice is saved at once, as one line of the document's header,
+`variety: egy`, under `target: ar`; the editor shows it there, and typing
+or deleting that line does the same as the menu. A document written before
+there was a choice has no such line and is standard Arabic.
+
+The prompts made from the document follow it: **Add exercises with an
+LLM** tells the chatbot the text is Egyptian Arabic (say), to use each
+word as that dialect does and to write its transliteration as it is said
+there, and the skill's request says it too. The library's card shows the
+dialect beside the language. The menu is not there for a language without
+varieties, and the phone's page, which edits nothing, shows the dialect on
+the library's card only. See
+[Arabic dialects](../lookup-and-languages/dictionaries.md#arabic-dialects).
+
 ## The third bar, and the page's panel {#typography-the-third-bar}
 
 The third bar holds the tools of the page — **☰ Contents**, **↩ Linked from**,

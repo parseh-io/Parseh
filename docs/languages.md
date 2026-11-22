@@ -1332,6 +1332,19 @@ analyzers are not asked for a variety: they read the standard language.
 A prompt for a book or a video in a variety names it before the
 conventions (promptkit.language_text).
 
+Since a0.6.3 the same choice is held by every other text: a studio
+document's front matter (`variety: egy`, under `target:`; mdparser keeps it
+only where the target has that variety, store.set_variety writes it, and
+meta.json copies it), an exercise deck's `deck.json` (`variety`, carried by
+an export), and a book made in place (book.json, from the make page). Their
+prompts are made for `L.with_variety(...)` (server.doc_language,
+making.book_language), and a skill's request carries the field
+`variety: <name> (<key>)` (skills._fields), which each skill's SKILL.md
+explains. Absent is the standard language everywhere, so nothing written
+before has to change. Settings → Languages lists a language's varieties
+as sub-rows (langfeatures.variety_features), each per-variety file found
+by its presence (`lib/lang/<code>.<v>.{lookup,ipa,chunk,verbs}.json`).
+
 ---
 
 ## 11. What did not change

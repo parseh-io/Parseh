@@ -82,7 +82,9 @@ Parseh request · parseh-gloss · a0.4.2 · k7f3 · a stretch of a video · fa �
 One line, its fields parted by ` · `: the skill, the version of Parseh, the hash, what
 it is for, the language and the language of the meanings, the mode, and any choice made
 for the prompt — the scheme of the transliteration (`translit: ipa`) and the short
-vowels (`marks: on`). For the studio it also names the boxes you ticked
+vowels (`marks: on`). For a text in an Arabic dialect it names the dialect
+(`variety: Egyptian Arabic (egy)`), and the skill reads that line as the
+prompt's paragraph about the dialect. For the studio it also names the boxes you ticked
 (`features: vocab, gloss, translit`), the level and the length. The text to work on
 follows: the chunks, the captions, your question or the page.
 
