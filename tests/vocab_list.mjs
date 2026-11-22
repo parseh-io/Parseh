@@ -364,6 +364,14 @@ await scene('c) a video', async () => {
     assert(t > 0, 'and the video is at that caption\'s start');
   }
   await shot(page, 'c-video');
+  // the cards, from the player's own sheet
+  await tool(page, 'Make cards one after another').click();
+  await page.waitForSelector('#anki:not([hidden]) .lq-strip');
+  eq(await page.evaluate(() => ({fa: document.getElementById('afa').value, tr: document.getElementById('atr').value,
+                                 en: document.getElementById('aen').value, strip: document.querySelector('#anki .lq-n').textContent})),
+     {fa: 'کتاب', tr: 'ketāb', en: 'book', strip: 'item 1 of 5'}, 'the player\'s card sheet opens on the first word, with its own romanisation and meaning');
+  await page.click('#anki .lq-stop');
+  await page.waitForFunction(() => document.getElementById('anki').hidden);
   // up to here: the video at 2.5 s holds the first two captions
   await page.evaluate(() => { ParsehPlayer.pause(); ParsehPlayer.seek(2.5); });
   await until(async () => Math.abs(await page.evaluate(() => ParsehPlayer.time()) - 2.5) < 0.3, 6000, 'the video at 2.5 s');
