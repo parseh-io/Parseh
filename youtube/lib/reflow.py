@@ -222,8 +222,8 @@ def _heard_start(doc, i, lo, hi):
     word) -- `why` the reason, in a sentence, that the text decides instead.
     A start must fall strictly between `lo` and `hi`, the starts around it."""
     if doc is None:
-        return None, ("this video has no word times (they are kept only for a "
-                      "transcript made here by speech to text)"), ""
+        return None, ("this video has no word times; they are kept only for a "
+                      "transcript made here by speech to text"), ""
     row = doc["captions"][i]
     atoms = doc.get("atoms") or []
     first, last = int(row.get("first") or 0), int(row.get("last") or 0)
@@ -241,7 +241,7 @@ def _heard_start(doc, i, lo, hi):
     t = round(t, 2)
     if not (t > lo and (hi is None or t < hi)):
         return None, ("the time “%s” was heard, %s, is not between the lines "
-                      "around it (were their starts moved since?)"
+                      "around it; were their starts moved since?"
                       % (word, stamp_of(t))), word
     return t, how, word
 

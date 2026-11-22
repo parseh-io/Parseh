@@ -5975,6 +5975,8 @@ class Handler(SimpleHTTPRequestHandler):
             {video, action: "move", seg, edge: "end"|"start", chunk, word?,
              expect?: {text, chunk}}                      -> the two lines, as they are and were
             {video, action: "restore", pair, expect, to}  -> the same, put back
+            {video, action: "marks"}                      -> the pauses of the word times,
+                                                             for a transcript with no full stops
 
         A page that is showing something the file no longer holds is refused
         with 409, as the divide sheet is, and told to reload."""
@@ -6000,9 +6002,11 @@ class Handler(SimpleHTTPRequestHandler):
                 if not isinstance(pair, int) or isinstance(pair, bool):
                     return self.send_json({"ok": False, "error": "pair must be a number"}, 400)
                 r = reflow.restore(d, pair, body.get("expect"), body.get("to"))
+            elif action == "marks":
+                r = reflow.marks(d)
             else:
                 return self.send_json({"ok": False, "error":
-                                       "action must be move or restore"}, 400)
+                                       "action must be move, restore or marks"}, 400)
         except reflow.Stale as e:
             return self.send_json({"ok": False, "error": str(e)}, 409)
         except ValueError as e:

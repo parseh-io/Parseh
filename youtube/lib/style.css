@@ -1221,6 +1221,9 @@ body.reflowing .seg .fa .wd,body.reflowing .seg .fa .bare{cursor:pointer;border-
 body.reflowing .seg .fa .wd:hover,body.reflowing .seg .fa .bare:hover{background:var(--hl);
   box-shadow:0 0 0 2px var(--hl)}
 .seg.rf-open .fa::after{content:"\22EF";color:var(--accent);font-weight:700;margin-inline-start:.45em}
+/* a pause in the speech after this word, where the transcript has no full stops to go by (word times) */
+body.reflowing .rf-pause::after{content:"\2016";color:var(--accent);opacity:.7;font-size:.8em;
+  margin-inline-start:.12em;pointer-events:none}
 .rf-pick{background:var(--hl);box-shadow:0 0 0 2px var(--accent);border-radius:3px}
 .rf-moving{background:var(--hl);outline:2px dashed var(--accent);outline-offset:1px;border-radius:3px}
 .rf-flash{animation:rfflash 2.2s ease-out}

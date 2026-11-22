@@ -130,7 +130,7 @@
   var player = null, ready = false, active = -1;
   var lastUserScroll = 0;
   // MOVING TEXT BETWEEN LINES (below): on, a request in flight, what can be taken back, the word picked
-  var rf = { on: false, busy: false, stops: false, undo: [], pick: null, last: null, fire: [] };
+  var rf = { on: false, busy: false, stops: false, marks: null, undo: [], pick: null, last: null, fire: [] };
 
   /* ---------------- settings, remembered like the reader's ---------------- */
   var store = function (k, d) {
@@ -4001,7 +4001,8 @@
     // is being moved between lines.  Neither is on the page otherwise, so a line is what it always was
     var under = !sg.plain && belowOn() ? rowsEl(sg) : null;
     if (under) d.appendChild(under);
-    if (rf.on && rf.stops && !sg.plain && !rfEnds(sg.text)) d.classList.add('rf-open');
+    if (rfOpen(sg, i)) d.classList.add('rf-open');
+    if (rf.on && rfPauses()) setTimeout(function () { rfMarkLine(i); }, 0);
     // clicking a sentence replays it from its own beginning -- including
     // a click on a phrase (the gloss is already open from the hover) --
     // unless a stretch is being picked for an LLM, when it picks the line
@@ -4157,9 +4158,16 @@
      choice is made on the server, which cuts a phrase at a space when the word is inside one, and answers
      the two lines as they now are; they are drawn where they stand.  Nothing else on the page moves.
 
-     WHAT IT DOES NOT KNOW IS WHEN.  The line that gains or loses its first words starts somewhere else, and
-     nothing here hears the sound: the answer says it was worked out from the words, and the dock offers to
-     play across the join and to open the timings sheet at that line, where it is put right by ear.
+     WHEN THE LINE BEGINS.  The line that gains or loses its first words starts somewhere else.  Where the
+     speech to text kept the time each word was heard (wordtimes.json), it begins when its new first word was
+     heard; elsewhere the server works it out from the share of letters moved, and this page settles that
+     estimate into the nearest pause of the sound where it can.  The card says before the move which of the two
+     it will be, the answer says which it was, and the dock offers to play across the join and to open the
+     timings sheet at that line, where it is put right by ear.
+
+     SENTENCE ENDS.  A line is marked ⋯ when it stops in the middle of a sentence, which is read from its
+     full stops.  A transcript with none (auto-captions often have none) is read from the pauses of its word
+     times instead -- a thin bar after a word is a pause in the speech -- and one with neither says so.
 
      AND IT IS TAKEN BACK: every move keeps the two lines as they were, Undo (or Ctrl+Z) puts them back --
      only while nothing was written to them since, which the server checks. */
@@ -4179,19 +4187,76 @@
     RF.say.textContent = text || '';
     RF.say.classList.toggle('bad', !!bad);
   }
+  // no full stops, but word times: the pauses of the speech stand in for them
+  function rfPauses() { return !rf.stops && !!(rf.marks && rf.marks.words); }
+  function rfLineMarks(i) {
+    var m = rf.marks && rf.marks.words && rf.marks.lines && rf.marks.lines[i];
+    return m && m.w ? m : null;
+  }
+  function rfOpen(sg, i) {
+    if (!rf.on || !sg || sg.plain) return false;
+    if (rf.stops) return !rfEnds(sg.text);
+    if (!rfPauses()) return false;
+    var m = rf.marks.lines && rf.marks.lines[i];
+    return !!(m && !m.end);
+  }
+  // what the word times say of one unit of a line (a word, or a phrase drawn whole): 1 its time was heard,
+  // 2 a pause follows it -- the start from its first word, the pause from its last
+  function rfFlags(i, u) {
+    var m = rfLineMarks(i), w = m && m.w[u.j];
+    if (!w || !w.length) return 0;
+    if (u.k !== null && u.k !== undefined) return w[u.k] || 0;
+    var first = 0, last = 0;
+    for (var a = 0; a < w.length; a++) if (w[a]) { first = w[a]; break; }
+    for (var b = w.length - 1; b >= 0; b--) if (w[b]) { last = w[b]; break; }
+    return (first & 1) | (last & 2);
+  }
+  function rfMarkLine(i) {
+    var d = els[i], sg = segs[i], fa = d && d.querySelector('.fa');
+    if (!fa || !sg) return;
+    Array.prototype.forEach.call(fa.querySelectorAll('.rf-pause'), function (e) { e.classList.remove('rf-pause'); });
+    if (!rf.on || !rfPauses() || sg.plain || !rfLineMarks(i)) return;
+    var units = rfUnits(fa, sg);
+    units.forEach(function (u, n) {
+      // the pause after a line's last word is the ⋯ mark's business, not a bar's
+      if (n < units.length - 1 && (rfFlags(i, u) & 2)) u.el.classList.add('rf-pause');
+    });
+  }
   function rfMarkOpen() {
     els.forEach(function (d, i) {
-      var sg = segs[i];
-      d.classList.toggle('rf-open', !!(rf.on && rf.stops && sg && !sg.plain && !rfEnds(sg.text)));
+      d.classList.toggle('rf-open', rfOpen(segs[i], i));
+      rfMarkLine(i);
     });
+  }
+  // the pauses of the word times, asked again after anything moved: they are counted line by line
+  function rfLoadMarks() {
+    return rfPost({ action: 'marks' }).then(function (m) {
+      rf.marks = m;
+    }, function () { rf.marks = null; }).then(function () {
+      if (!rf.on) return;
+      rfMarkOpen();
+      rfPaintDock();
+    });
+  }
+  function rfHint() {
+    if (rf.stops) return RF_HINT + ' A line marked ⋯ stops in the middle of a sentence.';
+    if (rfPauses())
+      return RF_HINT + ' This transcript has no full stops, so the pauses in the speech stand in for them: ' +
+             'a thin bar after a word is a pause of ' + (rf.marks.pause || 0.65) + ' s or more, and a line marked ⋯ ' +
+             'runs on into the next one without one.';
+    if (rf.marks)
+      return RF_HINT + ' This transcript has no full stops and no word times, so nothing here can tell ' +
+             'where a sentence ends: read it, or listen, and choose.';
+    return RF_HINT;
   }
   function rfPaintDock() {
     RF.undo.disabled = rf.busy || !rf.undo.length;
     RF.play.disabled = rf.busy || !rf.last;
     RF.tune.disabled = rf.busy || !rf.last;
-    RF.next.disabled = !rf.stops;
+    RF.next.disabled = !(rf.stops || rfPauses());
     RF.next.title = rf.stops ? 'scroll to the next line that stops in the middle of a sentence'
-                             : 'this transcript has no full stops to tell where a sentence ends';
+                  : rfPauses() ? 'scroll to the next line that runs on without a pause in the speech'
+                  : 'this transcript has no full stops and no word times to tell where a sentence ends';
   }
   function rfSet(on) {
     on = !!on;
@@ -4201,7 +4266,7 @@
       if (editing) closeEditor();
       closeCloud();
       rgShut();
-      rf.on = true; rf.stops = rfHasStops();
+      rf.on = true; rf.stops = rfHasStops(); rf.marks = null;
     } else {
       rf.on = false; rf.pick = null;
       rfPopShut();
@@ -4213,8 +4278,10 @@
     rfMarkOpen();
     if (rf.on) {
       rf.last = null;
-      rfSay(RF_HINT + (rf.stops ? ' A line marked ⋯ stops in the middle of a sentence.' : ''));
+      rfSay(rfHint());
       rfPaintDock();
+      // the word times, for the pauses and for the card to say how a moved line's start will be found
+      rfLoadMarks().then(function () { if (rf.on && !rf.busy && !rf.undo.length) rfSay(rfHint()); });
     }
     // the gear's row says what the page is doing, whoever turned the mode on or off
     rf.fire.forEach(function (f) { try { f(); } catch (e) { /* a row that is gone */ } });
@@ -4253,6 +4320,17 @@
     return list.reduce(function (n, u) {
       return n + (u.k === null ? (L.word_sep ? wordsOf(u.ch.fa).length : 1) : 1);
     }, 0);
+  }
+  // how the start of the line a choice makes will be found, said on the card before it is made
+  function rfWhen(edge, p, before, after) {
+    var u = edge === 'end' ? after[0] : p.units[p.at];
+    if (!u || !rf.marks) return '';
+    if (!rf.marks.words) return ' Its new start is estimated from the share of letters moved (this video has no word times).';
+    var word = window.Parseh && Parseh.baseText ? Parseh.baseText(u.el) : u.el.textContent;
+    word = String(word || '').trim();
+    return (rfFlags(p.i, u) & 1)
+      ? ' That line will begin when \u201c' + word + '\u201d was heard.'
+      : ' \u201c' + word + '\u201d has no heard time, so that line\u2019s start is estimated from the share of letters.';
   }
   function rfNoun(n) {
     return L.word_sep ? (n === 1 ? 'word' : 'words') : (n === 1 ? 'phrase' : 'phrases');
@@ -4322,8 +4400,9 @@
       b.disabled = !!why;
       b.querySelector('small').textContent = why
         ? why
-        : edge === 'end' ? 'moves the ' + n + ' ' + rfNoun(n) + ' after it down to the start of the next line'
-                         : 'moves the ' + n + ' ' + rfNoun(n) + ' before it up to the end of the line above';
+        : (edge === 'end' ? 'moves the ' + n + ' ' + rfNoun(n) + ' after it down to the start of the next line.'
+                          : 'moves the ' + n + ' ' + rfNoun(n) + ' before it up to the end of the line above.') +
+          rfWhen(edge, p, before, after);
     });
     document.querySelectorAll('.rf-pick').forEach(function (e) { e.classList.remove('rf-pick'); });
     u.el.classList.add('rf-pick');
@@ -4480,12 +4559,21 @@
                 (m.direction === 'next' ? 'the start of the next line' : 'the end of the line above') + '.';
       var tail = m.cut ? ' A phrase was cut in two: the second half has its meaning still to write (\u270e edit).' : '';
       rfFlash(m);
+      var timed = res.timed || {};
+      if (rf.marks) rfLoadMarks();
+      if (timed.by === 'words') {
+        rfSay(msg + ' That line now begins at ' + rfClock(res.start.now) + ', ' +
+              (timed.source === 'person' ? 'the start set by ear for \u201c' + timed.word + '\u201d.'
+                                         : 'when \u201c' + timed.word + '\u201d was heard (the word times of the speech to text).') + tail);
+        return;
+      }
+      var because = timed.why ? ' Why not the word times: ' + timed.why + '.' : '';
       if (!res.estimated) { rfSay(msg + tail); return; }
       rfSay(msg + ' Working out where that line begins\u2026');
       return rfSettle(res).then(function (n) {
         if (n) { entry.nudge = n; rf.last = { i: n.i, t: n.to }; }
-        rfSay(msg + ' That line now begins at ' + rfClock(n ? n.to : res.start.now) + ' \u2014 worked out from the words, ' +
-              (n ? 'then settled in the nearest pause of the sound.' : 'not heard.') + tail);
+        rfSay(msg + ' That line now begins at ' + rfClock(n ? n.to : res.start.now) + ' \u2014 estimated from the share of letters moved, ' +
+              (n ? 'then settled in the nearest pause of the sound.' : 'not heard.') + because + tail);
       });
     }, function (err) {
       rfSay(err.message, true);
@@ -4513,6 +4601,7 @@
       rf.undo.pop();
       rfApply(res);
       rf.last = { i: res.start.i, t: res.start.now };
+      if (rf.marks) rfLoadMarks();
       rfSay('Taken back: the two lines are as they were.');
     }, function (err) {
       rf.undo = [];                         // what it could undo is no longer what is there
@@ -4535,7 +4624,7 @@
       if (!pick) pick = els[k];                          // where it wraps to
       if (els[k].getBoundingClientRect().top > from + 4) { pick = els[k]; break; }
     }
-    if (!pick) { rfSay('Every line ends on a full stop.'); return; }
+    if (!pick) { rfSay(rf.stops ? 'Every line ends on a full stop.' : 'Every line ends on a pause in the speech.'); return; }
     pick.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
   document.addEventListener('keydown', function (e) {
