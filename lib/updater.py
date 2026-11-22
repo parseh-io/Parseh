@@ -211,8 +211,10 @@ SCAFFOLDING = (".gitkeep", "README.md")
 NEVER = (".tls/", ".runtime/", ".git/", WORK + "/", ".claude/")
 NEVER_FILES = (".serve.pid", "serve.log", ".setup-done", ".git")
 
-# The content's small files, copied before a step back that lowers a data
-# format: everything under these folders but what is a recording, a film, a
+# The content's small files, copied before an update that lowers a data
+# format (the step back) OR RAISES ONE (TO-DO §13.20: a faulty migration on
+# the way up must find its old files kept, and so must a step back after it):
+# everything under these folders but what is a recording, a film, a
 # picture, a PDF, a font or an archive -- the narrations and the films are
 # what is big, and no data format is kept in them.  NOT stt/ (speech to text's
 # program and models): gigabytes, and no data format of Parseh's is kept in
@@ -524,6 +526,16 @@ def save_settings(root, **changes):
         if k in ("daily", "checked", "latest", "error", "detail"):
             doc[k] = v
     doc["_format"] = STORE_FORMAT
+    # A FILE THERE THAT DOES NOT PARSE was read as the defaults: it is set
+    # aside under a dated name before this write, never written over
+    # (lib/storeguard.py, TO-DO §2.29).  Imported here and not at the top: the
+    # helper copy of this file imports nothing of Parseh's, and never saves this.
+    try:
+        import storeguard
+    except ImportError:
+        pass
+    else:
+        storeguard.set_aside(store(root), ok=lambda d: isinstance(d, dict))
     _write_json(store(root), doc)
     return doc
 
@@ -967,8 +979,10 @@ def formats_plan(old, new, target):
                 % (target, NAME, "; ".join(x["what"] for x in lowered)))
     elif raised:
         said = ("%s writes these in a newer shape: %s. It reads what this %s wrote; going back "
-                "below it later is refused unless you insist." % (
-                    target, "; ".join(x["what"] for x in raised), NAME))
+                "below it later is refused unless you insist. Before anything is replaced, a "
+                "copy of the small files of your books, videos, decks and settings (not the "
+                "narrations and films) is kept with the update, and this page can put them "
+                "back." % (target, "; ".join(x["what"] for x in raised), NAME))
     return {"lowered": lowered, "raised": raised, "said": said}
 
 
@@ -1087,6 +1101,7 @@ def begin(root, insist=False, back_to="", server=None):
            "from": old_version, "to": p["target"], "direction": p["direction"],
            "same_build": p["same_build"], "insist": bool(insist),
            "lowered": [x["name"] for x in p["formats"]["lowered"]],
+           "raised": [x["name"] for x in p["formats"]["raised"]],
            "formats_said": p["formats"]["said"],
            "environment": p["environment"],
            "zip_sha256": sha256_of(os.path.join(jdir, "release.zip")),
@@ -1110,7 +1125,7 @@ def begin(root, insist=False, back_to="", server=None):
 
 def _step_applies(sid, job):
     if sid == "content":
-        return bool(job.get("lowered"))
+        return bool(job.get("lowered") or job.get("raised"))
     if sid == "environment":
         return bool((job.get("environment") or {}).get("install"))
     return True
@@ -1215,6 +1230,91 @@ def finish_first(root, script=None):
             sys.exit(subprocess.call(argv, cwd=os.getcwd()))
         os.execv(sys.executable, argv)
     return True
+
+
+# ------------------------------------------------------------------ the copies of the small files
+def content_copies(root):
+    """The copies of the content's small files that the kept updates made
+    (TO-DO §13.20), newest first -> [{"id", "from", "to", "direction",
+    "made", "files", "why", "restored"}].  An update that lowered or raised a
+    data format made one; it stays as long as its job is kept."""
+    out = []
+    for jid in _jobs(root):
+        d = work(root, "jobs", jid)
+        content = os.path.join(d, "content")
+        if not os.path.isdir(content):
+            continue
+        job = _read_json(os.path.join(d, "job.json"), {}) or {}
+        n = sum(len(files) for _h, _d, files in os.walk(content))
+        if not n:
+            continue
+        if job.get("raised"):
+            why = "it raised the shape of %s" % "; ".join(_what(k) for k in job["raised"])
+        elif job.get("lowered"):
+            why = "it lowered the shape of %s" % "; ".join(_what(k) for k in job["lowered"])
+        else:
+            why = ""
+        out.append({"id": jid, "from": job.get("from") or "", "to": job.get("to") or "",
+                    "direction": job.get("direction") or "", "made": job.get("made") or 0,
+                    "files": n, "why": why,
+                    "restored": _read_json(os.path.join(d, "content-restored.json"), []) or []})
+    return out
+
+
+def put_back_content(root, jid):
+    """Put the small files a kept update copied back where they were -> {"files",
+    "kept", "aside"}.  Every file of the copy is written over the one there
+    now; the one there now is first kept beside the copy, in
+    jobs/<id>/content-before-<stamp>/, so putting back can itself be undone.
+    A file made since (with no copy) is left as it is.  Refused, in words,
+    while an update runs or when there is no such copy."""
+    if running(root):
+        raise Refused("An update is running: wait for it to finish first.")
+    if not isinstance(jid, str) or jid not in _jobs(root):
+        raise Refused("That update is no longer kept, so its copy is gone.")
+    d = work(root, "jobs", jid)
+    content = os.path.join(d, "content")
+    if not os.path.isdir(content):
+        raise Refused("That update kept no copy of your small files.")
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    aside = os.path.join(d, "content-before-%s" % stamp)
+    n = 2
+    while os.path.exists(aside):
+        aside, n = os.path.join(d, "content-before-%s-%d" % (stamp, n)), n + 1
+    todo = []
+    for here, _dirs, files in os.walk(content):
+        for fn in files:
+            src = os.path.join(here, fn)
+            rel = os.path.relpath(src, content).replace(os.sep, "/")
+            # only what copy_content could have copied: the content folders
+            if not any(rel.startswith(top) for top in CONTENT) or \
+                    any(p in ("", ".", "..") for p in rel.split("/")):
+                continue
+            todo.append((src, rel))
+    kept = 0
+    try:
+        for src, rel in sorted(todo, key=lambda x: x[1]):
+            dest = _abs(root, rel)
+            if os.path.isfile(dest):
+                if sha256_of(dest) == sha256_of(src):
+                    continue
+                keep = _abs(aside, rel)
+                os.makedirs(os.path.dirname(keep), exist_ok=True)
+                shutil.copy2(dest, keep)
+                kept += 1
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            part = dest + ".parseh-put-back"
+            shutil.copy2(src, part)
+            _replace(part, dest)
+    except OSError as e:
+        why = plainly(e)[0].rstrip(".")
+        raise Refused("Not every file could be put back (%s%s). The ones written over so far "
+                      "are kept in %s." % (why[:1].lower(), why[1:], aside), detail=_technical(e))
+    done = _read_json(os.path.join(d, "content-restored.json"), []) or []
+    done.append({"at": time.time(), "files": len(todo), "kept": kept,
+                 "aside": aside if kept else ""})
+    _write_json(os.path.join(d, "content-restored.json"), done)
+    return {"files": len(todo), "kept": kept, "aside": aside if kept else ""}
 
 
 # ====================================================================== the helper
@@ -1339,8 +1439,9 @@ class Apply:
         self.step("stop", "done", "stopped")
 
     def copy_content(self):
-        """The small files of the person's things, before a step back that
-        lowers a data format writes anything."""
+        """The small files of the person's things, before an update that
+        lowers or raises a data format writes anything.  Kept with the job
+        (jobs/<id>/content/), and put back from Settings (put_back_content)."""
         self.step("content", "running")
         n = size = 0
         for top in CONTENT:
@@ -1587,7 +1688,7 @@ class Apply:
         """Every step that changes the install, each skipped when the journal
         says it is done already."""
         done = self.done_phases()
-        if self.job.get("lowered") and "content" not in done:
+        if (self.job.get("lowered") or self.job.get("raised")) and "content" not in done:
             self.copy_content()
         if (self.job.get("environment") or {}).get("install") and "environment" not in done:
             self.environment()

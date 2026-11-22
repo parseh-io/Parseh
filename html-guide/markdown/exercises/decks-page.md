@@ -79,6 +79,13 @@ the study page brings it forward when nothing else is left (see
     the deck back, answers and all. A deck is months of answers, so it is
     never thrown away by one click.
 
+### A deck that cannot be read
+
+When a deck's files cannot be read (its `deck.json` cut short or broken by
+hand), its card is still on the page, marked **damaged**, with what could not
+be read and the folder its files are in. It has no buttons: nothing is changed
+or deleted, and once its files are mended it comes back as an ordinary card.
+
 ## Making a deck
 
 **+ New deck** asks for two things:

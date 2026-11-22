@@ -156,6 +156,8 @@ import shelf               # noqa: E402  a whole shelf of either, backed up and 
 import texwrite            # noqa: E402  one chunk of a chapter, edited in place
 import glossregion         # noqa: E402  a region glossed by an LLM: the prompt, the answer put back
 import reading              # noqa: E402  what somebody decided about the text itself
+import pathlock             # noqa: E402  one writer at a time per book and per video (§3.10)
+import storeguard           # noqa: E402  a damaged store is set aside, never written over (§2.29)
 import prefs                # noqa: E402  the reading place and the settings that follow a person
 import later                # noqa: E402  the chunks a person flagged to review later: the same file, its own door (a0.5.0)
 import laterpage            # noqa: E402  /later/, the flags across every book and video
@@ -888,17 +890,30 @@ def set_narrations(b, records):
     return recs
 
 
+# THE DOORS THAT WRITE A BOOK OR A VIDEO, held one at a time per book and per
+# video (TO-DO §3.10, lib/pathlock.py).  Not here: the doors that only read
+# (a lookup, a word line proposed, a prompt made), cut a clip, estimate, or
+# start a job that runs on after the answer (__narration/align).
+BOOK_WRITES = ("__save/", "__narration/transcript", "__narration/restore",
+               "__narration/spread", "__narration/region", "__narration/remove",
+               "__reading/", "__struct/", "__edit/", "__region/apply", "__divide/",
+               "__variety")
+VIDEO_WRITES = ("/api/edit", "/api/region/apply", "/api/editmeta", "/api/divide",
+                "/api/times", "/api/reflow", "/api/variety")
+
+
 def set_book_meta(book_dir, **fields):
     """book.json with these fields set -- e.g. where the narration is."""
     p = os.path.join(book_dir, "book.json")
-    with open(p, encoding="utf-8") as f:
-        meta = json.load(f)
-    meta.update(fields)
-    tmp = p + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
-        f.write("\n")
-    os.replace(tmp, p)
+    with pathlock.held(book_dir):           # one writer at a time (TO-DO §3.10)
+        with open(p, encoding="utf-8") as f:
+            meta = json.load(f)
+        meta.update(fields)
+        tmp = pathlock.tmp(p)
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        os.replace(tmp, p)
 
 def set_variety(json_path, lang, variety):
     """A book.json's or a video.json's `variety` set to `variety` -- one the
@@ -907,15 +922,16 @@ def set_variety(json_path, lang, variety):
     import draft
     L = languages.get(lang)
     want = draft._variety(L, variety)            # refuses a key the language has not (ValueError)
-    with open(json_path, encoding="utf-8") as f:
-        meta = json.load(f)
-    meta.pop("variety", None)
-    meta.update(want)
-    tmp = json_path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
-        f.write("\n")
-    os.replace(tmp, json_path)
+    with pathlock.held(os.path.dirname(os.path.abspath(json_path))):     # TO-DO §3.10
+        with open(json_path, encoding="utf-8") as f:
+            meta = json.load(f)
+        meta.pop("variety", None)
+        meta.update(want)
+        tmp = pathlock.tmp(json_path)
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        os.replace(tmp, json_path)
     return want.get("variety", "")
 
 
@@ -1150,6 +1166,61 @@ def mode_switch():
     return mobile.mode_switch()
 
 
+# A PERSONAL STORE THAT COULD NOT BE READ (TO-DO §2.29, lib/storeguard.py).
+# Every store of the person's in config/ sets a file that does not parse
+# aside under a dated name before its first write, instead of writing over
+# it; the hub says so, in plain words, until somebody has read it.
+def damaged_folders():
+    return sorted(set(os.path.dirname(os.path.abspath(str(p))) for p in (
+        prefs.STORE, network.STORE, prompts.STORE, latexthemes.STORE,
+        lmlikelihoodconfig.CONFIG, updater.store(ROOT),
+        os.path.join(ROOT, "config", "x"))))
+
+
+def damaged_notice():
+    try:
+        rows = storeguard.found(damaged_folders())
+    except Exception:       # noqa: BLE001 -- a notice must never stop the hub
+        return ""
+    if not rows:
+        return ""
+
+    def where(path):
+        rel = os.path.relpath(path, ROOT)
+        return path if rel.startswith("..") else rel.replace(os.sep, "/")
+    items = "".join(
+        "<li>On %s, %s could not read <code>%s</code> (%s). The file is kept, as it was, "
+        "under the name <code>%s</code>, and %s started that store fresh.</li>"
+        % (esc(r["at"]), NAME, esc(where(os.path.join(r["folder"], r["store"]))),
+           esc(storeguard.WHAT.get(r["store"], "one of your settings")), esc(where(r["path"])), NAME)
+        for r in rows)
+    names = esc(json.dumps([r["name"] for r in rows]))
+    one = len(rows) == 1
+    return """<section class="hub-damaged" role="alert" data-damaged="%(names)s"
+  style="border:2px solid var(--warn);border-radius:8px;padding:.6rem 1rem;margin:.6rem 0 1rem;text-align:start">
+  <p style="margin:.2rem 0"><b>%(n)s of your files could not be read, and %(name)s did not write over %(them)s.</b></p>
+  <ul style="margin:.3rem 0 .5rem">%(items)s</ul>
+  <p style="margin:.2rem 0">What was in %(them)s is still there, in the %(name)s folder: open %(them)s with any
+  text editor to see what can be saved. %(name)s goes on without %(them)s.</p>
+  <p style="margin:.4rem 0 .2rem"><button type="button" class="parseh-btn" data-damaged-seen>I have read this</button></p>
+  <script>
+  (function () {
+    var b = document.querySelector('[data-damaged-seen]');
+    if (!b) return;
+    b.addEventListener('click', function () {
+      var box = b.closest('[data-damaged]');
+      fetch('/__damaged/seen', {method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({names: JSON.parse(box.getAttribute('data-damaged'))})})
+        .then(function (r) { return r.json(); })
+        .then(function (j) { if (j.ok) box.remove(); else b.textContent = j.error || 'not marked'; })
+        .catch(function () { b.textContent = 'not marked: the computer did not answer'; });
+    });
+  })();
+  </script>
+</section>""" % {"names": names, "items": items, "name": NAME,
+                 "n": "One" if one else str(len(rows)), "them": "it" if one else "them"}
+
+
 def hub_page():
     bks = book_stats()
     try:
@@ -1226,6 +1297,7 @@ def hub_page():
 </div>
 <main class="hub">
   <div id="hub-activity"></div>
+  %(damaged)s
   <div class="hub-browser" data-layout="browser">
   <div class="brand"><span class="fa" lang="fa" data-lang="fa">&#x67E;&#x627;&#x631;&#x633;&#x647;</span><span class="lat">%(name)s</span></div>
   %(row)s
@@ -1400,7 +1472,7 @@ def hub_page():
   </div>
 </main>
 </body></html>
-""" % {"name": NAME, "version": version.VERSION,
+""" % {"name": NAME, "version": version.VERSION, "damaged": damaged_notice(),
        "row": row, "mrow": mrow, "modes": mode_switch(), "apphead": mobile.app_head(),
        # The four doors' counts are whole tags, each carrying what every
        # language has: pick a chip and they say that language's number.
@@ -1712,7 +1784,7 @@ UPDATE_ROUTES = ("/settings/api/update/state", "/settings/api/update/plan",
                  "/settings/api/update/check", "/settings/api/update/daily",
                  "/settings/api/update/fetch", "/settings/api/update/stop",
                  "/settings/api/update/upload", "/settings/api/update/discard",
-                 "/settings/api/update/apply")
+                 "/settings/api/update/apply", "/settings/api/update/put-back")
 
 # SETTINGS -> LaTeX DRAWINGS (TO-DO §8.39, lib/latexpage.py): the page, and
 # each of its routes, every one of them in lib/settingspage.py ROUTES
@@ -3370,6 +3442,20 @@ class Handler(SimpleHTTPRequestHandler):
             except (ValueError, OSError) as e:
                 return self.send_json({"ok": False, "error": str(e)}, 400)
             return self.send_json(out)
+        if path == "/__damaged/seen":
+            # the hub's "I have read this" under a store that was set aside
+            # (TO-DO §2.29): the names go into damaged-seen.json beside them;
+            # the files themselves stay where they are
+            if method != "POST":
+                return self._method_not_allowed()
+            names = self._json_body().get("names")
+            if not isinstance(names, list):
+                return self.send_json({"ok": False, "error": "which files?"}, 400)
+            try:
+                marked = storeguard.seen(damaged_folders(), [str(x) for x in names[:100]])
+            except OSError as e:
+                return self.send_json({"ok": False, "error": str(e)}, 500)
+            return self.send_json({"ok": True, "marked": marked})
         if path == "/__later":
             # THE CHUNKS A PERSON FLAGGED TO REVIEW LATER (lib/later.py, a0.5.0).
             # The same file as the reading place, its own door, so that they do
@@ -4623,6 +4709,22 @@ class Handler(SimpleHTTPRequestHandler):
             return self._notes(method, d,
                                ytpages.BASE + "/v/%s/notes" % m.group(1),
                                m.group(2) or "/")
+        if method == "POST" and sub in VIDEO_WRITES and not getattr(self, "_video_held", False):
+            # ONE WRITER AT A TIME FOR EACH VIDEO (TO-DO §3.10), as for a book:
+            # the doors that change a video's files hold its lock for the whole
+            # request.  A body that will not read is left to the door to refuse.
+            try:
+                vid = self._json_body().get("video")
+            except Exception:       # noqa: BLE001 -- the door answers it
+                vid = None
+            d = self._video_dir(vid) if isinstance(vid, str) and vid else None
+            if d:
+                self._video_held = True
+                try:
+                    with pathlock.held(d):
+                        return self._youtube(method, sub)
+                finally:
+                    self._video_held = False
         if method == "POST":
             if sub == "/api/transcript":
                 return ytpages.api_transcript(self)
@@ -5175,6 +5277,22 @@ class Handler(SimpleHTTPRequestHandler):
             locked = self._book_dir()
             if locked and making.is_making(locked):
                 return self._making_locked()
+        # ONE WRITER AT A TIME FOR EACH BOOK (TO-DO §3.10): every door below
+        # that writes the book holds its lock (lib/pathlock.py) for the whole
+        # request, so two tabs or two devices editing it at once are taken one
+        # after the other and neither edit is lost.  Re-entered once, with the
+        # lock held; the doors that only read, cut a clip or start a job are
+        # not held.
+        if not getattr(self, "_book_held", False) and any(
+                w in p for w in BOOK_WRITES):
+            book = self._book_dir()
+            if book:
+                self._book_held = True
+                try:
+                    with pathlock.held(book):
+                        return self._books_post(path)
+                finally:
+                    self._book_held = False
         if p.endswith("__save/review-corrections.json"):
             return self._save()
         if p.endswith("__save/subtimes.json"):
@@ -6491,9 +6609,10 @@ class Handler(SimpleHTTPRequestHandler):
                     kept = os.path.join(adir, "timings.before-import.json")
                     shutil.copy(b.timings, kept)
                     log.append("the previous timings.json is kept as audio/timings.before-import.json")
-                with open(b.timings + ".tmp", "wb") as out:
+                tmp = pathlock.tmp(b.timings)
+                with open(tmp, "wb") as out:
                     out.write(data)
-                os.replace(b.timings + ".tmp", b.timings)
+                os.replace(tmp, b.timings)
                 log.append("timings.json: %d subparagraphs%s" % (
                     n_subs, " (from %s)" % man.get("exported", "")[:10] if man.get("exported") else ""))
         if fields:
@@ -7030,7 +7149,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._method_not_allowed()
             return self.send_html(updatepage.page(updater.plan(ROOT), updater.settings(ROOT),
                                                   updater.state(ROOT), self._where(),
-                                                  update_fetch_now()))
+                                                  update_fetch_now(),
+                                                  copies=updater.content_copies(ROOT)))
         if path in ("/settings/speech", "/settings/speech/index.html"):
             return self._redirect(SPEECH_PAGE)
         if path == SPEECH_PAGE:
@@ -7323,6 +7443,13 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/settings/api/update/daily":
             s = updater.save_settings(ROOT, daily=bool(self._json_body().get("on")))
             return self.send_json({"ok": True, "daily": s["daily"]})
+        if path == "/settings/api/update/put-back":
+            # the small files a kept update copied, put back (TO-DO §13.20)
+            try:
+                got = updater.put_back_content(ROOT, self._json_body().get("job"))
+            except updater.Refused as e:
+                return self.send_json({"ok": False, "error": str(e), "detail": e.detail}, 409)
+            return self.send_json(dict(got, ok=True))
         refused = updater.installed(ROOT)["refused"]
         if refused:
             return self.send_json({"ok": False, "error": refused}, 409)

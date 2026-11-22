@@ -53,6 +53,7 @@ import statistics
 
 import annwrite
 import captimes
+import pathlock
 import chunkdiv
 from check_annotations import (departs, parse_transcript_text, stamp_of,
                                transcript_text, video_language)
@@ -213,7 +214,7 @@ def _commit(video_dir, ann, segs, L, caps, before, was_starts):
     annwrite.write(video_dir, ann)
     if caps is not None:
         tpath = os.path.join(video_dir, "transcript.txt")
-        tmp = tpath + ".tmp"
+        tmp = pathlock.tmp(tpath)
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(panel)
         os.replace(tmp, tpath)

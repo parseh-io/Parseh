@@ -88,7 +88,12 @@ Parseh/
   `languages.json`, the languages you added, when you have; `updates.json`,
   whether Parseh looks for a new version once a day; `prompts.json`, the
   prompts you wrote for a chatbot; and `digests.json` with `wheres.json`, what a
-  phone checks the things it keeps against.
+  phone checks the things it keeps against. When one of your settings files
+  cannot be read (cut short by a crash, or broken by hand), Parseh does not
+  write over it: before its next save it renames the file, for example to
+  `prefs.json.damaged-20261122-101500`, starts that file fresh, and says so at
+  the top of the hub until you press **I have read this**. The renamed file
+  stays in `config/` for you to open and mend.
 
 **The files at the top**:
 

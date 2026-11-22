@@ -96,13 +96,11 @@ def revision(config=None):
 
 def write(config):
     config = validate(config)
-    CONFIG.parent.mkdir(parents=True, exist_ok=True)
-    tmp = CONFIG.with_suffix('.json.tmp')
+    # an unreadable file there is set aside, never written over (TO-DO §2.29)
+    import storeguard
     with LOCK:
-        with open(tmp, 'w', encoding='utf-8') as f:
-            os.chmod(tmp, 0o600)
-            json.dump(config, f, ensure_ascii=False)
-        os.replace(tmp, CONFIG)
+        storeguard.write_json(str(CONFIG), config, ok=lambda d: isinstance(d, dict),
+                              private=True, indent=None)
     # Cancel active work as soon as settings change, including model loading.
     import lmlikelihood
     lmlikelihood.unload_all()

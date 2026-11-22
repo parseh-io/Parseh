@@ -11,7 +11,6 @@ Parseh did before, at the place that asks (analyzer.Result.outcome).
 """
 import json
 import os
-import tempfile
 import threading
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -52,9 +51,8 @@ def save(changes):
             raise ValueError("No such choice: %s" % str(k)[:30])
     with LOCK:
         doc = dict(load(), **changes)
-        os.makedirs(os.path.dirname(STORE), exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(STORE), prefix=".analysis-")
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(dict(doc, format=STORE_FORMAT), f, indent=1)
-        os.replace(tmp, STORE)
+        # an unreadable file there is set aside, never written over (TO-DO §2.29)
+        import storeguard
+        storeguard.write_json(STORE, dict(doc, format=STORE_FORMAT),
+                              ok=lambda d: isinstance(d, dict))
     return doc

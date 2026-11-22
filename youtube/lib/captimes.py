@@ -39,6 +39,7 @@ import os
 import re
 
 import annwrite
+import pathlock    # lib/, on the path once annwrite is imported (TO-DO §3.10)
 from check_annotations import (parse_transcript_text, transcript_text,
                                video_language)
 
@@ -100,7 +101,7 @@ def _write_json(path, value, style):
         text = text.rstrip("\n")
     else:
         text = text.rstrip("\n") + "\n"
-    tmp = path + ".tmp"
+    tmp = pathlock.tmp(path)
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(text)
     os.replace(tmp, path)
@@ -192,7 +193,7 @@ def _move_notes(video_dir, olds):
                 out.append(row)
             if not hit:
                 continue
-            tmp = path + ".tmp"
+            tmp = pathlock.tmp(path)
             with open(tmp, "w", encoding="utf-8") as f:
                 f.write("\n".join(out))
             os.replace(tmp, path)
@@ -291,7 +292,7 @@ def move(video_dir, moves):
     # ---- and only now, the files ----
     annwrite.write(video_dir, ann)
     if caps is not None:
-        tmp = tpath + ".tmp"
+        tmp = pathlock.tmp(tpath)
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(transcript_text(caps))
         os.replace(tmp, tpath)
