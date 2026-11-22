@@ -53,7 +53,10 @@ def view(where=""):
         have, of, missing = langfeatures.summary(code)
         out.append({"code": code, "name": L.name, "native": L.native, "dir": L.dir, "mine": code in mine,
                     "like": L.like or "", "have": have, "of": of, "missing": missing,
-                    "features": [f.as_json() for f in langfeatures.features(code)]})
+                    "features": [f.as_json() for f in langfeatures.features(code)],
+                    # its varieties (Arabic's dialects), each a sub-row with its own features
+                    "varieties": [dict(v, features=[f.as_json() for f in v["features"]])
+                                  for v in langfeatures.varieties(code)]})
     return {"ok": True, "languages": out, "scripts": list(SCRIPTS),
             "pieces": {k: v[0] for k, v in langprompts.PIECES.items()},
             "may": {k: settingspage.may(k, where) for k in KEYS},
@@ -185,6 +188,14 @@ STYLE = r"""
   .lg .feats li{grid-template-columns:1.4em minmax(0,1fr)}
   .lg .feats .says,.lg .feats .adds,.lg .feats .write{grid-column:2}
 }
+.lg .vars{padding:0 14px 10px}
+.lg .vars-h{font-size:14px;margin:.4rem 0 .2rem;color:var(--dim);font-weight:600}
+.lg details.var{border:1px solid var(--rule);border-radius:8px;margin:6px 0;background:var(--bg)}
+.lg details.var>summary{display:flex;gap:6px 12px;align-items:baseline;flex-wrap:wrap;padding:7px 12px;cursor:pointer;
+  list-style:none;min-height:40px;box-sizing:border-box}
+.lg details.var>summary::-webkit-details-marker{display:none}
+.lg details.var .key{font-family:ui-monospace,monospace;font-size:12.5px;color:var(--dim)}
+.lg details.var .feats{padding:0 12px 8px}
 .lg .feats .asked .says::after{content:" (asked when it is fetched)";color:var(--dim);font-size:12.5px}
 .lg button,.lg select,.lg input,.lg textarea{font:inherit}
 .lg button{padding:.4rem .8rem;border-radius:8px;border:1px solid var(--rule);background:var(--card);color:inherit;
@@ -250,10 +261,25 @@ SCRIPT = r"""
         '" dir="' + esc(l.dir) + '">' + esc(l.native) + '</span>' + (l.mine ? '<span class="mine">added here</span>' : '') +
         '<span class="cnt">' + l.have + ' of ' + l.of + ' features</span>' +
         (l.missing.length ? '<span class="miss">still needed: ' + esc(l.missing.join(', ')) + '</span>' : '') +
-        '</summary><ul class="feats">' + l.features.map(function (f) { return feature(l, f); }).join('') + '</ul></details>';
+        '</summary><ul class="feats">' + l.features.map(function (f) { return feature(l, f); }).join('') + '</ul>' +
+        varieties(l) + '</details>';
     }).join('');
   }
+  // THE VARIETIES OF A LANGUAGE (Arabic's dialects): a sub-row each, under the language's own features, with
+  // what the variety has of its own and what it takes from the language
+  function varieties(l) {
+    if (!l.varieties || !l.varieties.length) return '';
+    return '<div class="vars"><h3 class="vars-h">Its varieties</h3>' + l.varieties.map(function (v) {
+      var have = v.features.filter(function (f) { return f.state === 'have' || f.state === 'asked'; }).length;
+      return '<details class="var" data-variety="' + esc(v.key) + '"' + (open[l.code + '.' + v.key] ? ' open' : '') +
+        '><summary><span class="nm">' + esc(v.name) + '</span><span class="key">' + esc(l.code + '.' + v.key) +
+        '</span><span class="cnt">' + have + ' of ' + v.features.length + ' of its own</span></summary>' +
+        '<ul class="feats">' + v.features.map(function (f) { return feature({mine: false}, f); }).join('') + '</ul></details>';
+    }).join('') + '</div>';
+  }
   box.addEventListener('toggle', function (e) {
+    var v = e.target.matches && e.target.matches('details.var') ? e.target : null;
+    if (v) { open[v.closest('details.lang').getAttribute('data-code') + '.' + v.getAttribute('data-variety')] = v.open; return; }
     var d = e.target.closest && e.target.closest('details.lang');
     if (d) open[d.getAttribute('data-code')] = d.open;
   }, true);

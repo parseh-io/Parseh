@@ -4048,6 +4048,26 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_json(dict(job, ok=True, activity=act))
 
     # ---- a book made by an agent, in place (lib/making.py)
+    def _variety_changed(self, book, b, body, got):
+        """A book's `variety` just written (or only asked for): the answer of its dictionary panel's row, and --
+        when it changed -- the library page written again, so the book's card says its dialect, and the
+        instructions of a book an agent is making written again, so the agent is told the new one (the answer's
+        `said` says what the person is to tell it)."""
+        out = variety_answer(b.lang.code, got)
+        if "variety" not in body or (b.variety or "") == (got or ""):
+            return out
+        try:
+            self._write_library()
+        except Exception as e:                  # noqa: BLE001 -- the card waits for the next build; the change stands
+            sys.stderr.write("variety: the library page was not written again (%s)\n" % e)
+        if making.state(book) == "making":
+            try:
+                making.rewrite_instructions(book)
+                out["said"] = making.INSTRUCTIONS_AGAIN_SAID
+            except ValueError as e:
+                out["said"] = "The instructions were not written again: %s" % e
+        return out
+
     def _making_locked(self):
         """The answer to a door that writes the .tex of a book being made."""
         self.send_json({"ok": False, "making": True, "error": making.LOCK_SAID}, 409)
@@ -5363,7 +5383,7 @@ class Handler(SimpleHTTPRequestHandler):
                        if "variety" in body else (b.variety or ""))
             except (ValueError, KeyError, OSError) as e:
                 return self.send_json({"ok": False, "error": str(e)}, 400)
-            return self.send_json(variety_answer(b.lang.code, got))
+            return self.send_json(self._variety_changed(book, b, body, got))
         if p.endswith("__lookup"):
             book = self._book_dir()
             if not book:

@@ -316,6 +316,12 @@ def _refresh_from_source(meta, markdown):
     meta["note"] = fm.get("note", "")
     meta["lang"] = fm.get("lang", htmlgen.DEFAULT_PROSE)
     meta["target"] = fm["target"]           # a registry code, always
+    # the variety of the target the text is in (Arabic's dialects), as its
+    # front matter says it: none is the standard language
+    if fm.get("variety"):
+        meta["variety"] = fm["variety"]
+    else:
+        meta.pop("variety", None)
     meta["stats"] = htmlgen.stats(markdown, blocks, target=fm["target"])
     return meta
 
@@ -510,6 +516,13 @@ def update_meta(doc_id, patch):
         save(doc_id, set_title(get(doc_id)[1], title))
         patch = dict(patch)
         del patch["title"]
+    if "variety" in patch:
+        # THE VARIETY IS THE TEXT'S OWN, like its language: a `variety:` line in
+        # the front matter, written there (and the record refreshed from it)
+        meta_now, markdown = get(doc_id)
+        save(doc_id, set_variety(markdown, patch["variety"], meta_now.get("target")))
+        patch = dict(patch)
+        del patch["variety"]
     with _meta_lock(doc_id):
         meta = _read_meta(d)
         if "tags" in patch:
@@ -2292,6 +2305,39 @@ def set_title(markdown, title):
     return "\n".join(lines)
 
 
+def set_variety(markdown, variety, target=None):
+    """The markdown with its front matter's `variety:` saying `variety` -- one
+    the document's language has (Arabic's egy, lev, gulf, mor) -- or with no
+    such line for the standard language ("" or "standard").  The line goes
+    after the `target:` line (or last in the header); a text with no header
+    gets one.  Everything else is left exactly as it was.  A key the language
+    has not is refused (StoreError)."""
+    v = _header_value(variety).lower()
+    if v in ("standard", "msa"):
+        v = ""
+    if v:
+        L = languages.get_or_default(target or mdparser.parse(markdown or "")[0].get("target"))
+        if not L.variety_of(v):
+            raise StoreError("%s has no variety %r (%s)" % (
+                L.name, v, ", ".join(x["key"] for x in L.varieties) or "it has none"))
+    lines = (markdown or "").split("\n")
+    block = _header_block(lines)
+    if not block:
+        return "---\n%s\n---\n\n%s" % (_header_line("variety", v), (markdown or "").lstrip("\n")) if v else markdown
+    i, j = block
+    keep, after = [], None
+    for n in range(i + 1, j):
+        m = _HEADER_LINE_RE.match(lines[n])
+        if m and m.group(1).lower() == "variety":
+            continue
+        if m and m.group(1).lower() == "target":
+            after = len(keep)
+        keep.append(lines[n])
+    if v:
+        keep.insert(len(keep) if after is None else after + 1, _header_line("variety", v))
+    return "\n".join(lines[:i + 1] + keep + lines[j:])
+
+
 def _body_start(lines):
     """Where the body begins: past the front matter, as mdparser.parse finds
     it (blank lines, a `---`, and up to the next `---` or the end)."""
@@ -2901,6 +2947,10 @@ def _decorate(meta):
     set_target(m["target"])
     m["title_html"] = htmlgen.inline(m.get("title", ""))
     m["subtitle_html"] = htmlgen.inline(m.get("subtitle", ""))
+    # the variety it is written in, by its name (the card says "Egyptian Arabic")
+    v = languages.get_or_default(m["target"]).variety_of(m.get("variety"))
+    if v:
+        m["variety_name"] = v.get("name") or v["key"]
     return m
 
 

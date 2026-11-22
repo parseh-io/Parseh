@@ -332,7 +332,7 @@ def api_decks_list(h):
 
 def api_decks_create(h):
     body = _obj(h)
-    h.send_json({"ok": True, "deck": decks.create_deck(body.get("name"), body.get("lang"))}, 201)
+    h.send_json({"ok": True, "deck": decks.create_deck(body.get("name"), body.get("lang"), body.get("variety"))}, 201)
 
 
 def api_deck_get(h, folder, slug):
@@ -420,7 +420,8 @@ def api_deck_offline(h, folder, slug):
 def api_deck_update(h, folder, slug):
     _here(folder, slug)
     body = _obj(h)
-    deck = decks.update_deck(folder, slug, name=body.get("name"), settings=body.get("settings"))
+    deck = decks.update_deck(folder, slug, name=body.get("name"), settings=body.get("settings"),
+                             variety=body.get("variety"))
     h.send_json({"ok": True, "deck": deck})
 
 

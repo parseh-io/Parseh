@@ -128,6 +128,13 @@
     <input id="tag-input" list="tag-options" placeholder="+ tag" autocomplete="off">
     <datalist id="tag-options"></datalist>
   </div>
+  <!-- the variety of its language the text is written in (Arabic's dialects): shown only for a
+       language that has varieties; written into the front matter as `variety:` -->
+  <div class="variety-edit" id="variety-edit" hidden>
+    <label><span class="tags-label">Written in</span> <select id="doc-variety"
+      aria-label="the variety of the language this document is written in"></select></label>
+    <span class="variety-said" id="variety-said" role="status"></span>
+  </div>
   <div class="buildinfo" id="buildinfo"></div>
 </div>
 

@@ -56,6 +56,10 @@
       <button type="button" class="btn ghost small" id="btn-rename"
               title="Rename this deck" aria-label="Rename this deck">✎</button>
       <span class="badge dk-lang" lang="{{TARGET}}" data-lang="{{TARGET}}">{{TARGET_NAME}}</span>
+      <!-- the variety of its language the deck's exercises are in (Arabic's dialects): drawn by
+           decks.js from the deck's record, for a language that has varieties only -->
+      <label class="dk-variety" id="deck-variety-lbl" hidden>written in
+        <select id="deck-variety" aria-label="the variety of the language this deck is written in"></select></label>
     </div>
     <div class="dk-counts" id="deck-counts" aria-live="polite"></div>
     <!-- while the deck is out on a phone, the computer says so here, with the

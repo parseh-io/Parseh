@@ -847,7 +847,29 @@ def _deck_summary(d, meta, now):
             "folder": L.folder, "slug": d.name, "path": "%s/%s" % (L.folder, d.name),
             "created": meta.get("created", ""), "updated": meta.get("updated", ""),
             "settings": cfg, "counts": counts, "study": q["counts"],
-            "next_due": q["next_due"]}
+            "next_due": q["next_due"], **_variety_view(L, meta)}
+
+
+def _variety_view(L, meta):
+    """What a deck says of the variety of its language its exercises are written in (Arabic's dialects):
+    the key ("" for the standard language, and for every deck made before there were any), its name, and
+    the ones the language has, for the deck page's select."""
+    v = L.variety_of(meta["variety"]) if isinstance(meta.get("variety"), str) else None
+    return {"variety": v["key"] if v else "", "variety_name": (v.get("name") or v["key"]) if v else "",
+            "varieties": [{"key": x["key"], "name": x.get("name") or x["key"]} for x in L.varieties],
+            "standard_name": L.standard_name or L.name}
+
+
+def _variety_of(L, variety):
+    """A variety as a deck.json stores it -> its key, or "" for the standard language; DeckError for one the
+    language has not."""
+    v = str(variety or "").strip().lower()
+    if v in ("", "standard", "msa"):
+        return ""
+    if not L.variety_of(v):
+        raise DeckError("%s has no variety %r (%s)" % (
+            L.name, v, ", ".join(x["key"] for x in L.varieties) or "it has none"))
+    return v
 
 
 def list_decks(lang=None, now=None, damaged=None):
@@ -897,9 +919,10 @@ def _damaged(L, slug, why, name=None):
             "name": name if isinstance(name, str) and name.strip() else slug, "why": why}
 
 
-def create_deck(name, lang):
+def create_deck(name, lang, variety=None):
     name = _clean_name(name)
     L = _language(lang)
+    variety = _variety_of(L, variety)
     now = _clock()
     with _PLACE:
         parent = DIR / L.folder
@@ -911,6 +934,8 @@ def create_deck(name, lang):
             deck_id = secrets.token_hex(6)
         meta = {"format": FORMAT, "id": deck_id, "name": name, "lang": L.code,
                 "created": _stamp(now), "updated": _stamp(now), "settings": {}}
+        if variety:
+            meta["variety"] = variety
         _write_json(d / "deck.json", meta)
     return _deck_summary(d, meta, now)
 
@@ -920,15 +945,23 @@ def get_deck(folder, slug, now=None):
     return _deck_summary(d, _need_deck(d), _clock(now))
 
 
-def update_deck(folder, slug, name=None, settings=None):
+def update_deck(folder, slug, name=None, settings=None, variety=None):
     """Rename (the slug, and so every URL, stays) and/or change options.
-    `settings` is merged over the stored ones and checked whole."""
+    `settings` is merged over the stored ones and checked whole.  `variety`
+    is the variety of the deck's language its exercises are in ("" or
+    "standard" for the standard language)."""
     d = deck_dir(folder, slug)
     now = _clock()
     with _lock(d):
         meta = _need_deck(d)
         if name is not None:
             meta["name"] = _clean_name(name)
+        if variety is not None:
+            v = _variety_of(_deck_language(d), variety)
+            if v:
+                meta["variety"] = v
+            else:
+                meta.pop("variety", None)
         if settings is not None:
             if not isinstance(settings, dict):
                 raise DeckError("settings must be an object of named options")
@@ -2277,7 +2310,8 @@ def export_zip(folder, slug, scheduling):
                 "deck": {"id": meta["id"], "name": meta["name"],
                          "lang": _deck_language(d).code,
                          "settings": _sparse(_settings(meta)),
-                         "created": meta.get("created", "")}}))
+                         "created": meta.get("created", ""),
+                         **({"variety": meta["variety"]} if meta.get("variety") else {})}}))
             names = []
             for item in _load_items(d):
                 zf.writestr("items/%s.json" % item["id"], _json_bytes(item))
@@ -2596,6 +2630,9 @@ def import_zip(source, scheduling=True, mode="new"):
             meta = {"format": FORMAT, "id": deck["id"], "name": name, "lang": L.code,
                     "created": _iso_or(deck.get("created"), _stamp(now)),
                     "updated": _stamp(now), "settings": settings}
+            # the variety its exercises are in travels with it; one this Parseh's language has not is dropped
+            if isinstance(deck.get("variety"), str) and L.variety_of(deck["variety"]):
+                meta["variety"] = deck["variety"].strip().lower()
             with _PLACE:
                 # decided again under the lock: a deck may have arrived meanwhile
                 found = _find_deck(parent, deck["id"])
@@ -2782,6 +2819,8 @@ def _restore_one(parent, slug, meta, group, reader, L, now):
                  "created": _iso_or(meta.get("created"), _stamp(now)),
                  "updated": _iso_or(meta.get("updated"), _stamp(now)),
                  "settings": _sparse(_settings(meta))}
+        if isinstance(meta.get("variety"), str) and L.variety_of(meta["variety"]):
+            clean["variety"] = meta["variety"].strip().lower()
         _write_json(stage / "deck.json", clean)
         with _PLACE:
             found = _find_deck(parent, meta["id"])
@@ -2828,7 +2867,7 @@ def _installed_summary(d, meta, imported):
             "created": meta.get("created", ""), "updated": meta.get("updated", ""),
             "settings": _settings(meta),
             "counts": {"total": imported, "new": 0, "learning": 0, "review": 0},
-            "study": {"new": 0, "learning": 0, "review": 0}, "next_due": None}
+            "study": {"new": 0, "learning": 0, "review": 0}, "next_due": None, **_variety_view(L, meta)}
 
 
 def _reads(stamp, fmt):

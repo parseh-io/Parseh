@@ -368,6 +368,10 @@ def video_card(m):
     L = languages.get_or_default(m.get("_lang"))
     pending = m["_segments"] == 0
     tags = []
+    # THE VARIETY IT IS IN (Arabic's dialects: video.json `variety`), by its name
+    if L.variety_name_of(m.get("variety")):
+        tags.append('<span class="tag" data-variety="%s">%s</span>'
+                    % (esc(m["variety"]), esc(L.variety_name_of(m["variety"]))))
     if m.get("level"):
         tags.append('<span class="tag">%s</span>' % esc(m["level"]))
     if m.get("duration"):
@@ -2340,6 +2344,10 @@ ADD_PAGE_HEAD = r'''
   <span class="fieldnote">On YouTube: <i>&hellip;more &rarr; Show transcript</i>, select the whole
     panel, copy. Paste it verbatim, timestamps included.<span id="subline" hidden> <b>Or</b>
     paste a <code>.srt</code> or <code>.vtt</code> file whole.</span></span>
+  <!-- WHICH CAPTION TRACK, for a video in one of its language's varieties (Arabic's dialects): the page says
+       which track of YouTube's transcript panel to take -- the variety's own where the video has one -- since
+       Parseh reads what is pasted and cannot see the tracks itself (TO-DO 12.32) -->
+  <p class="fieldnote tracknote" id="tracknote" role="status" hidden></p>
 
   <!-- Speech to text is OPTIONAL and is drawn by /youtube/lib/addstt.js from what
        the computer says it has: this is only the place it goes.  Empty and
@@ -2804,7 +2812,21 @@ ADD_PAGE_JS = r'''
       var o = document.createElement('option'); o.value = v.key; o.textContent = v.name; vsel.appendChild(o);
     });
     vsel.value = vs.some(function (v) { return v.key === keep; }) ? keep : '';
+    trackNote();
   }
+  // THE CAPTION TRACK TO TAKE, said beside the transcript box for a video in a variety: its own track first
+  // (Egyptian Arabic: arz), the language's when the video has none; read as the variety either way
+  function trackNote() {
+    var L = LANGS[val('lang')] || {}, key = val('variety'), note = $('tracknote');
+    var v = (L.varieties || []).filter(function (x) { return x.key === key; })[0];
+    note.hidden = !v;
+    if (!v) { note.textContent = ''; return; }
+    var codes = (v.tracks || []).join(', ');
+    note.textContent = 'Written in ' + v.name + ': in YouTube\u2019s transcript panel, choose the ' + v.name +
+      ' track' + (codes ? ' (' + codes + ')' : '') + ' from its language menu if the video has one, and ' +
+      (L.name || 'the language') + '\u2019s otherwise. Whichever you paste is read as ' + v.name + '.';
+  }
+  $('variety').addEventListener('change', trackNote);
   $('lang').addEventListener('change', langChanged);
   // the prompt names the gloss language and asks for the meanings in it,
   // so a prepared one is out of date the moment that changes
@@ -3126,7 +3148,9 @@ def add_page():
                     for L in languages.LANGS.values())
     langs_json = json.dumps({L.code: {"name": L.name, "native": L.native, "dir": L.dir,
                                       "folder": L.folder, "standard_name": L.standard_name,
-                                      "varieties": [{"key": v["key"], "name": v.get("name") or v["key"]}
+                                      "varieties": [{"key": v["key"], "name": v.get("name") or v["key"],
+                                                     # its caption tracks' language codes (ISO 639-3)
+                                                     "tracks": [c for _n, c in (v.get("kaikki") or []) if c]}
                                                     for v in L.varieties]}
                              for L in languages.LANGS.values()}, ensure_ascii=False)
     # Every language a gloss may be written in, in two groups: the eight

@@ -924,6 +924,10 @@ def book_card(b):
     L = b.lang
     attrs = L.html_attrs()
     tags = []
+    # the variety it is written in (Arabic's dialects), by its name, as the computer's card says it
+    if L.variety_name_of(b.variety):
+        tags.append('<span class="tag" data-variety="%s">%s</span>'
+                    % (esc(b.variety), esc(L.variety_name_of(b.variety))))
     if st.get("built"):
         n = len(st.get("chapters", []))
         tags.append('<span class="tag">%d chapter%s</span>' % (n, "" if n == 1 else "s"))
@@ -1196,6 +1200,9 @@ def _video_card(m):
     L = languages.get_or_default(m.get("_lang"))
     attrs = L.html_attrs()
     tags = []
+    if L.variety_name_of(m.get("variety")):
+        tags.append('<span class="tag" data-variety="%s">%s</span>'
+                    % (esc(m["variety"]), esc(L.variety_name_of(m["variety"]))))
     if m.get("duration"):
         tags.append('<span class="tag">%s</span>' % esc(m["duration"]))
     if m.get("_kind") == "audio":

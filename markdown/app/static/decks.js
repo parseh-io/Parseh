@@ -780,7 +780,8 @@ function initDecks() {
       <h3><a class="dk-card-title" href="${escAttr(deckPage(d))}"></a></h3>
       <div class="badges">
         <span class="badge lang" lang="${escAttr(l.code)}" dir="${escAttr(l.dir)}"
-              title="${escAttr(l.name)}"></span>
+              title="${escAttr(l.name)}"></span>${d.variety_name
+          ? `<span class="badge variety" data-variety="${escAttr(d.variety)}">${escAttr(d.variety_name)}</span>` : ""}
         <span class="badge dk-total"></span>
       </div>
       <div class="dk-card-study"></div>
@@ -1062,8 +1063,33 @@ function initDeck() {
   const openIds = new Set();          // rows whose solved preview is open
   const shownHtml = new Map();        // id -> {updated, html}
 
+  /* THE VARIETY ITS EXERCISES ARE IN (Arabic: Standard, Egyptian, Levantine, Gulf, Moroccan), beside the
+     language: a select for a language that has varieties, saved at once into deck.json. */
+  function renderVariety() {
+    const lbl = $("#deck-variety-lbl"), vsel = $("#deck-variety");
+    if (!lbl || !vsel) return;
+    const vs = deck.varieties || [];
+    lbl.hidden = !vs.length;
+    if (!vs.length) return;
+    if (!vsel.options.length) {
+      for (const v of [{key: "", name: deck.standard_name || deck.language}].concat(vs)) {
+        const o = document.createElement("option");
+        o.value = v.key; o.textContent = v.name;
+        vsel.appendChild(o);
+      }
+      vsel.addEventListener("change", async () => {
+        try {
+          deck = (await call(base, {method: "PATCH", json: {variety: vsel.value}})).deck;
+          toast(deck.variety ? `Written in ${deck.variety_name}` : `Written in ${deck.standard_name}`);
+        } catch (e) { toast("The variety was not saved: " + e.message, true); }
+        renderVariety();
+      });
+    }
+    vsel.value = deck.variety || "";
+  }
   function renderHead() {
     $("#deck-name").textContent = deck.name;
+    renderVariety();
     document.title = `${deck.name} — Parseh exercises`;
     const c = deck.counts || {}, due = toStudy(deck.study);
     const box = $("#deck-counts");
