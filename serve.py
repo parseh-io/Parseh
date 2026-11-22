@@ -1783,7 +1783,7 @@ UPDATE_ROUTES = ("/settings/api/update/state", "/settings/api/update/plan",
                  "/settings/api/update/check", "/settings/api/update/daily",
                  "/settings/api/update/fetch", "/settings/api/update/stop",
                  "/settings/api/update/upload", "/settings/api/update/discard",
-                 "/settings/api/update/apply")
+                 "/settings/api/update/apply", "/settings/api/update/put-back")
 
 # SETTINGS -> LaTeX DRAWINGS (TO-DO §8.39, lib/latexpage.py): the page, and
 # each of its routes, every one of them in lib/settingspage.py ROUTES
@@ -7152,7 +7152,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._method_not_allowed()
             return self.send_html(updatepage.page(updater.plan(ROOT), updater.settings(ROOT),
                                                   updater.state(ROOT), self._where(),
-                                                  update_fetch_now()))
+                                                  update_fetch_now(),
+                                                  copies=updater.content_copies(ROOT)))
         if path in ("/settings/speech", "/settings/speech/index.html"):
             return self._redirect(SPEECH_PAGE)
         if path == SPEECH_PAGE:
@@ -7525,6 +7526,13 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/settings/api/update/daily":
             s = updater.save_settings(ROOT, daily=bool(self._json_body().get("on")))
             return self.send_json({"ok": True, "daily": s["daily"]})
+        if path == "/settings/api/update/put-back":
+            # the small files a kept update copied, put back (TO-DO §13.20)
+            try:
+                got = updater.put_back_content(ROOT, self._json_body().get("job"))
+            except updater.Refused as e:
+                return self.send_json({"ok": False, "error": str(e), "detail": e.detail}, 409)
+            return self.send_json(dict(got, ok=True))
         refused = updater.installed(ROOT)["refused"]
         if refused:
             return self.send_json({"ok": False, "error": refused}, 409)

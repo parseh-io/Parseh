@@ -732,6 +732,65 @@ class Helper(Case):
         self.assertLess(journal.index('"content"'), journal.index('"backup"'),
                         "the content is copied before anything else is done")
 
+    def test_a_raised_format_copies_the_content_first_and_it_can_be_put_back(self):
+        # TO-DO §13.20: a faulty migration on the way UP must find the old
+        # small files kept with the job, and Settings must be able to put them back
+        install(self.root, A, "a0.3.2")
+        put_mine(self.root)
+        up = dict(FORMATS, **{"parseh-schedule": 2})
+        job, r = self.update_to(B, "a0.3.3", formats=up)
+        self.assertTrue(r["ok"], r)
+        self.assertEqual(job["raised"], ["parseh-schedule"])
+        content = Path(self.root, updater.WORK, "jobs", job["id"], "content")
+        self.assertEqual(r["content_copy"], str(content))
+        self.assertEqual((content / "config/prefs.json").read_bytes(), MINE["config/prefs.json"])
+        self.assertEqual((content / "exercises/english/d/schedule/0123456789ab.json").read_bytes(),
+                         MINE["exercises/english/d/schedule/0123456789ab.json"])
+        self.assertFalse((content / "books/english/x/narration.mp3").exists(), "no narration")
+        journal = Path(self.root, updater.WORK, "jobs", job["id"], "journal.jsonl").read_text()
+        self.assertLess(journal.index('"content"'), journal.index('"backup"'),
+                        "the content is copied before anything else is done")
+        # the new version's migration goes wrong: two files rewritten badly
+        sched = Path(self.root, "exercises/english/d/schedule/0123456789ab.json")
+        prefs_file = Path(self.root, "config/prefs.json")
+        sched.write_bytes(b'{"migrated": "badly"}')
+        prefs_file.write_bytes(b'{"settings": {}}')
+        Path(self.root, "exercises/english/d/schedule/made-since.json").write_bytes(b"{}")
+        copies = updater.content_copies(self.root)
+        self.assertEqual([(c["id"], c["from"], c["to"]) for c in copies],
+                         [(job["id"], "a0.3.2", "a0.3.3")])
+        self.assertIn("raised", copies[0]["why"])
+        page = self.page_now_with_copies()
+        self.assertIn('data-put-back="%s"' % job["id"], page)
+        self.assertIn("Copies of your small files", page)
+        got = updater.put_back_content(self.root, job["id"])
+        self.assertEqual(got["kept"], 2)
+        self.assertEqual(sched.read_bytes(), MINE["exercises/english/d/schedule/0123456789ab.json"])
+        self.assertEqual(prefs_file.read_bytes(), MINE["config/prefs.json"])
+        self.assertTrue(Path(self.root, "exercises/english/d/schedule/made-since.json").exists(),
+                        "a file made since the update is left as it is")
+        aside = Path(got["aside"])
+        self.assertEqual((aside / "exercises/english/d/schedule/0123456789ab.json").read_bytes(),
+                         b'{"migrated": "badly"}', "what was written over is kept first")
+        self.assertEqual((aside / "config/prefs.json").read_bytes(), b'{"settings": {}}')
+        self.assertIn("Put back", self.page_now_with_copies())
+        with self.assertRaises(updater.Refused):
+            updater.put_back_content(self.root, "no-such-job")
+
+    def test_an_update_that_changes_no_format_copies_nothing(self):
+        install(self.root, A, "a0.3.2")
+        put_mine(self.root)
+        job, r = self.update_to(B, "a0.3.3")
+        self.assertTrue(r["ok"], r)
+        self.assertFalse(Path(self.root, updater.WORK, "jobs", job["id"], "content").exists())
+        self.assertEqual(updater.content_copies(self.root), [])
+
+    def page_now_with_copies(self):
+        import updatepage
+        return updatepage.page(updater.plan(self.root), updater.settings(self.root),
+                               updater.state(self.root), network.SELF,
+                               copies=updater.content_copies(self.root))
+
     def test_speech_to_text_is_left_as_it_is_both_ways(self):
         # WHAT AN UPDATE INTO a0.4.1, AND THE STEP BACK, DO TO SPEECH TO TEXT (the brief's
         # item 13, driven with the real helper): nothing.  stt/ is in no release's manifest,

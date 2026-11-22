@@ -77,7 +77,10 @@ install**, and *Throw it away* forgets it.
   may not survive, and the button stays off until you tick *I understand,
   and want to go back anyway*. Then, before anything is replaced, a copy of
   the small files of your books, videos, decks and settings is kept (not the
-  narrations and films), so that going forward again finds them.
+  narrations and films), so that going forward again finds them. Going
+  forward to a version that writes something in a newer shape keeps the
+  same copy first, so that if the new version reads your files wrong, they
+  can be put back as they were.
 
 Pressing the button asks once more, in a sentence, and *Yes* starts it.
 
@@ -148,6 +151,15 @@ afterwards:
   Parseh again, and a phone that was let in stays let in.
 - **The environment.** `.runtime/`, where the installer made it, is
   changed only when the other version asks for a package it lacks.
+
+**Copies of your small files.** An update that changed the shape of your
+data, either way, copied the small files of your books, videos, decks and
+settings before it replaced anything, and keeps that copy with the update
+(the last three updates are kept). The page lists each copy under *Copies of
+your small files*, with **Put these files back**, on the computer Parseh runs
+on: it asks first, then writes each copied file back where it was. Each file
+it writes over is kept beside the copy, so putting back can be undone too,
+and a file made since the update is left as it is.
 
 **On a phone that keeps books, videos or decks**, the app finds out the
 next time it reaches the computer, and says so in one line: *Parseh was

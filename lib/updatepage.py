@@ -85,6 +85,7 @@ STYLE = """
 .upd .src code{font-size:12px}
 .upd .report.ok{border-color:var(--ok)}
 .upd .report.bad{border-color:var(--danger)}
+.upd .copies .copy{border-top:1px solid var(--rule);padding-top:.5rem;margin-top:.6rem}
 .upd .foot{color:var(--faint);font-size:12.5px;line-height:1.7;margin-top:22px}
 .upd .foot a{color:var(--dim)}
 .upd input[type=file]{font:inherit;font-size:13px;max-width:100%}
@@ -447,7 +448,51 @@ def _report_section(st):
                  "facts": "".join(facts), "lists": lists}
 
 
-def page(p, s, st, where, fetching=None):
+def _files(k):
+    return "1 file" if k == 1 else "%d files" % k
+
+
+def _copies_section(copies, may_update):
+    """THE COPIES OF YOUR SMALL FILES (TO-DO §13.20): each kept update that
+    lowered or raised a data format copied the small files of the books,
+    videos, decks and settings first; each such copy can be put back from
+    here, on the computer, by one button that asks first."""
+    if not copies:
+        return ""
+    rows = []
+    for c in copies:
+        when = settingspage.when(c.get("made")) if c.get("made") else ""
+        done = c.get("restored") or []
+        last = ""
+        if done:
+            d = done[-1]
+            last = ('<p class="src" data-copy-restored>Put back %s.%s</p>'
+                    % (esc(settingspage.when(d.get("at"))) if d.get("at") else "",
+                       (" The files it wrote over are kept in <code>%s</code>." % esc(d["aside"]))
+                       if d.get("aside") else ""))
+        btn = ('<button type="button" data-put-back="%s">Put these files back</button>'
+               % esc(c["id"])) if may_update else \
+            '<p class="src">Putting them back is done on the computer %s runs on.</p>' % NAME
+        rows.append("""<div class="copy" data-copy="%(id)s">
+  <p><b>%(from)s &rarr; %(to)s</b>%(when)s: %(n)s copied before the update%(why)s.</p>
+  %(last)s
+  <div class="row">%(btn)s</div>
+  <p class="said" data-put-back-said></p>
+</div>""" % {"id": esc(c["id"]), "from": esc(c.get("from")), "to": esc(c.get("to")),
+             "when": (" &middot; " + esc(when)) if when else "", "n": _files(c.get("files") or 0),
+             "why": (", because " + esc(c["why"])) if c.get("why") else "",
+             "last": last, "btn": btn})
+    return """<section class="copies" data-copies>
+  <h2>Copies of your small files</h2>
+  <p>An update that changes the shape in which %(name)s keeps your books, videos, decks or settings
+  first copies their small files (not the narrations and films). If something reads wrong after such
+  an update, put them back as they were before it. Every file that is written over is kept first,
+  beside the copy, so this too can be undone; a file made since the update is left as it is.</p>
+  %(rows)s
+</section>""" % {"name": NAME, "rows": "\n".join(rows)}
+
+
+def page(p, s, st, where, fetching=None, copies=None):
     """/settings/update/.  `p` is updater.plan(), `s` updater.settings(),
     `st` updater.state(), `where` lib/network.py's word for the device
     asking, `fetching` the download job the server is running, if any."""
@@ -469,6 +514,7 @@ def page(p, s, st, where, fetching=None):
     if not refused:
         body.append(_plan_section(p, may_update))
     body.append(_report_section(st))
+    body.append(_copies_section(copies, may_update))
     if not refused:
         body += [_latest_section(s, p, may_check, may_update, fetching), _zip_section(may_update)]
     main = """<main class="settings upd">
@@ -625,6 +671,24 @@ SCRIPT = r"""
     };
     x.onerror = function () { bar.hidden = true; said.textContent = 'the zip could not be sent'; said.className = 'src bad'; };
     x.send(f);
+  });
+
+  /* PUTTING THE SMALL FILES BACK (TO-DO §13.20): asked first, in words */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-put-back]'), function (b) {
+    b.addEventListener('click', function () {
+      var box = b.closest('[data-copy]'), said = box.querySelector('[data-put-back-said]');
+      if (!confirm('Put back the small files of your books, videos, decks and settings as they were '
+                   + 'before this update? The files they write over are kept first, beside the copy.'))
+        return;
+      b.disabled = true;
+      said.textContent = 'Putting the files back…'; said.className = 'said';
+      post('put-back', {job: b.getAttribute('data-put-back')}).then(function (j) {
+        b.disabled = false;
+        if (!j.ok) { said.textContent = j.error || 'that was refused'; said.className = 'said bad'; tech(said, j.detail); return; }
+        function files(k) { return k === 1 ? '1 file' : k + ' files'; }
+        said.textContent = files(j.files) + ' put back' + (j.kept ? '; ' + (j.kept === 1 ? 'the one it wrote over is' : 'the ' + j.kept + ' they wrote over are') + ' kept in ' + j.aside + '.' : ', none of them changed since.');
+      }, function () { b.disabled = false; said.textContent = 'Parseh did not answer'; said.className = 'said bad'; });
+    });
   });
 
   var discard = $('[data-discard]');
