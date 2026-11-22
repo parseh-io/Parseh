@@ -303,6 +303,112 @@ class Entries(unittest.TestCase):
         self.assertEqual(sorted(set(languages.CODES) - langs), [])
 
 
+PLAIN_CASES = FIXTURE["plain"]
+
+
+def plain_in_javascript(lines):
+    """[{lang, voc, text, tr}] -> what ParsehVocline.plainEntries makes of each, under deno."""
+    codes = sorted({x["lang"] for x in lines})
+    js = """
+await import(%s);
+const V = globalThis.ParsehVocline, LINES = %s, LANGS = %s;
+console.log(JSON.stringify(LINES.map(c => V.plainEntries(c.voc, LANGS[c.lang], c.text, c.tr))));
+""" % (json.dumps("file://" + str(VOCLINE)), json.dumps(lines),
+       json.dumps({c: languages.get(c).as_json() for c in codes}))
+    with tempfile.NamedTemporaryFile("w", suffix=".mjs", delete=False, encoding="utf-8") as f:
+        f.write(js)
+    try:
+        r = subprocess.run([DENO, "run", "--quiet", "--allow-read", f.name],
+                           capture_output=True, text=True, timeout=120)
+    finally:
+        os.unlink(f.name)
+    if r.returncode:
+        raise AssertionError("deno failed: " + (r.stderr or r.stdout)[-600:])
+    return json.loads(r.stdout.strip().split("\n")[-1])
+
+
+def fixture_video_chunks():
+    """Every plain vocabulary line of the fixture videos, with its chunk's text
+    and transliteration: what the player hands the list."""
+    out = []
+    for fx in sorted(glob.glob(str(ROOT / "tests" / "fixtures" / "videos" / "*" / "*" / "video.json"))):
+        code = languages.get_or_default(json.loads(Path(fx).read_text(encoding="utf-8")).get("language")).code
+        ann = json.loads((Path(fx).parent / "annotations.json").read_text(encoding="utf-8"))
+        out += [{"lang": code, "voc": ch["voc"], "text": ch.get("fa") or "", "tr": ch.get("tr") or ""}
+                for sg in ann["segments"] for ch in (sg.get("chunks") or [])
+                if isinstance(ch.get("voc"), str) and ch["voc"].strip() and not chunkdiv.is_macro_line(ch["voc"])]
+    return out
+
+
+class Plain(unittest.TestCase):
+    """A plain-text vocabulary line cut into entries by its shape (a0.6.3 G6)."""
+
+    def test_python_cuts_the_fixture(self):
+        for c in PLAIN_CASES:
+            with self.subTest(voc=c["voc"]):
+                self.assertEqual(T.voc_plain_entries(c["voc"], c["lang"], c["text"], c["tr"]), c["entries"])
+
+    def test_it_covers_what_it_is_for(self):
+        def kinds(c):
+            return [e["kind"] for e in c["entries"]]
+        need = {
+            "every language of the registry, read": lambda: {c["lang"] for c in PLAIN_CASES if c["entries"]} >= set(languages.CODES),
+            "right to left": lambda: any(c["lang"] in ("fa", "ar") and c["entries"] for c in PLAIN_CASES),
+            "a verb with its stems, in a script and in Latin": lambda: {
+                bool(languages.get(c["lang"]).chars) for c in PLAIN_CASES if "vb" in kinds(c)} == {True, False},
+            "a note": lambda: any(c["voc"].startswith("//") and c["entries"] == [] for c in PLAIN_CASES),
+            "a line not guessed at, in a script and in Latin": lambda: {
+                bool(languages.get(c["lang"]).chars) for c in PLAIN_CASES
+                if c["entries"] == [] and not c["voc"].startswith("//")} == {True, False},
+            "a word left without a romanisation": lambda: any(
+                languages.get(c["lang"]).chars and any(not e["rom"] for e in c["entries"]) for c in PLAIN_CASES),
+            "two spellings, one key": lambda: len({e["key"] for c in PLAIN_CASES if c["lang"] == "fa" for e in c["entries"]})
+                                              < sum(len(c["entries"]) for c in PLAIN_CASES if c["lang"] == "fa"),
+        }
+        self.assertEqual([k for k, f in need.items() if not f()], [])
+
+    def test_a_line_goes_to_the_cutter_its_shape_asks_for(self):
+        fa = languages.get("fa")
+        macro = "\\dw{کتاب}{ketāb} book"
+        self.assertEqual(T.voc_line_entries(macro, fa, "کتاب"), T.voc_entries(macro, fa))
+        plain = "کتاب ketāb book"
+        self.assertEqual(T.voc_line_entries(plain, fa, "کتاب"), T.voc_plain_entries(plain, fa, "کتاب"))
+        # a line whose only macro is an italic is plain text with a romanisation in it
+        it = languages.get("it")
+        self.assertEqual(T.voc_line_entries("casa \\textit{kàsa} house", it, "la casa")[0]["rom"], "kàsa")
+        # the same word written as a macro and as plain text is one word
+        self.assertEqual(T.voc_entries(macro, fa)[0]["key"], T.voc_plain_entries("كتاب ketāb book", fa, "")[0]["key"])
+
+    def test_the_consonants_vouch_for_a_bare_romanisation(self):
+        for word, rom, ok in (("کم", "kam", True), ("مهم", "mohemm", True), ("خوب", "xub", True),
+                              ("دیگه", "dige", True), ("اکثر", "aksar", True), ("نان", "nan", True),
+                              ("واقعاً", "vaqean", True), ("تا", "the", False), ("تعجب", "to", False),
+                              ("مثلا", "for", False), ("نیستی", "you", False)):
+            with self.subTest(word=word, rom=rom):
+                self.assertEqual(T._arabic_fits(word, rom), ok)
+
+    @unittest.skipUnless(os.path.exists(DENO), "no deno")
+    def test_javascript_cuts_the_fixture(self):
+        got = plain_in_javascript([{k: c[k] for k in ("lang", "voc", "text", "tr")} for c in PLAIN_CASES])
+        for c, g in zip(PLAIN_CASES, got):
+            with self.subTest(voc=c["voc"]):
+                self.assertEqual(g, c["entries"])
+
+    @unittest.skipUnless(os.path.exists(DENO), "no deno")
+    def test_and_every_plain_line_of_every_fixture_video(self):
+        lines = fixture_video_chunks()
+        got = plain_in_javascript(lines)
+        self.assertEqual(len(got), len(lines))
+        langs = set()
+        for c, g in zip(lines, got):
+            with self.subTest(lang=c["lang"], voc=c["voc"]):
+                self.assertEqual(g, T.voc_plain_entries(c["voc"], c["lang"], c["text"], c["tr"]))
+                if g:
+                    langs.add(c["lang"])
+        # the fixture videos are plain text in every language, and each is read
+        self.assertEqual(sorted(set(languages.CODES) - langs), [])
+
+
 @unittest.skipUnless(os.path.exists(DENO), "no deno")
 class Buttons(unittest.TestCase):
     """lib/vocbuttons.js: the four buttons' examples, one per language and kind."""

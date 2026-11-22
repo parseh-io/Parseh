@@ -21,7 +21,10 @@ import { chromium } from 'npm:playwright-core@1.52.0';
 //     same words and counts as the computer's own reading of the sources (GET __vocab).
 //  c) A VIDEO: a Persian one in the books' macros (one word written two ways, a verb
 //     with two meanings), Whole video / Up to here, a click to a caption and the next;
-//     an Arabic one; and a video whose lines are plain text, which says so.
+//     an Arabic one; and videos whose lines are PLAIN TEXT (a0.6.3 G6), Persian and
+//     Italian: the words cut by the line's shape, drawn with their romanisation, a verb
+//     with its stems, a plain and a macro spelling of one word one row, and the line it
+//     cannot read counted in the status line.
 //  d) A PHONE at 390x844 with a finger: no door in the header, the gear's row, the
 //     sheet from the foot, a tap on a word takes the sheet down and shows the place,
 //     the back gesture closes it; and nothing sideways at 320.
@@ -422,12 +425,46 @@ await scene('c) a video', async () => {
   assert(/impf\./.test(arv) && /masdar/.test(arv), 'an Arabic verb wears Arabic\'s own labels: ' + arv);
   await ar.close();
 
-  const plain = await openVideo(ctx, MADE.fa_video, 'plain-video');
-  await plain.evaluate(() => ParsehPlayer.vocab.panel().open());
-  await plain.waitForFunction(() => !/reading/.test((document.querySelector('.vocab-wrap .lp-status') || {}).textContent || 'reading'));
-  eq([await plain.evaluate(() => document.querySelectorAll('.vocab-wrap .vr').length),
-      /plain text/.test(await plain.locator('.vocab-wrap .lp-status').textContent())], [0, true],
-     'a video whose lines are plain text lists nothing, and says why');
+  // PLAIN-TEXT lines (a0.6.3 G6): cut by their shape, never guessed at
+  const romOf = page => page.evaluate(() => [...document.querySelectorAll('.vocab-wrap .vr')].map(li =>
+    [...li.querySelectorAll('.vr-head > .vr-rom')].map(e => e.textContent)[0] || ''));
+  const statusOf = page => page.locator('.vocab-wrap .lp-status').textContent();
+  async function openPlain(id, label) {
+    const p = await openVideo(ctx, id, label);
+    await p.evaluate(() => ParsehPlayer.vocab.panel().open());
+    await p.waitForFunction(() => !/reading/.test((document.querySelector('.vocab-wrap .lp-status') || {}).textContent || 'reading'));
+    await tool(p, 'Whole video').click();
+    await p.waitForFunction(() => !/reading/.test(document.querySelector('.vocab-wrap .lp-status').textContent));
+    return p;
+  }
+  const old = await openPlain(MADE.fa_video, 'plain-video');
+  eq([await rows(old), await romOf(old)], [[{word: 'جا', n: '×1', mean: 'place'}], ['jā']],
+     'the older plain Persian video lists its one word, with its romanisation');
+  await old.close();
+
+  const fap = await openPlain(MADE.fa_plain, 'fa-plain');
+  eq(await rows(fap), [
+    {word: 'کتاب', n: '×2', mean: 'book, + rā the object marker · volume'}, {word: 'خواندن', n: '×1', mean: 'to read'},
+    {word: 'دست', n: '×1', mean: 'hand'}, {word: 'من', n: '×1', mean: 'I, me'}],
+     'Persian plain text: one row per word, کتاب and كتاب one word, the verb\'s stems kept out of its meaning');
+  eq(await romOf(fap), ['ketāb', 'xāndan', 'dast', 'man'], 'each with its romanisation, in italics after it');
+  const fav = await fap.evaluate(() => document.querySelectorAll('.vocab-wrap .vr-head')[1].textContent);
+  assert(/pres\./.test(fav) && /خوان/.test(fav) && /past/.test(fav) && /خواند/.test(fav), 'a plain verb is drawn with its stems, as a \\vb is: ' + fav);
+  eq(await fap.evaluate(() => document.querySelector('.vocab-wrap .vr-head').getAttribute('dir')), 'rtl', 'right to left');
+  eq(await statusOf(fap), '4 words, 5 entries in all; 1 line could not be read',
+     'the line it cannot read is counted, the note is not');
+  await fap.close();
+
+  const itp = await openPlain(MADE.it_plain, 'it-plain');
+  eq(await rows(itp), [
+    {word: 'pane', n: '×1', mean: 'bread'}, {word: 'buono', n: '×1', mean: 'good, tasty'},
+    {word: 'andare', n: '×1', mean: 'to go'}, {word: 'mercato', n: '×1', mean: 'market'}, {word: 'al', n: '×1', mean: '= a + il'}],
+     'Italian plain text: the word the chunk\'s text holds, or the one before a separator, and a verb with its stems');
+  const itv = await itp.evaluate(() => document.querySelectorAll('.vocab-wrap .vr-head')[2].textContent);
+  assert(/pres\./.test(itv) && /vado/.test(itv) && /p\.p\./.test(itv), 'the Italian verb wears its stems: ' + itv);
+  eq(await statusOf(itp), '5 words, 5 entries in all; 1 line could not be read',
+     '«ciao hello» beside «Buongiorno» shows nowhere where the word ends, and is counted, not guessed');
+  await itp.close();
   await ctx.close();
 });
 

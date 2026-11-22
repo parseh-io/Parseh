@@ -93,7 +93,7 @@ globalThis.location = {protocol: 'file:'};
 await import(%s);
 await import(%s);
 const L = %s, words = ParsehVocab.gather(%s, L);
-const out = {words};
+const out = {words, unread: words.unread};
 for (const how of ['seen', 'az', 'freq']) out[how] = words.slice().sort(ParsehVocab.sorter(L, how)).map(w => w.word);
 console.log(JSON.stringify(out));
 """ % (json.dumps("file://" + str(ROOT / "lib" / "vocline.js")), json.dumps("file://" + str(ROOT / "lib" / "vocab.js")),
@@ -143,6 +143,26 @@ console.log(JSON.stringify(out));
         self.assertEqual(ja["az"], ["秋", "川", "山"], "Japanese A–Z by the reading the line gives")
         tr = self.gather("tr", [{"at": 0, "voc": r"\dw{ılık}{} warm; \dw{iyi}{} good; \dw{çok}{} very; \dw{cam}{} glass"}])
         self.assertEqual(tr["az"], ["cam", "çok", "ılık", "iyi"], "Turkish's own order: c ç ı i")
+
+    def test_plain_text_lines_are_read_and_merge_with_macro_lines(self):
+        # a0.6.3 G6: a plain line is cut by its shape; the same word as a macro is the same row
+        got = self.gather("fa", [
+            {"at": 0, "voc": r"\dw{کتاب}{ketāb} book", "text": "کتاب"},
+            {"at": 1, "voc": "كتاب ketāb volume; رفتن raftan · pres. رو rav · past رفت raft · to go",
+             "text": "کتاب رفت", "tr": "ketāb raft"},
+            {"at": 2, "voc": "colloquial اون = آن that", "text": "اون"},
+            {"at": 3, "voc": "// the recording breaks off"},
+        ])
+        w = {x["key"]: x for x in got["words"]}
+        self.assertEqual(list(w), ["کتاب", "رفتن"])
+        self.assertEqual((w["کتاب"]["count"], w["کتاب"]["meanings"], w["کتاب"]["at"]), (2, ["book", "volume"], [0, 1]))
+        self.assertEqual((w["رفتن"]["kind"], w["رفتن"]["rom"]), ("vb", "raftan"))
+        self.assertEqual(got["unread"], 1, "the line it cannot read is counted; the note is not")
+        it = self.gather("it", [{"at": 0, "voc": "pane bread; vino rosso red wine", "text": "pane e vino rosso"},
+                                {"at": 1, "voc": "buongiorno good morning", "text": "Ciao"}])
+        self.assertEqual([(x["word"], x["meanings"]) for x in it["words"]],
+                         [("pane", ["bread"]), ("vino rosso", ["red wine"])])
+        self.assertEqual(it["unread"], 1)
 
 
 if __name__ == "__main__":

@@ -652,6 +652,49 @@ zero-width joiners off (what `lookup._fold` takes off), Persian's ي ى ك as ی
 (`GET <book>/__vocab`) reads a whole book's lines this way with each chunk's
 address, for what reads many books at once; the reader's own list reads SRC.
 
+**A plain-text line is cut by its shape** (a0.6.3): a video glossed before
+the macros writes `word romanisation meaning; …` and a verb as `دیدن didan ·
+pres. بین bin · past دید did · to see`. `texparse.voc_plain_entries` and
+`vocline.js`'s `plainEntries`, held equal by the `plain` cases of
+`tests/fixtures/vocline.json` and every plain line of every fixture video,
+take the chunk's own text and transliteration as evidence;
+`voc_line_entries` / `lineEntries` send a line with a `\dw \vb \bw \pw` to the
+macro cutter and any other to this one. The items are cut at `;` and line
+ends outside brackets, and in a language with its own script at a ` · ` the
+next word of that script follows.
+
+- **A language with its own script** (fa, ar, hi, ja, zh). The word is the run
+  of words in that script the item opens with. Its romanisation is a
+  bracketed, `*italic*` or `\textit` Latin run right after it, or else as
+  many bare Latin words as the word has (Chinese and Japanese: one, then each
+  that has a tone mark or is in the chunk's `tr`), each taken only where
+  something vouches for it: a letter English does not write (ā š ǐ ʿ), the
+  chunk's `tr` holding it, a ` · ` or the item's end right after it, a kana
+  reading before it (`私 わたし watashi`), or, in Arabic script, the word's
+  consonants (`_arabic_fits`: `kam` fits کم, `the` does not fit تا). The
+  first word nothing vouches for begins the meaning, so a word written
+  without romanisation keeps its meaning whole.
+- **A Latin-script language** (it, fr, de, es, ca, tr, en). Letters cannot
+  tell the word from its meaning, so the word is taken only where something
+  shows where it ends: the longest run of the item's first words (four at
+  most) that the chunk's text holds (`d'eau` holds *eau*), or else the words
+  (three at most) before ` · ` ` – ` ` — ` ` = ` `: ` ` - ` or a bracket. Its
+  pronunciation is a bracket without grammar in it, an italic, a `/…/` or
+  `[…]` run, or words in IPA after it (or at the end of the words before a
+  separator: `get gɛt · past got …`). A respelling in plain letters (the
+  French fixtures' `kafé`) cannot be told from a meaning and stays in it.
+- **A verb** is recognised by the language's two `vb_labels` after a ` · `
+  and listed as a `\vb` is, with its stems.
+- **An item that opens otherwise** (`colloquial اون = آن`, `ciao hello` beside
+  *Buongiorno*) is in no entry; a line that gives no entry at all is counted,
+  and the list says how many it could not read. A line that opens with `//`
+  is a note and is not counted.
+
+Measured on the owner's own videos (all Persian, 2026-11-22): of 3,001 plain
+lines that are not notes, 21 gave no entry (each opens `colloquial …`); 6,014
+entries, 1,268 of them verbs with their stems; 905 written without a
+romanisation.
+
 **What a language adds goes inside the meaning**, as one parenthesis after
 it, items parted by `; `: `\vb{fahren}{}{fuhr}{}{gefahren}{}{to drive (er
 fährt; aux. sein)}`, `\vb{書く}{kaku}{書き}{kaki}{書いて}{kaite}{to write

@@ -8254,8 +8254,9 @@
      phrases this page already holds -- the whole video, or the captions up to where
      the video is now -- so nothing is asked of the computer and nothing is kept.  A
      row goes to the caption of the word's first phrase and lights it, and a second
-     click to the next.  A line in plain text (a video glossed before the macros) has
-     no words to cut out, and the list says so.  The door: «vocabulary» beside
+     click to the next.  A line in plain text (a video glossed before the macros) is
+     cut by its shape, against the chunk's text and transliteration (lib/vocline.js
+     plainEntries); a line that cannot be read is counted, and the list says how many.  The door: «vocabulary» beside
      «⚑ later»; on a phone, a row of the gear's sheet; the V key. */
   var vocabPanel = null;
   function vocabChunks(scope) {
@@ -8265,7 +8266,8 @@
       segs.forEach(function (sg, i) {
         if (sg.start > now + 0.01) return;
         (sg.chunks || []).forEach(function (ch, j) {
-          if (typeof ch.voc === 'string' && ch.voc.trim()) out.push({ at: { i: i, j: j }, voc: ch.voc });
+          if (typeof ch.voc === 'string' && ch.voc.trim())
+            out.push({ at: { i: i, j: j }, voc: ch.voc, text: ch.fa || '', tr: ch.tr || '' });
         });
       });
       return out;

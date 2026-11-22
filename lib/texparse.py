@@ -399,6 +399,390 @@ def vocab_key(word, lang=None):
     return re.sub(r"\s+", " ", w.lower()).strip()
 
 
+# --- a PLAIN-TEXT vocabulary line as entries (a0.6.3, G6) ---------------------
+# A video glossed before the macros were let into it writes its vocabulary
+# line as plain text: `word romanisation meaning; word2 …`, a verb as
+# `دیدن didan · pres. بین bin · past دید did · to see`.  The list reads those
+# too, cut by the SHAPE the line has (and again in lib/vocline.js, held equal
+# to this by tests/fixtures/vocline.json's `plain` cases):
+#   - the line is cut into items at `;` and at line ends outside brackets, and,
+#     for a language with a script of its own, at a ` · ` the next word of that
+#     script follows (the plain line's other entry separator, lib/chunkdiv.py);
+#   - in a language with a script of its own, the WORD is the run of words in
+#     that script the item opens with; its ROMANISATION a bracketed or italic
+#     (`*…*`, \textit) Latin run right after it, or else as many Latin words as
+#     the word has words (Chinese and Japanese, written without spaces: one,
+#     and then each that carries a tone mark: `nǐ hǎo`); Japanese's kana
+#     reading after a kanji word (`私 わたし watashi`) is shown with it;
+#   - in a Latin-script language the word cannot be told from the meaning by
+#     its letters, so it is taken only where something shows where it ends:
+#     the longest run of the item's first words (four at most) that the
+#     chunk's own text holds, or else the words before a separator
+#     (` · ` ` – ` ` — ` ` = ` `: ` ` - `) or a bracket (three at most).  Its
+#     romanisation is a bracket, an italic, a /…/ or […] run, or words in IPA
+#     right after it (or ending the words before a separator: `get gɛt · …`);
+#   - a bare Latin word after a word in its own script is its romanisation
+#     only where something vouches for it (see _rom_after);
+#   - a verb is recognised by the language's two labels (`· pres. … · past …`)
+#     and listed as a \vb is, with its stems;
+#   - the meaning is the rest of the item, as a macro entry's is.
+# An item that does not open as its language's entries do is not guessed at:
+# it is in no entry, and a line with no entry at all is a line the list could
+# not read (it says how many).  A line that opens with `//` is a note.
+_ENTRY_MACRO_RE = re.compile(r"\\(?:dw|vb|bw|pw)(?![a-zA-Z])")
+_ITALIC_RE = re.compile(r"\\(?:textit|emph)\{([^{}]*)\}")
+_LAT = "A-Za-z\u00C0-\u024F\u0250-\u02FF\u1E00-\u1EFF"
+_LAT_RE = re.compile("[" + _LAT + "]")
+_ROM_START_RE = re.compile("[" + _LAT + "'\u2019]")
+_IPA_RE = re.compile("[\u0250-\u02AF\u02C8\u02CC\u02D0\u03B8\u03B2\u03C7\u00E6\u00F0\u00E3\u00F5\u1EBD\u0129\u0169]")
+_TONE = "āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ"
+_WTRAIL = " ,:;،؛"
+_PLAIN_LEAD = re.compile(r"^[\s,:;·—–]+")
+_SEPS = (" · ", " – ", " — ", " = ", ": ", " - ")
+
+
+def voc_is_note(s):
+    """A line that opens with // is a note, not a vocabulary line."""
+    return (s or "").strip().startswith("//")
+
+
+def voc_line_entries(s, lang=None, text="", tr=""):
+    """Any vocabulary line as entries: a line with a \\dw \\vb \\bw or \\pw in it
+    by voc_entries (and raising as it does), any other by voc_plain_entries;
+    `text` is the chunk's own text, which a Latin-script line needs."""
+    if _ENTRY_MACRO_RE.search(s or ""):
+        return voc_entries(s, lang)
+    return voc_plain_entries(s, lang, text, tr)
+
+
+def _toks(s):
+    return [(m.start(), m.end(), m.group()) for m in re.finditer(r"\S+", s)]
+
+
+def _close_of(s, j, o, c):
+    """The index of the bracket closing the one at j, or -1."""
+    depth = 0
+    for k in range(j, len(s)):
+        if s[k] == o:
+            depth += 1
+        elif s[k] == c:
+            depth -= 1
+            if depth == 0:
+                return k
+    return -1
+
+
+def _fold_words(t, lang):
+    k = vocab_key(t, lang)
+    k = "".join(ch if (unicodedata.category(ch)[0] in "LMN" or ch in "'\u2019-") else " " for ch in k)
+    return re.sub(r"\s+", " ", k).strip()
+
+
+def _plain_items(s, sc):
+    out, start, depth = [], 0, 0
+    for i, c in enumerate(s):
+        if c in "([":
+            depth += 1
+        elif c in ")]":
+            depth = max(0, depth - 1)
+        elif depth == 0 and c in ";\n":
+            out.append(s[start:i])
+            start = i + 1
+        elif depth == 0 and c == "·" and sc and i > 0 and s[i - 1] in " \t":
+            m = re.match(r"\s+(\S)", s[i + 1:])
+            if m and sc.match(m.group(1)):
+                out.append(s[start:i])
+                start = i + 1
+    out.append(s[start:])
+    return [x.strip() for x in out if x.strip()]
+
+
+def _rom_after(s, end, need, sc, lang, trw=frozenset(), wtoks=(), sure=False):
+    """The romanisation right after s[:end]: (rom, new end)."""
+    j = end + re.match(r"\s*", s[end:]).end()
+    if j >= len(s):
+        return "", end
+    c = s[j]
+    if c in "([/*":
+        close = {"(": ")", "[": "]", "/": "/", "*": "*"}[c]
+        k = _close_of(s, j, c, close) if c in "([" else s.find(close, j + 1)
+        if k > j + 1:
+            inner = s[j + 1:k].strip()
+            ok = bool(_LAT_RE.search(inner)) and not (sc and sc.search(inner))
+            if ok and c == "(":
+                ok = (len(inner) > 2 and not re.search(r"[.,;:+=()0-9]", inner)
+                      and len(inner.split()) <= max(need, 1) + 2)
+            if ok:
+                return re.sub(r"\s+", " ", inner), k + 1
+        return "", end
+    if sc is None:                      # a Latin script: words in IPA, as many as the word has
+        stop = end
+        for n, (a, b, t) in enumerate(_toks(s[end:])):
+            core = t.rstrip(",:;")
+            if n >= need or not core or not _IPA_RE.search(core):
+                break
+            stop = end + a + len(core)
+            if core != t:
+                break
+        if stop == end:
+            return "", end
+        return re.sub(r"\s+", " ", s[end:stop].strip()), stop
+    # bare Latin words: as many as the word has words.  Each is taken for its
+    # romanisation only where something says it is one -- a letter English
+    # does not write (ā š ǐ ʿ), the chunk's own transliteration holding it,
+    # or a ` · ` right after them, which is where a verb's stems or the
+    # meaning of a word glossed with a dot begin; in Arabic script, the
+    # consonants of the word it stands beside (_arabic_fits).  The first that
+    # nothing vouches for, and all after it, are the meaning's (`نیستی you are
+    # not`).
+    taken = []
+    for a, b, t in _toks(s[end:]):
+        core = t.rstrip(",:;")
+        if not core or not _ROM_START_RE.match(core) or sc.search(core):
+            break
+        if len(taken) >= need and not (lang.word_sep == "" and (any(ch in _TONE for ch in core)
+                                                                 or _fold_words(core, lang) in trw)):
+            break
+        taken.append((core, end + a + len(core)))
+        if core != t:
+            break
+    if not taken:
+        return "", end
+    after = s[taken[-1][1]:].strip()
+    if after and not after.startswith("·") and not sure:
+        k = 0
+        while k < len(taken) and _vouched(taken[k][0], trw, lang, wtoks[k] if k < len(wtoks) else ""):
+            k += 1
+        taken = taken[:k]
+        if not taken:
+            return "", end
+    stop = taken[-1][1]
+    return re.sub(r"\s+", " ", s[end:stop].strip()), stop
+
+
+def _tr_words(tr, lang):
+    """The words of a chunk's transliteration, each whole and in its parts."""
+    out = set()
+    for w in _fold_words(tr or "", lang).split():
+        out.add(w)
+        out.update(p for p in w.split("-") if p)
+    return out
+
+
+def _vouched(core, trw, lang, wt):
+    if any(ord(ch) > 127 and _LAT_RE.match(ch) for ch in core):
+        return True
+    f = _fold_words(core, lang).replace(" ", "")
+    if f and (f in trw or all(p in trw for p in f.split("-") if p)):
+        return True
+    return lang.script == "arabic" and _arabic_fits(wt, core)
+
+
+# The consonants a romanisation writes for each letter of the Arabic script,
+# after _rom_consonants has folded it (š → s, kh → x, the vowels and the
+# glides v w y and the hamza and ʿayn marks dropped).  A letter in
+# _AR_OPTIONAL may be written by one of its consonants or by none: the
+# long vowels' letters, the hamza and ʿayn, a final silent ه, the tanwin.
+_AR_CONS = {"ب": "b", "پ": "p", "ت": "t", "ط": "t", "ث": "st", "ج": "jg", "چ": "c",
+            "ح": "h", "خ": "xhk", "د": "d", "ذ": "zd", "ر": "r", "ز": "z", "ژ": "z",
+            "ض": "zd", "ظ": "z", "س": "s", "ص": "s", "ش": "s", "غ": "gq", "ق": "qgk",
+            "ف": "f", "ک": "k", "ك": "k", "گ": "g", "ل": "l", "م": "m", "ن": "n"}
+_AR_OPTIONAL = {"ا": "", "آ": "", "أ": "", "إ": "", "ٱ": "", "ء": "", "ئ": "", "ؤ": "",
+                "ع": "", "و": "", "ی": "", "ي": "", "ى": "", "ة": "ht", "ه": "h", "\u064B": "n"}
+_AR_SKIP = "\u064C\u064D\u064E\u064F\u0650\u0651\u0652\u0670\u0640\u200C\u200D\u2011-"
+
+
+def _rom_consonants(core):
+    s = "".join(ch for ch in unicodedata.normalize("NFD", core.lower())
+                if unicodedata.category(ch) != "Mn")
+    s = s.replace("kh", "x").replace("sh", "s").replace("ch", "c").replace("zh", "z").replace("gh", "g")
+    s = re.sub(r"(.)\1", r"\1", s)
+    return re.sub(r"[^bcdfghjklmnpqrstxz]", "", s)
+
+
+def _arabic_fits(word, core):
+    """Whether `core` (bare Latin) can be the romanisation of `word` (Arabic
+    script): each of its consonants the one a letter of the word writes, in
+    order, and none left over.  `kam` fits کم, `the` does not fit تا."""
+    letters = []
+    for ch in word or "":
+        if ch in _AR_SKIP:
+            continue
+        if ch in _AR_CONS:
+            letters.append((_AR_CONS[ch], False))
+        elif ch in _AR_OPTIONAL:
+            letters.append((_AR_OPTIONAL[ch], True))
+        else:
+            return False
+    rom = _rom_consonants(core)
+    if not letters or not rom:
+        return False
+    seen = {}
+
+    def fit(i, j):
+        if (i, j) in seen:
+            return seen[(i, j)]
+        if i == len(letters):
+            ok = j == len(rom)
+        else:
+            cons, opt = letters[i]
+            ok = (j < len(rom) and rom[j] in cons and fit(i + 1, j + 1)) or (opt and fit(i + 1, j))
+        seen[(i, j)] = ok
+        return ok
+    return fit(0, 0)
+
+
+def _script_head(s, sc, rd, lang, trw=frozenset()):
+    """(word, kana, rom, end) for an item of a language with its own script,
+    or None when it does not open with a word in it."""
+    words = []
+    for a, b, t in _toks(s):
+        if not sc.match(t[0]):
+            break
+        words.append((a, b, t))
+        if t[-1] in _WTRAIL:
+            break
+    if not words:
+        return None
+    kana = ""
+    if (rd and len(words) == 2 and all(rd.match(ch) for ch in words[1][2])
+            and not all(rd.match(ch) for ch in words[0][2])):
+        kana = words[1][2].rstrip(_WTRAIL)
+        word = words[0][2].rstrip(_WTRAIL)
+        need, end = 1, words[1][0] + len(kana)
+    else:
+        word = s[words[0][0]:words[-1][1]].rstrip(_WTRAIL)
+        need, end = len(words), words[0][0] + len(word)
+    # after a kana reading (`私 わたし watashi`) the Latin word is the reading's
+    rom, end = _rom_after(s, end, need, sc, lang, trw, [w[2].rstrip(_WTRAIL) for w in words], bool(kana))
+    return re.sub(r"\s+", " ", word), kana, rom, end
+
+
+def _latin_head(s, lang, text):
+    """(word, '', rom, end) for an item of a Latin-script language, or None
+    when nothing shows where its word ends."""
+    toks = _toks(s)
+    if not toks or not toks[0][2][0].isalpha():
+        return None
+    word, end = None, 0
+    hay = _fold_words(text or "", lang)
+    hay = " " + hay + " " + re.sub(r"['\u2019]", " ", hay) + " "     # `d'autre` holds autre
+    if hay.strip():
+        upto = 0
+        for a, b, t in toks[:4]:
+            if not (t[0].isalpha() or t[0] in "'\u2019"):
+                break
+            upto += 1
+            if t[-1] in ",;:.":
+                break
+        for k in range(upto, 0, -1):
+            cand = s[toks[0][0]:toks[k - 1][1]].rstrip(",;:.")
+            f = _fold_words(cand, lang)
+            if f and (" " + f + " ") in hay:
+                word, end = cand, toks[0][0] + len(cand)
+                break
+    if word is None:
+        best = None
+        for sep in _SEPS + (" (", " [", " *", " /"):
+            p = s.find(sep)
+            if p > 0 and (best is None or p < best[0]):
+                best = (p, sep)
+        if best is None:
+            return None
+        cand = s[:best[0]].rstrip(" ,")
+        word, rom = _ipa_tail(cand) if cand else ("", "")
+        if not word or len(word.split()) > 3:
+            return None
+        end = best[0] + len(best[1]) if best[1] == " - " else best[0]
+        if rom:
+            return word, "", rom, end
+    rom, end = _rom_after(s, end, len(word.split()), None, lang)
+    return re.sub(r"\s+", " ", word), "", rom, end
+
+
+def _ipa_tail(cand):
+    """`get gɛt` -> ('get', 'gɛt'): the words in IPA at the end of a word
+    taken before a separator are its pronunciation."""
+    ws = cand.split()
+    k = len(ws)
+    while k > 1 and _IPA_RE.search(ws[k - 1]):
+        k -= 1
+    return " ".join(ws[:k]), " ".join(ws[k:])
+
+
+def _plain_verb(rest, sc, rd, lang, trw):
+    """A verb's stems after its word -- `· pres. بین bin · past دید did · to see`
+    -- as ([(stem, rom) or None for each label], meaning), or None."""
+    rest = rest.lstrip()
+    if not rest.startswith("·") or not lang.vb_labels:
+        return None
+    parts, start, depth = [], 1, 0
+    for i in range(1, len(rest)):
+        c = rest[i]
+        if c in "([":
+            depth += 1
+        elif c in ")]":
+            depth = max(0, depth - 1)
+        elif c == "·" and depth == 0:
+            parts.append(rest[start:i].strip())
+            start = i + 1
+    parts.append(rest[start:].strip())
+    stems, k = [], 0
+    for lab in lang.vb_labels:
+        got = None
+        if k < len(parts) and parts[k].startswith(lab + " "):
+            body = parts[k][len(lab) + 1:].strip()
+            if sc is not None:
+                h = _script_head(body, sc, rd, lang, trw)
+                if h and not body[h[3]:].strip():
+                    got = (h[0], h[2])
+            elif 0 < len(body.split()) <= 4 and body[0].isalpha():
+                got = _ipa_tail(body)
+        if got:
+            k += 1
+        stems.append(got)
+    if not any(stems):
+        return None
+    return stems, " · ".join(parts[k:])
+
+
+def voc_plain_entries(s, lang=None, text="", tr=""):
+    """A plain-text vocabulary line as entries, in the shape voc_entries gives
+    (kind "plain", or "vb" for a verb written with its stems); [] for a line
+    it cannot read with confidence, and for a note."""
+    if lang is None:
+        lang = _LANG
+    elif isinstance(lang, str):
+        lang = languages.get_or_default(lang)
+    s = s or ""
+    if voc_is_note(s):
+        return []
+    s = _ITALIC_RE.sub(lambda m: "*" + m.group(1) + "*", s)
+    sc = re.compile("[" + lang.chars + "]") if lang.chars else None
+    rd = re.compile("[" + lang.reading_chars + "]") if lang.reading_chars else None
+    trw = _tr_words(tr, lang)
+    out = []
+    for item in _plain_items(s, sc):
+        h = _script_head(item, sc, rd, lang, trw) if sc is not None else _latin_head(item, lang, text)
+        if h is None:
+            continue
+        word, kana, rom, end = h
+        key = vocab_key(word, lang)
+        if not key:
+            continue
+        head = [["fa", word]] + ([["fa", kana]] if kana else []) + ([["em", rom]] if rom else [])
+        kind, rest = "plain", item[end:]
+        v = _plain_verb(rest, sc, rd, lang, trw)
+        if v:
+            kind, (stems, rest) = "vb", v
+            for lab, st in zip(lang.vb_labels, stems):
+                if st:
+                    head += [["txt", " · " + lab + " "], ["fa", st[0]]] + ([["em", st[1]]] if st[1] else [])
+        meaning = _PLAIN_LEAD.sub("", re.sub(r"\s+", " ", rest).strip()).rstrip(" ,")
+        out.append({"kind": kind, "word": word, "rom": rom, "head": head, "key": key, "meaning": meaning})
+    return out
+
+
 # --- model ------------------------------------------------------------------
 class Chunk:
     __slots__ = ("col", "fa", "kana", "tr", "voc", "en", "glossed", "t0", "t1",
