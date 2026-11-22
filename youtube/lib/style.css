@@ -1240,6 +1240,8 @@ body.reflowing .rf-pause::after{content:"\2016";color:var(--accent);opacity:.7;f
   border:1px solid var(--rule);border-radius:8px;background:var(--bg);color:var(--ink);
   cursor:pointer;font:inherit}
 #rfpop .rfgo b{display:block;font-weight:600;font-size:13.5px}
+#rfnote{color:var(--dim);font-size:12px;margin:-2px 0 6px;line-height:1.35}
+#rfnote[hidden]{display:none}
 #rfpop .rfgo small{display:block;color:var(--dim);font-size:12px;margin-top:2px;line-height:1.35}
 #rfpop .rfgo:hover:not(:disabled),#rfpop .rfgo:focus-visible{border-color:var(--accent);background:var(--hl)}
 #rfpop .rfgo:disabled{opacity:.6;cursor:not-allowed}

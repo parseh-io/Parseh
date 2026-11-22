@@ -4174,7 +4174,7 @@
   var RF_END = /[.!?…؟۔。！？]["'”»)\]]*\s*$/;
   var RF_HINT = 'Click a word to choose where a line ends or begins.';
   var RF = { btn: $('#reflow'), dock: $('#rfdock'), say: $('#rfsay'), pop: $('#rfpop'), q: $('#rfq'),
-             undo: $('#rfundo'), play: $('#rfplay'), tune: $('#rftune'), next: $('#rfnext'), done: $('#rfdone') };
+             note: $('#rfnote'), undo: $('#rfundo'), play: $('#rfplay'), tune: $('#rftune'), next: $('#rfnext'), done: $('#rfdone') };
   function rfEnds(text) { return RF_END.test(String(text || '')); }
   // a transcript with no stops in it (auto-captions as YouTube leaves Persian and Arabic) has nothing to
   // judge a line's end by, and marking every line would say nothing
@@ -4325,7 +4325,7 @@
   function rfWhen(edge, p, before, after) {
     var u = edge === 'end' ? after[0] : p.units[p.at];
     if (!u || !rf.marks) return '';
-    if (!rf.marks.words) return ' Its new start is estimated from the share of letters moved (this video has no word times).';
+    if (!rf.marks.words) return '';                     // said once, under the word (rfPop)
     var word = window.Parseh && Parseh.baseText ? Parseh.baseText(u.el) : u.el.textContent;
     word = String(word || '').trim();
     return (rfFlags(p.i, u) & 1)
@@ -4394,6 +4394,8 @@
     RF.q.appendChild(document.createTextNode('At “'));
     RF.q.appendChild(word);
     RF.q.appendChild(document.createTextNode('”'));
+    // with no word times at all, how a moved line's start is found is the same for both choices: said once
+    RF.note.hidden = !(rf.marks && !rf.marks.words);
     Array.prototype.forEach.call(RF.pop.querySelectorAll('.rfgo'), function (b) {
       var edge = b.dataset.edge, n = rfWordsIn(edge === 'end' ? after : before);
       var why = rfWhy(edge, p.i, before.length, after.length);

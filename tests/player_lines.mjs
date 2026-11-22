@@ -1057,6 +1057,7 @@ const wordOf = (i, k) => {
   const tEnd = await page.evaluate(() => document.querySelector('#rfpop .rfgo[data-edge="end"] small').textContent);
   assert(/moves the 5 words after it down.*That line will begin when \u201c\u0686\u0642\u062f\u0631\u201d was heard\./.test(tEnd),
          'the card says, before the move, that the new start is the time «چقدر» was heard: ' + tEnd);
+  assert(await page.evaluate(() => document.getElementById('rfnote').hidden), 'with word times the card has no note saying otherwise');
   await shot(page, 'reflow-card-heard');
   await page.click('#rfpop .rfgo[data-edge="end"]');
   await page.waitForFunction(() => /^Moved/.test(document.getElementById('rfsay').textContent) &&
@@ -1096,8 +1097,8 @@ const wordOf = (i, k) => {
                              document.getElementById('rfnext').disabled), 'nothing is marked, and next open line is off');
   await tWord(0, 4).click();
   await page.waitForSelector('#rfpop:not([hidden])');
-  assert(/estimated from the share of letters moved \(this video has no word times\)/.test(await page.evaluate(() =>
-    document.querySelector('#rfpop .rfgo[data-edge="end"] small').textContent)), 'the card says the start will be estimated');
+  assert(/new start is estimated from the share of letters moved: this video has no word times/.test(await page.evaluate(() =>
+    document.getElementById('rfnote').hidden ? '' : document.getElementById('rfnote').textContent)), 'the card says, once, that the start will be estimated');
   await page.keyboard.press('Escape');
   await page.context().close();
 

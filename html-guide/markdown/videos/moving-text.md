@@ -73,7 +73,8 @@ Click a word. A small card opens by it, naming the word, with two choices:
 Each says how many words it moves and where (*moves the 5 words after it down
 to the start of the next line*), how the new start of the line will be found
 (*That line will begin when “چقدر” was heard*, or *…estimated from the share of
-letters*, below), and **points at them before you press it**: the
+letters*, below; a video with no word times at all says that once, above the two
+choices), and **points at them before you press it**: the
 words it would move are outlined in the line while the pointer is on the choice.
 A choice that cannot be made is greyed, and says why under its name: *this is the
 last line*, *the line already begins here*, *the line before it is not glossed*, *a
