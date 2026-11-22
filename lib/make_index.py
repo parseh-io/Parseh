@@ -432,9 +432,10 @@ def card(b):
         tags.append('<span class="tag on" data-making-tag>being made &middot; %s</span>'
                     % esc(making.stage_words(doc or {})))
     # THE VARIETY IT IS WRITTEN IN (Arabic's dialects: book.json `variety`), by its name
-    if L.variety_name_of(b.variety):
+    variety = getattr(b, "variety", None)
+    if L.variety_name_of(variety):
         tags.append('<span class="tag" data-variety="%s">%s</span>'
-                    % (esc(b.variety), esc(L.variety_name_of(b.variety))))
+                    % (esc(variety), esc(L.variety_name_of(variety))))
     if st.get("built"):
         tags.append('<span class="tag">%s chapters</span>'
                     % len(st.get("chapters", [])))

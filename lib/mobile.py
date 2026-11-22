@@ -925,9 +925,10 @@ def book_card(b):
     attrs = L.html_attrs()
     tags = []
     # the variety it is written in (Arabic's dialects), by its name, as the computer's card says it
-    if L.variety_name_of(b.variety):
+    variety = getattr(b, "variety", None)
+    if L.variety_name_of(variety):
         tags.append('<span class="tag" data-variety="%s">%s</span>'
-                    % (esc(b.variety), esc(L.variety_name_of(b.variety))))
+                    % (esc(variety), esc(L.variety_name_of(variety))))
     if st.get("built"):
         n = len(st.get("chapters", []))
         tags.append('<span class="tag">%d chapter%s</span>' % (n, "" if n == 1 else "s"))
