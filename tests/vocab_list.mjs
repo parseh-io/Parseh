@@ -342,9 +342,16 @@ await scene('b) every mini book, in every language', async () => {
 await scene('c) a video', async () => {
   const ctx = await ctxOf('desk'), page = await openVideo(ctx, MADE.fa_macro, 'fa-video');
   // at 1280px the player's header is full: the door is the gear's row (and V), and the header stays one row
-  const head = await page.evaluate(() => ({door: document.querySelector('.vocab-btn').getClientRects().length,
-                                            h: Math.round(document.querySelector('header').getBoundingClientRect().height)}));
-  assert(head.door === 0 && head.h < 60, `at 1280px the header has no room for the door and stays one row (${head.h}px)`);
+  // (what the header is without the door at all is the measure: the door must add nothing to it)
+  const head = await page.evaluate(() => {
+    const b = document.querySelector('.vocab-btn'), hd = document.querySelector('header');
+    const h = Math.round(hd.getBoundingClientRect().height), next = b.nextSibling, parent = b.parentNode;
+    parent.removeChild(b);
+    const without = Math.round(hd.getBoundingClientRect().height);
+    parent.insertBefore(b, next);
+    return {door: b.getClientRects().length, h, without};
+  });
+  assert(head.door === 0 && head.h === head.without, `at 1280px the header has no room for the door, and is no taller for it (${head.h}px, ${head.without}px without it)`);
   await page.locator('[data-parseh-gear]').first().click();
   await page.evaluate(() => ParsehGear.mounted().open('interface'));
   const gearRow = page.locator('button.pg-action', {hasText: 'Vocabulary'}).first();
@@ -391,11 +398,15 @@ await scene('c) a video', async () => {
   await page.setViewportSize({width: 1600, height: 800});
   await sleep(200);
   const wide = await page.evaluate(() => {
-    const b = document.querySelector('.vocab-btn'), r = b.getBoundingClientRect();
-    return {beside: document.querySelector('.later-btn').nextElementSibling === b, shown: r.width > 0 && r.top >= 0,
-            h: Math.round(document.querySelector('header').getBoundingClientRect().height)};
+    const b = document.querySelector('.vocab-btn'), r = b.getBoundingClientRect(), hd = document.querySelector('header');
+    const h = Math.round(hd.getBoundingClientRect().height), next = b.nextSibling, parent = b.parentNode;
+    parent.removeChild(b);
+    const without = Math.round(hd.getBoundingClientRect().height);
+    parent.insertBefore(b, next);
+    return {beside: document.querySelector('.later-btn').nextElementSibling === b, shown: r.width > 0 && r.top >= 0, h, without};
   });
-  assert(wide.beside && wide.shown && wide.h < 60, `at 1600px the door is drawn beside «⚑ later», the header one row (${wide.h}px)`);
+  assert(wide.beside && wide.shown && wide.h === wide.without,
+         `at 1600px the door is drawn beside «⚑ later», and the header is no taller for it (${wide.h}px, ${wide.without}px)`);
   await page.close();
 
   const ar = await openVideo(ctx, MADE.ar_macro, 'ar-video');
