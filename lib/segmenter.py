@@ -94,13 +94,13 @@ def why_not(code, name=None):
     n = name or "Parseh"
     if code == "ja":
         said = "SudachiPy, which divides Japanese into words and reads them in kana, is"
-        it = "It is part of %s's own environment: %s's installer puts it there" % (n, n)
+        it = "It is part of %s's own environment: Settings \u2192 Updating Parseh \u2192 Packages this Parseh lacks adds it" % n
     else:
         said = "%s, which divide Chinese into words and read them in pinyin, are" % b["analyzer"]
-        it = "They are part of %s's own environment: %s's installer puts them there" % (n, n)
-    return ("No \u201cpropose\u201d here: %s not installed in the Python %s is running with (%s). %s, and on "
-            "Windows starting %s offers to add what the environment lacks. Until then a chunk's words are "
-            "divided by hand, and everything else works without them." % (said, n, sys.executable, it, n))
+        it = ("They are part of %s's own environment: Settings \u2192 Updating Parseh \u2192 Packages this Parseh "
+              "lacks adds them, and Settings \u2192 Reading help \u2192 Word models fetches their models" % n)
+    return ("No \u201cpropose\u201d here: %s not installed in the Python %s is running with (%s). %s. Until then "
+            "a chunk's words are divided by hand, and everything else works without them." % (said, n, sys.executable, it))
 
 
 def about(code):

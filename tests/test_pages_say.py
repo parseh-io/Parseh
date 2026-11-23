@@ -207,7 +207,7 @@ class NoProposeSaysWhy(unittest.TestCase):
                     why = segmenter.why_not(code, 'Parseh')
                     self.assertIn(name, why)
                     self.assertIn(sys.executable, why)
-                    self.assertIn('installer', why)
+                    self.assertIn('Packages this Parseh lacks', why)
                     self.assertNotIn('pip', why, 'no command to type')
 
     def test_with_them_or_another_language(self):

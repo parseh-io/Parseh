@@ -273,7 +273,7 @@ try {
   eq(await shown(ja, '#chwords .ws-propose'), false, 'no "propose" in the reader');
   await ja.evaluate(() => { const b = document.querySelector('#chwords .ws-whynot'); if (b) b.click(); });
   const jwhy = await text(ja, '#chwords .ws-why');
-  assert(/SudachiPy/.test(jwhy) && /installer/.test(jwhy) && !/pip /.test(jwhy) && await shown(ja, '#chwords .ws-why'),
+  assert(/SudachiPy/.test(jwhy) && /Packages this Parseh lacks/.test(jwhy) && !/pip /.test(jwhy) && await shown(ja, '#chwords .ws-why'),
          'pressed, it says which analyzer, which Python, and where it comes from (no command): ' + jwhy);
 
   /* ---------------- 7.6 ---------------- */
@@ -316,7 +316,7 @@ try {
   eq(await shown(pl, '#cloud .ws-propose'), false, 'no "propose" in the player');
   await pl.evaluate(() => { const b = document.querySelector('#cloud .ws-whynot'); if (b) b.click(); });
   const zwhy = await text(pl, '#cloud .ws-why');
-  assert(/spacy-pkuseg and pypinyin/.test(zwhy) && /installer/.test(zwhy), 'the player says it for Chinese: ' + zwhy);
+  assert(/spacy-pkuseg and pypinyin/.test(zwhy) && /Packages this Parseh lacks/.test(zwhy) && /Word models/.test(zwhy), 'the player says it for Chinese: ' + zwhy);
   await pl.keyboard.press('Escape');
 
   /* ---------------- 10.7 ---------------- */
