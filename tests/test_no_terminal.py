@@ -187,5 +187,50 @@ class TheBundleNote(unittest.TestCase):
         self.assertIn("`% @par`", note)
 
 
+class TranslationPairs(unittest.TestCase):
+    """5.9: once the service's list has been read, only its pairs are offered."""
+
+    def test_the_list_read_is_what_is_offered(self):
+        import io as _io
+        import json
+        import tempfile
+        from unittest import mock
+        import getmt
+        import lookuppage
+        recs = [{"fromLang": a, "toLang": b} for a, b in (
+            ("fa", "en"), ("en", "it"), ("it", "en"), ("ja", "en"), ("tr", "en"), ("es", "en"),
+            ("en", "es"), ("zh-Hans", "en"), ("de", "en"), ("en", "de"), ("fr", "en"))]
+        body = json.dumps({"data": recs}).encode()
+
+        class Answer(_io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(getmt, "MT_DIR", tmp):
+            # before the list was ever read: the rule
+            self.assertIsNone(getmt.offered())
+            self.assertTrue(getmt.trainable("en", "fa"))
+            with mock.patch.object(getmt.urllib.request, "urlopen", lambda *a, **k: Answer(body)):
+                getmt._records()
+            self.assertTrue(getmt.trainable("fa", "en"))
+            self.assertTrue(getmt.trainable("zh", "en"))         # the service calls it zh-Hans
+            self.assertFalse(getmt.trainable("en", "fa"))        # English to Persian: none
+            self.assertFalse(getmt.trainable("fa", "it"))
+            can = {m["code"]: m["can"] for m in lookuppage.models()}
+            self.assertEqual(can["fa"], ["en"])
+            self.assertNotIn("fa", can["en"])
+            self.assertIn("it", can["en"])
+
+    def test_a_short_list_is_not_kept(self):
+        import tempfile
+        from unittest import mock
+        import getmt
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(getmt, "MT_DIR", tmp):
+            getmt._remember_pairs([{"fromLang": "fa", "toLang": "en"}])
+            self.assertIsNone(getmt.offered())
+
+
 if __name__ == "__main__":
     unittest.main()

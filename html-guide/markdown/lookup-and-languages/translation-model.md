@@ -42,10 +42,12 @@ On the [reading-help page](reading-help.md), each language's card has a
 - **Only pairs with English exist.** Mozilla trains its models against
   English rather than against each other, so a Persian book glossed in
   English has a model and the same book glossed in Italian has none: that
-  row says *No model*, and why. **English**'s card offers the other ten,
+  row says *No model*, and why. **English**'s card offers the others,
   for an English book glossed in Italian, Persian, Japanese… An English book
   glossed in English has no model either way: a translation is between two
-  languages.
+  languages. Not every language has both directions: once Parseh has read
+  Mozilla's list (the first time a size is asked or a model is fetched), it
+  offers only the pairs that list has.
 - **What it costs.** *About 20 MB a pair, plus a 5 MB engine once* — the
   engine is fetched with the first model and shared by every pair after
   it. Measured: Persian to English about 22 MB, Italian or Spanish to
