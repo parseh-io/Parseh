@@ -3357,6 +3357,27 @@ LIB_WARN_FILES = 20000              # "this is getting large", not a refusal
 LIB_WARN_BYTES = 2 * 1024 ** 3
 
 
+def backup_files():
+    """What the library's Backup holds -> [(path, name in the zip)], in order:
+    every source and record, and of a build folder only its PDF; nothing in
+    a folder whose name starts with a dot.  One list for the two places that
+    pack it -- the studio's own Backup button (server.api_export) and the
+    backup of everything (lib/wholebackup.py, TO-DO §13.19) -- so the two
+    can never hold different things."""
+    out = []
+    root = lib()
+    for f in sorted(root.rglob("*")):
+        if not f.is_file():
+            continue
+        rel = f.relative_to(root)
+        if rel.parts[0].startswith("."):
+            continue
+        if "build" in rel.parts and f.name != "main.pdf":
+            continue
+        out.append((f, str(rel)))
+    return out
+
+
 def big_backup_note(what, files, nbytes):
     """The sentence a backup says about itself once it is large enough to be
     worth a word: the count and the size, in the words a person uses, so

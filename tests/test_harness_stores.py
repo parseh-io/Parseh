@@ -50,6 +50,7 @@ LIB = ROOT / "lib"
 HARNESSES = {
     "analysis_harness.py": "redirects",
     "arasaac_harness.py": "redirects",
+    "backups_harness.py": "redirects",
     "cardkit_harness.py": "redirects",
     "decks_harness.py": "redirects",
     "doclinks_harness.py": "redirects",

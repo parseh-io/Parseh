@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- the page zoom (lib/pagezoom.js): first of the scripts, which all ask the window its size -->
 <script src="/lib/pagezoom.js"></script>
+<script src="/lib/backupday.js" defer></script>
 {{MODE_SCRIPT}}
 <!-- the mobile interface installed as an app (docs/mobile.md): the manifest, the bars' colour -->
 {{APP_HEAD}}
@@ -35,6 +36,7 @@
     <a class="btn" href="{{BASE}}/api/backup" title="Download every deck on the shelf as one zip — each with its own id, its settings, its pictures and recordings, and the scheduling">Backup</a>
     <button type="button" class="btn" id="btn-restore" title="Put a backup zip back: every deck it holds, with its scheduling. A deck already here is kept, and replacing it is offered only then">Load from backup</button>
     <input type="file" id="file-restore" accept=".zip,application/zip" hidden>
+    <small class="backupday" data-backup-day="decks" style="align-self:center;opacity:.75;font-size:12px"></small>
     <button type="button" class="btn primary" id="btn-new-deck">+ New deck</button>
     <button type="button" class="btn danger ghost" id="btn-stop">Stop server</button>
   </div>

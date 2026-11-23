@@ -170,8 +170,9 @@ it — a download, a backup, a book kept on your phone:
 - the backups the last updates kept: `.parseh-update/`.
 
 So the backups are how your content moves to another computer:
-[Backups at a glance](backups.md) has the four shelves, and a single book,
-video, document or deck travels as its own zip from its own page. Moving a
+[Backups at a glance](backups.md) has the four shelves, your settings and
+one backup of everything for a new computer, and a single book, video,
+document or deck travels as its own zip from its own page. Moving a
 whole Parseh from before it could update itself into a fresh install is
 [a few folders moved once](updating.md#moving-into-a-fresh-install-once).
 

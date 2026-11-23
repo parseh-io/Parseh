@@ -199,6 +199,11 @@ SETTINGS = {
                            "a LaTeX file among them."),
     "languages.prose": (RUN, "It writes a language's files from a chatbot's answer: its conventions, its LaTeX "
                              "page, its lookup rules."),
+    # LOADING A BACKUP (TO-DO §13.19, lib/backupspage.py).  Taking one is a read, open to every device let in.  Putting
+    # one back writes the person's LaTeX themes and a language's LaTeX file -- what Parseh will run -- and puts whole
+    # shelves in place: the computer's alone, like the rest of Settings' writing doors.
+    "backups.load": (RUN, "It puts your settings back, your LaTeX themes and your languages' files among them, "
+                          "and whole shelves in place."),
 }
 
 # SETTINGS WHOSE CONTROL IS NOT ON A PAGE OF SETTINGS, because it sits on the
@@ -343,6 +348,14 @@ ROUTES = {
     # it is asked for -- reads, open to any device let in; nothing here changes anything Parseh runs
     "/settings/api/skills/state": READ,
     "/settings/api/skills/download": READ,
+    # the backups (lib/backupspage.py): the days, and taking a backup, open; reading one to load it and loading it,
+    # the computer's alone
+    "/settings/api/backups/state": READ,
+    "/settings/api/backups/settings": READ,
+    "/settings/api/backups/everything": READ,
+    "/settings/api/backups/settings/read": ("backups.load",),
+    "/settings/api/backups/settings/apply": ("backups.load",),
+    "/settings/api/backups/everything/load": ("backups.load",),
 }
 
 
@@ -554,6 +567,9 @@ DOORS = (
     ("/settings/skills/", "Skills for your chatbot",
      "The prompts as skills a chatbot can keep: download one, and how to install it",
      ()),
+    ("/settings/backups/", "Backups",
+     "Everything for a new computer, your settings, and the day of each shelf's last backup",
+     ("backups.load",)),
     ("/settings/about/", "About", "Version, installation paths, help and licences", ()),
 )
 
@@ -1006,6 +1022,12 @@ def hub(reading_tags="", update_tags="", speech_tags="", arasaac_tags="", analys
     paste a short request in place of the whole prompt &mdash; built when you ask, from the same parts as the prompts.</div>
     <div class="tags">%(skills_gate)s</div>
   </a>
+  <a class="door" href="/settings/backups/">
+    <div class="dname">Backups</div>
+    <div class="dwhat">One backup of everything for moving to a new computer, a backup of your settings &mdash; reading
+    places, flags to review later, level names, your prompts and languages &mdash; and when each shelf was last backed up.</div>
+    <div class="tags">%(backups_gate)s</div>
+  </a>
   <a class="door" href="/settings/about/">
     <div class="dname">About</div>
     <div class="dwhat">Version, installation and launch-script locations, help and licences.</div>
@@ -1014,6 +1036,7 @@ def hub(reading_tags="", update_tags="", speech_tags="", arasaac_tags="", analys
 </div>
 </main>""" % {"name": NAME, "version": esc(parseh_version()),
               "skills_gate": gate(door_keys("/settings/skills/")),
+              "backups_gate": gate(door_keys("/settings/backups/")),
               "languages_gate": gate(door_keys("/settings/languages/")), "languages_tags": languages_tags,
               "reading_gate": gate(DOORS[0][3]), "reading_tags": reading_tags,
               "update_gate": gate(DOORS[2][3]), "update_tags": update_tags,

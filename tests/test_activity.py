@@ -305,7 +305,10 @@ class OverHttp(unittest.TestCase):
         cls.book = root / "books" / "english" / "mini-en"
         shutil.copytree(MINI_EN, cls.book, ignore=shutil.ignore_patterns("reader"))
         os.symlink(str(ROOT / "lib"), str(root / "lib"))       # /lib/ is served off the root
-        cls.patches = [mock.patch.object(serve, "ROOT", str(root)),
+        import prefs
+        # the day of each backup is written beside prefs.json (lib/backupdays.py): into the tree, never config/
+        cls.patches = [mock.patch.object(prefs, "STORE", str(root / "config" / "prefs.json")),
+                       mock.patch.object(serve, "ROOT", str(root)),
                        mock.patch.object(serve._AtRoot, "directory", str(root)),
                        mock.patch.object(serve.studio.store, "LIB", root / "library"),
                        mock.patch.object(serve.Handler, "log_request", lambda *a, **k: None)]
@@ -659,7 +662,7 @@ class Pages(unittest.TestCase):
                      "/studio/download/note-abc123/pdf", "/studio/download/note-abc123/html",
                      "/exercises/api/backup", "/exercises/api/decks/italian/casa/export",
                      "/books/english/mini-en/notes/api/export",
-                     "/anki/build/italian/casa.apkg"):
+                     "/anki/build/italian/casa.apkg", "/settings/api/backups/everything"):
             self.assertTrue(rx.search(path), path)
             self.assertIsNotNone(serve.long_work("GET", path, {}), path)
         for path in ("/studio/download/note-abc123/md", "/books/english/mini-en/reader/"):
@@ -681,6 +684,7 @@ class Pages(unittest.TestCase):
                      "/exercises/api/decks/italian/casa/export",
                      "/books/english/mini-en/notes/api/export",
                      "/anki/build/italian/casa.apkg",
+                     "/settings/api/backups/settings", "/settings/api/backups/everything",
                      "/books/english/mini-en/notes/download/note-abc123/html",
                      *("/studio/download/note-abc123/" + k for k in ("md", "tex", "pdf", "zip", "html"))):
             self.assertTrue(rx.search(path), path)

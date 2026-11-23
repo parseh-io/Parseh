@@ -38,7 +38,9 @@ def names(html):
     found = set()
     for raw in NAMED.findall(html):
         path = re.split(r"[#?]", raw, 1)[0]
-        if path and not path.startswith("//") and not path.startswith("/settings/api/"):
+        if path and not path.startswith("//") and not path.startswith("/settings/api/") \
+                and not path.endswith(("/__backup", "/api/backup", "/api/export")):
+            # nor a shelf's Backup, which Settings -> Backups names: it packs the whole shelf
             found.add(path)
     return sorted(found)
 
@@ -47,6 +49,7 @@ class TheFilesAPageNames(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import serve
+        import prefs
         import prompts
         cls._td = tempfile.TemporaryDirectory()
         tmp = Path(cls._td.name)
@@ -54,6 +57,7 @@ class TheFilesAPageNames(unittest.TestCase):
             patch.object(serve.Handler, "log_request", lambda *a, **k: None),
             patch.object(network, "STORE", str(tmp / "config" / "network.json")),
             patch.object(prompts, "STORE", str(tmp / "config" / "prompts.json")),
+            patch.object(prefs, "STORE", str(tmp / "config" / "prefs.json")),
         ]
         for p in cls.patches:
             p.start()
