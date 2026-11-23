@@ -217,7 +217,7 @@ try {
   console.log('\n6.11 sense groups that fell back');
   const add = await open(context, null, 'add');
   await addBook(add, 'de', 'Zwei Tage', DE, 'phrase');
-  await add.waitForSelector('#eresult .note.good', {timeout: 60000});
+  await until(async () => /\/reader\/$/.test(add.url()) || await shown(add, '#eresult .note.good'), 'the book is drafted', 60000);
   await until(() => shown(add, '#cutnote'), 'the note of the cut', 5000);
   const cut = await text(add, '#cutnote');
   assert(/every sentence stayed one chunk/.test(cut) && /no German dictionary is installed/.test(cut) &&
