@@ -40,6 +40,21 @@ labelled; Gulf and Moroccan have too few yet, and the panel says so. Adding a vi
 transcript tracks to paste.
 [Arabic dialects](../lookup-and-languages/dictionaries.md#arabic-dialects).
 
+### Pictures in any common format
+
+A document and a deck take **WebP** and **GIF** pictures as well as PNG, JPEG and SVG — an animated GIF moves on the page,
+and its first frame goes on paper — and a **HEIC** photo from a phone is turned into an upright JPEG as it comes in. Two
+packages, Pillow and pillow-heif, are installed for them, by the installers and by the update from Settings.
+[Pictures and recordings](../studio/editor-media.md).
+
+### Smaller things
+
+A book's text may hold **%**, **&**, **$** and TeX's other special characters: Parseh writes them for TeX itself, and a
+chunk holding one can be edited like any other. A document, a deck, a book or a deck of cards downloads under its **real
+name**, in any script. When a book's PDF could not be made, the page says why in plain words. In a dialect, phrases are cut
+with the dialect dictionary's word classes too. The video player's link to the hub is پ, as on every other page.
+[A book's files](../books/files.md).
+
 ### Move text, by the words' own times
 
 When **move text** gives a line its new first words, the line now begins when that word was **heard**, from the word times

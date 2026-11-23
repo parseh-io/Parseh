@@ -5,6 +5,7 @@
 - A fault report and the last two runs' logs on Settings → About
 - Arabic dialects: studio documents, decks and books made in place say their dialect; Settings → Languages shows each
 - Arabic dialects: their own phrase lists, romanisation and question words, translated sentences for Egyptian and Levantine
+- WebP, GIF and HEIC pictures in documents and decks (Pillow and pillow-heif join the installed packages)
 
 ### Fixed
 - A settings file that cannot be read is set aside, never written over; a damaged deck is shown
@@ -15,6 +16,9 @@
 - A deck names an exercise file it cannot read; the chatbot review counts its proposals right
 - The transcript-review skills describe the copy-paste review, and their downloads work again
 - On Windows: the log in a file, Ctrl-C and a failed update no longer lose lines or show a traceback
+- A book's text may hold %, &, $ and TeX's other special characters
+- Downloads carry their real names in every script
+- The build log says in plain words why a PDF was not made
 
 ### Removed
 - The connection to a model service (Settings → LLM Integration); copy-paste review and skills stay
