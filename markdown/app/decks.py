@@ -2715,8 +2715,10 @@ def import_zip(source, scheduling=True, mode="new"):
             "skipped": skipped, "scheduling": use_sched}
 
 
-def backup_zip(warn=None):
-    """Every deck on the shelf as one zip -> (bytes, filename).
+def backup_zip(warn=None, to=None):
+    """Every deck on the shelf as one zip -> (bytes, filename); or, given
+    `to`, a path, the zip written to that file and (`to`, filename), each
+    file copied in from the disk and never held whole (TO-DO 3.9).
 
     `warn(sentence)`, when given, is called AS THE ZIP IS WRITTEN, once the
     backup passes BACKUP_WARN_ENTRIES files or BACKUP_WARN_BYTES, and again
@@ -2747,7 +2749,7 @@ def backup_zip(warn=None):
     is a tombstone that would make every backup bigger than the last, and
     the second is not a deck yet.
     """
-    buf = io.BytesIO()
+    buf = to if to else io.BytesIO()
     shelf, now = [], _clock()
     files = raw = told = 0
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -2764,9 +2766,8 @@ def backup_zip(warn=None):
                 # a recording is already compressed; deflating it again buys
                 # nothing and costs the whole file's worth of work
                 how = zipfile.ZIP_STORED if rel.startswith("audio/") else zipfile.ZIP_DEFLATED
-                data = path.read_bytes()
-                zf.writestr(name, data, how)
-                files, raw = files + 1, raw + len(data)
+                zf.write(path, name, how)
+                files, raw = files + 1, raw + path.stat().st_size
                 # said once on crossing, then as it keeps growing: the
                 # figures are what is worth watching, not the crossing
                 if warn and (files > BACKUP_WARN_ENTRIES or raw > BACKUP_WARN_BYTES) \
@@ -2777,7 +2778,7 @@ def backup_zip(warn=None):
         zf.writestr(SHELF_MANIFEST, _json_bytes({
             "format": SHELF_FORMAT, "software": "Parseh",
             "exported": _stamp(now), "decks": shelf}))
-    return buf.getvalue(), "exercises-backup-%s.zip" % now.strftime("%Y%m%d-%H%M")
+    return (to if to else buf.getvalue()), "exercises-backup-%s.zip" % now.strftime("%Y%m%d-%H%M")
 
 
 def _shelf_decks():

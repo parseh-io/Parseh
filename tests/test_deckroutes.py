@@ -35,6 +35,7 @@ for folder in (ROOT / "markdown" / "exlex", ROOT / "markdown" / "app",
         sys.path.insert(0, str(folder))
 
 import audiofile           # noqa: E402
+import savename            # noqa: E402
 import deckroutes          # noqa: E402
 import decks               # noqa: E402
 import store               # noqa: E402
@@ -139,7 +140,9 @@ class FakeHandler:
         if not path.is_file():
             return self.send_json({"error": "not found"}, 404)
         self.file = path
-        self.send_bytes(path.read_bytes(), inline_type or "application/octet-stream", 200)
+        # a download is named as the real send_file names it (serve.py, server.py: savename.disposition)
+        extra = {"Content-Disposition": savename.disposition(download_name)} if download_name else None
+        self.send_bytes(path.read_bytes(), inline_type or "application/octet-stream", 200, extra)
 
 
 def call(method, target, body=None, raw=None, spool=None):

@@ -39,8 +39,12 @@ none.
 
 SIZE.  Nothing is held whole in memory here: each part is written to a
 temporary file and copied into the zip from there, and taken out of it the
-same way, a megabyte at a time.  (The shelves' own packers still hold one
-book or video bundle at a time, and the decks' one the decks' zip: TO-DO 3.9.)
+same way, a megabyte at a time.  The shelves' own packers and restores do
+the same with each bundle, and the decks' packer with each file (TO-DO 3.9).
+Every temporary file is in Parseh's own `.tmp/` (lib/scratch.py), never the
+system's temp folder: a backup of a shelf of films is gigabytes, and that
+folder is often a small one held in memory.  A book comes with its
+recordings, as a video with its film (lib/shelf.py, TO-DO 6.16).
 
 Every door is handed in (`Env`), so that this module knows no server and a
 test can point each at a temporary tree.
@@ -49,13 +53,13 @@ import hashlib
 import json
 import os
 import shutil
-import tempfile
 import time
 import uuid
 import zipfile
 from datetime import datetime
 
 import configbackup
+import scratch
 
 FORMAT = "parseh-everything/1"
 MANIFEST = "parseh-everything.json"
@@ -125,7 +129,7 @@ def _settings_part():
 def pack(env, version=""):
     """Everything as one zip -> (path to a temporary file, file name, notes);
     the caller deletes the file."""
-    fd, out = tempfile.mkstemp(prefix="parseh-everything-", suffix=".zip")
+    fd, out = scratch.mkstemp(prefix="parseh-everything-", suffix=".zip")
     os.close(fd)
     files, empty, notes = {}, [], []
     try:
@@ -356,7 +360,7 @@ def load(source, env, replace=False):
     listed = manifest["files"]
     out = {"parts": [], "settings": None, "token": None, "made": manifest.get("exported", ""),
            "version": manifest.get("version", ""), "empty": manifest.get("empty", [])}
-    work = tempfile.mkdtemp(prefix="parseh-everything-load-")
+    work = scratch.mkdtemp(prefix="parseh-everything-load-")
     try:
         with zf:
             # THE SETTINGS FIRST: a language of the person's is what the rest may need

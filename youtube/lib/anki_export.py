@@ -73,7 +73,6 @@ import re
 import shutil
 import sqlite3
 import sys
-import tempfile
 import time
 import zipfile
 
@@ -89,6 +88,7 @@ except ImportError:
     if _ROOT_LIB not in sys.path:
         sys.path.append(_ROOT_LIB)
     import languages
+import scratch     # noqa: E402  where the package is put together (lib/scratch.py)
 
 MODEL_ID = 1724563200001
 # ReverseOnly was added (last, matching the live Anki collection exactly)
@@ -1029,7 +1029,7 @@ def build_deck(deck_dir, out_path=None):
     now = int(time.time())
     now_ms = now * 1000
     did = int(meta.get("id") or 1998880001)
-    tmp = tempfile.mkdtemp(prefix="apkg-")
+    tmp = scratch.mkdtemp(prefix="apkg-")     # .tmp/ in Parseh's folder, not the system's (lib/scratch.py)
     try:
         db = os.path.join(tmp, "collection.anki2")
         con = sqlite3.connect(db)

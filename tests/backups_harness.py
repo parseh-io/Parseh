@@ -15,6 +15,7 @@ Prints READY {port}; reads one JSON command a line and answers OK <json>:
     {"what": "look"}                     what is there now
     {"what": "damage", "from", "to", "member"}   a copy of a zip with one member's bytes changed
 """
+import hashlib
 import json
 import os
 import shutil
@@ -111,6 +112,15 @@ def empty():
 def seed():
     empty()
     shutil.copytree(BOOK, SHELF / "books" / "english" / "mini-en")
+    # a book with a recording, its transcript and its timings (TO-DO 6.16): they go and come back with it
+    book = SHELF / "books" / "english" / "mini-en"
+    meta = json.loads((book / "book.json").read_text(encoding="utf-8"))
+    meta.update(audio="audio/voice.mp3", transcript="audio/voice.txt")
+    (book / "book.json").write_text(json.dumps(meta), encoding="utf-8")
+    (book / "audio").mkdir()
+    (book / "audio" / "voice.mp3").write_bytes(b"ID3" + bytes(range(256)) * 4096)
+    (book / "audio" / "voice.txt").write_text("one two three\n", encoding="utf-8")
+    (book / "timings.json").write_text(json.dumps({"1.1": [0.0, 2.0]}), encoding="utf-8")
     shutil.copytree(VIDEO, SHELF / "youtube" / "videos" / "persian" / VIDEO.name)
     serve.studio.store.create("# A page of mine\n\nWritten on the old computer.\n")
     deck = serve.studio.decks.create_deck("Old deck", "en")
@@ -157,7 +167,13 @@ def look():
     anki = []
     for here, _dirs, files in os.walk(tmp / "anki"):
         anki += [os.path.relpath(os.path.join(here, f), tmp / "anki").replace(os.sep, "/") for f in files]
+    book = SHELF / "books" / "english" / "mini-en"
+    voice = book / "audio" / "voice.mp3"
     return {"books": [os.path.basename(d) for d in shelf.items("book")],
+            "recording": hashlib.sha256(voice.read_bytes()).hexdigest() if voice.is_file() else None,
+            "narration": sorted(n for n in ("audio/voice.txt", "timings.json") if (book / n).is_file()),
+            # where every temporary file is staged (lib/scratch.py): the tree's own .tmp/, emptied after each request
+            "staged": sorted(os.listdir(SHELF / ".tmp")) if (SHELF / ".tmp").is_dir() else None,
             "videos": [os.path.basename(d) for d in shelf.items("video")],
             "docs": [d.get("name") or d.get("title") for d in st.list_docs()],
             "decks": [m.get("name") for _f, _s2, _p, m in serve.studio.decks._shelf_decks()],

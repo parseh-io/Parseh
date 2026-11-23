@@ -55,7 +55,6 @@ import json
 import os
 import re
 import secrets
-import tempfile
 import threading
 import time
 import zipfile
@@ -68,6 +67,7 @@ import later
 import latexthemes
 import prefs
 import prompts
+import scratch
 import speechconfig
 import storeguard
 
@@ -229,7 +229,7 @@ def pack(stamp=None):
                 "files": {n: {"sha256": _sha(d), "size": len(d)} for n, d in files.items()},
                 "left_out": [{"name": "config/" + n, "why": w} for n, w in LEFT_OUT],
                 "notes": notes}
-    fd, path = tempfile.mkstemp(prefix="parseh-settings-", suffix=".zip")
+    fd, path = scratch.mkstemp(prefix="parseh-settings-", suffix=".zip")
     os.close(fd)
     try:
         with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:

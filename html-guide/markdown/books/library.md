@@ -180,22 +180,20 @@ send the zip to.
 The second panel backs up **every book at once**, and puts them back:
 
 - **Backup every book** downloads one zip, `books-backup-<date>-<time>.zip`,
-  holding one bundle per book — each one the **everything but the
-  recording** shape. The recordings are left out to keep the backup small:
-  copy each book's `audio/` folder yourself if you want them kept too, and
-  after a restore put `audio/` back in the book's folder and press
-  **rebuild** on its card. Because the backup is a zip of ordinary bundles,
-  any one book can be taken out of it and brought back on its own with the
-  panel above.
+  holding one bundle per book — each one the **all of it** shape: the
+  recordings in `audio/` come with their book, with the timings and the
+  review. After a restore, press **build** on a book's card and its
+  recording plays again, aligned as before. Because the backup is a zip of
+  ordinary bundles, any one book can be taken out of it and brought back on
+  its own with the panel above.
 - **Load from backup** picks such a zip and puts every book in it back. The
   button stays disabled while it works (*… this can take a while*). A book
   **already on the shelf is left as it is**, and the panel names the ones it
   kept — *4 books here already were left as they are: …* — with two buttons:
   **Replace them**, which sends the backup again and overwrites those books
   with the backup's copies — anything written since the backup was made is
-  lost, the timings of a narration included, while the recordings in
-  `audio/` stay, as with any **everything but the recording** bundle
-  (above) — and **Keep mine**, which leaves them alone. The answer ends *N books
+  lost, the recordings in `audio/` and their timings included: they are the
+  backup's, as with any **all of it** bundle (above) — and **Keep mine**, which leaves them alone. The answer ends *N books
   put back — reload the page to see them*. A book in the backup that cannot
   be put back is reported and skipped; the others still go in.
 

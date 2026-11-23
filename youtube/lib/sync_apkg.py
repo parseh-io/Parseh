@@ -78,6 +78,7 @@ import zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import anki_export as ax
 import languages            # anki_export has put the toolbox's lib/ on the path
+import scratch              # where a package is opened: .tmp/ in Parseh's folder (lib/scratch.py)
 import anki_store
 import import_apkg as ia
 import notetypes
@@ -498,7 +499,7 @@ def run_sync(apkg_path, anki_dir, dry_run=True, delete_missing=False):
                if len(hits) == 1}
     store, dups, retired = load_store(anki_dir, [d["path"] for d in all_decks])
 
-    with tempfile.TemporaryDirectory(prefix="apkg-sync-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="apkg-sync-", dir=scratch.folder()) as tmp:
         con, fmt = ia.open_collection(apkg_path, tmp)
         stamp = ia.stamp_of(con)
         if stamp:

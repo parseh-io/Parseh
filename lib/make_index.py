@@ -370,9 +370,8 @@ def shelf_panel(kind, backup, restore):
     """
     description = (
         "Back up the whole book shelf as one zip. It holds one "
-        "<b>everything but the recording</b> bundle per book. "
-        "It leaves out audio/ to save space: copy each book&rsquo;s audio/ directory "
-        "separately by hand, then rebuild its reader after restoring it. "
+        "<b>all of it</b> bundle per book: its text, its notes and its "
+        "recordings with their timings. "
         "Each bundle is a zip the door above can take on its own."
         if kind == "book" else
         "Back up the whole video shelf as one zip. It holds one bundle per "

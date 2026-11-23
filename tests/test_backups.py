@@ -33,6 +33,8 @@ import later            # noqa: E402
 import latexthemes      # noqa: E402
 import prefs            # noqa: E402
 import prompts          # noqa: E402
+import scratch          # noqa: E402
+import shelf            # noqa: E402
 import speechconfig     # noqa: E402
 import wholebackup      # noqa: E402
 
@@ -463,6 +465,66 @@ class Everything(Tree):
         with zipfile.ZipFile(path) as zf:
             m = json.loads(zf.read(wholebackup.MANIFEST))
         self.assertEqual(sorted(m["empty"]), sorted(["books", "videos", "studio", "decks", "cards", "clips"]))
+
+
+class EverythingWithABook(Tree):
+    """The backup of everything through the books' REAL shelf (lib/shelf.py): a book's recordings come back with it
+    (TO-DO 6.16), and every temporary file is staged in the toolbox's .tmp/, never the system's temp folder."""
+
+    def setUp(self):
+        super().setUp()
+        self.root = self.tmp / "root"
+        book = self.root / "books" / "english" / "mini-en"
+        shutil.copytree(ROOT / "tests" / "fixtures" / "books" / "english" / "mini-en", book)
+        meta = json.loads((book / "book.json").read_text(encoding="utf-8"))
+        meta["audio"] = "audio/voice.mp3"
+        (book / "book.json").write_text(json.dumps(meta), encoding="utf-8")
+        (book / "audio").mkdir()
+        self.sound = b"ID3" + os.urandom(300000)
+        (book / "audio" / "voice.mp3").write_bytes(self.sound)
+        (book / "timings.json").write_text(json.dumps({"1.1": [0.0, 2.0]}), encoding="utf-8")
+        self.book = book
+        r = str(self.root)
+        self.env = wholebackup.Env(
+            {"books": lambda: shelf.pack("book", root=r) if shelf.items("book", r) else None,
+             "videos": lambda: None, "studio": lambda: None, "decks": lambda: None},
+            {"books": lambda path, replace: shelf.restore("book", path, replace=replace, root=r)},
+            str(self.tmp / "anki"), str(self.tmp / "clips"))
+        p = mock.patch.object(scratch, "ROOT", r)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_a_book_with_a_recording_survives_wipe_and_load(self):
+        made = []
+        real_stemp, real_dtemp = tempfile.mkstemp, tempfile.mkdtemp
+
+        def stemp(*a, **k):
+            made.append(k.get("dir"))
+            return real_stemp(*a, **k)
+
+        def dtemp(*a, **k):
+            made.append(k.get("dir"))
+            return real_dtemp(*a, **k)
+        with mock.patch.object(tempfile, "mkstemp", stemp), mock.patch.object(tempfile, "mkdtemp", dtemp):
+            path, _name, notes = wholebackup.pack(self.env, "a0.6.3")
+            self.addCleanup(lambda: os.path.exists(path) and os.unlink(path))
+            self.assertEqual(notes, [])
+            self.assertEqual(os.path.dirname(path), str(self.root / ".tmp"))
+            shutil.rmtree(self.root / "books")
+            (self.root / "books").mkdir()
+            out = wholebackup.load(path, self.env)
+        books = next(p for p in out["parts"] if p["part"] == "books")
+        self.assertEqual((books["restored"], books["warnings"]), (["mini-en"], []), out)
+        self.assertEqual((self.book / "audio" / "voice.mp3").read_bytes(), self.sound)
+        self.assertTrue((self.book / "timings.json").is_file())
+        self.assertEqual(json.loads((self.book / "book.json").read_text(encoding="utf-8"))["audio"],
+                         "audio/voice.mp3")
+        inside = str(self.root.resolve()) + os.sep
+        for d in made:
+            self.assertIsNotNone(d, "a temporary file made in the system's temp folder")
+            self.assertTrue((os.path.realpath(d) + os.sep).startswith(inside), d)
+        self.assertEqual(sorted(os.listdir(self.root / ".tmp")), [os.path.basename(path)],
+                         "nothing left in .tmp/ but the backup itself, which its caller deletes")
 
 
 class TheServerMarksTheDay(unittest.TestCase):
