@@ -22,6 +22,7 @@ become statuses (NotFound 404, Conflict 409 with its kind, DeckError 400),
 and every JSON answer carries "ok".
 """
 import json
+import os
 import re
 import traceback
 from pathlib import Path
@@ -34,6 +35,7 @@ import latexdraw
 import offline               # what a deck is made of, for a phone to keep (§19.3)
 import languages
 import savename         # a download named in any script (§8.20)
+import scratch         # where the zip is written first: .tmp/ in Parseh's folder
 import store
 import webexport        # a deck's picked exercises as one HTML page (§9.7)
 
@@ -817,10 +819,19 @@ def api_backup(h):
     page left to write on, and the list is what every page shows while a
     download is being packed.  The entry is relabelled as the zip grows."""
     act = getattr(h, "_act", None)    # this request's Working… entry, in Parseh
-    data, name = decks.backup_zip(
-        warn=(lambda note: activity.relabel(act, note)) if act else None)
-    h.send_bytes(data, "application/zip", 200,
-                 {"Content-Disposition": 'attachment; filename="%s"' % name})
+    # WRITTEN TO A FILE in .tmp/ and sent from there, never held whole: a
+    # shelf of decks carries every recording it has (TO-DO 3.9)
+    fd, path = scratch.mkstemp(prefix="parseh-decks-", suffix=".zip")
+    os.close(fd)
+    try:
+        _path, name = decks.backup_zip(
+            warn=(lambda note: activity.relabel(act, note)) if act else None, to=path)
+        h.send_file(path, download_name=name)
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
 
 
 def api_restore(h):

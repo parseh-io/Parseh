@@ -71,6 +71,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import anki_export as ax
 import anki_store
 import languages    # the registry; anki_export has put lib/ on the path
+import scratch      # where a package is opened: .tmp/ in Parseh's folder (lib/scratch.py)
 
 IMG_RE = re.compile(r'<img\b[^>]*?\bsrc="([^"]*)"[^>]*>', re.I)
 # a recording, which the exporter writes into the same field as the picture
@@ -473,7 +474,7 @@ def import_all(apkg_path, anki_dir, only_dids=None, merge_held=False):
     rebuild never flattens it: it is counted as "kept".
     """
     import notetypes
-    with tempfile.TemporaryDirectory(prefix="apkg-import-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="apkg-import-", dir=scratch.folder()) as tmp:
         con, fmt = open_collection(apkg_path, tmp)
         stamp = stamp_of(con)
         names = deck_names(con)

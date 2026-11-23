@@ -774,8 +774,11 @@ def _manifest_for(kind, name, language, gloss, shape):
     return man
 
 
-def _pack(kind, directory, name, language, gloss, mode, shaped):
-    """-> (the bytes of the zip, the filename to offer it under).
+def _pack(kind, directory, name, language, gloss, mode, shaped, to=None):
+    """-> (the bytes of the zip, the filename to offer it under); or, given
+    `to`, a path, the zip written to that file and (`to`, the filename) --
+    which is how a shelf backup and a download carry a recording or a film
+    without holding it in memory (TO-DO 3.9).
 
     `shaped` is whether the shape is a fact about this bundle at all: false
     for a video, and false for a book with no narration, and then neither the
@@ -792,8 +795,8 @@ def _pack(kind, directory, name, language, gloss, mode, shaped):
     """
     take, _left = _carried(kind, directory, mode)
     clean = kind == "book" and mode == "text"
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+    buf = to if to else io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as z:
         z.writestr(MANIFEST,
                    json.dumps(_manifest_for(kind, name, language, gloss,
                                             mode if shaped else None),
@@ -816,7 +819,7 @@ def _pack(kind, directory, name, language, gloss, mode, shaped):
                 continue
             with open(src, "rb") as f:
                 z.writestr(arc, _cleaned(rel, f.read()))
-    return buf.getvalue(), _filename(kind, name, mode if shaped else None)
+    return (to if to else buf.getvalue()), _filename(kind, name, mode if shaped else None)
 
 
 def _book_at(directory, shown=None):
@@ -891,8 +894,9 @@ def _asked(audio):
     return mode
 
 
-def pack_book(book_dir, audio=DEFAULT_MODE):
-    """A reading edition as one zip: -> (bytes, filename).
+def pack_book(book_dir, audio=DEFAULT_MODE, to=None):
+    """A reading edition as one zip: -> (bytes, filename), or (`to`,
+    filename) with the zip written to the file `to` (see _pack).
 
     `audio` is how much of the narration comes with it -- one of MODES, and
     the three are described at the top of this file.  It is spelt as the
@@ -907,7 +911,7 @@ def pack_book(book_dir, audio=DEFAULT_MODE):
     mode = _asked(audio)
     b = _book_at(book_dir)
     return _pack("book", b.dir, os.path.basename(b.dir), b.language, b.gloss,
-                 mode, _narration(b.dir, b.meta)["any"])
+                 mode, _narration(b.dir, b.meta)["any"], to)
 
 
 def film_at(video_dir):
@@ -960,8 +964,9 @@ def video_mode(video_dir, mode=None):
     return "text" if (film and mode == "linked") else mode
 
 
-def pack_video(video_dir, mode=None):
-    """A video and its glossed transcript as one zip: -> (bytes, filename).
+def pack_video(video_dir, mode=None, to=None):
+    """A video and its glossed transcript as one zip: -> (bytes, filename),
+    or (`to`, filename) with the zip written to the file `to` (see _pack).
 
     A VIDEO ON YOUTUBE HAS NO SHAPE and is offered none: its media is an
     address and never a file here, its timestamps sync its own transcript,
@@ -978,7 +983,7 @@ def pack_video(video_dir, mode=None):
     directory = os.path.abspath(video_dir)
     _meta, L, G = _video_at(directory)
     return _pack("video", directory, os.path.basename(directory), L.code, G.code,
-                 video_mode(directory, mode), bool(film_at(directory)))
+                 video_mode(directory, mode), bool(film_at(directory)), to)
 
 
 # WHAT ONE CARRIED FILE COMES TO INSIDE THE ZIP, deflated the way _pack

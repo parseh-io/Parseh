@@ -208,7 +208,8 @@ PERSONAL = ("books/", "youtube/videos/", "youtube/anki/", "markdown/library/", "
             "clips/", "config/", "dict/", "corpus/", "mt/", "components/", "texmf/", "stt/", "analysis/", "llm-scoring/",
             "arasaac/")
 SCAFFOLDING = (".gitkeep", "README.md")
-NEVER = (".tls/", ".runtime/", ".git/", WORK + "/", ".claude/")
+NEVER = (".tls/", ".runtime/", ".git/", WORK + "/", ".claude/",
+         ".tmp/")       # where Parseh stages a temporary file (lib/scratch.py)
 NEVER_FILES = (".serve.pid", "serve.log", "serve.log.1", ".setup-done", ".git")
 
 # The content's small files, copied before an update that lowers a data

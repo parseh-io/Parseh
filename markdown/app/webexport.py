@@ -52,7 +52,6 @@ import os
 import re
 import shutil
 import sys
-import tempfile
 import threading
 from html.parser import HTMLParser
 from pathlib import Path
@@ -70,6 +69,7 @@ import audiofile            # noqa: E402  the clips, cut where ffmpeg is here
 import htmlgen              # noqa: E402
 import languages            # noqa: E402
 import project              # noqa: E402  where Parseh lives: the two links of the foot
+import scratch              # noqa: E402  where the clips are cut: .tmp/ in Parseh's folder
 
 
 class ExportError(Exception):
@@ -231,7 +231,7 @@ class _Media:
                 e = float(end) if end is not None else audiofile.duration(str(disk))
                 if e is not None and e > s:
                     if self.tmp is None:
-                        self.tmp = tempfile.mkdtemp(prefix="parseh-export-")
+                        self.tmp = scratch.mkdtemp(prefix="parseh-export-")
                     out = audiofile.extract(str(disk), s, e,
                                             os.path.join(self.tmp, "c%d" % len(self.cuts)))
                     key = "a%d" % len(self.store)

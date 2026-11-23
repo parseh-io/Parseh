@@ -138,24 +138,94 @@ class Books(ShelfCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("mini-en", r.stdout)
 
-    def test_book_backup_uses_linked_shape_without_recordings(self):
+    def narrate(self):
+        """mini-en given a narration: a recording, its transcript, the
+        timings and the review -- everything bundle.NARR_* says one is."""
         book = os.path.join(self.root, "books", "english", "mini-en")
         path = os.path.join(book, "book.json")
         with open(path, encoding="utf-8") as f:
             meta = json.load(f)
         meta["audio"] = "audio/voice.mp3"
+        meta["transcript"] = "audio/voice.txt"
         with open(path, "w", encoding="utf-8") as f:
             json.dump(meta, f)
         os.makedirs(os.path.join(book, "audio"))
+        sound = b"ID3" + bytes(range(256)) * 64
         with open(os.path.join(book, "audio", "voice.mp3"), "wb") as f:
-            f.write(b"ID3")
+            f.write(sound)
+        with open(os.path.join(book, "audio", "voice.txt"), "w", encoding="utf-8") as f:
+            f.write("one two three\n")
+        with open(os.path.join(book, "timings.json"), "w", encoding="utf-8") as f:
+            json.dump({"1.1": [0.0, 1.5]}, f)
+        with open(os.path.join(book, "review.json"), "w", encoding="utf-8") as f:
+            json.dump({"checked": ["1.1"]}, f)
+        return sound
+
+    def test_book_backup_carries_its_recordings(self):
+        """TO-DO 6.16: a book comes in the `full` shape, its audio/ inside,
+        as a video comes with its film -- and the formats are the ones every
+        Parseh reads, so an older one loads it too."""
+        sound = self.narrate()
         backup, _ = self.pack()
         with zipfile.ZipFile(backup) as shelf_zip:
-            inner = shelf_zip.read("mini-en-book-linked.zip")
+            self.assertEqual(json.loads(shelf_zip.read(shelf.MANIFEST))["shape"], "full")
+            inner = shelf_zip.read("mini-en-book-full.zip")
         with zipfile.ZipFile(io.BytesIO(inner)) as book_zip:
-            self.assertNotIn("mini-en/audio/voice.mp3", book_zip.namelist())
+            names = book_zip.namelist()
+            self.assertEqual(book_zip.read("mini-en/audio/voice.mp3"), sound)
+            for n in ("mini-en/audio/voice.txt", "mini-en/timings.json", "mini-en/review.json"):
+                self.assertIn(n, names)
+            man = json.loads(book_zip.read(bundle.MANIFEST))
             self.assertEqual(json.loads(book_zip.read("mini-en/book.json"))["audio"],
                              "audio/voice.mp3")
+        self.assertEqual((man["format"], man["audio"]), ("parseh-bundle/3", "full"))
+        self.assertEqual(shelf.FORMAT, "parseh-shelf/2")
+
+    def test_a_book_s_recordings_come_back_with_it(self):
+        sound = self.narrate()
+        path, _ = self.pack()
+        far = self.far()
+        out = shelf.restore("book", path, root=far)
+        self.assertEqual(sorted(out["restored"]), ["mini-ar", "mini-en"], out)
+        back = os.path.join(far, "books", "english", "mini-en")
+        with open(os.path.join(back, "audio", "voice.mp3"), "rb") as f:
+            self.assertEqual(f.read(), sound)
+        for n in ("audio/voice.txt", "timings.json", "review.json"):
+            self.assertTrue(os.path.isfile(os.path.join(back, n)), n)
+        with open(os.path.join(back, "book.json"), encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["transcript"], "audio/voice.txt")
+
+    def test_staged_inside_the_toolbox_never_in_the_system_temp_folder(self):
+        """lib/scratch.py: every temporary file of a backup and a restore is
+        made with a dir= inside <root>/.tmp/, and none is left there."""
+        self.narrate()
+        made = []
+        real_stemp, real_dtemp = tempfile.mkstemp, tempfile.mkdtemp
+
+        def stemp(*a, **k):
+            made.append(k.get("dir"))
+            return real_stemp(*a, **k)
+
+        def dtemp(*a, **k):
+            made.append(k.get("dir"))
+            return real_dtemp(*a, **k)
+        far = self.far()
+        with mock.patch.object(tempfile, "mkstemp", stemp), mock.patch.object(tempfile, "mkdtemp", dtemp):
+            path, _ = self.pack()
+            shelf.restore("book", path, root=far)
+        self.assertTrue(made)
+        # .tmp/ for what a backup and a restore stage; bundle.install's own
+        # staging beside the book it puts back (books/<language>/) is in the
+        # toolbox too
+        inside = tuple(os.path.realpath(r) + os.sep for r in (self.root, far))
+        for d in made:
+            self.assertIsNotNone(d, "a temporary file made in the system's temp folder")
+            self.assertTrue((os.path.realpath(d) + os.sep).startswith(inside), d)
+        self.assertIn(os.path.realpath(os.path.join(self.root, ".tmp")), [os.path.realpath(d) for d in made])
+        self.assertIn(os.path.realpath(os.path.join(far, ".tmp")), [os.path.realpath(d) for d in made])
+        self.assertEqual(os.listdir(os.path.join(self.root, ".tmp")),
+                         [os.path.basename(path)], "only the backup itself, which the caller deletes")
+        self.assertEqual(os.listdir(os.path.join(far, ".tmp")), [])
 
     def test_it_comes_back_into_an_empty_toolbox(self):
         path, _ = self.pack()

@@ -19,20 +19,33 @@ The studio says the same thing about its own documents, and got there first:
 once: their images/ and audio/ would otherwise land in one heap with every
 name free to collide."
 
+A BOOK COMES WITH ITS RECORDINGS (TO-DO 6.16).  Each book packs in the
+`full` shape -- its audio/ folder, the timings, the review and the
+corrections, book.json still naming them -- as a video packs with its film.
+A backup is for putting a shelf back as it was, and a recording is the one
+part of a narrated book nothing can make again.  `full` is as old as
+bundles are (parseh-bundle/3 has always had it), so an older Parseh loads
+such a backup as it is: the format numbers stay where they were.
+
 WRITTEN TO DISK AND NOT TO MEMORY.  A narrated book is a couple of hundred
-megabytes and a shelf is as many of those as somebody has; the outer zip is
-built in a temporary file and streamed from there, so what is ever held at
-once is one book.
+megabytes and a shelf is as many of those as somebody has.  Each bundle is
+written to a file in Parseh's own `.tmp/` (lib/scratch.py, never the
+system's temp folder, which can be a small tmpfs), copied into the outer zip
+from there and deleted; and the outer zip is built in such a file too and
+streamed from it.  A restore takes each bundle out to such a file in the
+same way before bundle.install reads it.  So nothing is ever held whole in
+memory: what is on the disk at once is the backup and one bundle.
 """
 import io
 import json
 import os
-import tempfile
+import shutil
 import zipfile
 from datetime import datetime
 
 import books as booklib
 import bundle
+import scratch
 
 MANIFEST = "parseh-shelf.json"
 FORMAT = "parseh-shelf/2"
@@ -72,48 +85,54 @@ def pack(kind, mode=None, root=None):
     """The whole shelf as one zip -> (path to a temporary file, filename).
 
     THE CALLER DELETES THE FILE.  It is written rather than returned as
-    bytes because even linked book bundles can make a large shelf, and the
-    whole archive should not be held in memory at once.
+    bytes, in Parseh's own `.tmp/` (lib/scratch.py; under `root` when one is
+    given), and so is each bundle on its way into it.
 
-    `mode` is the shape each item packs in (bundle.MODES), or None for
-    "whatever each one wants" -- which is what the download of a single one
-    does, and is right here too: a video with no film has no shape, and a
-    book with no narration reads the same in all three.
+    `mode` is the shape each item packs in (bundle.MODES), or None for the
+    backup's own: `full` for a book -- its recordings with it (6.16) -- and
+    for a video whatever it wants, its film where it has one.  A book with no
+    narration reads the same in all three.
     """
     if kind not in KINDS:
         raise ShelfError("there is no shelf of %r" % kind)
     found = items(kind, root)
     if len(found) > MAX_ITEMS:
         raise ShelfError("this shelf holds more than %d %ss" % (MAX_ITEMS, kind))
-    pack_one = bundle.pack_book if kind == "book" else bundle.pack_video
-    fd, path = tempfile.mkstemp(prefix="parseh-shelf-", suffix=".zip")
+    if kind == "book":
+        def pack_one(d, to):
+            return bundle.pack_book(d, mode or "full", to=to)
+    else:
+        def pack_one(d, to):
+            return bundle.pack_video(d, mode, to=to)
+    fd, path = scratch.mkstemp(prefix="parseh-shelf-", suffix=".zip", at=root)
     os.close(fd)
     listed, notes = [], []
     try:
-        with zipfile.ZipFile(path, "w", zipfile.ZIP_STORED) as zf:
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_STORED, allowZip64=True) as zf:
             for d in found:
+                fd, one = scratch.mkstemp(prefix="parseh-bundle-", suffix=".zip", at=root)
+                os.close(fd)
                 try:
-                    data, name = pack_one(d, mode) if mode else pack_one(d)
-                except bundle.BundleError as e:
-                    # one book nobody can pack is not a reason to have no
-                    # backup of the other forty
-                    notes.append("%s: %s" % (os.path.basename(d), e))
-                    continue
-                # STORED, not deflated: a bundle is a zip already, and
-                # deflating a zip costs the whole file's work for nothing
-                zf.writestr(name, data, zipfile.ZIP_STORED)
+                    try:
+                        _done, name = pack_one(d, one)
+                    except bundle.BundleError as e:
+                        # one book nobody can pack is not a reason to have no
+                        # backup of the other forty
+                        notes.append("%s: %s" % (os.path.basename(d), e))
+                        continue
+                    # STORED, not deflated: a bundle is a zip already, and
+                    # deflating a zip costs the whole file's work for nothing
+                    zf.write(one, name, zipfile.ZIP_STORED)
+                finally:
+                    _unlink(one)
                 listed.append({"file": name, "name": os.path.basename(d)})
-                del data
             zf.writestr(MANIFEST, json.dumps({
                 "format": FORMAT, "software": "Parseh", "kind": kind,
                 "exported": datetime.now().isoformat(timespec="seconds"),
-                "shape": mode or "", "items": listed, "notes": notes,
+                "shape": mode or ("full" if kind == "book" else ""), "items": listed, "notes": notes,
             }, ensure_ascii=False, indent=1).encode("utf-8"))
     except BaseException:
-        try:
-            os.unlink(path)
-        except OSError:
-            pass
+        _unlink(path)
         raise
     return path, "%ss-backup-%s.zip" % (kind, _stamp())
 
@@ -169,9 +188,15 @@ def restore(kind, source, replace=False, root=None):
             # NOTHING IS TRUSTED BECAUSE THE MANIFEST LISTED IT.  Every
             # entry goes to bundle, which says what it is and whether it may
             # come back; a name is only ever used to say which one failed.
+            # TAKEN OUT TO A FILE, not read into memory: a bundle may carry a
+            # recording or a film of gigabytes (3.9), and bundle reads a path
+            # as readily as bytes
+            fd, data = scratch.mkstemp(prefix="parseh-bundle-", suffix=".zip", at=root)
             try:
-                data = zf.read(names[name])
+                with os.fdopen(fd, "wb") as out, zf.open(names[name]) as src:
+                    shutil.copyfileobj(src, out, 1 << 20)
             except (zipfile.BadZipFile, OSError, ValueError, EOFError) as e:
+                _unlink(data)
                 warnings.append("%s could not be read (%s)" % (name, e))
                 continue
             try:
@@ -193,10 +218,19 @@ def restore(kind, source, replace=False, root=None):
             except (OSError, ValueError) as e:
                 warnings.append("%s could not be put back (%s)" % (name, e))
                 continue
+            finally:
+                _unlink(data)
             restored.append(out.get("name") or name)
             if out.get("dir"):
                 dirs.append(out["dir"])
         return {"restored": restored, "kept": kept, "warnings": warnings, "dirs": dirs}
+
+
+def _unlink(path):
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
 
 
 def _reads(stamp, fmt):

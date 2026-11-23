@@ -151,14 +151,12 @@ video**) and the exercise decks. Loading one brings each item back as
 itself, and what is already there is kept unless you choose to replace
 it.
 
-Two of them do not hold everything:
+What they carry with them:
 
-- **Backup every book** leaves every book's narration out, to save
-  space: each book is packed as **everything but the recording**. Copy
-  each book's `audio/` folder yourself; after a restore, put it back in
-  the book's folder, then press **build** (or **rebuild**) on the book's
-  card in the library.
-- **Backup every video** does carry a film kept on this machine; a
+- **Backup every book** carries every book's narration: each book is
+  packed as **all of it**, its recordings and their timings included.
+  After a restore, press **build** on the book's card in the library.
+- **Backup every video** carries a film kept on this machine; a
   YouTube video's picture and sound stay on YouTube.
 
 Your Anki cards go to Anki. [The file layout](file-layout.md) says where

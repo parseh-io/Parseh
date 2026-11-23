@@ -93,7 +93,6 @@ import ssl
 import subprocess
 import sys
 import sqlite3
-import tempfile
 import threading
 import time
 import traceback
@@ -156,6 +155,7 @@ import timestamp as tstamp  # noqa: E402  the aligner: its transcript parser, fo
 import bundle              # noqa: E402  a book or a video as one file, out and back
 import savename            # noqa: E402  a download named in any script (§8.20)
 import shelf               # noqa: E402  a whole shelf of either, backed up and put back
+import scratch             # noqa: E402  where a temporary file goes: .tmp/ in Parseh's folder, never /tmp
 import texwrite            # noqa: E402  one chunk of a chapter, edited in place
 import glossregion         # noqa: E402  a region glossed by an LLM: the prompt, the answer put back
 import reading              # noqa: E402  what somebody decided about the text itself
@@ -3391,7 +3391,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json({"error": "request body too large"}, 413)
             if big and n > MAX_BODY:
                 # to disk, in pieces, never into memory
-                fd, spool = tempfile.mkstemp(prefix="parseh-upload-", suffix=".zip")
+                fd, spool = scratch.mkstemp(prefix="parseh-upload-", suffix=".zip")
                 got = 0
                 try:
                     with os.fdopen(fd, "wb") as f:
@@ -5545,13 +5545,29 @@ class Handler(SimpleHTTPRequestHandler):
     # what lives here is the mapping from a request to one of their calls and
     # from their refusals to a status code.  Their exceptions are the error
     # messages: they were written to be read by whoever pressed the button.
-    def _send_bundle(self, data, name):
+    def _send_bundle(self, path, name):
         # Content-Disposition is what makes the browser save it rather than
         # try to display a zip; the name is the book's folder or a video's
         # id, in any script: savename sends it with an ASCII twin (§8.20)
-        # and takes out a quote that would end the header value early
-        self.send_bytes(data, "application/zip", extra={
-            "Content-Disposition": savename.disposition(name)})
+        # and takes out a quote that would end the header value early.
+        # `path` is the bundle written to a file in .tmp/ (_bundle_file):
+        # sent from there in pieces and deleted, never held whole (3.9) --
+        # a book with its recording, a video with its film, are hundreds of
+        # megabytes
+        try:
+            self._send_file(path, "application/zip", name)
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+    @staticmethod
+    def _bundle_file():
+        """A file in .tmp/ for one bundle to be written into (lib/scratch.py)."""
+        fd, path = scratch.mkstemp(prefix="parseh-bundle-", suffix=".zip")
+        os.close(fd)
+        return path
 
     def _book_download(self):
         """The reading edition as one zip, in one of three shapes.
@@ -5568,13 +5584,16 @@ class Handler(SimpleHTTPRequestHandler):
         if not book:
             return self.send_json({"ok": False, "error": "no book here"}, 404)
         mode = (self.query.get("audio", [""])[0] or "").strip().lower()
+        to = self._bundle_file()
         try:
-            data, name = (bundle.pack_book(book, audio=mode) if mode
-                          else bundle.pack_book(book))
-        except bundle.BundleError as e:
+            data, name = (bundle.pack_book(book, audio=mode, to=to) if mode
+                          else bundle.pack_book(book, to=to))
+        except (bundle.BundleError, TypeError, ValueError) as e:
+            os.unlink(to)
             return self.send_json({"ok": False, "error": str(e)}, 400)
-        except (TypeError, ValueError) as e:
-            return self.send_json({"ok": False, "error": str(e)}, 400)
+        except BaseException:
+            os.unlink(to)
+            raise
         self._send_bundle(data, name)
 
     def _shelf_backup(self, kind):
@@ -6112,11 +6131,14 @@ class Handler(SimpleHTTPRequestHandler):
         if not d:
             return self.send_json({"ok": False, "error": "no such video"}, 404)
         want = (self.query.get("media") or self.query.get("audio") or [""])[0] or None
+        to = self._bundle_file()
         try:
-            data, name = bundle.pack_video(d, want)
+            data, name = bundle.pack_video(d, want, to=to)
         except bundle.BundleError as e:
+            os.unlink(to)
             return self.send_json({"ok": False, "error": str(e)}, 400)
         except OSError as e:
+            os.unlink(to)
             # a film the process cannot read -- permissions, a dangling link,
             # a disk that went away -- is a sentence about that film, not a
             # traceback out of the download button
@@ -6952,7 +6974,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "timings": "timings.json" if ti["subs"] else None,
                     "subs": ti["subs"], "manual": ti["manual"],
                     "exported": time.strftime("%Y-%m-%dT%H:%M:%S")}
-        fd, tmp = tempfile.mkstemp(suffix=".zip")
+        fd, tmp = scratch.mkstemp(prefix="parseh-narration-", suffix=".zip")
         os.close(fd)
         try:
             with zipfile.ZipFile(tmp, "w") as z:
@@ -7850,7 +7872,7 @@ class Handler(SimpleHTTPRequestHandler):
         replace = (self.query.get("replace", ["0"])[0] or "") in ("1", "true", "yes")
         if not self._spool:
             # the whole backup is read from a file; a small one came in memory
-            fd, tmp = tempfile.mkstemp(prefix="parseh-upload-", suffix=".zip")
+            fd, tmp = scratch.mkstemp(prefix="parseh-upload-", suffix=".zip")
             with os.fdopen(fd, "wb") as f:
                 f.write(source)
             source = tmp
@@ -7875,7 +7897,7 @@ class Handler(SimpleHTTPRequestHandler):
             files = store.backup_files()
             if not files:
                 return None
-            fd, path = tempfile.mkstemp(prefix="parseh-studio-", suffix=".zip")
+            fd, path = scratch.mkstemp(prefix="parseh-studio-", suffix=".zip")
             os.close(fd)
             with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
                 for f, rel in files:
@@ -7885,10 +7907,13 @@ class Handler(SimpleHTTPRequestHandler):
         def pack_decks():
             if not decks._shelf_decks():
                 return None
-            data, name = decks.backup_zip()
-            fd, path = tempfile.mkstemp(prefix="parseh-decks-", suffix=".zip")
-            with os.fdopen(fd, "wb") as f:
-                f.write(data)
+            fd, path = scratch.mkstemp(prefix="parseh-decks-", suffix=".zip")
+            os.close(fd)
+            try:
+                _path, name = decks.backup_zip(to=path)
+            except BaseException:
+                os.unlink(path)
+                raise
             return path, name
 
         def restore_shelf(kind):
@@ -8588,6 +8613,10 @@ def _announce(ctx, first):
 
 
 def main():
+    # A TEMPORARY FILE GOES IN .tmp/ HERE, never in the system's temp folder (lib/scratch.py): set before anything
+    # can stage one; a test that boots this has set its own tree already, and keeps it
+    if scratch.ROOT is None:
+        scratch.ROOT = ROOT
     ap = argparse.ArgumentParser(description="%s -- the whole toolbox, one server" % NAME)
     # no default: a port given here is for this run, and a port nobody gave
     # is the one the Settings page keeps (config/network.json)
@@ -8685,6 +8714,11 @@ def main():
     # and the held waveforms nobody adopted -- cleared off the way in, here,
     # never at import
     threading.Thread(target=sttjobs.startup, daemon=True).start()
+    # and what a killed server left staged in .tmp/ -- a backup half packed, an upload half read -- older than a day
+    try:
+        scratch.sweep()
+    except OSError as e:
+        print("!! could not clear old files out of %s: %s" % (os.path.join(scratch.root(), scratch.NAME), e))
     # and the films and sounds that were sent and never made a video
     threading.Thread(target=filmdoor.sweep, daemon=True).start()
 

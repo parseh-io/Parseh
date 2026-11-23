@@ -206,6 +206,7 @@ CONTENT = ("books/", "youtube/videos/", "markdown/library/", "exercises/", "clip
 SCAFFOLDING = (".gitkeep", "README.md")
 # never in a release, whatever .gitattributes says
 NEVER = (".tls/", "tests/", ".github/", ".runtime/", ".parseh-update/", "dist/",
+         ".tmp/",           # where Parseh stages a temporary file (lib/scratch.py)
          ":memory:.ses",
          "docs/lm-likelihood-evaluation.md",
          "tools/", ".speech-release-build/",

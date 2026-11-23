@@ -55,6 +55,9 @@ serve.log.1
 .serve.pid
 .setup-done
 .tls/
+# where Parseh stages a temporary file -- a backup being packed, an upload being read (lib/scratch.py): never the
+# system's temp folder, which can be a small tmpfs; emptied of anything older than a day when Parseh starts
+/.tmp/
 __pycache__/
 *.pyc
 .DS_Store

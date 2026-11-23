@@ -53,6 +53,7 @@ import activity       # noqa: E402  the Working… list a long download reports 
 import audiofile      # noqa: E402
 import htmlgen        # noqa: E402
 import notes          # noqa: E402
+import scratch        # noqa: E402  where a zip is written first: .tmp/ in Parseh's folder
 import store          # noqa: E402
 import envsetup       # noqa: E402
 import mdparser       # noqa: E402
@@ -2526,8 +2527,24 @@ def api_export(h):
     here -- the restore's ceilings are far above it (store.LIB_MAX_*) -- but
     a library growing towards them should be noticed long before."""
     act = getattr(h, "_act", None)     # this request's Working… entry, in Parseh
+    # WRITTEN TO A FILE in .tmp/ and sent from there, never held whole: the
+    # library carries every document's pictures and recordings (TO-DO 3.9)
+    fd, buf = scratch.mkstemp(prefix="parseh-studio-", suffix=".zip")
+    os.close(fd)
+    try:
+        _export_into(buf, act)
+        name = "exlex-library-%s.zip" % time.strftime("%Y%m%d-%H%M")
+        h.send_file(buf, download_name=name)
+    finally:
+        try:
+            os.unlink(buf)
+        except OSError:
+            pass
+
+
+def _export_into(buf, act):
+    """api_export's zip, written into the file `buf`."""
     files = raw = told = 0
-    buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         # sources + metadata always; of the build dir, only the PDF
         for f, rel in store.backup_files():
@@ -2540,9 +2557,6 @@ def api_export(h):
                 told = files
                 activity.relabel(act, store.big_backup_note(
                     "The backup of the studio library", files, raw))
-    name = "exlex-library-%s.zip" % time.strftime("%Y%m%d-%H%M")
-    h.send_bytes(buf.getvalue(), "application/zip", 200,
-                 {"Content-Disposition": 'attachment; filename="%s"' % name})
 
 
 def api_import_library(h):
@@ -3019,6 +3033,8 @@ def main():
     ap.add_argument("--open", action="store_true",
                     help="open the browser after starting")
     a = ap.parse_args()
+    if scratch.ROOT is None:        # a temporary file goes in .tmp/ in Parseh's folder (lib/scratch.py)
+        scratch.ROOT = str(PARSEH)
 
     ensure_web_fonts()
     seed_example()

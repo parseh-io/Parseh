@@ -118,22 +118,26 @@ lock where the Load buttons are.
 
 | Backup | It holds | It leaves out |
 |---|---|---|
-| **Books** | one bundle per book, each the book's *everything but the recording* zip: its text and chapters, its notes, its timings and alignment | the recordings themselves, `audio/` |
+| **Books** | one bundle per book, each the book's *all of it* zip: its text and chapters, its notes, its recordings in `audio/` with their timings and alignment | its reader and its PDF, which **build** makes again |
 | **Videos** | one bundle per video: its glossed transcript, its notes, and a film of your own with it | nothing: a YouTube video never had a file here, only its address |
 | **Studio documents** | every document with its record — its id, its tags, its dates — its pictures and recordings, and its built PDF | nothing |
 | **Exercise decks** | every deck with its own id, its settings, every picture and recording it has, and its scheduling — every answer you ever gave | nothing |
 | **Your settings** | the six stores listed above, and your languages' files | what belongs to the computer, listed above |
 | **Everything** | all five above, the Anki card store and the clip tray | what each of them leaves out |
 
-**A book's recordings are left out to keep the backup small**, in the
-backup of everything too: a narration is hundreds of megabytes. Copy each
-book's `audio/` folder yourself; after restoring the backup, put it back
-under `books/<language>/<slug>/` and build that book again — the **build**
-button on its card on the library page (**rebuild**, for a book that
-already has a reader), or **rebuild the reader** in the reader — and the
-recording plays again. Its timings came back with the book, so it is aligned
-as before. A single book can also be downloaded *with* its recording, as
-*all of it*, from its reader.
+**A book comes back with its recordings**, in the backup of everything
+too: every recording in its `audio/` folder, its timings, its alignment
+review. A narration is hundreds of megabytes, so a shelf of narrated books
+makes a large backup. A book that came back is built from its card on the
+library page — **build** — like any book put back; the recording then plays,
+aligned as before.
+
+**Parseh packs a backup inside its own folder**, in `.tmp/`, and never in
+the computer's temporary folder, which on many computers is small and held
+in memory. The file is gone again once the backup has been sent or loaded,
+and anything a stopped Parseh left there is cleared the next time it
+starts, once it is a day old. Make sure the disk Parseh is on has room for
+the backup a second time while it is being made.
 
 **A shelf of books or of videos is a zip of zips**: each inside is the very
 bundle one book or one video downloads as, so a backup can be taken apart
@@ -169,7 +173,6 @@ back as the same deck, with every file it had and every answer.
 
 ## What no backup holds
 
-- A book's recordings, `audio/`: see above.
 - The dictionaries, sentences and models fetched on **Settings → Reading
   help**: fetch them again there.
 - Who may reach Parseh and the devices you let in, `config/network.json`: a

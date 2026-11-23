@@ -5950,6 +5950,9 @@ offline.WHERES = os.path.join(config, "wheres.json")
 import languages, newlang, pathlib, speechconfig
 languages.PERSONAL = newlang.PERSONAL = os.path.join(config, "languages.json")
 speechconfig.CONFIG = pathlib.Path(config) / "speech.json"
+# and where it stages a temporary file (lib/scratch.py): the test's tree, never the checkout's .tmp/
+import scratch
+scratch.ROOT = config
 sys.argv = ["serve.py"] + sys.argv[2:]
 runpy.run_path("serve.py", run_name="__main__")
 """
