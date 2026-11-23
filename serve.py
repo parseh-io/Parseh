@@ -3765,6 +3765,18 @@ class Handler(SimpleHTTPRequestHandler):
             if method != "GET":
                 return self._method_not_allowed()
             return self._shelf_backup("book")
+        # EACH BOOK'S GLOSSING AS IT STANDS NOW (6.19): the library page is a file written when a book is added,
+        # and a chunk glossed in the reader since then rebuilt the reader and not that page -- so the page asks
+        # here and puts the counts on its cards.  Two numbers a book, from the reader's head (make_index.stats)
+        if path == "/books/__glossing":
+            if method not in ("GET", "HEAD"):
+                return self._method_not_allowed()
+            got = {}
+            for b in booklib.all_books():
+                st = make_index.stats(b)
+                if isinstance(st.get("glossable"), int):
+                    got[b.rel_from_books()] = [st.get("glossed", 0), st["glossable"]]
+            return self.send_json({"ok": True, "books": got})
         # one segment or two: a book from before languages lies directly
         # under books/, is still read and still served (lib/books.py), and its
         # seams must not offer a + with no route behind it

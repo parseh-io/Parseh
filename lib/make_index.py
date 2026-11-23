@@ -417,6 +417,19 @@ def stats(book):
     return out
 
 
+def gloss_tag(st, book=""):
+    """The card's glossing progress, as a video's card has it -> [tag], or [] for a reader built before the reader
+    counted it (tex2html META "glossed", "glossable"): read from the reader's head, which stats() reads anyway,
+    so a book of thousands of chunks costs the library page nothing (6.19).  lib/mobile.py's shelf asks too."""
+    n, tot = st.get("glossed"), st.get("glossable")
+    if not isinstance(n, int) or not isinstance(tot, int) or not tot:
+        return []
+    at = ' data-book="%s"' % esc(book) if book else ""
+    if n < tot:
+        return ['<span class="tag on" data-glossed="%d/%d"%s>%d of %d chunks glossed</span>' % (n, tot, at, n, tot)]
+    return ['<span class="tag on" data-glossed="%d/%d"%s>%d chunks glossed</span>' % (n, tot, at, tot)]
+
+
 def card(b):
     st = stats(b)
     L = b.lang
@@ -440,6 +453,7 @@ def card(b):
         tags.append('<span class="tag">%s chapters</span>'
                     % len(st.get("chapters", [])))
         tags.append('<span class="tag">%s subparagraphs</span>' % st.get("subs", 0))
+        tags.extend(gloss_tag(st, b.rel_from_books()))
         if b.has_audio:
             n, tot = st.get("timed", 0), st.get("subs", 0)
             tags.append('<span class="tag on">audio &middot; %d/%d timed</span>'
@@ -524,6 +538,33 @@ MAKING_JS = """<script>
 </script>"""
 
 
+# EACH CARD'S GLOSSING AS IT STANDS NOW (6.19).  The page is written when a book is added, not when a chunk is
+# glossed in the reader -- which rebuilds the reader and not this page -- so the counts are asked of the server
+# (/books/__glossing, two numbers a book read from its reader) when the page opens and whenever it is come back
+# to.  A page opened off the disk keeps the counts it was written with.
+GLOSSING_JS = """<script>
+(function () {
+  if (location.protocol === 'file:') return;
+  function ask() {
+    fetch('/books/__glossing', {cache: 'no-store'})
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) return;
+        Array.prototype.forEach.call(document.querySelectorAll('[data-glossed][data-book]'), function (tag) {
+          var c = j.books[tag.getAttribute('data-book')];
+          if (!c) return;
+          tag.setAttribute('data-glossed', c[0] + '/' + c[1]);
+          tag.textContent = c[0] < c[1] ? c[0] + ' of ' + c[1] + ' chunks glossed' : c[1] + ' chunks glossed';
+        });
+      }).catch(function () {});
+  }
+  ask();
+  window.addEventListener('pageshow', function (e) { if (e.persisted) ask(); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) ask(); });
+})();
+</script>"""
+
+
 def lang_head(L, n):
     """The heading over one language's cards: the English name, the native
     name in the language's own face, the count."""
@@ -599,7 +640,7 @@ def main():
 """ % {"app": APP_NAME, "lib": lib_rel, "cards": cards, "chips": chips,
        "take": (bundle_panel("book", "/books/__upload")
                 + shelf_panel("book", "/books/__backup", "/books/__restore")),
-       "making": MAKING_JS}
+       "making": MAKING_JS + GLOSSING_JS}
     out = os.path.join(BOOKS_DIR, "index.html")
     open(out, "w", encoding="utf-8").write(page)
     print("books/index.html  %d book%s: %s"

@@ -5,17 +5,22 @@
 
 The answers the pages read, asked of the modules behind them; tests/pages_say.mjs drives the pages.
 """
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'lib'))
+import books      # noqa: E402
 import chunker    # noqa: E402
 import draft      # noqa: E402
 import languages  # noqa: E402
 import lookup     # noqa: E402
+import make_index  # noqa: E402
 import segmenter  # noqa: E402
 
 # one sentence a language, long enough to have a phrase to cut, and no comma in it
@@ -87,6 +92,34 @@ class SenseGroupsFellBack(unittest.TestCase):
                                             video_id='abcdefghijk', how='phrase')
             self.assertEqual(v['how_used'], 'sentence')
             self.assertIn('Spanish', v['cut_note'])
+
+
+class BookCardGlossing(unittest.TestCase):
+    """6.19: a book's card says how far its glossing has come, from two numbers its reader carries."""
+
+    def build(self, book_dir):
+        r = subprocess.run([sys.executable, str(ROOT / 'lib' / 'tex2html.py'), '--book', str(book_dir)],
+                           capture_output=True, text=True, cwd=str(ROOT))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return make_index.stats(books.Book(str(book_dir)))
+
+    def test_a_draft_and_a_glossed_book(self):
+        with tempfile.TemporaryDirectory() as td:
+            got = draft.book_from_text(SENTENCE['de'] + chr(10) * 2 + SENTENCE['de'], 'de', 'Zwei', into=td)
+            st = self.build(got['dir'])
+            self.assertEqual((st['glossed'], st['glossable']), (0, got['chunks']))
+            tag = ''.join(make_index.gloss_tag(st, 'german/zwei'))
+            self.assertIn('0 of %d chunks glossed' % got['chunks'], tag)
+            self.assertIn('data-book="german/zwei"', tag)
+            fa = Path(td) / 'persian' / 'mini-fa'
+            shutil.copytree(ROOT / 'tests' / 'fixtures' / 'books' / 'persian' / 'mini-fa', fa)
+            st = self.build(fa)
+            self.assertGreater(st['glossable'], 0)
+            self.assertEqual(st['glossed'], st['glossable'])
+            self.assertIn('>%d chunks glossed<' % st['glossable'], ''.join(make_index.gloss_tag(st)))
+
+    def test_a_reader_built_before_says_nothing(self):
+        self.assertEqual(make_index.gloss_tag({'built': True, 'chunks': 12, 'subs': 3}), [])
 
 
 class NoProposeSaysWhy(unittest.TestCase):

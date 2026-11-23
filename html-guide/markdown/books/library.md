@@ -28,6 +28,7 @@ transliterated title and author, the one-sentence blurb, and a row of tags:
 | Tag | Means |
 |---|---|
 | **N chapters**, **N subparagraphs** | what the built reader holds |
+| **12 of 40 chunks glossed** | how far the glossing has come: the chunks that ask for a gloss, and how many have one; **40 chunks glossed** once every one has. It is counted when the reader is built, and the page asks again each time it is opened or come back to, so a chunk glossed in the reader a minute ago is counted |
 | **audio · 12/57 timed** | the book has a recording, and how many subparagraphs have a time in it |
 | **no audio yet** | the book has no recording |
 | **not built yet** | the book has no reader: nothing has built it |
