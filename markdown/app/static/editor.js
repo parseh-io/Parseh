@@ -1704,8 +1704,9 @@ function initEdit() {
      the cursor was.  The cursor has to be remembered before the dialog
      opens, because opening it takes the focus out of the textarea. */
 
-  const FIGURE_TYPE = /^(?:image\/(?:png|jpeg|svg\+xml)|application\/pdf)$/;
-  const FIGURE_KIND = {"image/png": "PNG", "image/jpeg": "JPEG",
+  const FIGURE_TYPE = /^(?:image\/(?:png|jpeg|webp|gif|heic|heif|svg\+xml)|application\/pdf)$/;
+  const FIGURE_KIND = {"image/png": "PNG", "image/jpeg": "JPEG", "image/webp": "WebP",
+                       "image/gif": "GIF", "image/heic": "HEIC", "image/heif": "HEIC",
                        "image/svg+xml": "SVG", "application/pdf": "PDF"};
 
   function clipboardFigure(cd) {
@@ -1935,8 +1936,9 @@ function initEdit() {
      leave the editor and whatever was not saved.  On the editor a picture
      or a recording is stored and embedded; anywhere else nothing happens. */
   const draggingFiles = e => !!e.dataTransfer && [...e.dataTransfer.types].includes("Files");
-  const isFigureFile = f => /^image\/(png|jpeg|svg\+xml)$/.test(f.type)
-    || f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+  // by its name too: a browser often gives a HEIC no type at all
+  const isFigureFile = f => /^image\/(png|jpeg|webp|gif|heic|heif|svg\+xml)$/.test(f.type)
+    || f.type === "application/pdf" || /\.(pdf|heic|heif|webp|gif)$/i.test(f.name);
   const isAudioFile = f => /^audio\//.test(f.type) || AUDIO_NAME_RE.test(f.name);
   window.addEventListener("dragover", e => {
     if (!draggingFiles(e) || e.defaultPrevented) return;
@@ -1964,7 +1966,7 @@ function initEdit() {
       const files = [...e.dataTransfer.files];
       const refused = files.filter(f => !isFigureFile(f) && !isAudioFile(f));
       if (refused.length)
-        toast(`${refused.map(f => f.name).join(", ")}: only pictures (PNG, JPEG, SVG, PDF) `
+        toast(`${refused.map(f => f.name).join(", ")}: only pictures (PNG, JPEG, WebP, GIF, HEIC, SVG, PDF) `
               + `and recordings (${audioUpload.dataset.formats}) go into a document`, true);
       // in the order dropped, one line after another from the cursor
       for (const f of files) {
@@ -1998,7 +2000,7 @@ function initEdit() {
       const data = await api(`/api/docs/${DOC_ID}/images`);
       grid.innerHTML = "";
       if (!data.images.length) {
-        grid.innerHTML = '<p class="hint">No figures uploaded yet — use the Image button, or drag a PNG, JPEG, SVG or PDF into the editor.</p>';
+        grid.innerHTML = '<p class="hint">No figures uploaded yet — use the Image button, or drag a PNG, JPEG, WebP, GIF, HEIC, SVG or PDF into the editor.</p>';
         return;
       }
       for (const im of data.images) {

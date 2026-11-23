@@ -207,7 +207,8 @@ Inline: `**bold**`, `*italic*` (Latin only), `` `code` ``, `→`/`->` →
 Colour names: `crimson`, `indigo`, `teal`, `violet`, `amber` (defined in
 `template.tex` as `fa<name>`; unknown names are left as literal text).
 Images and videos sit on a line of their own; the image path must be
-`images/<file>` (PNG, JPEG, SVG or PDF, stored per document by the studio — the
+`images/<file>` (PNG, JPEG, WebP, GIF, SVG or PDF -- a HEIC is turned into a JPEG as it is
+added -- stored per document by the studio — the
 prompt tells the LLM *not* to emit them, they are added by the human;
 each vector format is unreadable by one of the two renderers, so each
 gets a twin made where it is missing — and **both twins stay vector**,

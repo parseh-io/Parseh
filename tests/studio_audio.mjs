@@ -242,7 +242,7 @@ async function suite(mode) {
     d = await drop('#src', [{name: 'notes.txt', type: 'text/plain', bytes: Buffer.from('not media')}]);
     assert(d.dropPrevented, 'a text file dropped on the editor is not opened either');
     await toastSays(/notes\.txt: only pictures .* and recordings/, 'and it is said what goes in');
-    assert(await page.locator('#toast').textContent() === `notes.txt: only pictures (PNG, JPEG, SVG, PDF) and recordings (${info.audio_human}) go into a document`,
+    assert(await page.locator('#toast').textContent() === `notes.txt: only pictures (PNG, JPEG, WebP, GIF, HEIC, SVG, PDF) and recordings (${info.audio_human}) go into a document`,
            'the refusal names the recordings audiofile.HUMAN names: ' + await page.locator('#toast').textContent());
     d = await drop('#sheet', [{name: 'elsewhere.mp3', type: 'audio/mpeg', bytes: MEDIA.word}]);
     await sleep(300);

@@ -65,9 +65,9 @@
       <button class="btn ghost" id="ins-math" title="Mathematics in the line: wraps the selection in [ … ]{math} — LaTeX notation, drawn where it is read. Neither $ nor \[ is a marker here; a brace word after a bracketed text is what every mark in this dialect looks like">math</button>
       <button class="btn ghost" id="ins-br" title="Forced line break — source newlines are ignored; ⏎ keeps one">⏎</button>
     </span>
-    <label class="btn" for="img-upload" title="Upload a PNG, JPEG, SVG or PDF figure into this document's images/ folder and embed it at the cursor (drag &amp; drop works too)">Image</label>
-    <input type="file" id="img-upload" accept="image/png,image/jpeg,image/svg+xml,application/pdf,.pdf" multiple hidden>
-    <button class="btn" id="btn-images" title="Browse, re-insert or delete this document's uploaded figures (PNG, JPEG, SVG, PDF)">Images…</button>
+    <label class="btn" for="img-upload" title="Upload a PNG, JPEG, WebP, GIF, HEIC, SVG or PDF figure into this document's images/ folder and embed it at the cursor (drag &amp; drop works too; a HEIC is stored as a JPEG)">Image</label>
+    <input type="file" id="img-upload" accept="image/png,image/jpeg,image/webp,image/gif,image/heic,image/heif,.heic,.heif,image/svg+xml,application/pdf,.pdf" multiple hidden>
+    <button class="btn" id="btn-images" title="Browse, re-insert or delete this document's uploaded figures (PNG, JPEG, WebP, GIF, SVG, PDF)">Images…</button>
     <button class="btn" id="btn-pictograms" title="Look for an ARASAAC pictogram by a word, see it, and add it to the page as a figure at the cursor. A copy goes into this document's images/ folder, with the credit its licence asks for.">Pictograms…</button>
     <label class="btn" for="audio-upload" title="Upload a recording ({{AUDIO_HUMAN}}) into this document's audio/ folder and embed it at the cursor (drag &amp; drop works too); its layout and clip are set by clicking ⚙ on the player">Audio</label>
     <input type="file" id="audio-upload" accept="{{AUDIO_ACCEPT}}" data-formats="{{AUDIO_HUMAN}}" multiple hidden>

@@ -1727,6 +1727,20 @@ def _render_list(b, ordered):
     return "\n".join(out)
 
 
+def tex_picture(path):
+    """The file XeLaTeX includes for a picture the page shows as `path`.
+
+    XeLaTeX reads PNG, JPEG and PDF.  For the rest the build stages a twin
+    beside the copy it makes (envsetup.stage_images): an SVG's PDF, and a
+    WebP's or a GIF's PNG (a GIF's first frame: paper does not move)."""
+    low = path.lower()
+    if low.endswith(".svg"):
+        return path + ".pdf"
+    if low.endswith((".webp", ".gif")):
+        return path + ".png"
+    return path
+
+
 def image_indent(b):
     """Left indent as a fraction of the column, from align + offset.
 
@@ -1748,9 +1762,7 @@ def _ex_image(fields, key):
     pic = mdparser.exercise_image(fields.get(key, ""))
     if not pic:
         return ""
-    path = pic["path"]
-    if path.lower().endswith(".svg"):
-        path += ".pdf"               # XeLaTeX reads the build's twin
+    path = tex_picture(pic["path"])  # XeLaTeX reads the build's twin of an SVG, WebP, GIF
     w = pic["width"] / 100.0
     # the same indent the screen's margin gives it (image_indent, without an
     # offset: a picture in an exercise's box has no room to be nudged)
@@ -1794,11 +1806,9 @@ def _render_image(b):
         return ""          # bad path: nothing to include
     w = b["width"] / 100.0
     ml = image_indent(b)
-    path = b["path"]
-    if path.lower().endswith(".svg"):
-        # XeLaTeX cannot read SVG; the build converts each one to a
-        # sibling PDF (see server.build_pdf) and we include that.
-        path += ".pdf"
+    # XeLaTeX cannot read SVG, WebP or GIF; the build converts each one to a
+    # sibling PDF or PNG (envsetup.stage_images) and we include that.
+    path = tex_picture(b["path"])
     cap = ("\\par\\vspace{0.4ex}{\\footnotesize\\color{graytx} %s\\par}"
            % inline(b["caption"]) if b["caption"] else "")
     return ("\\par\\medskip\\noindent"
@@ -2074,14 +2084,12 @@ def _card_jolly(f, key, field, primary=False):
 def _card_picture(f, key):
     """`front-image: images/cat.png`: the picture, never larger than it is,
     nor wider than its half or taller than the page's card lets it be
-    (\\expapercardpic).  An SVG is read through the build's .svg.pdf twin."""
+    (\\expapercardpic).  An SVG, a WebP or a GIF is read through the build's twin (tex_picture)."""
     import mdparser
     path = f.get(key, "")
     if not path or not mdparser.IMAGE_PATH_RE.match(path):
         return ""
-    if path.lower().endswith(".svg"):
-        path += ".pdf"
-    return "\\expapercardpic{%s}" % path
+    return "\\expapercardpic{%s}" % tex_picture(path)
 
 
 def _card_audio(f, key):
@@ -2237,8 +2245,7 @@ def _ex_inline(text, force_breakable=False):
         image = mdparser.IMAGE_RE.fullmatch(found.group(0))
         path = image.group(2) if image else ""
         if mdparser.IMAGE_PATH_RE.fullmatch(path):
-            if path.lower().endswith(".svg"):
-                path += ".pdf"
+            path = tex_picture(path)
             width = mdparser.parse_image_attrs(image.group(3))["width"] / 100
             out.append("\\includegraphics[width=%.2f\\linewidth,height=0.12\\textheight,"
                        "keepaspectratio]{%s}" % (width, path))

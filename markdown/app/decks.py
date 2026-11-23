@@ -1192,7 +1192,7 @@ def _missing_media(d, markdown, footnotes=""):
             where = "%s/%s" % (kind, name) if not field else "%s: %s/%s" % (field, kind, name)
             if kind == "images" and not _name_ok(kind, name):
                 out.append("%s cannot be a deck picture: only lower-case PNG, JPEG, "
-                           "SVG and PDF names are served" % where)
+                           "WebP, GIF, SVG and PDF names are served" % where)
             elif kind == "images" and not _in_deck(d, kind, name):
                 out.append("%s is not among this deck's pictures: upload it, "
                            "or the card shows a broken picture" % where)
@@ -1642,7 +1642,7 @@ def _from_doc(doc_id):
         path = "%s/%s" % (kind, name)
         if not _name_ok(kind, name):
             return "%s: only lower-case %s names can be copied; the path was kept" % (
-                path, "PNG, JPEG, SVG and PDF" if kind == "images" else audiofile.HUMAN)
+                path, "PNG, JPEG, WebP, GIF, SVG and PDF" if kind == "images" else audiofile.HUMAN)
         f = dirs[kind] / name
         if not f.is_file():
             return "%s is missing from the document; the path was kept" % path
@@ -1673,8 +1673,9 @@ def _make_copies(d, copies):
 def add_image(folder, slug, name, data):
     """Store an uploaded picture in the deck's images/; give back its name.
 
-    Checked as the studio checks a document's upload (store.save_image): the
-    bytes say what the file is and the extension follows them, the name is
+    Checked as the studio checks a document's upload (store.intake_image): the
+    bytes say what the file is and the extension follows them (a HEIC is
+    stored as the JPEG it is turned into), the name is
     reduced to what store.IMG_NAME_RE allows.  The same bytes already there
     are reused; another picture of that name makes this one <stem>-2<ext>."""
     d = deck_dir(folder, slug)
@@ -1683,11 +1684,8 @@ def add_image(folder, slug, name, data):
         data = bytes(data)
     if not isinstance(data, bytes) or not data:
         raise DeckError("the upload is empty: send the picture as the body")
-    if len(data) > store.IMG_MAX:
-        raise DeckError("the picture is larger than %d MB" % (store.IMG_MAX // 2 ** 20))
-    ext = store._img_kind(data)
-    if ext is None:
-        raise DeckError("only PNG, JPEG, SVG and PDF pictures can be added")
+    # the size, the kind, and a HEIC turned into a JPEG: the studio's own intake
+    data, ext = store.intake_image(data, refuse=DeckError)
     stem = Path(name).stem if isinstance(name, str) and _text_ok(name) else ""
     stem = unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode("ascii").lower()
     stem = re.sub(r"[^a-z0-9._-]+", "-", stem)[:80]

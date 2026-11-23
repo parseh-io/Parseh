@@ -27,8 +27,8 @@ that put them there.
 which searches them by a word and shows each before you add it:
 [Pictograms](pictograms.md#looking-for-a-pictogram-and-using-one).)
 
-**Image** opens a file picker for PNG, JPEG, SVG and PDF files, several at
-once. Each is stored in the document's `images/` and put in on a line of
+**Image** opens a file picker for PNG, JPEG, WebP, GIF, HEIC, SVG and PDF
+files, several at once. Each is stored in the document's `images/` and put in on a line of
 its own at the cursor, as `![didascalia](images/<name>)` with the
 placeholder caption *didascalia* selected, so that what you type next
 replaces it. Several files go in one line after another.
@@ -36,9 +36,17 @@ replaces it. Several files go in one line after another.
 What the studio does with a picture it is given:
 
 - **It reads the bytes, not the name.** A PNG called `photo.jpg` is stored
-  as `photo.png`; a file that is none of the four kinds is refused (*only
-  PNG, JPEG, SVG and PDF figures are supported*), and so is one larger than
-  15 MB.
+  as `photo.png`; a file that is none of these kinds is refused (*only PNG,
+  JPEG, WebP, GIF, HEIC, SVG and PDF pictures can be added*), and so is one
+  larger than 15 MB.
+- **A HEIC becomes a JPEG.** A phone's camera saves its photos as HEIC,
+  which almost no browser shows, so the studio turns one into a JPEG as it
+  arrives, upright as the phone held it, and keeps only the JPEG:
+  `IMG_0042.HEIC` is stored as `img_0042.jpg`. Where it was taken is not
+  copied into the JPEG.
+- **A WebP or a GIF is kept as it is.** Every browser shows both, and a GIF
+  that moves goes on moving on the page. The document's PDF prints a PNG
+  made of each when it is built (a GIF's first frame: paper does not move).
 - **It tidies the name** into lower-case letters, digits, dots and dashes:
   `Mon Chat.PNG` becomes `mon-chat.png`.
 - **A name already taken** by a different picture gets `-2` (`cat-2.png`);
@@ -47,6 +55,13 @@ What the studio does with a picture it is given:
   SVG beside it, for the browser, which shows no PDF inside a page; an SVG
   gets a PDF twin when the document's PDF is built. Both stay sharp at any
   size, and the twins are never listed.
+- **Two packages do the turning.** A HEIC's JPEG and a WebP's or GIF's PNG
+  for the PDF need Pillow and pillow-heif, which the installer puts in
+  Parseh's environment and an update from Settings adds to an older one
+  ([What it needs](../getting-started/installing.md#what-it-needs)). Where
+  they are missing, the studio says so instead: a HEIC is refused with
+  words naming the package, and the PDF of a document with a WebP or a GIF
+  is not built, with the same words; the page still shows the picture.
 
 **Pasting a picture** straight from the clipboard — a screenshot, a figure
 copied from another program — works in the source box: a dialog asks for a

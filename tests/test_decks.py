@@ -495,8 +495,9 @@ class ItemTests(Base):
             store.IMG_MAX = saved
         self.assertRaisesRegex(decks.DeckError, "empty", decks.add_image, *fs, "a.png", b"")
         self.assertRaisesRegex(decks.DeckError, "empty", decks.add_image, *fs, "a.png", None)
-        self.assertRaisesRegex(decks.DeckError, "PNG, JPEG, SVG and PDF",
-                               decks.add_image, *fs, "a.gif", b"GIF89a....")
+        # a GIF is a picture since a0.6.3 (8.19); a BMP is still none
+        self.assertRaisesRegex(decks.DeckError, "PNG, JPEG, WebP, GIF, HEIC, SVG and PDF",
+                               decks.add_image, *fs, "a.bmp", b"BM" + bytes(40))
         self.assertRaises(decks.NotFound, decks.add_image, "persian", "nope", "a.png", PNG)
         self.assertRaises(decks.NotFound, decks.add_image, "klingon", "x", "a.png", PNG)
         self.assertEqual([], self.deck_images(fs))
@@ -1014,8 +1015,8 @@ class MediaTests(Base):
              "can be copied; the path was kept",
              "audio/notes.txt: only lower-case MP3, M4A, AAC, Ogg, Opus, WAV, FLAC and WebM names "
              "can be copied; the path was kept",
-             "images/Big.PNG: only lower-case PNG, JPEG, SVG and PDF names can be copied; "
-             "the path was kept"], out["warnings"])
+             "images/Big.PNG: only lower-case PNG, JPEG, WebP, GIF, SVG and PDF names can be "
+             "copied; the path was kept"], out["warnings"])
         self.assertEqual(({}, {}), (self.deck_files(fs, "audio"), self.deck_files(fs, "images")))
         # a file in the document that is not a recording stays behind
         meta = self.doc(VOCAB_AUDIO.replace("back-audio: audio/gone.mp3\n", ""),
@@ -1449,7 +1450,7 @@ class ExportImportTests(Base):
         ]
         for name in ("../evil.json", "/abs.json", "items/../../x.json", "images/../deck.json",
                      "items/ABC.json", "items/0123456789ab.json.txt", "notes.txt", "items/",
-                     "images/Cat.PNG", "images/cat.gif", "schedule/x.json", "images/sub/cat.png",
+                     "images/Cat.PNG", "images/cat.heic", "schedule/x.json", "images/sub/cat.png",
                      "deck.json", "audio/UPPER.MP3", "audio/x.txt", "audio/sub/x.mp3",
                      "audio/../x.mp3", "audio/", "audio/.x.mp3", "images/x.mp3.mp3", "audio/x.png"):
             cases.append((build_zip(good + [(name, b"ID3" + bytes(60))]), "unexpected entry"))
