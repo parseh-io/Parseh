@@ -5555,7 +5555,13 @@ class Handler(SimpleHTTPRequestHandler):
         # a book with its recording, a video with its film, are hundreds of
         # megabytes
         try:
-            self._send_file(path, "application/zip", name)
+            if os.path.getsize(path) <= 1 << 20:
+                # a megabyte or less goes in one write, as it always did (and uncounted on the Working… list)
+                with open(path, "rb") as f:
+                    data = f.read()
+                self.send_bytes(data, "application/zip", extra={"Content-Disposition": savename.disposition(name)})
+            else:
+                self._send_file(path, "application/zip", name)
         finally:
             try:
                 os.unlink(path)

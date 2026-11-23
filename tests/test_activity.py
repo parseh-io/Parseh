@@ -370,9 +370,9 @@ class OverHttp(unittest.TestCase):
     def test_a_download_is_on_the_list_while_it_is_packed_and_then_it_is_not(self):
         gate, real = threading.Event(), self.serve.bundle.pack_book
 
-        def slow(book, audio="linked"):
+        def slow(book, audio="linked", **kw):
             gate.wait(10)
-            return real(book, audio=audio)
+            return real(book, audio=audio, **kw)
         with mock.patch.object(self.serve.bundle, "pack_book", slow):
             t, out = self.in_background(
                 "GET", "/books/english/mini-en/__download?audio=text&job=tok42",

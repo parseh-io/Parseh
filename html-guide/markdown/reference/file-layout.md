@@ -31,7 +31,7 @@ Parseh/
   lib/  books/  youtube/  markdown/  exercises/  clips/
   dict/  corpus/  mt/  components/  texmf/  stt/  arasaac/  analysis/  config/
   docs/  html-guide/
-  .runtime/  .tls/  .parseh-release.json  .parseh-update/
+  .runtime/  .tls/  .tmp/  .parseh-release.json  .parseh-update/
 ```
 
 | Path | What it is |
@@ -58,6 +58,7 @@ Parseh/
 | `html-guide/` | These pages: `markdown/` (their source), `build.py` and `engine/` (the compiler), `assets/` and `index.html` (the front page); `site/` is what a compile makes. |
 | `.runtime/` | The environment, when the installer made it: `bin/micromamba`, `env/`, and micromamba's package cache, `mamba/`. |
 | `.tls/` | The certificates `serve.py` makes: its own authority (`ca.pem`, made once — the one a phone is told to trust, to install the mobile interface as an app) and the server's, signed by it and made again as it nears its end. |
+| `.tmp/` | Where Parseh writes a file it is making or reading: a backup while it is packed and sent, a backup or a bundle while it is loaded, an upload too large to hold. Never the computer's temporary folder, which is often small and held in memory. Each file is gone when its work ends; what a stopped Parseh left is cleared when it next starts, once it is a day old. |
 | `.parseh-release.json` | The release's list of its own files: the version, the commit it was built from, and every file with its checksum and whether it runs. An [update from Settings](../getting-started/updating.md) reads it, and writes the new version's in its place. |
 | `.parseh-update/` | What the last three updates kept, one folder each under `jobs/`: every file an update replaced or deleted, before it did, and the report the page shows. |
 
@@ -343,5 +344,5 @@ Git ignores outright, so that a stray `git add` cannot take them:
 - the copies of files opened from the computer (`markdown/open/`);
 - a book or a video taken off the shelf (`.trash/`), the downloads of the
   reading help, your settings (`config/`), the environment
-  (`.runtime/`), the certificate (`.tls/`), the updates' backups
+  (`.runtime/`), the certificate (`.tls/`), the files being made (`.tmp/`), the updates' backups
   (`.parseh-update/`), `serve.log` and `.serve.pid`.

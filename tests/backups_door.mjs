@@ -9,7 +9,9 @@
 //      takes the backup's only where it is picked
 //   d) a settings backup with one file damaged is refused in words, and nothing changes
 //   e) a new computer (every shelf and store emptied): Load everything puts back the books, the videos, the studio,
-//      the decks, the Anki card store, the clip tray and the settings -- a language of the person's with its file
+//      the decks, the Anki card store, the clip tray and the settings -- a language of the person's with its file,
+//      and a book's recording with its transcript and timings (TO-DO 6.16); every temporary file was staged in the
+//      tree's own .tmp/ (lib/scratch.py) and none is left there
 //   f) a damaged backup of everything is refused whole: nothing is written
 //   g) a device let in sees the page and the days, a lock where loading is, and the server refuses it a load
 //   h) 390 px wide: no sideways scroll
@@ -84,6 +86,7 @@ try {
   page.on('pageerror', e => errors.push(String(e)));
   await h.send({what: 'seed'});
   const before = await h.send({what: 'look'});
+  assert(before.recording && before.narration.length === 2, 'the seeded book has a recording, a transcript and timings');
 
   console.log('a) the door, and no backup yet');
   await page.goto(base + '/settings/');
@@ -109,6 +112,15 @@ try {
                    'cards/english/market/deck.json', 'cards/notetypes.json', 'clips/hello-abc123.png'])
     has(names, n, 'the backup of everything holds ' + n);
   assert(!names.includes('cards/build/'), "the card store's build/ is left out");
+  // the books' part holds each book's `all of it` bundle, its recording inside (read raw, a zip in a zip)
+  await new Deno.Command('unzip', {args: ['-o', '-q', everythingZip.path, 'books.zip', '-d', work]}).output();
+  const shelfNames = new TextDecoder().decode(await new Deno.Command('unzip', {args: ['-Z1', `${work}/books.zip`], stdout: 'piped'}).output().then(o => o.stdout));
+  has(shelfNames, 'mini-en-book-full.zip', 'the books part holds the book in its all-of-it shape');
+  await new Deno.Command('unzip', {args: ['-o', '-q', `${work}/books.zip`, 'mini-en-book-full.zip', '-d', work]}).output();
+  const bookNames = new TextDecoder().decode(await new Deno.Command('unzip', {args: ['-Z1', `${work}/mini-en-book-full.zip`], stdout: 'piped'}).output().then(o => o.stdout));
+  for (const n of ['mini-en/audio/voice.mp3', 'mini-en/audio/voice.txt', 'mini-en/timings.json'])
+    has(bookNames, n, "the book's bundle holds " + n);
+  eq((await h.send({what: 'look'})).staged, [], "the backups were staged in the tree's .tmp/, and nothing is left there");
   const inner = new TextDecoder().decode(await new Deno.Command('unzip', {args: ['-Z1', settingsZip.path], stdout: 'piped'}).output().then(o => o.stdout));
   for (const n of ['config/prefs.json', 'config/prompts.json', 'config/languages.json', 'lang/eu.tex', 'docs/eu.md'])
     has(inner, n, 'the settings backup holds ' + n);
@@ -177,6 +189,9 @@ try {
   assert(!said.includes('not loaded'), 'no part was refused (' + said.replace(/\n/g, ' | ') + ')');
   const moved = await h.send({what: 'look'});
   eq(moved.books, before.books, 'the books came back');
+  eq(moved.recording, before.recording, "the book's recording came back, byte for byte");
+  eq(moved.narration, before.narration, "its transcript and its timings came back with it");
+  eq(moved.staged, [], "loading staged in the tree's .tmp/, and left nothing there");
   eq(moved.videos, before.videos, 'the videos came back');
   eq(moved.docs, before.docs, 'the studio documents came back');
   eq(moved.decks, before.decks, 'the exercise decks came back');
