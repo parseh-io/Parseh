@@ -62,6 +62,13 @@ class MissingPackages(unittest.TestCase):
         self.assertNotIn("pip install rapidfuzz", src)
         self.assertIn('href="/settings/update/#packages"', src)
 
+    def test_the_anki_page_points_at_the_door(self):
+        import ytpages
+        said = ytpages._explain(ModuleNotFoundError("No module named 'zstandard'"))
+        self.assertNotRegex(said, COMMAND)
+        self.assertNotIn("conda", said)
+        self.assertIn("/settings/update/#packages", said)
+
     def test_the_update_page_lists_them_with_a_button(self):
         import updatepage
         pk = {"missing": [{"name": "rapidfuzz", "what": "aligning a narration"}], "job": {}}

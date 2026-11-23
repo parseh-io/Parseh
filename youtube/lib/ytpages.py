@@ -291,9 +291,9 @@ def _explain(e):
     msg = str(e)
     if isinstance(e, ModuleNotFoundError) and "zstandard" in msg:
         return ("this export is in Anki's modern compressed format, which "
-                "needs the zstandard package:  conda run -n ilya-frank pip "
-                "install zstandard  (or re-export with 'Support older Anki "
-                "versions' ticked)")
+                "needs the zstandard package, and this Parseh does not have it: "
+                "Settings > Updating Parseh adds it (/settings/update/#packages), "
+                "or export again from Anki with 'Support older Anki versions' ticked")
     if "not a database" in msg or "no usable collection" in msg:
         return ("that file is not an Anki deck export -- export with "
                 "File > Export > Anki Deck Package (.apkg)")

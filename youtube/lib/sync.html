@@ -135,6 +135,12 @@ var UP = null;            // the uploaded file name on the server
 var LAST = null;          // the last dry-run result
 
 function $(id) { return document.getElementById(id); }
+// a refusal in words, with the Settings door it names made a link (a missing
+// package is added from Settings > Updating Parseh, never with a command)
+function said(s) {
+  return esc(s).replace(/\(?\/settings\/update\/#packages\)?/g,
+    '(<a href="/settings/update/#packages">open it</a>)');
+}
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
     return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c];
@@ -304,7 +310,7 @@ function run(dry) {
       act.end(false);
       btn.disabled = false;
       if (forFile !== UP) return;
-      box.innerHTML = '<div class="note bad">' + esc(e.message || e) + '</div>';
+      box.innerHTML = '<div class="note bad">' + said(e.message || e) + '</div>';
     });
 }
 
@@ -499,7 +505,7 @@ function wireBootstrap(box) {
       }).catch(function (e) {
         act.end(false);
         b.disabled = false;
-        b.outerHTML = '<span class="note bad">' + esc(e.message || e) + '</span>';
+        b.outerHTML = '<span class="note bad">' + said(e.message || e) + '</span>';
       });
     };
   });
