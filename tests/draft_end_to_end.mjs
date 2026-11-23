@@ -879,9 +879,9 @@ try {
     // to fill them later, and the player is a click away
     await add.click('#empty');
     await add.waitForSelector('#fetchnote', {timeout: 60000});
-    const said = await add.textContent('#fetchnote');
-    assert(/YouTube could not be reached/.test(said) && /video info/.test(said),
-           'no network: "Start it empty" says the title and the channel were not fetched, and where to fill them: ' + said);
+    const fetchSaid = await add.textContent('#fetchnote');
+    assert(/YouTube could not be reached/.test(fetchSaid) && /video info/.test(fetchSaid),
+           'no network: "Start it empty" says the title and the channel were not fetched, and where to fill them: ' + fetchSaid);
     await Promise.all([add.waitForURL(B + `/youtube/v/${VIDEO.id}/`, {timeout: 60000}),
                        add.click('#eresult a[href*="/youtube/v/"]')]);
     const page = add;
