@@ -102,9 +102,55 @@ def jobs():
         return [(key, _view(job)) for key, job in JOBS.items()]
 
 
+# WHAT THE PAGE IS TOLD (TO-DO §5.8).  build.sh is a terminal tool as well,
+# and a few of its lines speak to somebody at a terminal: the closing "Serve
+# everything with: ./serve.sh", a missing log called NO LOG, and a hyphenation
+# warning whose fix is a command.  A build started from a page reaches the
+# page through this job's log (the card's toast, the reader's PDF line, the
+# making panel's finish step), where nobody has a terminal: so those lines are
+# said here in plain words -- what happened, and what to do from the pages --
+# and the terminal-only ones are left out.  Every other line is kept as it is.
+NO_LOG = re.compile(r"^\s*NO LOG at .* lualatex did not run")
+NO_HYPHEN = re.compile(r"^\s*NO HYPHENATION PATTERNS for (\S+)")
+TERMINAL_ONLY = re.compile(r"^\s*(Serve everything with:|points\.\s+The PDF is sound and the line breaks are wrong"
+                           r"|\./install\.sh --pdf and rebuild with --force)")
+NO_LATEX_SAID = ("   the PDF was not made -- LaTeX could not run: LuaLaTeX is not on this computer, or it was "
+                 "stopped before it began. The reader is built all the same. Parseh cannot install LaTeX from "
+                 "its pages yet.")
+HYPHEN_SAID = ("   no hyphenation patterns for %s on this computer: the PDF is sound, but its lines are broken "
+               "where an English word would break. Parseh cannot install the patterns from its pages yet.")
+
+
+def _language_of_babel(name):
+    """The registry's name for a babel language ('ngerman' -> German), or
+    babel's own where no language of the registry is called that."""
+    import languages
+    for code in languages.CODES:
+        L = languages.get(code)
+        if (L.tex or {}).get("babel") == name:
+            return L.name
+    return name
+
+
+def plain(line):
+    """A line of build.sh's output as a page should read it: in plain words,
+    or None for a line that only means something at a terminal."""
+    if TERMINAL_ONLY.match(line):
+        return None
+    if NO_LOG.match(line):
+        return NO_LATEX_SAID
+    m = NO_HYPHEN.match(line)
+    if m:
+        return HYPHEN_SAID % _language_of_babel(m.group(1))
+    return line
+
+
 def _say(job, line):
     line = line.rstrip()
     if not line.strip():
+        return
+    line = plain(line)
+    if line is None:
         return
     with LOCK:
         job["log"].append(line)

@@ -91,6 +91,32 @@ class Job(unittest.TestCase):
         self.assertEqual((st['state'], st['ok'], st['code']), ('done', True, 0))
         self.assertEqual(st['log'], ['== tale', '   pdf: 0 overfull boxes, 19 pages'])
 
+    def test_the_endings_a_terminal_reads_reach_the_page_in_plain_words(self):
+        # TO-DO §5.8: build.sh's own words, as it prints them
+        def runner(cmd, say):
+            say('== tale')
+            say('   NO LOG at /books/german/tale/main.log -- lualatex did not run')
+            say('   NO HYPHENATION PATTERNS for ngerman -- every line was broken at ENGLISH')
+            say('   points.  The PDF is sound and the line breaks are wrong; fix it with')
+            say('   ./install.sh --pdf and rebuild with --force.')
+            say('   the PDF did not build -- writing the reader anyway')
+            say('')
+            say('0 book(s) built, 0 unchanged')
+            say('Serve everything with:  ./serve.sh')
+            return 1
+        bookbuild.start(self.book, 'pdf', runner=runner)
+        st = wait(self.book)
+        said = '\n'.join(st['log'])
+        for terminal in ('./serve.sh', './install.sh', 'NO LOG', 'NO HYPHENATION', '--force'):
+            self.assertNotIn(terminal, said)
+        self.assertIn('LaTeX could not run: LuaLaTeX is not on this computer', said)
+        self.assertIn('no hyphenation patterns for German on this computer', said)
+        self.assertIn('Parseh cannot install', said)
+        # and the failure is said with it, as the making panel says a build's
+        # failure (lib/making.py build_words, the mirror of parseh.js buildWhy)
+        import making
+        self.assertIn('the PDF was not made -- LaTeX could not run', making.build_words(st['log']))
+
     def test_one_build_a_book_at_a_time(self):
         gate = threading.Event()
 

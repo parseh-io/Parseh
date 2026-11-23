@@ -30,12 +30,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from books import find_book, all_books                          # noqa: E402
 import languages                                                # noqa: E402
 import reading                                                  # noqa: E402
+import texesc                                                   # noqa: E402
 
 # \ch{col}{fa}..., \chr{col}{fa}{kana}..., \chp{col}{fa}, and the two that carry
 # a word line last, \chw{col}{fa}... and \chrw{col}{fa}...: the text is the
 # SECOND argument of all five.  The longer names first -- a name left out is a
 # chunk this never sees, and a paragraph that mismatches for no visible reason
-CHUNK_RE = re.compile(r"\\ch(?:rw|w|r|p)?\{(.*?)\}\{(.*?)\}")
+# The text field is read escape by escape (texesc.FIELD), so a \} or a
+# \textbackslash{} in it does not end it early, and undone before it is
+# compared with the source, which holds the text as typed (TO-DO §6.6).
+CHUNK_RE = re.compile(r"\\ch(?:rw|w|r|p)?\{(.*?)\}\{" + texesc.FIELD + r"\}")
 PARNUM_RE = re.compile(r"\\parnum\{([%s]+)\.[%s]+\}"
                        % (languages.digit_class(), languages.digit_class()))
 
@@ -120,7 +124,7 @@ def main(where=None):
                 continue
             m = CHUNK_RE.match(line)
             if m and cur:
-                built[cur].append(m.group(2))
+                built[cur].append(texesc.unescape(m.group(2)))
 
     bad = missing = free = 0
     # read once, not once per paragraph: this runs on every bundle upload

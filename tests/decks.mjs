@@ -2772,7 +2772,7 @@ async function endToEnd(browser) {
     const withSched = await exportVia('#btn-export-sched');
     let entries = await zipEntries(withSched.bytes);
     let byName = Object.fromEntries(entries.map(([n, , t]) => [n, t]));
-    assert(withSched.name === 'exercises-italian-drills-with-scheduling.zip', `with scheduling: ${withSched.name}`);
+    assert(withSched.name === 'exercises-Italian drills-with-scheduling.zip', `with scheduling: ${withSched.name}`);
     assert(JSON.stringify(Object.keys(byName).sort()) === JSON.stringify(
              ['parseh-exercise-deck.json', ...ids.map(i => `items/${i}.json`), ...ids.map(i => `schedule/${i}.json`)].sort()),
            'its entries: the manifest, 6 exercises, 6 schedules, nothing else');
@@ -2786,7 +2786,7 @@ async function endToEnd(browser) {
     const plain = await exportVia('#btn-export-plain');
     entries = await zipEntries(plain.bytes);
     byName = Object.fromEntries(entries.map(([n, , t]) => [n, t]));
-    assert(plain.name === 'exercises-italian-drills.zip', `without scheduling: ${plain.name}`);
+    assert(plain.name === 'exercises-Italian drills.zip', `without scheduling: ${plain.name}`);
     assert(JSON.stringify(Object.keys(byName).sort()) === JSON.stringify(['parseh-exercise-deck.json', ...ids.map(i => `items/${i}.json`)].sort()),
            'its entries: the manifest and the 6 exercises, no schedule');
     assert(JSON.parse(byName['parseh-exercise-deck.json']).scheduling === false, 'the manifest says without scheduling');

@@ -807,7 +807,7 @@ print(json.dumps(out))
   await page.unroute('**/studio/static/app.js');
   await page.evaluate(() => document.getElementById('pcpv2').remove());
 
-  // copy, uploadFrame, status, canRecord
+  // copy, uploadFrame, canRecord (and the clip tray's status, which no page asks)
   const small = await page.evaluate(async () => {
     const was = Parseh.copy;
     let got = null;
@@ -818,7 +818,7 @@ print(json.dumps(out))
     c.width = 8; c.height = 6;
     const x = c.getContext('2d'); x.fillStyle = '#be3455'; x.fillRect(0, 0, 8, 6);
     const frame = await ParsehCards.uploadFrame(c.toDataURL('image/png'), 'a frame', 'en');
-    const st = await ParsehCards.status();
+    const st = await fetch('/clips/api/status').then(r => r.json());
     return {ok, got, frame, st, can: ParsehCards.canRecord(), same: ParsehCards.canRecord(NARR[0].src),
             other: ParsehCards.canRecord('https://example.com/a.mp3')};
   });
@@ -828,7 +828,7 @@ print(json.dumps(out))
          `uploadFrame keeps the frame in the tray: ${small.frame.path}`);
   const png = await Deno.readFile(`${TRAY}/${small.frame.name}`);
   assert(png[0] === 0x89 && png[1] === 0x50, 'the frame on disk is the PNG');
-  assert(small.st.ffmpeg === true && small.st.format === '.mp3', `status: ffmpeg here, writes ${small.st.format}`);
+  assert(small.st.ok && small.st.ffmpeg === true && small.st.format === '.mp3', `the clip tray's status: ffmpeg here, writes ${small.st.format}`);
   assert(small.can && small.same && !small.other, 'canRecord: Web Audio, and a recording of this origin only');
 
   if (SHOTS) {
@@ -941,7 +941,7 @@ print(json.dumps(out))
   await nb.goto(B + info.reader);
   await nb.waitForFunction(() => typeof SUBS !== 'undefined');
   await inject(nb, B);
-  assert((await nb.evaluate(() => ParsehCards.status())).ffmpeg === false, 'status says there is no ffmpeg');
+  assert((await nb.evaluate(() => fetch('/clips/api/status').then(r => r.json()))).ffmpeg === false, 'the clip tray\'s status says there is no ffmpeg');
   await openCut(nb, 'book');
   for (let i = 0; i < 40 && !peaksAnswers.length; i++) await sleep(100);
   await sleep(200);

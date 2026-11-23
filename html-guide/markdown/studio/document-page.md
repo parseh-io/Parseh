@@ -143,10 +143,11 @@ of the typography bar says the first of it: *click the target text to copy
 
 ## Download ▾ {#download}
 
-**Download ▾** takes this one document away:
+**Download ▾** takes this one document away. Each file is called by the
+document's title, in whatever script it is written (`Verbs of motion.md`,
+`گربه‌های من.pdf`, `我的猫.zip`).
 
-- **Markdown (.md)** — its source, named after its id without the random
-  end (`verbs-of-motion.md`).
+- **Markdown (.md)** — its source.
 - **Markdown + media (.zip)** — the Markdown with the pictures and
   recordings it shows, and its tags, in one zip. The library's
   **Upload .md / .zip** takes it back, pictures and all.

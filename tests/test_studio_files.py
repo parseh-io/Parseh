@@ -397,6 +397,50 @@ class BackupTests(LibraryCase):
             self.assertIn("no library", str(caught.exception))
 
 
+class TitleNameTests(LibraryCase):
+    """TO-DO §8.20: a title with no Latin letter in it came down as doc.pdf,
+    doc.md, doc.zip -- the header was ASCII only.  The real title now goes
+    in filename*= (RFC 5987), the slug in filename= for an older browser."""
+
+    TITLES = {"fa": "گربه‌های من", "ar": "القطط الصغيرة", "hi": "मेरी बिल्लियाँ",
+              "zh": "我的猫", "ja": "わたしの猫"}
+
+    def download(self, doc_id, kind):
+        h = Fake()
+        sent = {}
+        # send_file is the handler's own (md, tex, pdf), driven on the fake
+        h.send_file = lambda path, download_name=None, **kw: server.Handler.send_file(
+            h, path, download_name=download_name, **kw)
+        server.serve_download(h, doc_id, kind)
+        return h.sent[3]["Content-Disposition"]
+
+    def test_every_script_keeps_its_title_in_the_download(self):
+        for code, title in self.TITLES.items():
+            with self.subTest(code):
+                meta = store.create(FULL.replace("title: Cats", "title: " + title))
+                doc = meta["id"]
+                for kind, ext in (("md", ".md"), ("zip", ".zip")):
+                    said = self.download(doc, kind)
+                    star = re.search(r"filename\*=UTF-8''([^;]+)$", said)
+                    self.assertTrue(star, said)
+                    self.assertEqual(urllib.parse.unquote(star.group(1)), title + ext)
+                    plain = re.search(r'filename="([^"]*)"', said).group(1)
+                    self.assertEqual(plain, "doc" + ext, "an ASCII name for a browser without filename*")
+                    said.encode("ascii")          # a header value is ASCII, whatever the title
+
+    def test_a_title_a_file_system_refuses_is_made_safe(self):
+        import savename
+        self.assertEqual(savename.clean('a/b: "c"?'), "a-b- -c")
+        said = savename.disposition('گربه/"x".pdf', "doc.pdf")
+        self.assertNotIn("/", urllib.parse.unquote(said.split("''")[1]))
+        self.assertEqual(savename.disposition("cats.zip"), 'attachment; filename="cats.zip"',
+                         "a plain ASCII name goes out as it always did")
+        self.assertEqual(savename.disposition("猫.pdf"),
+                         "attachment; filename=\"download.pdf\"; filename*=UTF-8''%E7%8C%AB.pdf")
+        self.assertEqual(savename.disposition("Café.pdf"),
+                         "attachment; filename=\"Cafe.pdf\"; filename*=UTF-8''Caf%C3%A9.pdf")
+
+
 class RouteTests(LibraryCase):
     def test_deleting_a_document_answers_ok_once_it_is_really_gone(self):
         meta = store.create(FULL)
@@ -452,7 +496,9 @@ class RouteTests(LibraryCase):
         server.serve_download(h, meta["id"], "zip")
         status, data, ctype, headers = h.sent
         self.assertEqual((status, ctype), (200, "application/zip"))
-        self.assertEqual(headers["Content-Disposition"], 'attachment; filename="cats.zip"')
+        self.assertEqual(headers["Content-Disposition"],
+                         'attachment; filename="cats.zip"; filename*=UTF-8\'\'Cats.zip',
+                         "the title names the file, the slug is the ASCII twin (§8.20)")
         self.assertEqual(sorted(zipfile.ZipFile(io.BytesIO(data)).namelist()), ["cats.md", "images/cat.png"])
         # its name is still the document's it came from: asked about, then
         # given another (test_doclinks.py covers the dialog's answers)

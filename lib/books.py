@@ -238,10 +238,6 @@ class Book:
         return os.path.join(self.source_dir, "paras")
 
     @property
-    def clean_text(self):
-        return os.path.join(self.source_dir, "clean.txt")
-
-    @property
     def reader_dir(self):
         return os.path.join(self.dir, "reader")
 
@@ -252,17 +248,6 @@ class Book:
     @property
     def timings(self):
         return os.path.join(self.dir, "timings.json")
-
-    @property
-    def review_json(self):
-        return os.path.join(self.dir, "review.json")
-
-    @property
-    def reading_json(self):
-        """What somebody has decided about the text itself (lib/reading.py):
-        the paragraphs that need not reproduce their source, and the runs of
-        paragraphs folded away.  Absent until one of them is made."""
-        return os.path.join(self.dir, "reading.json")
 
     @property
     def audio(self):

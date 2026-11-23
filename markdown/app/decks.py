@@ -303,6 +303,15 @@ def _need_deck(d):
     return meta
 
 
+def export_name(folder, slug, scheduling):
+    """What export_zip's file is called in the deck's own words: its name
+    in any script ("exercises-واژه‌ها.zip"), where export_zip's own name is
+    the ASCII one a browser falls back on (§8.20)."""
+    import savename
+    name = savename.clean(_need_deck(deck_dir(folder, slug)).get("name")) or slug
+    return "exercises-%s%s.zip" % (name, "-with-scheduling" if scheduling else "")
+
+
 def _deck_language(d):
     return languages.by_folder(d.parent.name)
 

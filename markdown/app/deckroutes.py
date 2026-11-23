@@ -33,6 +33,7 @@ import decks
 import latexdraw
 import offline               # what a deck is made of, for a phone to keep (§19.3)
 import languages
+import savename         # a download named in any script (§8.20)
 import store
 import webexport        # a deck's picked exercises as one HTML page (§9.7)
 
@@ -696,9 +697,13 @@ def api_review(h, folder, slug):
 # ---------------------------------------------------------------- files
 
 def api_export(h, folder, slug):
-    data, name = decks.export_zip(folder, slug, _flag(h, "scheduling", True))
+    scheduling = _flag(h, "scheduling", True)
+    data, name = decks.export_zip(folder, slug, scheduling)
+    # the deck's own name, in its own script; the ASCII one for a browser
+    # that reads only filename= (§8.20)
     h.send_bytes(data, "application/zip", 200,
-                 {"Content-Disposition": 'attachment; filename="%s"' % name})
+                 {"Content-Disposition": savename.disposition(
+                     decks.export_name(folder, slug, scheduling), name)})
 
 
 def api_export_html(h, folder, slug):

@@ -82,7 +82,7 @@ try{
  await panel.locator('#stt_external_answer').fill('sentence0: سلام دنیاها');await panel.locator('#stt_external_import').click();
  await page.waitForFunction(()=>document.getElementById('stt_external_result'),null,{timeout:30000});
  const said=await page.locator('#stt_external_result').textContent();
- ok(said.startsWith('✎ 1 edits proposed · ✔ 0 agree with Whisper'),'the pasted edit is counted as an edit, not as agreeing with Whisper: '+said);
+ ok(said.startsWith('✎ 1 edit proposed · ✔ 0 agree with Whisper'),'the pasted edit is counted as an edit, not as agreeing with Whisper: '+said);
  ok(/edit proposed/.test(await page.locator('[data-review-word="s0w1"]').getAttribute('aria-label')),'and the word says so too');
  ok((await page.locator('[data-review-word="s0w1"]').getAttribute('class')).includes('asr-proposal'),'and wears the mark of a proposal');
  ok(page.failures.length===0,'the copy/paste review has no script errors');

@@ -81,10 +81,10 @@ try {
   const answer = () => KIND === 'book'
     ? {ok: true, kind: 'book', language: 'ja', gloss: 'en', audio: 'text', name: 'momotaro', folder: 'japanese',
        dir: 'books/japanese/momotaro', files: ['book.json', 'main.tex', 'ch1.tex'], bytes: 4096, dropped: [],
-       replaced: null, kept: [], notes: [], rebuild: './build.sh momotaro'}
+       replaced: null, kept: [], notes: []}
     : {ok: true, kind: 'video', language: 'ja', gloss: 'en', audio: null, name: 'aB3dE5fG7hI', folder: 'japanese',
        dir: 'youtube/videos/japanese/aB3dE5fG7hI', files: ['video.json'], bytes: 512, dropped: [],
-       replaced: null, kept: [], notes: [], rebuild: null};
+       replaced: null, kept: [], notes: []};
   await page.route('**/*', async route => {
     const req = route.request(), url = new URL(req.url()), p = url.pathname;
     if (url.hostname !== 'parseh.test') return route.abort();

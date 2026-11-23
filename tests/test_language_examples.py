@@ -134,7 +134,7 @@ class TheExample(unittest.TestCase):
                     with self.subTest(where):
                         for field in ("fa", "kana", "tr", "en"):
                             if field in ch:
-                                texwrite._check_text(field, ch[field], where)
+                                texwrite._value(field, ch[field], languages.get(code), where)   # what a book door takes
                         if ch.get("voc"):
                             texwrite._check_voc(ch["voc"], where)          # a book's line
                             texparse.parse_voc(ch["voc"], code)

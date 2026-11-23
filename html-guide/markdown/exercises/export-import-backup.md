@@ -20,10 +20,12 @@ page — offers two versions:
 
 | Choice | File | For |
 |---|---|---|
-| **With scheduling** | `exercises-everyday-persian-with-scheduling.zip` | your own other machine: every exercise keeps its state and every answer you gave |
-| **Without scheduling** | `exercises-everyday-persian.zip` | somebody else: every exercise arrives as new |
+| **With scheduling** | `exercises-Everyday Persian-with-scheduling.zip` | your own other machine: every exercise keeps its state and every answer you gave |
+| **Without scheduling** | `exercises-Everyday Persian.zip` | somebody else: every exercise arrives as new |
 
-The browser saves the file as it saves any download, and the **Working…**
+The file is called by the deck's own name, in whatever script it is written:
+a deck called «واژه‌ها» comes down as `exercises-واژه‌ها.zip`. The browser
+saves the file as it saves any download, and the **Working…**
 pill in the corner says *Exporting the deck …* while Parseh packs it.
 
 Both hold the same things:

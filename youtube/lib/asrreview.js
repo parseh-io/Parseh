@@ -158,7 +158,7 @@
       function answersSoFar() {
         if (!walkCtl) return null;
         var n = walkCtl.counts(), line = el('p', null, 'stt-external-result'); line.id = 'stt_external_result';
-        line.appendChild(el('strong', ParsehAsrWalk.MARK.change + ' ' + n.change + ' edits proposed · ' + ParsehAsrWalk.MARK.agree + ' ' + n.agree + ' agree with Whisper · ' + ParsehAsrWalk.MARK.unsure + ' ' + n.unsure + ' not sure either way · ' + ParsehAsrWalk.MARK.none + ' ' + n.none + ' with no answer'));
+        line.appendChild(el('strong', ParsehAsrWalk.MARK.change + ' ' + plural(n.change, 'edit', 'edits') + ' proposed · ' + ParsehAsrWalk.MARK.agree + ' ' + n.agree + (n.agree === 1 ? ' agrees' : ' agree') + ' with Whisper · ' + ParsehAsrWalk.MARK.unsure + ' ' + n.unsure + ' not sure either way · ' + ParsehAsrWalk.MARK.none + ' ' + n.none + ' with no answer'));
         if (!(n.change + n.agree + n.unsure + n.none)) return null;
         if (!n.loose) return line;
         // the answer was not a clean one for some words: say so beside the counts, with the way to ask for those words again
@@ -303,7 +303,7 @@
           var scoreData = el('pre', JSON.stringify(trace.scores, null, 2)); scoreData.dir = 'auto'; entry.appendChild(scoreData);
           responses.appendChild(entry); return;
         }
-        entry.appendChild(el('summary', 'Response ' + (i + 1) + ' · ' + (trace.word_ids || []).length + ' words' + (trace.phase ? ' · ' + trace.phase : '') + ' · ' + trace.state +
+        entry.appendChild(el('summary', 'Response ' + (i + 1) + ' · ' + plural((trace.word_ids || []).length, 'word', 'words') + (trace.phase ? ' · ' + trace.phase : '') + ' · ' + trace.state +
           ' · ' + (trace.elapsed_seconds == null ? '' : trace.elapsed_seconds + ' s') + (trace.finish_reason ? ' · finish: ' + trace.finish_reason : '')));
         if (trace.error) entry.appendChild(el('p', trace.error, 'warn'));
         entry.appendChild(el('h4', 'Whisper region'));
@@ -360,7 +360,7 @@
     }
     function updateDraft() {
       preview.textContent = draft();
-      status.textContent = Object.keys(decisions).length + ' suggestions accepted and ' + Object.keys(manualEdits).length + ' word choices saved in this draft. The transcript box has not changed.';
+      status.textContent = plural(Object.keys(decisions).length, 'suggestion', 'suggestions') + ' accepted and ' + plural(Object.keys(manualEdits).length, 'word choice', 'word choices') + ' saved in this draft. The transcript box has not changed.';
       var applied = {}, suppressed = {};
       Object.keys(decisions).concat(Object.keys(manualEdits)).forEach(function (id) {
         var ids = idsFor(id), manual = manualEdits[id];
@@ -391,8 +391,9 @@
       if (retry) { var remaining = retryWords(); retry.textContent = 'Retry remaining suspect words (' + remaining.length + ')'; retry.hidden = !result.review.result || result.review.last_method === 'whisper-second'; var configured = result.review.choice === 'likelihood' && !!(config && config.likelihood && config.likelihood.available); retry.disabled = phase !== 'review' || !remaining.length || (result.review.choice !== 'external' && !configured); }
       var all = Object.keys(words), low = all.filter(function (id) { return words[id].low_asr_score; }).length;
       var missing = all.filter(function (id) { return words[id].dictionary_miss; }).length;
-      if (summary) summary.textContent = low + ' low-score words · ' + missing + ' dictionary misses · ' + Object.keys(suggestions).length + (result.review.choice === 'likelihood' ? ' words reviewed · ' : ' words with proposals · ') +
-        (Object.keys(decisions).length + Object.keys(manualEdits).length) + ' edits saved';
+      if (summary) summary.textContent = plural(low, 'low-score word', 'low-score words') + ' · ' + plural(missing, 'dictionary miss', 'dictionary misses') + ' · ' +
+        plural(Object.keys(suggestions).length, 'word', 'words') + (result.review.choice === 'likelihood' ? ' reviewed · ' : ' with proposals · ') +
+        plural(Object.keys(decisions).length + Object.keys(manualEdits).length, 'edit', 'edits') + ' saved';
       applyFilter();
     }
     // what the walk (asrwalk.js) needs of this review, and nothing else of it
@@ -686,7 +687,7 @@
       if (result.review.save_error) root.appendChild(el('p', result.review.save_error, 'warn'));
       if (c.error) root.appendChild(el('p', c.error + ' Your draft is intact. Retry a tool or edit words directly.', 'warn'));
       var failedSecond = Object.keys(words).filter(function (id) { return words[id].second_pass && words[id].second_pass.state === 'failed'; });
-      if (failedSecond.length) root.appendChild(el('p', 'Whisper could not safely recheck ' + failedSecond.length + ' words. Their original evidence is intact; retry them or edit directly.', 'warn'));
+      if (failedSecond.length) root.appendChild(el('p', 'Whisper could not safely recheck ' + plural(failedSecond.length, 'word', 'words') + '. Their original evidence is intact; retry them or edit directly.', 'warn'));
       var reviewed = result.review && result.review.result;
       if (reviewed && reviewed.failed_word_ids && reviewed.failed_word_ids.length) root.appendChild(el('p', 'No answer came back for ' + plural(reviewed.failed_word_ids.length, 'word', 'words') + '. Their Whisper text is intact. Retry the unresolved words or edit them yourself.', 'warn'));
       if (reviewed && !reviewed.suggestions.length) root.appendChild(el('p', reviewed.assessment === 'no_flagged_words' ? 'No reviewable words had a low ASR score or a dictionary miss. No words were reviewed.' : reviewed.assessment === 'no_reviewable_words' ? 'No source words could be mapped for edits. Review the Whisper text.' : reviewed.failed_word_ids && reviewed.failed_word_ids.length ? 'Some sentences could not be reviewed. Their words remain unchanged.' : reviewed.assessment === 'uncertain' ? 'The model could not determine a correction. No words have changed.' : 'The model kept the words unchanged. This does not establish that they are correct.'));

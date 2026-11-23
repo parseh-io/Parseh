@@ -1017,7 +1017,7 @@ await section('external', 'external review without an endpoint and explicit draf
   // what the page says now: the five steps, on the fourth; the answer's outcomes; and the walk, open on what came in
   eq(await page.locator('#external-contract #stt_external_steps li.now').textContent(), 'Go through the answers', 'the steps say that the answers are to be gone through');
   eq(await page.locator('#external-contract #stt_external_steps li.done').count(), 3, 'and that the three before it are done');
-  assert((await page.locator('#external-contract #stt_external_result').textContent()).includes('1 edits proposed'), 'the answer says what it came to');
+  assert((await page.locator('#external-contract #stt_external_result').textContent()).includes('✎ 1 edit proposed · '), 'the answer says what it came to');
   assert(await page.locator('#external-contract .stt-walk-card').isVisible(), 'the walk opens by itself on the answer that came in');
   assert((await page.locator('#external-contract .stt-walk-head').textContent()).includes('The model suggests a correction'), 'with its first proposal');
   await page.locator('#external-contract .stt-walk-card').press('s');

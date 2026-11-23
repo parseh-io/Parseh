@@ -1037,8 +1037,8 @@ and book.json is never read during that -- so a metadata edit that touched
 book.json alone would leave the next PDF naming the old title, silently.
 `bookmeta.edit_meta` rewrites both files, or neither: a value that cannot
 sit inside a bare `\newcommand{...}{...}` (one of `\ { } $ % & # _ ^ ~`,
-unescaped -- the reader's own refusal, same characters `lib/texwrite.py`
-refuses in `fa`/`kana`/`tr`/`en`) refuses the whole edit before book.json
+unescaped -- the reader's own refusal; `lib/texwrite.py` escapes the same
+characters in `fa`/`kana`/`tr`/`en`, lib/texesc.py) refuses the whole edit before book.json
 changes either. It is never upper-cased: `lib/draft.py`'s own main.tex
 writes `\BookTitleLatin` exactly as typed (Python's `str.upper()` does not
 know a Turkish dotted i from an English one, and the registry keeps no case
@@ -3294,12 +3294,18 @@ the same thing.
     stays: `annwrite._emptied` and `texwrite._check_required` refuse that,
     unless the edit empties every box at once — the "delete gloss" the reader
     and the player offer.
-  - **Nothing is escaped.** `fa`, `kana`, `tr` and `en` are set by LaTeX as
-    literal text, and `\ { } $ % & # _ ^ ~` in them is *refused* rather than
-    escaped: `check_batch` rejects those escaped exactly as raw, `\{` would
-    reach the reader as a visible backslash (`tex2html` HTML-escapes those four
-    fields and never un-escapes LaTeX), and no edition in the repository
-    contains one. `voc` is the exception and is written through byte for byte,
+  - **The text is text; the file holds its escapes.** `fa`, `kana`, `tr` and
+    `en` are set by LaTeX as literal text, and since a0.6.3 (TO-DO §6.5, §6.6)
+    `\ { } $ % & # _ ^ ~` in them are neither refused nor seen escaped by
+    anybody: `lib/texesc.py` writes each as its LaTeX escape (`\%`, `\&`,
+    `\textasciitilde{}`, …) and every reader of a chapter undoes it --
+    `texparse` (so `tex2html`, the timings keys, the bundle's check),
+    `texwrite._values` (so the chunk sheet and every check inside an edit),
+    `verify_book`, and `check_batch`'s pointing count. `lib/draft.py`,
+    `assemble.py` and `texwrite` escape on the way in; the source paragraphs
+    keep the text as typed. A text with none of the ten is the same string
+    either way, so no existing chapter and no timings key changed. `voc` is
+    the exception and is written through byte for byte,
     because it is LaTeX by design; it is validated instead, plus one check
     `check_batch` does not make — the braces must balance under
     `read_group`'s rule, since a `voc` leaving one open would swallow the

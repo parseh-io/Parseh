@@ -121,8 +121,25 @@ by `;`, the four gloss macros — `\dw{word}{sound} meaning`, `\pw{word}`,
 chunk](doc:Writing a chunk) has them all) — and `\textit`, `\emph`, `\nobreak`
 (and a thin space, `\,`). None of `$ % & # _ ^ ~` and no `\\`, raw or
 escaped. Every other field — the text, the reading, the transliteration,
-the meaning — is plain text, and none of `\ { } $ % & # _ ^ ~` may go into
-it at all.
+the meaning — is plain text, and any character may go into it, "50%" and
+"R&D" included.
+
+Of those, the ten LaTeX reads as instructions are written into the file as
+their LaTeX escapes, and every page reads them back as they were typed:
+
+| Typed | In the `.tex` |
+|---|---|
+| `%` `&` `$` `#` `_` | `\%` `\&` `\$` `\#` `\_` |
+| `{` `}` | `\{` `\}` |
+| `~` `^` `\` | `\textasciitilde{}` `\textasciicircum{}` `\textbackslash{}` |
+
+So `It costs 50% of the R&D budget.` is the line `\ch{}{It costs 50\% of the
+R\&D budget.}{…}{…}{…}`. The reader, the chunk sheet, the timings, the
+bundle and the PDF all show *50%*. The source paragraph under `source/` keeps
+the text as typed, and the fidelity check compares text with text. If you
+write a chapter by hand, write these escapes yourself: a bare `%` in a chunk
+tells LaTeX to ignore the rest of the line, and the chunk sheet will not
+edit a chunk that has one.
 
 ## The source paragraphs, and fidelity
 
