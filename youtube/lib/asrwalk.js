@@ -418,7 +418,7 @@
       host.appendChild(el('h4', 'The model’s answers'));
       var sum = el('p', null, 'stt-walk-summary');
       sum.appendChild(document.createTextNode(plural(list.length, 'word', 'words') + ' checked: '));
-      [['change', plural(n.change, 'edit', 'edits') + ' proposed' + (n.rated ? ' (' + n.sure + ' sure, ' + (n.change - n.sure) + ' not sure)' : '')], ['agree', n.agree + ' agree with Whisper'],
+      [['change', plural(n.change, 'edit', 'edits') + ' proposed' + (n.rated ? ' (' + n.sure + ' sure, ' + (n.change - n.sure) + ' not sure)' : '')], ['agree', n.agree + (n.agree === 1 ? ' agrees' : ' agree') + ' with Whisper'],
        ['unsure', n.unsure + ' not sure either way'], ['none', n.none + ' with no answer']].concat(n.loose ? [['loose', n.loose + ' read loosely']] : []).forEach(function (c, at) {
         var chip = btn(MARK[c[0]] + ' ' + c[1], function () { st.chip = st.chip === c[0] ? null : c[0]; paint(); }, 'stt-walk-chip stt-walk-' + c[0]);
         chip.setAttribute('aria-pressed', st.chip === c[0] ? 'true' : 'false'); chip.disabled = !n[c[0]]; sum.appendChild(chip);

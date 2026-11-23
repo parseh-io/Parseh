@@ -94,7 +94,7 @@ try {
   await setup(page);
   ok(await page.locator('#stt_walk').isVisible(), 'the answers are drawn under the tools');
   ok((await page.locator('.stt-walk-summary').textContent()).startsWith('5 words checked: '), 'the summary says how many words were checked');
-  eq(await page.locator('.stt-walk-chip').allTextContents(), ['✎ 2 edits proposed (1 sure, 1 not sure)', '✔ 1 agree with Whisper', '? 1 not sure either way', '✗ 1 with no answer'],
+  eq(await page.locator('.stt-walk-chip').allTextContents(), ['✎ 2 edits proposed (1 sure, 1 not sure)', '✔ 1 agrees with Whisper', '? 1 not sure either way', '✗ 1 with no answer'],
      'and counts what was proposed, what the model agrees with, what it doubts and what it left out');
   await page.locator('.stt-walk-chip.stt-walk-agree').click();
   eq((await page.locator('.stt-walk-list').textContent()).replace(/\s+/g, ' ').trim(), '✔ anno · sure — a year, as it should be', 'a word the model agrees with is listed, with what it said and why');
@@ -226,7 +226,7 @@ try {
   ok(!(await page.locator('.stt-walk-chip.stt-walk-loose').count()), 'and there is no "read loosely" count: nothing to say');
   ok(!(await page.locator('.stt-walk-card .stt-loosenote').count()), 'no card carries a note');
   await setup(page, 'loose', undefined, undefined, 'external');
-  eq(await page.locator('.stt-walk-chip').allTextContents(), ['✎ 2 edits proposed (2 sure, 0 not sure)', '✔ 1 agree with Whisper', '? 0 not sure either way', '✗ 0 with no answer', '≈ 2 read loosely'],
+  eq(await page.locator('.stt-walk-chip').allTextContents(), ['✎ 2 edits proposed (2 sure, 0 not sure)', '✔ 1 agrees with Whisper', '? 0 not sure either way', '✗ 0 with no answer', '≈ 2 read loosely'],
      'a fifth count: the words whose answer was read loosely');
   eq(await page.evaluate(() => [...document.querySelectorAll('.asr-loose')].map(b => b.dataset.reviewWord)), ['s0w1', 's1w3'],
      'the words wear a mark of their own -- including one the model said nothing else about');
