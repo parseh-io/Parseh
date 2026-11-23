@@ -278,7 +278,6 @@ class WordModels(unittest.TestCase):
         import settingspage
         import words
         self.assertEqual(settingspage.ROUTES["/lookup/api/getwords"], ("reading.get",))
-        self.assertEqual(serve.Handler._reading_key("getwords", {"code": "zh"}), ("words", "zh"))
         self.assertEqual(serve.reading_check("words", "ja")[1], 400)
         with mock.patch.object(segmenter, "available", lambda code: True), \
                 mock.patch.object(words, "fetch_models", self._fake_fetch):

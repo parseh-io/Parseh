@@ -54,6 +54,7 @@ HARNESSES = {
     "decks_harness.py": "redirects",
     "doclinks_harness.py": "redirects",
     "languages_harness.py": "redirects",
+    "no_terminal_harness.py": "redirects",
     "openfile_harness.py": "redirects",
     "prompts_harness.py": "redirects",
     "smoke.py": "redirects in SERVE_BOOT",

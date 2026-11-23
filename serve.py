@@ -4579,6 +4579,11 @@ class Handler(SimpleHTTPRequestHandler):
         if what == "dicts":
             return self.send_json({"ok": True, "dicts": lookuppage.dictionaries(),
                                    "jobs": dict(DICT_JOBS)})
+        if what == "getwords":
+            # a word analyzer's own models (lib/getwords.py): fetched, never
+            # removed from here -- they live in the analyzer's own folder
+            answer, status = reading_start("words", str(body.get("code") or "").strip())
+            return self.send_json(answer, status)
         # getting and removing: the same five kinds, each named by the body
         # its page has always sent
         kind, key = self._reading_key(what, body)
@@ -4600,13 +4605,12 @@ class Handler(SimpleHTTPRequestHandler):
                                 ("model", "getmodel", "dropmodel"),
                                 ("components", "getdecomposition", "dropdecomposition"),
                                 ("synonyms", "getsyn", "dropsyn"),
-                                ("speech", "getspeech", "dropspeech"),
-                                ("words", "getwords", "dropwords")):
+                                ("speech", "getspeech", "dropspeech")):
             if what in (get, drop):
                 if kind == "speech":
                     part = body.get("key")
                     return kind, part if isinstance(part, str) else ""
-                if kind in ("dict", "words"):
+                if kind == "dict":
                     return kind, code
                 if kind == "components":
                     source = body.get("source")

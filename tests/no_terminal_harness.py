@@ -32,15 +32,21 @@ tmp = Path(tempfile.mkdtemp(prefix="parseh-no-terminal-test-"))
 os.environ["PKUSEG_HOME"] = str(tmp / "pkuseg")
 for p in ("markdown/exlex", "markdown/app", "lib", "youtube/lib", ".", "tests"):
     sys.path.insert(0, str(ROOT / p))
+import analysisconfig   # noqa: E402
 import corpus           # noqa: E402
 import getmt            # noqa: E402
+import languages        # noqa: E402
+import latexthemes      # noqa: E402
 import lookup           # noqa: E402
 import network          # noqa: E402
+import newlang          # noqa: E402
 import offline          # noqa: E402
 import prefs            # noqa: E402
+import prompts          # noqa: E402
 import runtime          # noqa: E402
 import segmenter        # noqa: E402
 import serve            # noqa: E402
+import speechconfig     # noqa: E402
 import words            # noqa: E402
 import ytpages          # noqa: E402
 
@@ -48,6 +54,11 @@ network.STORE = str(tmp / "config" / "network.json")
 prefs.STORE = str(tmp / "config" / "prefs.json")
 offline.DIGESTS = str(tmp / "config" / "digests.json")
 offline.WHERES = str(tmp / "config" / "wheres.json")
+prompts.STORE = str(tmp / "config" / "prompts.json")
+latexthemes.STORE = str(tmp / "config" / "latex.json")
+languages.PERSONAL = newlang.PERSONAL = str(tmp / "config" / "languages.json")
+speechconfig.CONFIG = tmp / "config" / "speech.json"
+analysisconfig.STORE = str(tmp / "config" / "analysis.json")
 lookup.DICT_DIR = str(tmp / "dict")
 corpus.CORPUS_DIR = str(tmp / "corpus")
 getmt.MT_DIR = str(tmp / "mt")
