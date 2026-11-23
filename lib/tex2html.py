@@ -3273,8 +3273,8 @@ function seekable() {
 function diagnose() {
   if (A.readyState >= 1 && !seekable()) {
     $('#warn').style.display = 'inline';
-    $('#warn').innerHTML = 'audio cannot be seeked — serve it with ' +
-      '<code>python3 serve.py</code> (python -m http.server has no Range support), ' +
+    $('#warn').innerHTML = 'audio cannot be seeked — open this book from ' +
+      'Parseh’s library (a plain file server cannot jump in the sound), ' +
       'or <label style="text-decoration:underline;cursor:pointer">pick the file' +
       '<input id="pick" type="file" accept="audio/*" hidden></label>';
     bindPick();
@@ -3972,7 +3972,7 @@ $('#savetimes').onclick = async () => {
     // with.  Say so, rather than leave the reader guessing.
     const dead = (err instanceof TypeError) || /NetworkError|Failed to fetch|Load failed/i.test(err.message || '');
     $('#editmsg').textContent = 'could not save (' + err.message + ')' +
-      (dead ? ' — the server did not answer; restart python3 serve.py and reload this page' : '') +
+      (dead ? ' — Parseh’s computer did not answer; start Parseh again the way you started it before and reload this page' : '') +
       ' — edits are kept in this browser';
   }
 };
@@ -4319,7 +4319,7 @@ async function secSend(url, body, said) {
     $('#secreload').hidden = badBuild;
   } catch (e) {
     stat.textContent = 'the server did not answer (' + (e.message || e) + ') — an edit '
-      + 'needs this page served by python3 serve.py; nothing was written';
+      + 'needs this page opened from Parseh while it runs; nothing was written';
     stat.classList.add('bad');
   }
 }
@@ -6544,7 +6544,7 @@ async function saveBookMeta() {
     j = await r.json();
   } catch (err) {
     BM.stat.textContent = 'the server did not answer (' + (err.message || err) +
-      ') — an edit needs this page served by python3 serve.py; nothing was written';
+      ') — an edit needs this page opened from Parseh while it runs; nothing was written';
     BM.stat.classList.add('bad');
     return;
   }
@@ -6753,7 +6753,7 @@ function narrUpload(blob, what, name, onProgress, extra) {
     };
     x.onerror = () => {
       act.end(false);
-      reject(new Error('the server did not answer — is this page served by serve.py?'));
+      reject(new Error('Parseh’s computer did not answer — this needs the page opened from Parseh while it runs'));
     };
     x.send(blob);
   });
@@ -7720,7 +7720,7 @@ function openNarr() {
     $('#nsum').textContent = 'the panel cannot reach the server';
     $('#nwarn').hidden = false;
     $('#nwarn').innerHTML = '<span class="bad">' + nesc(e.message) + '</span> — this panel ' +
-      'needs the page served by serve.py; opened from the disk, nothing here can work.';
+      'needs the page opened from Parseh while it runs; opened from the disk, nothing here can work.';
   });
 }
 function closeNarr() {
@@ -8314,7 +8314,7 @@ async function chPost(n, fields) {
     // still running the code it was started with.  Nothing was written, and
     // saying which is the difference between a retry and a restart.
     return {ok: false, error: 'the server did not answer (' + (err.message || err) +
-            ') — an edit needs this page served by python3 serve.py; nothing was written'};
+            ') — an edit needs this page opened from Parseh while it runs; nothing was written'};
   }
 }
 // what a write says after its own words: the PDF now behind the text (the
@@ -8642,7 +8642,7 @@ async function rgPost(what, body) {
     return await r.json();
   } catch (err) {
     return {ok: false, error: 'the server did not answer (' + (err.message || err) +
-            ') — this needs the page served by python3 serve.py; nothing was ' +
+            ') — this needs the page opened from Parseh while it runs; nothing was ' +
             (what === 'apply' ? 'written' : 'copied')};
   }
 }
@@ -9783,7 +9783,7 @@ async function dvStart(mode, index) {
   try { j = await dvAsk({action: 'preview', index: dvIndex}); }
   catch (err) {
     dvSay('the server did not answer (' + (err.message || err) + ') — this '
-          + 'needs the page served by python3 serve.py', true);
+          + 'needs the page opened from Parseh while it runs', true);
     return;
   }
   if (!j.ok) { dvSay(j.error || 'the chapter would not open', true); return; }
