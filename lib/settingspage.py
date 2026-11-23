@@ -251,6 +251,7 @@ ROUTES = {
     "/lookup/api/getmodel": ("reading.get",),
     "/lookup/api/getsyn": ("reading.get",),
     "/lookup/api/getdecomposition": ("reading.get",),
+    "/lookup/api/getwords": ("reading.get",),
     "/lookup/api/getall": ("reading.get",),
     # removing
     "/lookup/api/dropdict": ("reading.remove",),

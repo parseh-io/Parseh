@@ -77,7 +77,7 @@ that are known — with **Open** to see the whole card.
 model runs in (it comes with the first model), the English synonyms, and
 CJKVI-IDS, the component pack both Japanese and Chinese fall back on.
 
-Each language can have up to four things, and each is installed on its own:
+Each language can have up to five things, and each is installed on its own:
 
 | Row | What it gives you | What it costs, and where it is kept |
 |---|---|---|
@@ -86,6 +86,7 @@ Each language can have up to four things, and each is installed on its own:
 | **Sentences people translated**, one per pair of languages | a real sentence and a person's translation of it, chosen because it shares the chunk's rare words | from a few megabytes (Persian–English) to 180 MB (Italian–English); `corpus/<code>-<gloss>.db` |
 | **Translation model**, one per pair, always to or from English | the whole sentence read by a machine, inside the reader, with the chunk's share of it marked | 20 to 55 MB a pair, plus a 5 MB engine once; `mt/<code>-<gloss>/` and `mt/engine/` |
 | **English synonyms**, one file for every language | a table that helps the model's mark find its words | about a megabyte, from a 16 MB download; `mt/synonyms.en.json` |
+| **Word models**, Chinese only | what cuts Chinese into words and names each word's part of speech, in the chunk editor and the word strip; the installer fetches them, and this row fetches them where they are missing | about 76 MB; pkuseg's own folder, `~/.pkuseg` |
 
 The dictionary is the one to get first: it is what the panel is built
 around, the components use it for their meanings, the sentences of a

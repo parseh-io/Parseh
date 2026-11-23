@@ -232,5 +232,74 @@ class TranslationPairs(unittest.TestCase):
             self.assertIsNone(getmt.offered())
 
 
+class WordModels(unittest.TestCase):
+    """5.10: Chinese's word models are fetched from Settings > Reading help, by
+    the reading downloads' own job (kind "words"), never `words.py --fetch`."""
+
+    def setUp(self):
+        import os
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.was = os.environ.get("PKUSEG_HOME")
+        os.environ["PKUSEG_HOME"] = self.tmp.name
+
+    def tearDown(self):
+        import os
+        if self.was is None:
+            os.environ.pop("PKUSEG_HOME", None)
+        else:
+            os.environ["PKUSEG_HOME"] = self.was
+        self.tmp.cleanup()
+
+    def _fake_fetch(self, code, say=print):
+        import os
+        import segmenter
+        for m in segmenter.MODELS[code]:
+            d = os.path.join(self.tmp.name, m["name"])
+            os.makedirs(d, exist_ok=True)
+            open(d + ".zip", "wb").close()
+            for f in m["files"]:
+                open(os.path.join(d, f), "wb").close()
+        say("fetched")
+        return True
+
+    def test_the_row_is_offered_for_chinese_alone(self):
+        import lookuppage
+        wm = lookuppage.word_models()
+        self.assertEqual(sorted(wm), ["zh"])
+        self.assertFalse(wm["zh"]["have"])
+        self.assertIn("get: 'getwords'", lookuppage.SCRIPT)
+        self.assertEqual(lookuppage.sizes()["words:zh"]["download"], 76_000_000)
+
+    def test_get_it_runs_the_job_and_the_models_are_there(self):
+        from unittest import mock
+        import segmenter
+        import serve
+        import settingspage
+        import words
+        self.assertEqual(settingspage.ROUTES["/lookup/api/getwords"], ("reading.get",))
+        self.assertEqual(serve.Handler._reading_key("getwords", {"code": "zh"}), ("words", "zh"))
+        self.assertEqual(serve.reading_check("words", "ja")[1], 400)
+        with mock.patch.object(segmenter, "available", lambda code: True), \
+                mock.patch.object(words, "fetch_models", self._fake_fetch):
+            self.assertIn(("words", "zh"), serve.queue_steps("zh", "en"))
+            answer, status = serve.reading_start("words", "zh", wait=True)
+            self.assertEqual(status, 200, answer)
+            job = serve.reading_job("words", "zh")
+            self.assertEqual((job["error"], job["say"]), ("", "done"))
+            self.assertTrue(all(m["have"] for m in segmenter.models("zh")))
+            self.assertNotIn(("words", "zh"), serve.queue_steps("zh", "en"))
+
+    def test_without_the_analyzer_it_says_where_it_comes_from(self):
+        from unittest import mock
+        import getwords
+        import segmenter
+        with mock.patch.object(segmenter, "available", lambda code: False):
+            with self.assertRaises(SystemExit) as e:
+                getwords.build("zh", say=lambda m: None)
+        self.assertNotRegex(str(e.exception), COMMAND)
+        self.assertIn("Settings > Updating Parseh", str(e.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

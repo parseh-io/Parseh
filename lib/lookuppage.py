@@ -276,7 +276,7 @@ def glosses():
 # downloader's arguments -- the same for its build() and its plan()
 # (lib/download.py's interface).  serve.py starts them through these.
 MODULES = {"dict": "getdict", "components": "getdecomposition", "corpus": "getcorpus",
-           "model": "getmt", "synonyms": "getsyn", "speech": "getstt"}
+           "model": "getmt", "synonyms": "getsyn", "speech": "getstt", "words": "getwords"}
 
 
 def module_for(kind):
@@ -329,6 +329,8 @@ def sizes():
                 out["model:%s-%s" % (code, gloss)] = known_plan("model", "%s-%s" % (code, gloss))
     for pack in decomposition.PACKS:
         out["components:" + pack] = known_plan("components", pack)
+    for code in __import__("getwords").languages():
+        out["words:" + code] = known_plan("words", code)
     out["synonyms:"] = known_plan("synonyms", "")
     # speech to text's three parts: the plan says what a model costs WITH the program
     # when it is not there (its page, /settings/speech/, draws them)
@@ -368,6 +370,22 @@ def examples():
 
 
 # ------------------------------------------------------------ the view
+def word_models():
+    """{code: {have, analyzer, models}} for each language whose word analyzer
+    downloads models of its own (lib/getwords.py): Chinese's pkuseg."""
+    import getwords
+    import segmenter
+    out = {}
+    for code in getwords.languages():
+        ms = segmenter.models(code)
+        out[code] = {"have": all(m["have"] for m in ms), "analyzer": segmenter.available(code),
+                     "packages": segmenter.about(code).get("packages", ""),
+                     "size": sum(m["size_mb"] for m in ms) * 1_000_000,
+                     "models": [{"what": m["what"], "size_mb": m["size_mb"], "have": m["have"]}
+                                for m in ms]}
+    return out
+
+
 def view(state=None, jobs=None, queues=None):
     """Everything the page draws, in one answer: the page is drawn from it
     when it opens and redrawn from it every time it asks how things stand
@@ -385,6 +403,7 @@ def view(state=None, jobs=None, queues=None):
     packs = {p["source"]: p for p in decomposition.packs()}
     syn = synonym_table()
     eng = engine()
+    wm = word_models()
     langs = []
     for L in languages.LANGS.values():
         s = shelf.get(L.code) or {}
@@ -400,7 +419,8 @@ def view(state=None, jobs=None, queues=None):
             "corpus_varieties": corp[L.code]["varieties"],
             "needs_dict": corp[L.code]["needs_dict"],
             "models": mods[L.code]["have"], "can_model": mods[L.code]["can"],
-            "pack": decomposition.PREFERRED.get(L.code)})
+            "pack": decomposition.PREFERRED.get(L.code),
+            "word_models": wm.get(L.code)})
     kept = sum(d["size"] + sum(v["size"] for v in d.get("varieties") or []) for d in dicts.values())
     kept += sum(r["size"] for c in corp.values() for r in c["have"])
     kept += sum(r["size"] for c in corp.values() for v in c["varieties"] for r in v["have"])
@@ -681,6 +701,23 @@ SCRIPT = r"""
                  kept: p.size, get: 'getdecomposition', drop: 'dropdecomposition', body: {source: L.pack},
                  ex: 'parts'});
     }
+    // THE WORD ANALYZER'S OWN MODELS (Chinese: pkuseg's word and part-of-speech
+    // models), fetched here rather than by the first chunk that needs them
+    if (L.word_models) {
+      var wm = L.word_models;
+      var wr = {kind: 'words', key: L.code, name: 'Word models', lang: L.code, noremove: true, norebuild: true,
+                'for': 'What cuts ' + L.name + ' into words and names each word\u2019s part of speech, in the ' +
+                       'chunk editor and the word strip.',
+                have: wm.have,
+                facts: wm.have ? wm.models.map(function (m) { return m.what; }).join(' and ') + ' · ' + MB(wm.size) : '',
+                kept: wm.size, get: 'getwords', body: {code: L.code}};
+      if (!wm.have && !wm.analyzer) {
+        wr.na = true; wr.naWord = 'Analyzer missing';
+        wr.why = 'The analyzer itself (' + wm.packages + ') is not installed: Settings \u2192 Updating Parseh adds it.';
+        wr.door = '/settings/update/#packages';
+      }
+      rows.push(wr);
+    }
     var pairs = [g];
     L.corpora.forEach(function (c) { if (pairs.indexOf(c.gloss) < 0) pairs.push(c.gloss); });
     pairs.forEach(function (gl) {
@@ -828,10 +865,11 @@ SCRIPT = r"""
       if (j.error) note += '<div class="note bad">The last rebuild stopped: ' + esc(j.error) + ' The one here still works.</div>';
       else if (j.stopped) note += '<div class="note">You stopped the rebuild; the one here still works.</div>';
       if (!r.norebuild) act += '<button class="' + (r.older ? 'go' : 'plain') + '" type="button" data-get="' + esc(id) + '">Rebuild</button>';
-      act += '<button class="plain" type="button" data-remove="' + esc(id) + '">Remove…</button>';
+      if (!r.noremove) act += '<button class="plain" type="button" data-remove="' + esc(id) + '">Remove…</button>';
     } else if (r.na) {
       facts = r.pair ? esc(r.pair) : '';
-      note = '<div class="note">' + esc(r.why) + '</div>';
+      note = '<div class="note">' + esc(r.why) +
+        (r.door ? ' <a href="' + esc(r.door) + '">Open it</a>' : '') + '</div>';
     } else {
       facts = sizeLine(r);
       if (r.after) {

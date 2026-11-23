@@ -129,6 +129,7 @@ import decomposition      # local optional component trees
 import corpus             # noqa: E402  and the sentences somebody translated
 import getmt              # noqa: E402  and the model that runs in the page
 import envpackages        # noqa: E402  the packages Settings > Updating Parseh adds
+import segmenter          # noqa: E402  a word analyzer's own models (Reading help)
 import getstt             # noqa: E402  speech to text: its program, its models, its processor
 import lookuppage         # noqa: E402  the page that sets the dictionaries up
 import lmlikelihoodpage
@@ -2023,7 +2024,8 @@ def update_daily():
 #   stopped              True when the person stopped it (not a failure)
 #   queue                the language whose "get everything" it is a step of
 #   waiting              True while it waits its turn in that queue
-READING_KINDS = ("dict", "components", "corpus", "model", "synonyms", "speech")
+READING_KINDS = ("dict", "components", "corpus", "model", "synonyms", "speech", "words")
+WORDS_JOBS = {}                 # a word analyzer's own models (lib/getwords.py, TO-DO §5.10)
 CANCELS = {}                    # (kind, key) -> the Event its Stop button sets
 SPEECH_START_LOCKS = {}         # validated catalogue parts; one start per part
 PLANS = {}                      # (kind, key) -> (when, plan): what it was said to cost
@@ -2040,7 +2042,7 @@ def reading_table(kind):
     if kind == "synonyms":
         return {"": SYN_JOB} if SYN_JOB else {}
     return {"dict": DICT_JOBS, "corpus": CORPUS_JOBS, "model": MT_JOBS,
-            "components": DECOMPOSITION_JOBS, "speech": STT_JOBS}[kind]
+            "components": DECOMPOSITION_JOBS, "speech": STT_JOBS, "words": WORDS_JOBS}[kind]
 
 
 def reading_job(kind, key):
@@ -2095,6 +2097,9 @@ def reading_check(kind, key):
         # A part is a shared catalogue ID: nothing a browser sends becomes a path.
         if key not in getstt.PARTS:
             return "no such part of speech to text", 400
+    elif kind == "words":
+        if key not in segmenter.MODELS:
+            return "this language's word analyzer downloads nothing of its own", 400
     elif key:
         return "there is one synonym table, not one per language", 400
     return "", 200
@@ -2126,7 +2131,7 @@ def reading_folder(kind):
     """Where a kind's files go, for the room left on that disk."""
     return {"dict": lookup.DICT_DIR, "corpus": corpus.CORPUS_DIR, "model": getmt.MT_DIR,
             "synonyms": getmt.MT_DIR, "components": str(decomposition.DATA_DIR),
-            "speech": getstt.STT_DIR}[kind]
+            "speech": getstt.STT_DIR, "words": segmenter.pkuseg_home()}[kind]
 
 
 disk_free = lookuppage.disk_free
@@ -2160,6 +2165,8 @@ def reading_named(kind, key):
         return "the synonym table"
     if kind == "speech":
         return getstt.part_name(key)
+    if kind == "words":
+        return "the %s word models" % languages.get_or_default(key).name
     what = {"dict": "dictionary", "corpus": "translated sentences",
             "model": "translation model"}[kind]
     return "the %s %s" % (_lang_pair(key), what)
@@ -2310,6 +2317,10 @@ def queue_steps(code, gloss):
     pack = decomposition.PREFERRED.get(code)
     if pack and not decomposition.about(pack):
         steps.append(("components", pack))
+    # the word analyzer's own models (Chinese), where the analyzer is here to use them
+    if (code in segmenter.MODELS and segmenter.available(code)
+            and not all(m["have"] for m in segmenter.models(code))):
+        steps.append(("words", code))
     if gloss != code and gloss in languages.LANGS:
         if not corpus.available(code, gloss):
             steps.append(("corpus", "%s-%s" % (code, gloss)))
@@ -4589,12 +4600,13 @@ class Handler(SimpleHTTPRequestHandler):
                                 ("model", "getmodel", "dropmodel"),
                                 ("components", "getdecomposition", "dropdecomposition"),
                                 ("synonyms", "getsyn", "dropsyn"),
-                                ("speech", "getspeech", "dropspeech")):
+                                ("speech", "getspeech", "dropspeech"),
+                                ("words", "getwords", "dropwords")):
             if what in (get, drop):
                 if kind == "speech":
                     part = body.get("key")
                     return kind, part if isinstance(part, str) else ""
-                if kind == "dict":
+                if kind in ("dict", "words"):
                     return kind, code
                 if kind == "components":
                     source = body.get("source")
