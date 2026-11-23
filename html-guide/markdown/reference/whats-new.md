@@ -15,6 +15,8 @@ change. A new version comes in from **Settings → Updating Parseh**
 ([Updating Parseh](../getting-started/updating.md)), which compiles this
 guide and rebuilds the readers by itself.
 
+## a0.6.4 — not yet released
+
 ## a0.6.3 — 23 November 2026
 
 ### The vocabulary as a list
