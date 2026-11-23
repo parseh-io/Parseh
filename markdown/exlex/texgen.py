@@ -197,8 +197,10 @@ def print_class_tex(size):
         return "\\documentclass[11pt,a4paper]{article}"
     return ("\\IfFileExists{extarticle.cls}{}{\\errmessage{Large print needs "
             "the TeX package extsizes (extarticle.cls), which this TeX "
-            "installation does not have. Install extsizes with the TeX "
-            "package manager, or build at Normal print size}}\n"
+            "installation does not have. Parseh cannot add it from its pages "
+            "yet: build at Normal print size, or add the package extsizes with "
+            "this computer's TeX program, MiKTeX Console or the TeX Live "
+            "Manager}}\n"
             "\\documentclass[%dpt,a4paper]{extarticle}" % size)
 
 

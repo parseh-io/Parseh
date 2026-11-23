@@ -186,6 +186,9 @@ other options — rebuild** says so.
 > document's `compile-error.log` ([above](#when-a-build-fails)) says
 > *Large print needs the TeX package extsizes (extarticle.cls), which this
 > TeX installation does not have*. **Normal · 11 pt** still builds.
+> Parseh cannot add the package from its pages yet: it is added with the
+> computer's own TeX program (MiKTeX Console's **Packages** page on Windows,
+> the TeX Live Manager elsewhere).
 
 ## Exercises on paper {#exercises-on-paper}
 

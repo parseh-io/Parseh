@@ -390,9 +390,11 @@ def build_pdf(doc_id, scale, size=texgen.DEFAULT_PRINT_SIZE, mono=False):
     fonts = EXLEX / "assets" / "fonts"
     if not fonts.is_dir():
         return {"status": "error",
-                "error": "fonts not provisioned yet — run "
-                         "`python3 exlex/exlex.py setup` or wait a moment "
-                         "and retry."}
+                "error": "the fonts for the PDF are not ready yet — wait a "
+                         "moment and build again. If this stays, the fonts that "
+                         "come with Parseh (lib/fonts) are missing from this "
+                         "copy, and installing Parseh again from its release "
+                         "puts them back."}
     # (a .part is a copy an older envsetup left half made in the folder)
     shutil.copytree(fonts, outdir / "fonts", dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns("*.part"))
@@ -436,7 +438,12 @@ def build_pdf(doc_id, scale, size=texgen.DEFAULT_PRINT_SIZE, mono=False):
             return {"status": "error", "error": "xelatex timed out (300 s)"}
         except FileNotFoundError:
             return {"status": "error",
-                    "error": "xelatex not found — install TeX Live"}
+                    "error": "this computer has no XeLaTeX, which makes a "
+                             "studio document's PDF. TeX (TeX Live, or MiKTeX "
+                             "on Windows) is installed like any other program, "
+                             "not from Parseh's pages; once it is there, build "
+                             "again. Everything else in the studio works "
+                             "without it."}
         log = (r.stdout or "") + (r.stderr or "")
         if r.returncode != 0:
             (outdir / "compile-error.log").write_text(log, encoding="utf-8")

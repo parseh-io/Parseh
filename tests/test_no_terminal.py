@@ -301,5 +301,22 @@ class WordModels(unittest.TestCase):
         self.assertIn("Settings > Updating Parseh", str(e.exception))
 
 
+class TheStudiosPdf(unittest.TestCase):
+    """5.12: the studio's PDF refusals name no exlex.py setup, and say plainly
+    what cannot be installed from the pages."""
+
+    def test_large_print_without_extsizes(self):
+        import texgen
+        line = texgen.print_class_tex(14)
+        self.assertNotIn("package manager", line)
+        self.assertIn("Parseh cannot add it from its pages yet: build at Normal print size", line)
+
+    def test_no_setup_command_and_no_bare_install(self):
+        src = _source("markdown/app/server.py")
+        self.assertNotIn("exlex.py setup", src)
+        self.assertNotIn("xelatex not found — install TeX Live", src)
+        self.assertIn("not from Parseh's pages; once it is there, build ", src)
+
+
 if __name__ == "__main__":
     unittest.main()
