@@ -152,6 +152,7 @@ import ytpages              # noqa: E402  the video player's pages + Anki endpoi
 import filmdoor             # noqa: E402  a film or a sound SENT, and the picture of its sound (youtube/lib/filmdoor.py)
 import timestamp as tstamp  # noqa: E402  the aligner: its transcript parser, for the panel
 import bundle              # noqa: E402  a book or a video as one file, out and back
+import savename            # noqa: E402  a download named in any script (§8.20)
 import shelf               # noqa: E402  a whole shelf of either, backed up and put back
 import texwrite            # noqa: E402  one chunk of a chapter, edited in place
 import glossregion         # noqa: E402  a region glossed by an LLM: the prompt, the answer put back
@@ -3036,8 +3037,7 @@ class Handler(SimpleHTTPRequestHandler):
             extra["Content-Security-Policy"] = \
                 "default-src 'none'; style-src 'unsafe-inline'"
         if download_name:
-            extra["Content-Disposition"] = (
-                'attachment; filename="%s"' % download_name)
+            extra["Content-Disposition"] = savename.disposition(download_name)
         size = os.path.getsize(path)
         code, first, count = 200, 0, size
         rng = None if download_name else self.headers.get("Range")
@@ -5457,12 +5457,11 @@ class Handler(SimpleHTTPRequestHandler):
     # messages: they were written to be read by whoever pressed the button.
     def _send_bundle(self, data, name):
         # Content-Disposition is what makes the browser save it rather than
-        # try to display a zip; the name is a slug or a video id, so ASCII,
-        # but quote it anyway -- a filename with a quote in it would end the
-        # header value early and the browser would save it under something else
+        # try to display a zip; the name is the book's folder or a video's
+        # id, in any script: savename sends it with an ASCII twin (§8.20)
+        # and takes out a quote that would end the header value early
         self.send_bytes(data, "application/zip", extra={
-            "Content-Disposition": 'attachment; filename="%s"'
-                                   % name.replace('"', "")})
+            "Content-Disposition": savename.disposition(name)})
 
     def _book_download(self):
         """The reading edition as one zip, in one of three shapes.
@@ -6878,7 +6877,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(size))
-        self.send_header("Content-Disposition", 'attachment; filename="%s"' % download_name)
+        self.send_header("Content-Disposition", savename.disposition(download_name))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         if self._head:

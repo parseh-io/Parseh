@@ -55,6 +55,7 @@ for _p in (LIB, TOOLBOX_LIB):
 import bundle       # noqa: E402  which file of a video's own is its film
 import chunker      # noqa: E402  the two ways a draft may be cut
 import languages    # noqa: E402  the registry: folders, names, scripts, chips
+import savename     # noqa: E402  a download named in any script (§8.20)
 import promptkit    # noqa: E402  the three parts every prompt is made of
 import prompts      # noqa: E402  the prompts a person wrote, chosen by their id
 import words        # noqa: E402  a word line proposed where an answer left one out
@@ -689,8 +690,7 @@ def anki_build(h, slug, folder=None):
     with open(out, "rb") as f:
         blob = f.read()
     h.send_bytes(blob, "application/octet-stream", 200,
-                 {"Content-Disposition": 'attachment; filename="%s"'
-                  % os.path.basename(out)})
+                 {"Content-Disposition": savename.disposition(os.path.basename(out))})
 
 
 def _json_in(h, cap=12 * 1024 * 1024):

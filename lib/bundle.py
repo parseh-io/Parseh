@@ -709,7 +709,7 @@ def _filename(kind, name, shape=None):
     them has all three in one downloads folder and "(1)" is no answer to
     which one holds the recording.  A book with no narration keeps the name
     it has always had -- there being only one bundle of it to name."""
-    safe = re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-.") or kind
+    safe = re.sub(r"[^\w.-]+", "-", name, flags=re.UNICODE).strip("-.") or kind
     return "%s-%s%s.zip" % (safe, kind, "-" + shape if shape else "")
 
 

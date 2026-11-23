@@ -71,6 +71,7 @@ import crosssite      # noqa: E402  only Parseh's own pages may write (TO-DO §3
 import latexdraw      # noqa: E402  a latex block, compiled on its own and kept (§8.39)
 import latexbatch     # noqa: E402  the drawings of many documents, made in the background without opening them (a0.5.6)
 import latexrename    # noqa: E402  a theme renamed, every block put right (§8.39)
+import savename       # noqa: E402  a download named in any script (§8.20)
 import network        # noqa: E402  who is knocking: only this computer opens its own files
 import openfile       # noqa: E402  a file from anywhere on the computer, open in the studio (a0.5.2)
 import getarasaac     # noqa: E402  the ARASAAC pictograms, optional and local (lib/getarasaac.py)
@@ -657,8 +658,10 @@ class Handler(BaseHTTPRequestHandler):
             extra["Content-Security-Policy"] = \
                 "default-src 'none'; style-src 'unsafe-inline'"
         if download_name:
-            extra["Content-Disposition"] = (
-                'attachment; filename="%s"' % download_name)
+            # a (name, ascii) pair names the file in any script (§8.20)
+            name, ascii_name = (download_name if isinstance(download_name, tuple)
+                                else (download_name, None))
+            extra["Content-Disposition"] = savename.disposition(name, ascii_name)
             return self.send_bytes(path.read_bytes(), ctype, 200, extra)
         size = path.stat().st_size
         extra["Accept-Ranges"] = "bytes"
@@ -1251,6 +1254,13 @@ def serve_download(h, doc_id, kind):
         return h.send_json({"error": NEVER_BUILT}, 404)
     meta, _ = store.get(doc_id)
     slug = re.sub(r"-[0-9a-f]{6}$", "", doc_id) or "documento"
+    # the file is called by the document's TITLE, in its own script; the
+    # slug of the id (ASCII, "doc" for a title with no Latin letter) is the
+    # name for a browser that reads only filename= (§8.20)
+    title = savename.clean(meta.get("title")) or slug
+
+    def named(ext):
+        return savename.disposition(title + ext, slug + ext)
     if kind == "texzip":
         # the .tex of the last build with what it includes -- its pictures, its latex drawings as compiled PDFs AND as the
         # LaTeX they came from, its fonts -- so that it compiles in Overleaf or anywhere, and a drawing can be changed
@@ -1260,13 +1270,13 @@ def serve_download(h, doc_id, kind):
         except texzip.NotBuilt:
             return h.send_json({"error": "There is no LaTeX yet: build the PDF first, and the LaTeX it was built from comes away."}, 404)
         return h.send_bytes(data, "application/zip", 200,
-                            {"Content-Disposition": 'attachment; filename="%s-latex.zip"' % slug})
+                            {"Content-Disposition": named("-latex.zip")})
     if kind == "zip":
         # the markdown and the pictures and recordings it shows, laid out as
         # they are kept here (<slug>.md beside images/ and audio/): what the
         # library's upload takes back
         return h.send_bytes(store.doc_zip(doc_id, slug), "application/zip", 200,
-                            {"Content-Disposition": 'attachment; filename="%s.zip"' % slug})
+                            {"Content-Disposition": named(".zip")})
     if kind == "html":
         # ONE PAGE FOR A WEBSITE (TO-DO §8.38): the document as it reads,
         # with its exercises working, its pictures and recordings inside it,
@@ -1278,9 +1288,9 @@ def serve_download(h, doc_id, kind):
                              "Cache-Control": "no-store"})
     d = store.doc_dir(doc_id)
     files = {
-        "md": (d / "source.md", slug + ".md"),
-        "tex": (d / "build" / "main.tex", slug + ".tex"),
-        "pdf": (d / "build" / "main.pdf", slug + ".pdf"),
+        "md": (d / "source.md", (title + ".md", slug + ".md")),
+        "tex": (d / "build" / "main.tex", (title + ".tex", slug + ".tex")),
+        "pdf": (d / "build" / "main.pdf", (title + ".pdf", slug + ".pdf")),
     }
     path, name = files[kind]
     h.send_file(path, download_name=name)

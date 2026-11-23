@@ -20,6 +20,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import urllib.parse
 import unittest
 import urllib.parse
 import zipfile
@@ -515,18 +516,31 @@ class FileRouteTests(Base):
 
     def test_export_is_an_attachment_with_or_without_scheduling(self):
         h = self.export("?scheduling=1")
-        self.assertEqual('attachment; filename="exercises-greetings-with-scheduling.zip"',
+        self.assertEqual('attachment; filename="exercises-greetings-with-scheduling.zip"; '
+                         "filename*=UTF-8''exercises-Greetings-with-scheduling.zip",
                          h.extra.get("Content-Disposition"))
         names = zipfile.ZipFile(io.BytesIO(h.data)).namelist()
         self.assertIn(decks.MANIFEST, names)
         self.assertIn("schedule/%s.json" % self.card["id"], names)
 
         h = self.export("?scheduling=0")
-        self.assertEqual('attachment; filename="exercises-greetings.zip"',
+        self.assertEqual('attachment; filename="exercises-greetings.zip"; '
+                         "filename*=UTF-8''exercises-Greetings.zip",
                          h.extra.get("Content-Disposition"))
         names = zipfile.ZipFile(io.BytesIO(h.data)).namelist()
         self.assertEqual([], [n for n in names if n.startswith("schedule/")])
         self.assertIn("-with-scheduling", self.export("").extra["Content-Disposition"])
+
+    def test_a_deck_named_in_persian_keeps_its_name_in_the_download(self):
+        # §8.20: the ASCII header alone made it exercises-deck-<hash>.zip
+        made = self.deck(name="واژه‌های سفر")
+        h = call("GET", "/api/decks/persian/%s/export?scheduling=0" % made["slug"])
+        self.assertEqual(200, h.status)
+        said = h.extra.get("Content-Disposition")
+        said.encode("ascii")
+        self.assertIn('filename="exercises-%s.zip"' % made["slug"], said)
+        self.assertEqual("exercises-واژه‌های سفر.zip",
+                         urllib.parse.unquote(said.split("filename*=UTF-8''")[1]))
 
     def test_import_from_the_raw_body(self):
         blob = self.export("?scheduling=1").data
