@@ -674,7 +674,7 @@ class ImageRouteTests(Base):
 
     def test_what_is_not_a_picture_is_refused_and_nothing_is_written(self):
         with contextlib.redirect_stderr(io.StringIO()) as err:
-            for data in (b"", b"not a picture", b'{"markdown": "x"}', b"GIF89a\x01\x00"):
+            for data in (b"", b"not a picture", b'{"markdown": "x"}', b"BM\x01\x00\x00\x00"):
                 self.refused(self.upload(data), 400)
             # the body is looked at before the deck: an unknown deck with a
             # body that is not a picture is a 400 that reads nothing

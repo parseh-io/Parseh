@@ -163,7 +163,7 @@ print(json.dumps(out, ensure_ascii=False))
 const SERVE = String.raw`
 import sys
 from pathlib import Path
-sys.path[:0] = ['markdown/exlex', 'markdown/app', 'youtube/lib', 'lib', '.']
+sys.path[:0] = ['markdown/exlex', 'markdown/app', 'youtube/lib', 'lib', 'tests', '.']
 tmp, port = Path(sys.argv[1]), sys.argv[2]
 import prefs, network, offline
 prefs.STORE = str(tmp / 'config' / 'prefs.json')
@@ -182,6 +182,16 @@ getmt.ENGINE_DIR = str(tmp / 'nomt' / 'engine')
 import clips, decks, store
 clips.set_dir(tmp / 'tray')
 import serve, ytpages
+# a variety changed from the panel writes the library page again (a0.6.3, 12.34): into the tree, as
+# tests/ar_dialect_everywhere.mjs does -- lib/make_index.py run as a subprocess would write the real books/index.html
+import mobile_harness
+def write_library(self):
+    try:
+        mobile_harness.library_page(tmp / 'root')
+    except Exception as e:
+        return {"ok": False, "error": "%s: %s" % (type(e).__name__, e)}
+    return {"ok": True, "error": ""}
+serve.Handler._write_library = write_library
 for st in {store, serve.studio.store}:
     st.LIB = tmp / 'library'
     st.set_clips_dir(tmp / 'tray')
