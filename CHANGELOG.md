@@ -13,6 +13,7 @@
 ### Fixed
 - A settings file that cannot be read is set aside, never written over; a damaged deck is shown
 - Two tabs or devices editing one book or video no longer lose an edit
+- A book's recordings are in the backups; a backup is packed in Parseh's own folder, not the system's temporary one
 - An update that raises a data format keeps a copy of your files, and can put them back
 - A dialect's gloss prompts and phrase cutting no longer use the standard-Arabic analyzers
 - The vocabulary list reads plain-text vocabulary lines too

@@ -46,7 +46,9 @@ transcript tracks to paste.
 prompts and languages, the LaTeX themes — and loads one back by merging: what only the copy has is added, the later
 reading place wins, and where the two differ otherwise you choose; device codes and this computer's own details are
 never in it. **One backup of everything** — the four shelves, the cards and the clip tray and your settings — moves Parseh
-to a new computer in one file. Every place that offers a backup says when the last one was made.
+to a new computer in one file. Every place that offers a backup says when the last one was made. **A book's recordings**
+— its `audio/` folder, timings and alignment — are now in the books' backup and in the backup of everything, and a
+backup is packed in Parseh's own folder, never in the system's temporary folder, which can be too small for it.
 [Backups](../getting-started/backups.md).
 
 ### No terminal on any page
