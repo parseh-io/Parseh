@@ -1665,9 +1665,9 @@ def _reattach(dest, old, kept):
         note += ", and book.json names %s again" % " and ".join(sorted(back))
     if "timings.json" in kept:
         note += (". The times are safe in timings.json, but the chapters this bundle "
-                 "carries have no `%% @par` comments, which is what the reader reads "
-                 "them from: `python3 lib/timestamp.py --from-sidecar --book %s` "
-                 "writes them back" % os.path.basename(dest))
+                 "carries have no `% @par` comments, which is what the reader reads "
+                 "them from: the next build of the book (build on its card in the "
+                 "library) writes them back from timings.json")
     return [note]
 
 

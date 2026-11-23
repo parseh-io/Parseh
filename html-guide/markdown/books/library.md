@@ -71,9 +71,10 @@ nowhere else, which is why this button never destroys anything.
 
 To have a book back, move its folder out of `books/.trash/` into its
 language's folder (`books/persian/`, say) with your file manager, and give it
-back its own name (`mini-fa-20260921-142741` becomes `mini-fa`). The library
-page is written afresh by every build, so press **rebuild** on any card and
-the book is listed again. Emptying the trash is up to you, in the file
+back its own name (`mini-fa-20260921-142741` becomes `mini-fa`). Then press
+**write the list again**, at the foot of the library page, and the book is
+listed again. The same button lists a book folder copied into `books/` from
+somewhere else. Emptying the trash is up to you, in the file
 manager: nothing in Parseh ever does it.
 
 ## Adding a book

@@ -220,16 +220,60 @@ def service_code(code):
     return _SERVICE.get(code, code)
 
 
+# THE PAIRS THE SERVICE REALLY HAS (TO-DO §5.9, §11.2), remembered from the
+# last time its list was read -- a plan's size probe, a download, `--pairs` --
+# so the Reading help page can offer only those, without a request of its
+# own.  Until the list has been read once, the rule below stands in for it.
+# A list too short to be the service's (a test's two records) is not kept.
+PAIRS_FILE = "pairs.json"
+PAIRS_FLOOR = 10
+
+
+def _pairs_path():
+    return os.path.join(MT_DIR, PAIRS_FILE)
+
+
+def _remember_pairs(recs):
+    got = sorted({(r.get("fromLang"), r.get("toLang")) for r in recs
+                  if isinstance(r, dict) and r.get("fromLang") and r.get("toLang")})
+    if len(got) < PAIRS_FLOOR:
+        return
+    try:
+        os.makedirs(MT_DIR, exist_ok=True)
+        tmp = _pairs_path() + ".part"
+        with io.open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"read": time.strftime("%Y-%m-%d"), "pairs": [list(p) for p in got]}, f)
+        os.replace(tmp, _pairs_path())
+    except OSError:
+        pass                              # remembered next time; the rule stands in
+
+
+def offered():
+    """{(from, to)} in the service's own codes, as its list last said -- or
+    None when it has never been read on this computer."""
+    try:
+        with io.open(_pairs_path(), encoding="utf-8") as f:
+            pairs = json.load(f).get("pairs") or []
+        return {tuple(p) for p in pairs if isinstance(p, list) and len(p) == 2} or None
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
 def trainable(a, b):
     """Could a model for this pair exist at all?
 
     Mozilla trains every pair against English rather than against each other,
     so `fa-en` and `en-it` exist and `fa-it` does not, and no amount of
-    asking will produce one.  The Reading help page asks this before it offers a
+    asking will produce one -- and not every language has both directions.
+    Where the service's list has been read (offered()), it is the answer;
+    before that, the rule.  The Reading help page asks this before it offers a
     gloss, because a choice that can only fail is worse than no choice.
     """
     if a == b:
         return False
+    known = offered()
+    if known:
+        return (service_code(a), service_code(b)) in known
     return "en" in (a, b)
 
 
@@ -258,9 +302,11 @@ def _records(say=print):
     req = urllib.request.Request(RECORDS, headers={"User-Agent": UA})
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
-            return json.loads(r.read().decode("utf-8")).get("data") or []
+            recs = json.loads(r.read().decode("utf-8")).get("data") or []
     except (urllib.error.URLError, OSError, ValueError) as e:
         raise SystemExit("getmt: could not read the model list (%s)" % e)
+    _remember_pairs(recs)
+    return recs
 
 
 def _stable(version):

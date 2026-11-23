@@ -150,7 +150,8 @@ When the export cannot be read the page says why: *that file is not an
 Anki deck export -- export with File > Export > Anki Deck Package (.apkg)*.
 Anki's newest exports are compressed, and reading them needs the
 `zstandard` package, which the installer puts in; should it be missing,
-exporting again with **Support older Anki versions** ticked gives a
+**Settings → Updating Parseh** adds it
+([Packages this Parseh lacks](../getting-started/updating.md#packages-this-parseh-lacks)), and exporting again with **Support older Anki versions** ticked gives a
 package any copy of Parseh reads.
 
 ## Deletions

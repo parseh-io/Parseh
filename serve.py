@@ -128,6 +128,8 @@ import lookup              # noqa: E402  the dictionary behind an unglossed chun
 import decomposition      # local optional component trees
 import corpus             # noqa: E402  and the sentences somebody translated
 import getmt              # noqa: E402  and the model that runs in the page
+import envpackages        # noqa: E402  the packages Settings > Updating Parseh adds
+import segmenter          # noqa: E402  a word analyzer's own models (Reading help)
 import getstt             # noqa: E402  speech to text: its program, its models, its processor
 import lookuppage         # noqa: E402  the page that sets the dictionaries up
 import lmlikelihoodpage
@@ -1806,7 +1808,8 @@ UPDATE_ROUTES = ("/settings/api/update/state", "/settings/api/update/plan",
                  "/settings/api/update/check", "/settings/api/update/daily",
                  "/settings/api/update/fetch", "/settings/api/update/stop",
                  "/settings/api/update/upload", "/settings/api/update/discard",
-                 "/settings/api/update/apply", "/settings/api/update/put-back")
+                 "/settings/api/update/apply", "/settings/api/update/put-back",
+                 "/settings/api/update/packages")
 
 # SETTINGS -> LaTeX DRAWINGS (TO-DO §8.39, lib/latexpage.py): the page, and
 # each of its routes, every one of them in lib/settingspage.py ROUTES
@@ -2021,7 +2024,8 @@ def update_daily():
 #   stopped              True when the person stopped it (not a failure)
 #   queue                the language whose "get everything" it is a step of
 #   waiting              True while it waits its turn in that queue
-READING_KINDS = ("dict", "components", "corpus", "model", "synonyms", "speech")
+READING_KINDS = ("dict", "components", "corpus", "model", "synonyms", "speech", "words")
+WORDS_JOBS = {}                 # a word analyzer's own models (lib/getwords.py, TO-DO §5.10)
 CANCELS = {}                    # (kind, key) -> the Event its Stop button sets
 SPEECH_START_LOCKS = {}         # validated catalogue parts; one start per part
 PLANS = {}                      # (kind, key) -> (when, plan): what it was said to cost
@@ -2038,7 +2042,7 @@ def reading_table(kind):
     if kind == "synonyms":
         return {"": SYN_JOB} if SYN_JOB else {}
     return {"dict": DICT_JOBS, "corpus": CORPUS_JOBS, "model": MT_JOBS,
-            "components": DECOMPOSITION_JOBS, "speech": STT_JOBS}[kind]
+            "components": DECOMPOSITION_JOBS, "speech": STT_JOBS, "words": WORDS_JOBS}[kind]
 
 
 def reading_job(kind, key):
@@ -2093,6 +2097,9 @@ def reading_check(kind, key):
         # A part is a shared catalogue ID: nothing a browser sends becomes a path.
         if key not in getstt.PARTS:
             return "no such part of speech to text", 400
+    elif kind == "words":
+        if key not in segmenter.MODELS:
+            return "this language's word analyzer downloads nothing of its own", 400
     elif key:
         return "there is one synonym table, not one per language", 400
     return "", 200
@@ -2124,7 +2131,7 @@ def reading_folder(kind):
     """Where a kind's files go, for the room left on that disk."""
     return {"dict": lookup.DICT_DIR, "corpus": corpus.CORPUS_DIR, "model": getmt.MT_DIR,
             "synonyms": getmt.MT_DIR, "components": str(decomposition.DATA_DIR),
-            "speech": getstt.STT_DIR}[kind]
+            "speech": getstt.STT_DIR, "words": segmenter.pkuseg_home()}[kind]
 
 
 disk_free = lookuppage.disk_free
@@ -2158,6 +2165,8 @@ def reading_named(kind, key):
         return "the synonym table"
     if kind == "speech":
         return getstt.part_name(key)
+    if kind == "words":
+        return "the %s word models" % languages.get_or_default(key).name
     what = {"dict": "dictionary", "corpus": "translated sentences",
             "model": "translation model"}[kind]
     return "the %s %s" % (_lang_pair(key), what)
@@ -2308,6 +2317,10 @@ def queue_steps(code, gloss):
     pack = decomposition.PREFERRED.get(code)
     if pack and not decomposition.about(pack):
         steps.append(("components", pack))
+    # the word analyzer's own models (Chinese), where the analyzer is here to use them
+    if (code in segmenter.MODELS and segmenter.available(code)
+            and not all(m["have"] for m in segmenter.models(code))):
+        steps.append(("words", code))
     if gloss != code and gloss in languages.LANGS:
         if not corpus.available(code, gloss):
             steps.append(("corpus", "%s-%s" % (code, gloss)))
@@ -2615,6 +2628,8 @@ def long_work(method, path, query, length=0):
         return "restore", "Restoring books from " + file, "putting them back"
     if path == "/books/__empty":
         return "build", "Writing a new book", None
+    if path == "/books/__relist":
+        return "build", "Writing the list of books again", None
     if path == "/books/__make":
         return "upload", "Making the folder of a book for an agent, from " + file, "writing it"
     if path.startswith("/books/"):
@@ -3745,6 +3760,13 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._method_not_allowed()
             return self.send_bytes(languages.css().encode("utf-8"),
                                    "text/css; charset=utf-8")
+        if path == "/books/__relist":
+            # THE LIBRARY PAGE WRITTEN AGAIN, from its own button (TO-DO
+            # §5.5): what `python3 lib/make_index.py` did from a terminal
+            if method != "POST":
+                return self._method_not_allowed()
+            lib = self._write_library()
+            return self.send_json(dict(lib, ok=lib["ok"]), 200 if lib["ok"] else 500)
         if path in ("/books/__upload", "/books/__empty", "/books/__restore"):
             if method != "POST":
                 return self._method_not_allowed()
@@ -4557,6 +4579,11 @@ class Handler(SimpleHTTPRequestHandler):
         if what == "dicts":
             return self.send_json({"ok": True, "dicts": lookuppage.dictionaries(),
                                    "jobs": dict(DICT_JOBS)})
+        if what == "getwords":
+            # a word analyzer's own models (lib/getwords.py): fetched, never
+            # removed from here -- they live in the analyzer's own folder
+            answer, status = reading_start("words", str(body.get("code") or "").strip())
+            return self.send_json(answer, status)
         # getting and removing: the same five kinds, each named by the body
         # its page has always sent
         kind, key = self._reading_key(what, body)
@@ -7217,7 +7244,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_html(updatepage.page(updater.plan(ROOT), updater.settings(ROOT),
                                                   updater.state(ROOT), self._where(),
                                                   update_fetch_now(),
-                                                  copies=updater.content_copies(ROOT)))
+                                                  copies=updater.content_copies(ROOT),
+                                                  packages=self._env_packages()))
         if path in ("/settings/speech", "/settings/speech/index.html"):
             return self._redirect(SPEECH_PAGE)
         if path == SPEECH_PAGE:
@@ -7471,6 +7499,8 @@ class Handler(SimpleHTTPRequestHandler):
         """Settings > Updating Parseh (TO-DO §13.16).  Every POST here has
         been held to lib/settingspage.py's table already (_refused); the two
         reads are open to any device let in."""
+        if path == "/settings/api/update/packages" and method == "GET":
+            return self.send_json(dict(self._env_packages(), ok=True))
         if path in ("/settings/api/update/state", "/settings/api/update/plan"):
             if method != "GET":
                 return self._method_not_allowed()
@@ -7510,6 +7540,12 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/settings/api/update/daily":
             s = updater.save_settings(ROOT, daily=bool(self._json_body().get("on")))
             return self.send_json({"ok": True, "daily": s["daily"]})
+        if path == "/settings/api/update/packages":
+            # what environment.yml lists and this environment lacks, added
+            # (lib/envpackages.py, TO-DO §5.3): the button a page that misses
+            # one points to, instead of a pip command
+            answer, status = envpackages.start()
+            return self.send_json(answer, status)
         if path == "/settings/api/update/put-back":
             # the small files a kept update copied, put back (TO-DO §13.20)
             try:
@@ -7544,6 +7580,16 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/settings/api/update/apply":
             return self._update_apply()
         return self._not_found()
+
+    @staticmethod
+    def _env_packages():
+        """{missing, job}: the packages this environment lacks, and the job
+        adding them (Settings > Updating Parseh, #packages)."""
+        try:
+            lacking = envpackages.missing()
+        except Exception:                   # noqa: BLE001 -- the page still draws
+            lacking = []
+        return {"missing": lacking, "job": envpackages.job()}
 
     def _cross_site(self, path):
         """Why this POST to the updater may not be from Parseh's own page, or

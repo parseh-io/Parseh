@@ -177,7 +177,7 @@ def gloss_records():
 # them; the preamble \providecommand's all three (\BookGloss as `en', which is
 # what a book that says nothing means) so the reference's older main.tex still
 # builds.  ../../../lib: the book sits two directories under books/.
-MAIN_TEX = r'''%% {{TITLE_LATIN}} - {{AUTHOR_LATIN}} ({{LANG_NAME}}, glossed in {{GLOSS_NAME}}).  Build with:  ./build.sh {{SLUG}}
+MAIN_TEX = r'''%% {{TITLE_LATIN}} - {{AUTHOR_LATIN}} ({{LANG_NAME}}, glossed in {{GLOSS_NAME}}).  Built from its card on the library page (build).
 \newcommand{\BookLang}{{{LANG}}}
 \newcommand{\BookGloss}{{{GLOSS}}}
 \newcommand{\FrankLib}{../../../lib}
@@ -507,8 +507,8 @@ a.wbtn{display:inline-block;text-decoration:none;color:var(--accent-fg)}
       noun with its adjectives, a verb with its auxiliaries &mdash; reading the parts of speech
       out of the language&rsquo;s dictionary.</p>
     <p><b>The reader opens at once.</b> The card on <a href="/books/">the library page</a> is
-      written with it; the PDF comes with the next <code>./build.sh</code>, or the button in
-      the answer above.</p>
+      written with it; the PDF comes when it is built: <b>build the PDF now</b> in the answer
+      above, or <b>build</b> on the book&rsquo;s card.</p>
   </div>
   </div>
 </section>
@@ -667,7 +667,7 @@ a.wbtn{display:inline-block;text-decoration:none;color:var(--accent-fg)}
 </main>
 <footer class="idx">
   <span id="foot-all">A book is written paragraph by paragraph: the reader is rebuilt the
-  moment text lands, the PDF with the next <code>./build.sh</code>.</span>
+  moment text lands, the PDF when you build it (<b>build the PDF now</b>, or <b>build</b> on its card).</span>
   <span id="foot-llm" hidden>The instructions are written by Parseh into the book&rsquo;s folder
   (<code>AGENTS.md</code>); the conventions per language are <code>docs/lang/&lt;code&gt;.md</code>.</span>
 </footer>

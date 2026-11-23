@@ -479,7 +479,7 @@ def _chapter_tex(paras, L, G, chapter, how=chunker.DEFAULT_WAY, cuts=None,
     return "\n".join(out)
 
 
-MAIN_TEX = r"""%% {byline}.  Build:  ./build.sh {slug}
+MAIN_TEX = r"""%% {byline}.  Built from its card on the library page (build).
 % Drafted from its text (lib/draft.py): every gloss starts blank, and a blank
 % gloss is legal -- fill them in in the reader, or in the chapter files.
 % The language taught, the language the glosses are written in, and where the

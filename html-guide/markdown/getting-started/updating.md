@@ -168,11 +168,22 @@ updated to …*. Nothing reloads under your thumb, and nothing kept is lost;
 damaged, and fetches nothing again for them
 ([Browser and Mobile](mobile-mode.md#the-books)).
 
+## Packages this Parseh lacks
+
+Parseh runs with the packages its environment lists (the table in
+[Installing Parseh](installing.md#what-it-needs)). Where one of them is
+missing, the page lists it under **Packages this Parseh lacks**, and
+**Add what is missing** adds it, with the lines it writes as it goes. It
+takes a minute and needs the internet. A page that misses a package, such
+as the narration panel without rapidfuzz or the Anki page without
+zstandard, says so and links here. Where nothing is missing, the section is
+not shown.
+
 ## From a phone
 
 A phone that you let in may read the page, and may check for a new version,
 but not install one: an update changes what Parseh runs, so it is started on
-the computer Parseh runs on. The page says so where the buttons would be.
+the computer Parseh runs on. The missing packages are added from there too. The page says so where the buttons would be.
 
 ## When the page says it cannot update
 

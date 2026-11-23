@@ -137,7 +137,8 @@ def features(code):
     if not os.path.exists(doc):
         add("conventions", "Annotation conventions", MISSING,
             "No conventions: the prompts cannot tell a chatbot how to gloss %s." % L.name,
-            "docs/lang/%s.md (python3 lib/newlang.py writes its template)" % code, "conventions")
+            "docs/lang/%s.md: for a language added on this computer, the conventions prompt here "
+            "writes it with a chatbot" % code, "conventions")
     elif _todo_left(doc):
         add("conventions", "Annotation conventions", MISSING,
             "The conventions are still the template: every prompt carries its TODOs.",
@@ -148,7 +149,8 @@ def features(code):
     tex = os.path.join(LANG_FILES, code + ".tex")
     if not os.path.exists(tex):
         add("howto", "Printed books", MISSING, "No lib/lang/%s.tex: a book in %s cannot be built." % (code, L.name),
-            "python3 lib/newlang.py writes it")
+            "a language added on this page is given one; this one was added some other way, "
+            "and the file cannot be made from the pages yet")
     elif _todo_left(tex):
         add("howto", "Printed books", MISSING,
             "Books build, but their \"How to read this\" page is still the placeholder.",
@@ -200,7 +202,7 @@ def features(code):
         add("chunk-rules", "Chunking rules", HAVE, "The offline cut knows how %s phrases hold together." % L.name)
     else:
         add("chunk-rules", "Chunking rules", OPTIONAL, "The offline cut uses the general rules.",
-            "lib/lang/%s.chunk.json (newlang.py --like copies a relative's)" % code, "chunk-rules")
+            "lib/lang/%s.chunk.json (adding a language on this page copies a related language's)" % code, "chunk-rules")
     an = L.analysis
     said = _who(an)
     if an["morphology"] == "udpipe" or an["syntax"] == "udpipe":
@@ -210,7 +212,7 @@ def features(code):
         else:
             add("analysis", "Linguistic analysis", MISSING,
                 "The row names UDPipe, and no model of it is pinned.",
-                "python3 lib/analysispins.py --measure <treebank>, then a line in UDPIPE_MODELS")
+                "a pinned UDPipe model, which comes with a version of Parseh: it cannot be added from the pages")
     elif an["morphology"] or an["syntax"]:
         add("analysis", "Linguistic analysis", HAVE, said + ".")
     else:

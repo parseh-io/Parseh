@@ -81,6 +81,8 @@ STYLE = """
 .upd .said .tech{margin:.2rem 0 0}
 .upd .notes{white-space:pre-wrap;font-size:13px;background:var(--boxbg);border:1px solid var(--rule);
   border-radius:8px;padding:8px 10px;max-height:18rem;overflow:auto}
+.upd pre.log{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:var(--boxbg);
+  border:1px solid var(--rule);border-radius:8px;padding:8px 10px;max-height:14rem;overflow:auto}
 .upd .src{color:var(--dim);font-size:13px}
 .upd .src code{font-size:12px}
 .upd .report.ok{border-color:var(--ok)}
@@ -492,7 +494,75 @@ def _copies_section(copies, may_update):
 </section>""" % {"name": NAME, "rows": "\n".join(rows)}
 
 
-def page(p, s, st, where, fetching=None, copies=None):
+def _packages_section(pk, may_update):
+    """THE PACKAGES THIS ENVIRONMENT LACKS (TO-DO §5.3, §5.13): what
+    environment.yml lists and this computer's Parseh does not have, and one
+    button that adds them (lib/envpackages.py).  A page that misses one --
+    the narration panel, the Anki page -- links here, to #packages, instead
+    of printing a command.  Nothing is drawn when nothing is missing."""
+    if not pk:
+        return ""
+    lacking, job = pk.get("missing") or [], pk.get("job") or {}
+    if not lacking and not job.get("running") and not job.get("error"):
+        return ""
+    rows = "".join("<li><b>%s</b> &mdash; %s</li>" % (esc(m["name"]), esc(m["what"])) for m in lacking)
+    button = ('<div class="row"><button type="button" class="go" data-pk-add%s>Add what is missing</button>'
+              '<span class="said" data-pk-said></span></div>'
+              % (" disabled" if job.get("running") else "")) if may_update else (
+              '<p class="why">They are added on the computer %s runs on, from this page there.</p>' % NAME)
+    return """<section id="%(anchor)s" data-pk>
+  <h2>Packages this %(name)s lacks</h2>
+  <p class="why">%(name)s's environment is missing %(n)s it is made to run with. Everything else
+  works without %(them)s; adding %(them)s takes a minute and needs the internet.</p>
+  <ul data-pk-list>%(rows)s</ul>
+  %(button)s
+  <pre class="log" data-pk-log hidden></pre>
+</section>""" % {"anchor": "packages", "name": NAME, "rows": rows, "button": button,
+                 "n": "one package" if len(lacking) == 1 else "%d packages" % len(lacking),
+                 "them": "it" if len(lacking) == 1 else "them"}
+
+
+PK_SCRIPT = r"""
+(function () {
+  'use strict';
+  var box = document.querySelector('[data-pk]'), add = box && box.querySelector('[data-pk-add]');
+  if (!add) return;
+  var said = box.querySelector('[data-pk-said]'), log = box.querySelector('[data-pk-log]');
+  function show(j) {
+    var job = j.job || {};
+    if (job.log && job.log.length) { log.hidden = false; log.textContent = job.log.join('\n'); }
+    if (job.running) { add.disabled = true; said.className = 'said'; said.textContent = job.say || 'Adding…'; return true; }
+    add.disabled = false;
+    if (job.error) { said.className = 'said bad'; said.textContent = job.error; return false; }
+    if (!(j.missing || []).length) {
+      said.className = 'said'; said.textContent = 'Everything is here now. A page that said a package was ' +
+        'missing finds it the next time it is opened.';
+      add.hidden = true; box.querySelector('[data-pk-list]').innerHTML = '';
+    }
+    return false;
+  }
+  function poll() {
+    fetch('/settings/api/update/packages', {cache: 'no-store'}).then(function (r) { return r.json(); })
+      .then(function (j) { if (show(j)) setTimeout(poll, 1000); })
+      .catch(function () { said.className = 'said bad'; said.textContent = 'Parseh’s computer did not answer.'; add.disabled = false; });
+  }
+  add.addEventListener('click', function () {
+    add.disabled = true; said.className = 'said'; said.textContent = 'Starting…';
+    fetch('/settings/api/update/packages', {method: 'POST', cache: 'no-store',
+      headers: {'Content-Type': 'application/json'}, body: '{}'})
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) { add.disabled = false; said.className = 'said bad'; said.textContent = j.error || 'That was refused.'; return; }
+        poll();
+      })
+      .catch(function () { add.disabled = false; said.className = 'said bad'; said.textContent = 'Parseh’s computer did not answer.'; });
+  });
+  if (add.disabled) poll();
+})();
+"""
+
+
+def page(p, s, st, where, fetching=None, copies=None, packages=None):
     """/settings/update/.  `p` is updater.plan(), `s` updater.settings(),
     `st` updater.state(), `where` lib/network.py's word for the device
     asking, `fetching` the download job the server is running, if any."""
@@ -515,6 +585,7 @@ def page(p, s, st, where, fetching=None, copies=None):
         body.append(_plan_section(p, may_update))
     body.append(_report_section(st))
     body.append(_copies_section(copies, may_update))
+    body.append(_packages_section(packages, may_update))
     if not refused:
         body += [_latest_section(s, p, may_check, may_update, fetching), _zip_section(may_update)]
     main = """<main class="settings upd">
@@ -536,7 +607,8 @@ finish (the power cut, the laptop closed) is finished or undone the next time %(
             "name": NAME}
     script = """
 <script id="upd-state" type="application/json">%s</script>
-<script>%s</script>""" % (settingspage._in_script(boot), SCRIPT)
+<script>%s</script>
+<script>%s</script>""" % (settingspage._in_script(boot), SCRIPT, PK_SCRIPT)
     return settingspage.frame("Updating %s &mdash; %s settings" % (NAME, NAME),
                               '<a href="/settings/">settings</a> &middot; updating', "Updating",
                               "/guide/site/getting-started/updating.html", main,

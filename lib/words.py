@@ -155,7 +155,7 @@ def tagger_available(code):
     names them as it cuts.  Chinese: when pkuseg's part-of-speech model is on
     disk (lib/segmenter.py) -- spacy_pkuseg fetches it, about 41 MB, the first
     time one is asked for, and a request of this server must never be what
-    fetches it; ./install.sh and `python3 lib/words.py --fetch zh` do."""
+    fetches it; the installers and Settings > Reading help (lib/getwords.py) do."""
     if not available(code):
         return False
     analyzer = rules(code).get("analyzer")
