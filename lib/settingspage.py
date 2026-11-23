@@ -282,6 +282,7 @@ ROUTES = {
     # putting back the small files an update copied (TO-DO §13.20): part of
     # updating, and the computer's alone like the rest of it
     "/settings/api/update/put-back": ("parseh.update",),
+    "/settings/api/update/packages": ("parseh.update",),
     # the LaTeX drawings (lib/latexpage.py): reading how they stand, and a
     # theme's export, open; everything that changes a theme, a package or the
     # time a drawing may take, the computer's alone

@@ -138,7 +138,8 @@ Two helpers make the alignment better and neither is required: *rapidfuzz*
 (without it the matching is plainer and rescues fewer near-misses) and
 *ffmpeg* (without it the cuts are not snapped to silences, and a recording's
 length can only be read from a `.wav`). **how this works** says which are
-installed.
+installed. A missing rapidfuzz is added from **Settings → Updating Parseh**
+([Packages this Parseh lacks](../getting-started/updating.md#packages-this-parseh-lacks)).
 
 ## Estimate times
 

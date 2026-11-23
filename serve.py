@@ -128,6 +128,7 @@ import lookup              # noqa: E402  the dictionary behind an unglossed chun
 import decomposition      # local optional component trees
 import corpus             # noqa: E402  and the sentences somebody translated
 import getmt              # noqa: E402  and the model that runs in the page
+import envpackages        # noqa: E402  the packages Settings > Updating Parseh adds
 import getstt             # noqa: E402  speech to text: its program, its models, its processor
 import lookuppage         # noqa: E402  the page that sets the dictionaries up
 import lmlikelihoodpage
@@ -1806,7 +1807,8 @@ UPDATE_ROUTES = ("/settings/api/update/state", "/settings/api/update/plan",
                  "/settings/api/update/check", "/settings/api/update/daily",
                  "/settings/api/update/fetch", "/settings/api/update/stop",
                  "/settings/api/update/upload", "/settings/api/update/discard",
-                 "/settings/api/update/apply", "/settings/api/update/put-back")
+                 "/settings/api/update/apply", "/settings/api/update/put-back",
+                 "/settings/api/update/packages")
 
 # SETTINGS -> LaTeX DRAWINGS (TO-DO §8.39, lib/latexpage.py): the page, and
 # each of its routes, every one of them in lib/settingspage.py ROUTES
@@ -7217,7 +7219,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_html(updatepage.page(updater.plan(ROOT), updater.settings(ROOT),
                                                   updater.state(ROOT), self._where(),
                                                   update_fetch_now(),
-                                                  copies=updater.content_copies(ROOT)))
+                                                  copies=updater.content_copies(ROOT),
+                                                  packages=self._env_packages()))
         if path in ("/settings/speech", "/settings/speech/index.html"):
             return self._redirect(SPEECH_PAGE)
         if path == SPEECH_PAGE:
@@ -7471,6 +7474,8 @@ class Handler(SimpleHTTPRequestHandler):
         """Settings > Updating Parseh (TO-DO §13.16).  Every POST here has
         been held to lib/settingspage.py's table already (_refused); the two
         reads are open to any device let in."""
+        if path == "/settings/api/update/packages" and method == "GET":
+            return self.send_json(dict(self._env_packages(), ok=True))
         if path in ("/settings/api/update/state", "/settings/api/update/plan"):
             if method != "GET":
                 return self._method_not_allowed()
@@ -7510,6 +7515,12 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/settings/api/update/daily":
             s = updater.save_settings(ROOT, daily=bool(self._json_body().get("on")))
             return self.send_json({"ok": True, "daily": s["daily"]})
+        if path == "/settings/api/update/packages":
+            # what environment.yml lists and this environment lacks, added
+            # (lib/envpackages.py, TO-DO §5.3): the button a page that misses
+            # one points to, instead of a pip command
+            answer, status = envpackages.start()
+            return self.send_json(answer, status)
         if path == "/settings/api/update/put-back":
             # the small files a kept update copied, put back (TO-DO §13.20)
             try:
@@ -7544,6 +7555,16 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/settings/api/update/apply":
             return self._update_apply()
         return self._not_found()
+
+    @staticmethod
+    def _env_packages():
+        """{missing, job}: the packages this environment lacks, and the job
+        adding them (Settings > Updating Parseh, #packages)."""
+        try:
+            lacking = envpackages.missing()
+        except Exception:                   # noqa: BLE001 -- the page still draws
+            lacking = []
+        return {"missing": lacking, "job": envpackages.job()}
 
     def _cross_site(self, path):
         """Why this POST to the updater may not be from Parseh's own page, or

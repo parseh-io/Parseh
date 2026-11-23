@@ -6874,9 +6874,9 @@ function narrHead(j) {
   // warnings, which put a sentence saying "align still runs" in the colour
   // the panel uses for things that are broken.
   if (!tl.rapidfuzz)
-    note = 'rapidfuzz is not installed (<code>pip install rapidfuzz</code>, or start ' +
-           'serve.sh with the conda environment): align still runs, on difflib alone, ' +
-           'and fewer near-misses are rescued. ';
+    note = 'rapidfuzz is not installed: align still runs, on difflib alone, and fewer ' +
+           'near-misses are rescued. <a href="/settings/update/#packages">Settings → Updating ' +
+           'Parseh</a> adds it. ';
   if (ns.length && !usable.length)
     note = 'No recording here has a transcript, so there is nothing to align yet. ' +
            '<b>estimate times</b> on a row shares that recording out over the stretch it ' +

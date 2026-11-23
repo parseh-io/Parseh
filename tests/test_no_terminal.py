@@ -44,5 +44,75 @@ class TheReader(unittest.TestCase):
         self.assertIn("open this book from ' +\n      'Parseh’s library", src)
 
 
+class MissingPackages(unittest.TestCase):
+    """5.3, 5.13: a missing rapidfuzz or zstandard points at Settings > Updating
+    Parseh, whose section lists what is missing and has the button that adds it."""
+
+    def test_both_are_in_the_lists_the_installers_read(self):
+        import runtime
+        names = {n for _m, n, _w in runtime.PACKAGES}
+        self.assertIn("rapidfuzz", names)
+        self.assertIn("zstandard", names)
+        spec = {name for name, _s in runtime.env_spec()["pip"]}
+        self.assertIn("rapidfuzz", spec)
+        self.assertIn("zstandard", spec)
+
+    def test_the_narration_panel_points_at_the_door(self):
+        src = _source("lib/tex2html.py")
+        self.assertNotIn("pip install rapidfuzz", src)
+        self.assertIn('href="/settings/update/#packages"', src)
+
+    def test_the_update_page_lists_them_with_a_button(self):
+        import updatepage
+        pk = {"missing": [{"name": "rapidfuzz", "what": "aligning a narration"}], "job": {}}
+        html = updatepage._packages_section(pk, True)
+        self.assertIn('id="packages"', html)
+        self.assertIn("<b>rapidfuzz</b>", html)
+        self.assertIn("data-pk-add", html)
+        # another device sees the list and no button it would be refused
+        self.assertNotIn("data-pk-add", updatepage._packages_section(pk, False))
+        # nothing missing, nothing running: no section at all
+        self.assertEqual(updatepage._packages_section({"missing": [], "job": {}}, True), "")
+
+    def test_the_route_is_the_computers_alone(self):
+        import settingspage
+        self.assertEqual(settingspage.ROUTES["/settings/api/update/packages"], ("parseh.update",))
+
+    def test_start_refuses_without_an_environment_and_adds_with_one(self):
+        from unittest import mock
+        import envpackages
+        import runtime
+        with mock.patch.object(runtime, "find_env", lambda: (None, None)):
+            answer, status = envpackages.start()
+        self.assertEqual(status, 409)
+        self.assertNotRegex(answer["error"], COMMAND)
+        added = []
+        state = {"have": False}
+
+        def status_now():
+            return {"packages": [{"name": "rapidfuzz", "what": "x", "have": state["have"]}]}
+
+        def complete(prefix, python, report):
+            added.append((prefix, python))
+            report.log("pip says it installed rapidfuzz")
+            state["have"] = True
+            return True
+        with mock.patch.object(runtime, "find_env", lambda: ("/env", "/env/bin/python")), \
+                mock.patch.object(runtime, "status", status_now), \
+                mock.patch.object(runtime, "complete_env", complete):
+            answer, status = envpackages.start()
+            self.assertEqual((status, answer.get("running")), (200, True))
+            import time
+            for _ in range(100):
+                if not envpackages.job().get("running"):
+                    break
+                time.sleep(0.02)
+            job = envpackages.job()
+            self.assertTrue(job["ok"], job)
+            self.assertEqual(job["log"], ["pip says it installed rapidfuzz"])
+            self.assertEqual(added, [("/env", "/env/bin/python")])
+            self.assertEqual(envpackages.start()[0].get("nothing"), True)
+
+
 if __name__ == "__main__":
     unittest.main()
