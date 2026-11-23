@@ -1,4 +1,4 @@
-## [a0.6.3] - unreleased
+## [a0.6.3] - 2026-11-23
 ### Added
 - The vocabulary of a chapter, a book or a video as a list, with its places, cards and a test
 - Move text starts a moved line when its first word was heard, and shows pauses where there are no full stops
