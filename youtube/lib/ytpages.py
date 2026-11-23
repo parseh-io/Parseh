@@ -3028,10 +3028,12 @@ ADD_PAGE_JS = r'''
         res.innerHTML = '<div class="note good"><b>Drafted.</b> ' + j.captions + ' captions, ' +
           j.glossed + ' to gloss, ' + j.plain + ' plain, ' + j.chunks + ' blank chunks, in <code>videos/' +
           esc(j.folder) + '/' + esc(j.id) + '/</code>.' + esc(film) + ' <a href="' + esc(href) +
-          '"><b>Open the player &rarr;</b></a></div>';
+          '"><b>Open the player &rarr;</b></a></div>' +
+          // "sense groups" asked for and not (fully) given: said, with why, and the page stays (6.11)
+          (j.cut_note ? '<div class="note warn" id="cutnote">' + esc(j.cut_note) + '</div>' : '');
         try { localStorage.removeItem(KEY); } catch (e) {}
         if (stt) stt.videoAdded();
-        location.href = href;          // the glossing is done there, not here
+        if (!j.cut_note) location.href = href;          // the glossing is done there, not here
       }).catch(function (e) { $('empty').disabled = false; $('estat').textContent = '';
         Parseh.toast(String(e), true); });
   };

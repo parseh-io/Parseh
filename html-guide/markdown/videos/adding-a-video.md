@@ -489,6 +489,12 @@ each caption is divided:
   punctuation, Chinese at its own punctuation (`，` `？` `。`) and after
   吗 呢 吧.
 
+  When sense groups could not be cut as asked — every sentence stayed one
+  chunk, or only the punctuation cut it — **Start it empty** does not open
+  the player at once: the page says so under **Drafted.**, with why (*no
+  French dictionary is installed …*) and where to get one (**Settings →
+  Reading help**), and **Open the player →** is beside it.
+
 Either way you can re-cut any phrase in the player
 ([Cutting and joining](cutting-and-joining.md)).
 

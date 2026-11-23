@@ -1098,6 +1098,9 @@ a.wbtn{display:inline-block;text-decoration:none;color:var(--accent-fg)}
       h += '<div class="note warn"><b>The book is written, but the library page was not ' +
         'rewritten</b> &mdash; it will appear after the next build. ' +
         esc(j.library.error || '') + '</div>';
+    // "sense groups" asked for and not (fully) given: said, with why (draft.py _how_used, 6.11)
+    if (j.cut_note)
+      h += '<div class="note warn" id="cutnote">' + esc(j.cut_note) + '</div>';
     return h;
   }
   // on the activity list while the server writes the book and builds its
@@ -1147,7 +1150,8 @@ a.wbtn{display:inline-block;text-decoration:none;color:var(--accent-fg)}
         res.scrollIntoView({behavior: 'smooth', block: 'nearest'});
         // where the glossing is actually done; the library page lists it at
         // once, and the PDF waits for the button above or the next build
-        if (!j.reader || j.reader.ok) location.href = href;
+        // ...unless the cut was not the one asked for: then the page stays to say so (6.11)
+        if ((!j.reader || j.reader.ok) && !j.cut_note) location.href = href;
       })
       .catch(function (e) { act.end(false); $('mkempty').disabled = false; $('estat').textContent = '';
         gate(); Parseh.toast(String(e), true); });

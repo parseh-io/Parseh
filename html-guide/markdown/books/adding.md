@@ -69,6 +69,14 @@ the text is cut, under **Cut the text into**:
   where it is installed; where it is not, Japanese is cut after its
   particles and Chinese at its punctuation.
 
+  French, German, Spanish, Catalan, Hindi and Arabic have no list of function
+  words of their own, so without a dictionary they are cut at their
+  punctuation only. When sense groups could not be cut as asked — every
+  sentence stayed one chunk, or only the commas cut it — the page does not
+  jump to the reader: it stays, and says so under **Drafted.**, with why
+  (*no German dictionary is installed …*) and where to get what is missing
+  (**Settings → Reading help**). The same note follows **Add it**.
+
 Either way, any chunk can be re-cut later in the reader
 ([Cutting and joining chunks](doc:Cutting and joining chunks)).
 
