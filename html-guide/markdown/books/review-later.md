@@ -171,8 +171,10 @@ the phone has.
 on, in `config/prefs.json` beside the places you were reading, and follows you
 to your other devices; it is **never written into a book**, so it is not in
 the book's folder, not in a bundle you download or hand on, and not in a
-backup of the shelf — [what no backup holds](../getting-started/backups.md#what-no-backup-holds)
-names the file.
+backup of the shelf. They are in the backup of [your
+settings](../getting-started/backups.md#your-settings), on **Settings →
+Backups**, and loading it joins them with the flags already here: a flag
+removed on either side after the other made it stays removed.
 
 - **A phone keeps its flags on itself** and sends them to the computer at the
   next chance — when a page loads, when it comes back online, when you come

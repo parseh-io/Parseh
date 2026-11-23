@@ -95,7 +95,12 @@ GONE = "later:book:%s:1.2-def456:1:y7" % READER
 
 
 def empty():
-    for d in (SHELF, tmp / "library", tmp / "exercises", tmp / "anki", tmp / "clips", CFG, LANG, DOCS, STARTERS):
+    # the tree's own lib/ is the checkout's, linked: the pages' scripts and styles are served from serve.ROOT.
+    # Only the shelves are emptied, never through the link.
+    if not (SHELF / "lib").exists():
+        SHELF.mkdir(parents=True, exist_ok=True)
+        os.symlink(ROOT / "lib", SHELF / "lib")
+    for d in (SHELF / "books", SHELF / "youtube", tmp / "library", tmp / "exercises", tmp / "anki", tmp / "clips", CFG, LANG, DOCS, STARTERS):
         shutil.rmtree(d, ignore_errors=True)
     for d in (SHELF / "books", SHELF / "youtube" / "videos", tmp / "library", tmp / "exercises", tmp / "anki",
               tmp / "clips", CFG, LANG, DOCS, STARTERS):

@@ -485,6 +485,9 @@ STATIC_FILES = {"/lib/lmlikelihoodsettings.js", "/youtube/lib/asrreview.js", "/y
                 # the row of controls every page that hands out a prompt draws:
                 # copy, the size, the reminder (lib/llmrow.js, a0.4.2)
                 "/lib/llmrow.js",
+                # the day of each shelf's last backup, beside its Backup button
+                # (lib/backupday.js, §13.19)
+                "/lib/backupday.js",
                 # what the server is working on, drawn on every page (loaded
                 # by parseh.js, and by its own tag on the studio's pages)
                 "/lib/activity.js",

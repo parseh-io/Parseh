@@ -584,12 +584,31 @@ def _merge_languages(theirs, choose, files):
 
     def write():
         for n, b in sorted(writes.items()):
-            storeguard.write_text(_file_path(n), b.decode("utf-8"))
+            _write_file(_file_path(n), b)
         doc = {"_comment": languages.STORE_COMMENT, "_format": languages.STORE_FORMAT}
         doc.update(mine)
         storeguard.write_json(languages.PERSONAL, doc, ok=lambda d: isinstance(d, dict), indent=2)
         languages.reload()
     return rows, (write if changed else None)
+
+
+def _write_file(path, data):
+    """A language's file (LaTeX, Markdown, lookup rules), whole and durable as storeguard writes a store -- its
+    own temporary name, fsync'd, then moved into place -- but with no "damaged" test: that test is a store's
+    (it parses JSON), and a LaTeX file would fail it."""
+    folder = os.path.dirname(path)
+    os.makedirs(folder, exist_ok=True)
+    tmp = "%s.%s.tmp" % (path, secrets.token_hex(4))
+    try:
+        with open(tmp, "wb") as fh:
+            fh.write(data)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+    storeguard._sync_dir(folder)
 
 
 def _theme_same(a, b):

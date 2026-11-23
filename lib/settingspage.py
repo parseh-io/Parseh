@@ -202,7 +202,7 @@ SETTINGS = {
     # LOADING A BACKUP (TO-DO §13.19, lib/backupspage.py).  Taking one is a read, open to every device let in.  Putting
     # one back writes the person's LaTeX themes and a language's LaTeX file -- what Parseh will run -- and puts whole
     # shelves in place: the computer's alone, like the rest of Settings' writing doors.
-    "backups.load": (RUN, "It puts your settings back -- your LaTeX themes and your languages' files among them -- "
+    "backups.load": (RUN, "It puts your settings back, your LaTeX themes and your languages' files among them, "
                           "and whole shelves in place."),
 }
 

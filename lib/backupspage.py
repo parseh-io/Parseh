@@ -124,7 +124,7 @@ STYLE = r"""
 .bk-page .plan h3{font-size:15px;margin:.9rem 0 .2rem}
 .bk-page .plan table{border-collapse:collapse;width:100%;font-size:13.5px}
 .bk-page .plan td,.bk-page .plan th{text-align:start;padding:.25rem .4rem;border-bottom:1px solid var(--rule,#8883);vertical-align:top;overflow-wrap:anywhere}
-.bk-page .plan .st{white-space:nowrap;font-weight:600}
+.bk-page .plan .st,.bk-page .plan th{white-space:nowrap;font-weight:600}
 .bk-page .plan .n{color:var(--dim)}
 .bk-page .doing ul{margin:.3rem 0;padding-inline-start:1.2rem}
 .bk-page .foot a{color:var(--accent,#be3455);text-decoration:underline}
