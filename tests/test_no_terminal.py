@@ -151,5 +151,18 @@ class TheLibraryPage(unittest.TestCase):
                          ("build", "Writing the list of books again"))
 
 
+class TheAddABookPage(unittest.TestCase):
+    """5.6: the add-a-book page says the PDF comes from a button, never ./build.sh."""
+
+    def test_no_build_sh(self):
+        import newbook
+        html = newbook.page()
+        self.assertNotIn("build.sh", html)
+        self.assertNotIn("serve.sh", html)
+        self.assertNotRegex(html, COMMAND)
+        self.assertIn("<b>build the PDF now</b> in the answer", html)
+        self.assertNotIn("build.sh", newbook.MAIN_TEX)
+
+
 if __name__ == "__main__":
     unittest.main()
