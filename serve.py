@@ -504,6 +504,9 @@ STATIC_FILES = {"/lib/lmlikelihoodsettings.js", "/youtube/lib/asrreview.js", "/y
                 # (lib/explain.js, TO-DO §4.7) -- the studio's pages load it
                 # with a tag of their own, since they have no parseh.js
                 "/lib/explain.js",
+                # a link to the guide in every bar (lib/guidelink.js, TO-DO §15.10),
+                # loaded the same two ways
+                "/lib/guidelink.js",
                 # the reading place and the settings that follow a person
                 # (lib/prefs.js, its store lib/prefs.py, TO-DO §4.9)
                 "/lib/prefs.js",

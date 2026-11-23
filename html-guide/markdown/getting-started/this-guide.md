@@ -17,7 +17,17 @@ put on any website.
   [mobile interface](mobile-mode.md);
 - **the guide** at the foot of the hub;
 - the **guide** button of the clip tray's top bar, which opens it in a tab
-  of its own.
+  of its own;
+- the **guide** button in the top bar of every other page — a book's
+  reader, the book library, a video's page, the video index, the pages that
+  add a book or a video, the studio, the exercise decks, the Anki page,
+  Settings — which opens the page of this guide about that page.
+
+In the [mobile interface](mobile-mode.md) a phone's top bar has no room for
+it: there **The guide to this page** is a line at the foot of the page, and
+on every page with a **⚙** it is also at the foot of the gear's sheet,
+under *Parseh's own settings*. That is where a book's reader and a video's
+page have it on a phone.
 
 Served by Parseh, every page of the guide has a **Parseh** link in its top
 bar, back to the hub.
