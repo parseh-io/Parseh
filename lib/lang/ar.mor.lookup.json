@@ -1,54 +1,64 @@
 {
   "_comment": "How a word of a text in Moroccan Arabic (Darija, in Arabic letters) is turned into something a dictionary can be asked about: the Moroccan dictionary first, the standard one after it, these rules and then lib/lang/ar.lookup.json's. Written onto a word standard Arabic also has: the present's ka-/ta- (كيكتب, تيكتب, كنكتب = أكتب: Moroccan's first person singular is n-), the future's ġa- (غيكتب; غادي is a word of its own), the negation's ma-...-š (ماكيكتبش, three steps, so this file allows three), في ال- fused (فالدار), the pronoun written onto the verb with -l- and the dropped hamza. Words of its own (بزاف, ديال, الدراري) are the Moroccan dictionary's. Latin-letter Darija (Arabizi) is not read. Measured with tests/dialect_bench.py on tests/fixtures/arabic-dialects/ar-mor.txt.",
   "max_peel": 3,
+  "_verb": "`verb`: a prefix that only a verb takes (the present's and the future's marks of two letters, alone or after the negation's ما), so lib/chunker.py reads a word it takes off, leaving a verb one of the dictionaries has, as a verb where the word as written is in neither dictionary. The one-letter marks (ب, ح, ه), the first person's ن and من are left out: a preposition or a noun begins with them as often. Lookup itself does not read the key.",
   "affixes": [
     {
       "prefix": "كي",
       "note": "the present's ka- taken off: كيكتب is يكتب",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "كت",
       "note": "the present's ka- taken off: كتكتب is تكتب",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "كن",
       "front": "أ",
       "note": "the present's ka- and the first person's n- taken off, its أ put back: كنكتب is أكتب",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "كن",
       "note": "the present's ka- taken off: كنكتبو is نكتب",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "تي",
       "note": "the present's ta- taken off: تيكتب is يكتب",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "تن",
       "front": "أ",
       "note": "the present's ta- and the first person's n-, its أ put back",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "غي",
       "note": "the future's ġa- taken off: غيكتب is يكتب",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "غت",
       "note": "the future's ġa- taken off",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "غن",
       "front": "أ",
       "note": "the future's ġa- and the first person's n-, its أ put back",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "ن",
@@ -59,12 +69,14 @@
     {
       "prefix": "ماك",
       "note": "ما + ka- taken off together: ماكيكتبش",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "مات",
       "note": "ما + ta- taken off together",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "ما",

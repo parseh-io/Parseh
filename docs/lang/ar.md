@@ -253,8 +253,18 @@ not read: no dictionary of it exists to install.
 
 Cutting into phrases, on the longer sentences of `tests/fixtures/arabic-dialects/phrases/` (cut by hand before the
 lists were written; the word sets' sentences are each one phrase), seams in the right place, standard rules → the
-dialect's lists: Egyptian 5 of 11 → 8 of 11, Levantine 2 of 9 → 5 of 9, Gulf 3 of 9 → 5 of 9, Moroccan 0 of 8 → 1 of
-8 (its verbs are mostly in no dictionary, so their class is unknown). Standard Arabic's cut is byte-identical.
+dialect's lists (12.31): Egyptian 5 of 11 → 8 of 11, Levantine 2 of 9 → 5 of 9, Gulf 3 of 9 → 5 of 9,
+Moroccan 0 of 8 → 1 of 8 (its verbs were in no dictionary the chunker read, so their class was unknown). Then the
+word classes from the dialect's dictionary (12.37, `chunker._dictionary_classes`: the variety's dictionary along its
+rules first, the standard one as before when it has nothing; and `_marked_verb`: a word in neither dictionary as
+written that a prefix marked `verb` in `ar.<v>.lookup.json` peels to a verb is a verb), with the 2026-11-23
+extracts: Egyptian 8 of 11 (10 cut, from 11), Levantine 5 of 9, Gulf 3 of 9, Moroccan 4 of 8 (6 cut). The Gulf loses
+2: its dictionary rightly files وياي as a preposition and وايد as an adverb, and the rules, written for standard
+Arabic, then cut before وياي ("with me", a whole phrase) and join وايد to the clause before it. Reading the standard
+dictionary along the dialect's prefixes instead put no seam more in the right place on any set (one fewer on the
+Levantine and the Moroccan), so the fallback is standard Arabic's reading unchanged. The words' lookup is untouched
+(the bench's lookup lines byte-identical), and so is standard Arabic's cut (byte-identical on all 136 sentences of the
+sets).
 
 Romanisation: the standard dictionary's entries in a dialect text are said the dialect's way, consonants only
 (Egyptian q → ʾ, j → g, ṯ ḏ ẓ → t d ḍ; Levantine q → ʾ, ṯ ḏ ẓ → t d ḍ; Gulf q → g; Moroccan ṯ ḏ ẓ → t d ḍ); the

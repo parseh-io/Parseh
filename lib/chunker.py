@@ -230,7 +230,7 @@ def _class(tok, code):
     cut itself reads every token in its place (_spaced)."""
     L = languages.get_or_default(code)
     return _candidates(tok, False, L, rules(L.key), _lexicon(L.key),
-                       lookup.available(L.code))[0]
+                       _have_dict(L))[0]
 
 
 # THE LANGUAGE'S OWN FUNCTION WORDS.  A dictionary is the wrong authority on
@@ -324,10 +324,10 @@ def _candidates(tok, first, L, R, lex, have_dict):
     # variety's: Arabic lists no function words, so a word Egyptian's list
     # does not name is read exactly as it is in standard Arabic
     own = _lexicon(L.code) if L.key != L.code else lex
+    if have_dict and L.key != L.code and _marked_verb(L, bare):
+        return ["VERB"]
     if have_dict:
-        ranked = (lookup.pos_weights(L.code, bare) if own
-                  else [(p, 0) for p in lookup.pos_of(L.code, bare)])
-        for pos, _n in ranked:
+        for pos, _n in _dictionary_classes(L, bare, bool(own)):
             cls = CLASS.get(pos)
             if cls is None or cls in got:
                 continue
@@ -337,6 +337,60 @@ def _candidates(tok, first, L, R, lex, have_dict):
                 continue            # a name is a capital inside the sentence
             got.append(cls)
     return got or ["OTHER"]
+
+
+def _dictionary_classes(L, bare, weighed):
+    """[(part of speech, senses)] the dictionary gives one word, the likeliest
+    first: pos_weights() where the language lists its own closed classes
+    (`weighed`), pos_of()'s order where it does not.
+
+    A TEXT IN A VARIETY (L.key ar.mor, L.code ar) asks the variety's own
+    dictionary first, along the variety's roads (lookup.rules: its prefixes
+    before the language's), as the reading panel puts the variety's entries
+    first (lookup._with_variety): Moroccan's verbs, its adverbs and its
+    prepositions are in no standard dictionary (مشا, دابا, حدا).  Where the
+    variety's dictionary is not installed, or does not have the word, the
+    language's answers exactly as it did before (read along the variety's
+    prefixes instead, tests/dialect_bench.py --chunks put no seam more in the
+    right place on any set, one fewer on the Levantine and the Moroccan); a
+    word only the variety's verb marks explain is _marked_verb()'s."""
+    def ask(code, dictionary=None):
+        if weighed:
+            return lookup.pos_weights(code, bare, dictionary=dictionary)
+        return [(p, 0) for p in lookup.pos_of(code, bare, dictionary=dictionary)]
+    if L.key == L.code:
+        return ask(L.code)
+    return ask(L.key) or ask(L.code)
+
+
+def _marked_verb(L, bare):
+    """A word of a text in a variety that only its verb prefix explains: in
+    neither dictionary as written, it loses a prefix the variety's lookup
+    rules mark as one only a verb takes (`verb` in lib/lang/ar.<v>.lookup.
+    json: Moroccan ka-, ta-, ġa-; the b- and ḥa- of Egypt and the Levant)
+    and what is left is a verb in one of them -- كيخدم is كي + يخدم, so it
+    is a verb whatever else يخدم may also be filed under.  A word a
+    dictionary has as written keeps the classes it gives (shallowest first,
+    as lookup reads it)."""
+    marks = [r for r in lookup.rules(L.key).get("affixes") or [] if r.get("verb") and r.get("prefix")]
+    if not marks:
+        return False
+    conns = [c for c in (lookup._conn(L.key), lookup._conn(L.code)) if c is not None]
+    forms = [f for f, _why, _k in lookup._folded_variants(bare, L, "")]
+    if any(lookup._known(c, f) for c in conns for f in forms):
+        return False
+    for rule in marks:
+        for f in forms:
+            stem = lookup._peel(f, rule)
+            if stem and any("verb" in lookup.pos_of(L.key, stem, dictionary=d) for d in (L.key, L.code)):
+                return True
+    return False
+
+
+def _have_dict(L):
+    """Is there a dictionary to read a class from: the language's, or a
+    variety's own (dict/ar.mor.db)?"""
+    return lookup.available(L.code) or (L.key != L.code and lookup.available(L.key))
 
 
 def _in_context(c, prev, nxt, after, particle=False):
@@ -1043,7 +1097,7 @@ def phrase(text, lang, analysis=None):
                                             int(R.get("grow_to") or 0))
                    if c.strip()]
         return got if len(got) > 1 else [text.strip()]
-    have_dict = lookup.available(L.code)
+    have_dict = _have_dict(L)
     if L.spaced:
         if analysis is not None or have_dict or _lexicon(L.key):
             return _spaced(text, L, R, have_dict, analysis)

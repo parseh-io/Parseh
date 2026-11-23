@@ -114,6 +114,71 @@ class Phrases(NoDictionary):
         pw.assert_not_called()
 
 
+class PhrasesWithTheDialectsDictionary(unittest.TestCase):
+    """12.37: a text in a variety reads a word's class from the variety's own dictionary first (dict/ar.mor.db), the
+    standard one after it as before, and a word only the variety's verb prefix explains (كي + يخدم) as a verb."""
+
+    @classmethod
+    def setUpClass(cls):
+        td = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(td.cleanup)
+        _dict(os.path.join(td.name, "ar.db"), "ar",
+              [("كتب", "kataba", "verb", "to write", ["يكتب"]), ("بيت", "bayt", "noun", "house", ["البيت"]),
+               # يخدم filed as a noun first, so that only the ka- prefix can say it is the verb here
+               ("يخدم", "yaxdum", "noun", "a made-up noun", []), ("خدم", "xadama", "verb", "to serve", ["يخدم"]),
+               ("ساكن", "sākin", "adj", "living", []), ("الدار", "ad-dār", "noun", "the house", [])])
+        _dict(os.path.join(td.name, "ar.mor.db"), "ar",
+              [("مشا", "mša", "verb", "to go", ["مشيت"]), ("دابا", "dāba", "adv", "now", []),
+               ("حطيت", "ḥṭṭit", "verb", "I put", []), ("الساروت", "s-sārūt", "noun", "the key", [])])
+        was = lookup.DICT_DIR
+        lookup.DICT_DIR = td.name
+        _forget()
+        cls.addClassCleanup(lambda: (setattr(lookup, "DICT_DIR", was), _forget()))
+        cls.dir = td.name
+
+    def test_a_word_only_the_dialects_dictionary_has_takes_its_class(self):
+        self.assertEqual(chunker._class("مشيت", "ar.mor"), "VERB")
+        self.assertEqual(chunker._class("دابا", "ar.mor"), "ADV")
+        # standard Arabic does not read the dialect's dictionary
+        self.assertEqual(chunker._class("مشيت", "ar"), "OTHER")
+        self.assertEqual(chunker.word_class("دابا", "ar"), "OTHER")
+
+    def test_the_standard_dictionary_still_answers_what_the_dialects_has_not(self):
+        self.assertEqual(chunker._class("يكتب", "ar.mor"), "VERB")
+        self.assertEqual(chunker._class("البيت", "ar.mor"), "NOUN")
+
+    def test_a_word_its_verb_prefix_explains_is_a_verb(self):
+        L = languages.get("ar.mor")
+        got = chunker._candidates("كيخدم", False, L, chunker.rules(L.key), chunker._lexicon(L.key), True)
+        self.assertEqual(got, ["VERB"])
+        # a prefix the rules do not mark as a verb's (فال-) says nothing of the kind
+        self.assertFalse(chunker._marked_verb(L, "فالدار"))
+        # and a word a dictionary has as written keeps its own classes
+        self.assertFalse(chunker._marked_verb(L, "يكتب"))
+
+    def test_the_cut_follows_the_dialects_classes(self):
+        # حطيت is the Moroccan dictionary's verb: the question word opens its clause, where with no class for
+        # حطيت the cut fell between the question word and its verb (الراجل ساكن فين | حطيت ...)
+        s = "الراجل ساكن فين حطيت الساروت ديالي."
+        self.assertEqual(chunker.chunk(s, "ar.mor", "phrase"), ["الراجل ساكن", "فين حطيت الساروت ديالي."])
+
+    def test_standard_arabic_is_cut_as_it_was_without_the_dialects_dictionary(self):
+        s = "ما عرفتش فين حطيت الساروت ديالي في البيت."
+        with_it = chunker.chunk(s, "ar", "phrase")
+        mor = os.path.join(self.dir, "ar.mor.db")
+        os.rename(mor, mor + ".away")
+        try:
+            _forget()
+            self.assertEqual(chunker.chunk(s, "ar", "phrase"), with_it)
+            # and without its own dictionary a Moroccan text reads the standard one, as before 12.37
+            self.assertEqual(chunker._class("حطيت", "ar.mor"), "OTHER")
+            self.assertEqual(chunker._class("يكتب", "ar.mor"), "VERB")
+        finally:
+            os.rename(mor + ".away", mor)
+            _forget()
+        self.assertEqual(chunker._class("حطيت", "ar.mor"), "VERB")
+
+
 class Romanisation(unittest.TestCase):
     STD = "qalb jamīl ṯalāṯa ḏahab ẓuhr"
 

@@ -1350,15 +1350,19 @@ _CLOSED = ("particle", "postp", "prep", "conj", "det", "article", "pron",
            "aux", "num", "intj")
 
 
-def pos_of(code, word, short=3):
+def pos_of(code, word, short=3, dictionary=None):
     """What part of speech this word is, best first -- [] where the language
     has no dictionary or the word is in none of it.
 
     The same roads `look_up` takes: as written, folded, and through the
     language's own affix rules, so an inflected form answers with its
-    lemma's part of speech.
+    lemma's part of speech.  `code` may be a variety's key (ar.mor): its
+    own dictionary is asked, along the variety's rules (rules(): its
+    prefixes before the language's).  `dictionary` names another dictionary
+    to ask along the same roads -- the language's own (ar) for a variety,
+    so that Moroccan كيكتب, ka- taken off, is يكتب in the standard one.
     """
-    c = _conn(code)
+    c = _conn(dictionary or code)
     if c is None or not word:
         return []
     L = languages.get_or_default(code)
@@ -1374,7 +1378,7 @@ def pos_of(code, word, short=3):
     return []
 
 
-def pos_weights(code, word):
+def pos_weights(code, word, dictionary=None):
     """[(part of speech, senses)] for this word, the most senses first -- []
     where the language has no dictionary or the word is in none of it.
 
@@ -1384,8 +1388,8 @@ def pos_weights(code, word):
     short word first, which is right for `in` and wrong for `man` (filed
     under an interjection and a pronoun as well) and `not` (a conjunction);
     lib/chunker.py asks this for the open classes and its language's own list
-    for the closed ones."""
-    c = _conn(code)
+    for the closed ones.  `code` and `dictionary` as in pos_of()."""
+    c = _conn(dictionary or code)
     if c is None or not word:
         return []
     L = languages.get_or_default(code)
