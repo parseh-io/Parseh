@@ -338,5 +338,26 @@ class TheVideoPages(unittest.TestCase):
             self.assertIn('<a class="book sync add" href="%s/add/">' % ytpages.BASE, html)
 
 
+class TheSweep(unittest.TestCase):
+    """What the sweep of every page's strings found beside the ten items: the
+    reader's build tooltips, the narration panel's whisper command (5.4's
+    page text), Settings > Languages' "where it comes from" column."""
+
+    def test_reader(self):
+        src = _source("lib/tex2html.py")
+        self.assertNotIn("on the server (./build.sh", src)
+        self.assertNotIn("pip install openai-whisper", src)
+        self.assertNotIn("whisper narration.m4a", src)
+
+    def test_languages_page(self):
+        from unittest import mock
+        import langfeatures
+        import os
+        with mock.patch.object(os.path, "exists", lambda p: False):
+            feats = langfeatures.features("fa")
+        for f in feats:
+            self.assertNotRegex(f.as_json().get("adds") or "", COMMAND)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -8146,7 +8146,7 @@ function pdfStale() {
   const el = $('#pdfstale');
   el.textContent = 'PDF behind the text — build it';
   el.title = 'the reader was rebuilt with the edit, and the PDF is LaTeX: ' +
-             'click to build it on the server (./build.sh ' + META.book + ')';
+             'click to build it on Parseh\'s computer';
   el.style.cursor = 'pointer';
   el.onclick = () => buildThisBook();
   el.hidden = false;
@@ -10800,7 +10800,7 @@ def page(body, times, subs, audio_rel, meta, tocpanel, src, narr=(), paras=(),
   </div><div class="hrow">
   <button id="toc" title="jump to a paragraph (C)" aria-expanded="false">contents</button>
   <button id="bookinfo" title="edit the title, the author and the other details this book is filed under">book info</button>
-  <button id="buildbook" title="build this book's PDF, and its reader with it, on the server (./build.sh)">build PDF</button>
+  <button id="buildbook" title="build this book's PDF, and its reader with it, on Parseh's computer">build PDF</button>
   <button id="buildhtml" title="rebuild this page alone, without LaTeX — what a book built before a new feature needs to gain it">rebuild the reader</button>
   <button id="theme" data-parseh-theme title="theme: light / dark / sepia">◐</button>
   <button id="typo" title="text size and margins">Aa</button>
@@ -11059,9 +11059,10 @@ def page(body, times, subs, audio_rel, meta, tocpanel, src, narr=(), paras=(),
         it goes into the book. Any of: YouTube's transcript panel copied whole
         (<i>&hellip; more &rsaquo; Show transcript</i>, click into the panel, select all,
         copy &mdash; the &ldquo;N seconds&rdquo; lines can stay); an <code>.srt</code> or
-        <code>.vtt</code>; or, for a recording of your own, whisper's output:
-        <code>whisper narration.m4a --language %s --output_format srt</code>
-        (<code>pip install openai-whisper</code>). It belongs to one recording: a book in
+        <code>.vtt</code>; or, for a recording of your own, the <code>.srt</code> a
+        speech-to-text program makes of it, told the language is <code>%s</code> (Parseh's
+        own speech to text works on videos, and does not transcribe a book's recording
+        yet). It belongs to one recording: a book in
         parts has one transcript per part, saved from that part's own row.</div>
       <div class="anote"><b>align</b> needs that transcript. The transcript says roughly
         <i>when</i>, the text says <i>what</i>, the cuts are snapped to the silences in the
