@@ -808,8 +808,10 @@ def test_bundle_shapes(book):
               repr(r2.get("notes")))
         check(bundle_state(d)["audio"] == was_audio,
               "while the recording, which cannot be made again, stays")
-        check(any("timestamp.py --from-sidecar" in n for n in r["notes"]),
-              "and says how to put the comments back", "; ".join(r["notes"])[:200])
+        # from the page, never a command (5.7): the next build writes the comments back from timings.json
+        check(any("the next build of the book" in n and "build on its card" in n
+                  and "writes them back from timings.json" in n for n in r["notes"]),
+              "and says how to put the comments back", "; ".join(r["notes"])[-300:])
         check(open(os.path.join(roots["full"], "audio", "audio.webm"), "rb").read()
               == open(os.path.join(src, "audio", "audio.webm"), "rb").read()
               and open(os.path.join(roots["full"], "timings.json"), "rb").read()

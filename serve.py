@@ -1072,6 +1072,14 @@ def esc(s):
     return ytpages.esc(s)
 
 
+def _unlink_quietly(path):
+    """A temporary file removed, if it is still there."""
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+
 def byte_range(header, size):
     """One `Range: bytes=a-b | a- | -n` against a file of `size` bytes ->
     (first, last) inclusive, or None when nothing of the file is in it (a
@@ -5554,19 +5562,19 @@ class Handler(SimpleHTTPRequestHandler):
         # sent from there in pieces and deleted, never held whole (3.9) --
         # a book with its recording, a video with its film, are hundreds of
         # megabytes
+        # THE FILE IS GONE BEFORE THE LAST BYTE IS: nothing is left to do once the answer is written, so the
+        # Working… entry closes the moment the browser has it (tests/test_activity.py reads the list right then)
         try:
             if os.path.getsize(path) <= 1 << 20:
                 # a megabyte or less goes in one write, as it always did (and uncounted on the Working… list)
                 with open(path, "rb") as f:
                     data = f.read()
+                _unlink_quietly(path)
                 self.send_bytes(data, "application/zip", extra={"Content-Disposition": savename.disposition(name)})
             else:
-                self._send_file(path, "application/zip", name)
+                self._send_file(path, "application/zip", name, unlink=True)
         finally:
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
+            _unlink_quietly(path)
 
     @staticmethod
     def _bundle_file():
@@ -6998,7 +7006,9 @@ class Handler(SimpleHTTPRequestHandler):
             except OSError:
                 pass
 
-    def _send_file(self, path, ctype, download_name):
+    def _send_file(self, path, ctype, download_name, unlink=False):
+        """`unlink`: the file is a temporary one, taken off the disk once it is open (where the system allows an
+        open file to be removed; elsewhere the caller removes it after)."""
         size = os.path.getsize(path)
         self.send_response(200)
         self.send_header("Content-Type", ctype)
@@ -7009,6 +7019,8 @@ class Handler(SimpleHTTPRequestHandler):
         if self._head:
             return
         with open(path, "rb") as f:
+            if unlink and os.name != "nt":
+                _unlink_quietly(path)
             try:
                 self._pour(f, size)
             except GONE:

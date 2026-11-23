@@ -278,7 +278,8 @@ def test_add_card(tmp):
     check(r2.get("refiled", {}).get("from") == "fa"
           and r2["refiled"]["to"] == "ja" and r2["refiled"].get("note"),
           "the answer says the card was refiled under its own language")
-    r3 = post("ja", "Shared", deck_lang="ja")
+    # a different word: the same one again is asked about (10.7, anki_store.add_card answers 409)
+    r3 = post("ja", "Shared", deck_lang="ja", fa="text-ja-2")
     check(r3["deck"]["path"] == "japanese/shared" and r3["deck"]["cards"] == 2
           and "refiled" not in r3,
           "a second Japanese card joins the same deck, nothing refiled")
@@ -293,7 +294,7 @@ def test_add_card(tmp):
     check(all(m.get("lang") == d["lang"] for m, d in zip(metas, ds)),
           "each deck.json records its language")
     # a deck of the same name in the same language reuses its directory
-    r4 = post("fa", "Shared")
+    r4 = post("fa", "Shared", fa="text-fa-2")
     check(r4["deck"]["path"] == "persian/shared" and r4["deck"]["cards"] == 2,
           "a second Persian card reuses persian/shared")
     outs = sorted(os.path.basename(ax.build_deck(os.path.join(store, d["path"])))
