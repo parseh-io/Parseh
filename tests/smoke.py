@@ -3019,8 +3019,7 @@ def test_append():
         b = os.path.join(td, os.path.basename(src))
         shutil.copytree(src, b)
         for text, where, want in ((" ", "new", "empty"),
-                                  (MORE, "sideways", "no such place"),
-                                  ("a $ b", "new", "LaTeX")):
+                                  (MORE, "sideways", "no such place")):
             try:
                 draft.add_to_book(b, text, chapter=where)
                 why = "it was accepted"
@@ -3028,6 +3027,14 @@ def test_append():
                 why = str(e)
             check(want.lower() in why.lower(),
                   "%r is refused with a sentence" % (want,), why[:90])
+        # ...and a TeX special is no longer one of them (TO-DO §6.6): the
+        # source keeps "$", the chapter holds its escape
+        r = draft.add_to_book(b, "It costs $5, or 50% of R&D.", chapter="new")
+        tex = open(os.path.join(b, "ch%d.tex" % r["chapter"]), encoding="utf-8").read()
+        src_ = open(os.path.join(b, "source", "paras", "ch%d_p00.txt" % r["chapter"]),
+                    encoding="utf-8").read()
+        check("\\$5, or 50\\% of R\\&D" in tex and "$5, or 50% of R&D" in src_,
+              "a text with $ % & in it is added: escaped in the chapter, as typed in its source")
         try:
             draft.add_to_book(td, MORE)
             why = "it was accepted"
