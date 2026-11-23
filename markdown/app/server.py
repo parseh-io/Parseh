@@ -2522,16 +2522,9 @@ def api_export(h):
     files = raw = told = 0
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in sorted(store.lib().rglob("*")):
-            if not f.is_file():
-                continue
-            rel = f.relative_to(store.lib())
-            if rel.parts[0].startswith("."):
-                continue
-            # sources + metadata always; of the build dir, only the PDF
-            if "build" in rel.parts and f.name != "main.pdf":
-                continue
-            zf.write(f, str(rel))
+        # sources + metadata always; of the build dir, only the PDF
+        for f, rel in store.backup_files():
+            zf.write(f, rel)
             files, raw = files + 1, raw + f.stat().st_size
             # said once on crossing, then as it keeps growing: the figures
             # are what is worth watching, not the crossing

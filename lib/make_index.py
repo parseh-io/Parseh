@@ -275,7 +275,9 @@ SHELF_HTML = """
     <a class="btn" id="shelfget" href="__BACKUP__">Backup every __KIND__</a>
     <button type="button" class="btn" id="shelfput">Load from backup</button>
     <input type="file" id="shelffile" accept=".zip,application/zip,application/x-zip-compressed" hidden>
+    <small class="backupday" data-backup-day="__KIND__"></small>
   </p>
+  <script src="/lib/backupday.js" defer></script>
   <div class="msg" id="shelfmsg" hidden></div>
 </section>
 """

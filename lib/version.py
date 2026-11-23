@@ -237,6 +237,13 @@ FORMATS = {
     "parseh-prefs": ("lib/prefs.py", "STORE_FORMAT",
                      "each book's reading place and the settings that follow you "
                      "(config/prefs.json)"),
+    # the backups of a0.6.3 (TO-DO §13.19): the settings' backup and the backup of everything are files made to
+    # travel, read back by their own stamps; the day of each shelf's last backup is a store in config/
+    "parseh-config": ("lib/configbackup.py", "FORMAT", "a backup of your settings, config/, as one zip"),
+    "parseh-everything": ("lib/wholebackup.py", "FORMAT",
+                          "a backup of everything -- every shelf, the settings, the cards and the clips -- as one zip"),
+    "parseh-backups": ("lib/backupdays.py", "STORE_FORMAT",
+                       "the day of each shelf's last backup (config/backups.json)"),
     "parseh-network": ("lib/network.py", "STORE_FORMAT",
                        "who may reach Parseh, and the devices let in (config/network.json)"),
     "parseh-languages": ("lib/languages.py", "STORE_FORMAT",

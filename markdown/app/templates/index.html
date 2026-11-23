@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- the page zoom (lib/pagezoom.js): first of the scripts, which all ask the window its size -->
 <script src="/lib/pagezoom.js"></script>
+<script src="/lib/backupday.js" defer></script>
 {{MODE_SCRIPT}}
 <!-- the mobile interface installed as an app (docs/mobile.md) -->
 {{APP_HEAD}}
@@ -67,7 +68,7 @@
     <details class="dropdown bar-menu" id="menu-backup">
       <summary class="btn" title="The whole library as one zip, to keep somewhere safe, and the way to put one back">Backup ▾</summary>
       <div class="menu">
-        <a href="{{BASE}}/api/export" id="btn-backup" title="Download the whole library as a zip">Backup the whole library<small>Download every document as one zip</small></a>
+        <a href="{{BASE}}/api/export" id="btn-backup" title="Download the whole library as a zip">Backup the whole library<small>Download every document as one zip <span data-backup-day="studio"></span></small></a>
         <button type="button" id="btn-restore"
                 title="Put a backup zip back: every document it holds, with its id, its tags and the links that point at it">Load from backup<small>Put a backup zip back</small></button>
       </div>

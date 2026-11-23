@@ -308,6 +308,9 @@ class DataFormats(unittest.TestCase):
         import lmlikelihoodconfig
         import asrpending
         import speechconfig
+        import backupdays
+        import configbackup
+        import wholebackup
         got = version.formats()
         self.assertEqual(set(got), set(version.FORMATS))
         held = {"parseh-speech": speechconfig.STORE_FORMAT, "parseh-pending-transcription": asrpending.FORMAT, "parseh-llm": version.RETIRED_LLM_FORMAT, "parseh-lm-likelihood": lmlikelihoodconfig.STORE_FORMAT,
@@ -335,7 +338,9 @@ class DataFormats(unittest.TestCase):
                 "parseh-texmf": texpackages.MANIFEST_FORMAT,
                 "parseh-arasaac": getarasaac.ARASAAC_FORMAT,
                 "parseh-analysis": analysisconfig.STORE_FORMAT,
-                "parseh-annot": making.ANNOT_FORMAT}
+                "parseh-annot": making.ANNOT_FORMAT,
+                "parseh-config": configbackup.FORMAT, "parseh-everything": wholebackup.FORMAT,
+                "parseh-backups": backupdays.STORE_FORMAT}
         self.assertEqual(set(held) - set(got), set(), "held here, with no row")
         self.assertEqual(set(got) - set(held), set(), "a row this test does not hold")
         for fmt, value in held.items():
@@ -390,7 +395,8 @@ class DataFormats(unittest.TestCase):
             "clips/": ("parseh-clips",),
             "youtube/anki/": ("parseh-anki",),
             "config/": ("parseh-analysis", "parseh-prefs", "parseh-network", "parseh-languages", "parseh-digests",
-                        "parseh-wheres", "parseh-updates", "parseh-latex", "parseh-prompts", "parseh-llm", "parseh-lm-likelihood", "parseh-speech"),
+                        "parseh-wheres", "parseh-updates", "parseh-latex", "parseh-prompts", "parseh-llm", "parseh-lm-likelihood", "parseh-speech",
+                        "parseh-backups"),
             "texmf/": ("parseh-texmf",),
             "dict/": ("parseh-dictionary",),
             "corpus/": ("parseh-corpus",),
@@ -411,7 +417,7 @@ class DataFormats(unittest.TestCase):
     # the rows that are not a store but a file made to travel: each is read
     # back by its own stamp, whatever wrote it
     TRAVEL = {"parseh-bundle", "parseh-shelf", "parseh-narration", "parseh-exercise-shelf",
-              "parseh-latex-theme", "parseh-prompt"}
+              "parseh-latex-theme", "parseh-prompt", "parseh-config", "parseh-everything"}
 
     def test_every_place_a_person_s_things_are_kept_has_its_rows(self):
         import release

@@ -221,6 +221,10 @@ import latexdraw                                               # noqa: E402
 # AFTER THE STUDIO, which puts its own folders on sys.path: the skills read its box catalogue (§9, a0.4.2)
 import skills             # noqa: E402  the prompts as skills for a chatbot
 import skillspage         # noqa: E402  Settings -> Skills for your chatbot
+import backupdays          # noqa: E402  the day of each shelf's last backup (§13.19)
+import backupspage         # noqa: E402  Settings -> Backups
+import configbackup        # noqa: E402  the backup of config/, merged back
+import wholebackup         # noqa: E402  the backup of everything, for a new computer
 import languagespage      # noqa: E402  Settings -> Languages
 studio.htmlgen.set_latex(latexdraw.draw, latexdraw.draw_all, settings="/settings/latex/",
                          peek=latexdraw.peek)
@@ -601,7 +605,10 @@ UPLOAD_ROUTES = ("/anki/sync/upload", "/books/__upload", "/exercises/api/import"
                  STUDIO_BASE + "/api/docs/zip",
                  # a release of Parseh itself, chosen on Settings > Updating
                  # Parseh: some 15 MB today, and nothing says it stays so
-                 "/settings/api/update/upload")
+                 "/settings/api/update/upload",
+                 # Settings -> Backups (§13.19): the backup of everything is
+                 # every shelf at once, and the settings' one is spooled alike
+                 "/settings/api/backups/everything/load", "/settings/api/backups/settings/read")
 
 # THE TEXT OF A BOOK COMES IN AS A FILE TOO (lib/making.py add_part, lib/sourcetext.py): a part for
 # the agent that makes a book, and more text onto a book that is already here -- a PDF of a whole
@@ -1885,6 +1892,26 @@ ARASAAC_ROUTES = {
 # SETTINGS -> SKILLS FOR YOUR CHATBOT (§9.5, lib/skillspage.py): the page, and its two reads -- what each skill is now,
 # and the zip of one, made when it is asked for and stored nowhere
 SKILLS_PAGE = "/settings/skills/"
+# SETTINGS -> BACKUPS (§13.19, lib/backupspage.py): the page, the days, the two backups and the loading of them
+BACKUPS_PAGE = "/settings/backups/"
+BACKUPS_ROUTES = {
+    "/settings/api/backups/state": "state",
+    "/settings/api/backups/settings": "settings",
+    "/settings/api/backups/everything": "everything",
+    "/settings/api/backups/settings/read": "read",
+    "/settings/api/backups/settings/apply": "apply",
+    "/settings/api/backups/everything/load": "load",
+}
+
+
+def backup_shelf(path):
+    """Which backup a GET of `path` takes, for config/backups.json -> "book", "video", "studio", "decks",
+    "settings", "everything", or None.  Exact addresses: a book's notes have a studio of their own, whose
+    export is not the studio's backup."""
+    return {"/books/__backup": "book", ytpages.BASE + "/api/backup": "video",
+            STUDIO_BASE + "/api/export": "studio", studio.deckroutes.BASE + "/api/backup": "decks",
+            "/settings/api/backups/settings": "settings",
+            "/settings/api/backups/everything": "everything"}.get(path)
 SKILLS_ROUTES = {
     "/settings/api/skills/state": "state",
     "/settings/api/skills/download": "download",
@@ -2590,6 +2617,8 @@ def long_work(method, path, query, length=0):
     if path.startswith(decks_base + "/"):
         return _decks_work(method, path[len(decks_base):], length, file)
     if method == "GET":
+        if path == "/settings/api/backups/everything":
+            return "backup", "Packing the backup of everything", None
         if path == "/books/__backup":
             return "backup", "Packing the backup of every book", None
         if path == yt + "/api/backup":
@@ -2613,6 +2642,8 @@ def long_work(method, path, query, length=0):
         return "upload", "Uploading " + file, "installing"
     if path == "/books/__restore":
         return "restore", "Restoring books from " + file, "putting them back"
+    if path == "/settings/api/backups/everything/load":
+        return "restore", "Restoring everything from " + file, "putting it back"
     if path == "/books/__empty":
         return "build", "Writing a new book", None
     if path == "/books/__make":
@@ -3250,6 +3281,17 @@ class Handler(SimpleHTTPRequestHandler):
             if self._act:
                 activity.end(self._act, ok=0 < self._status < 400 and not self._failed)
                 self._act = None
+            if method == "GET" and 0 < self._status < 300 and not self._failed:
+                self._backup_taken()
+
+    def _backup_taken(self):
+        """A backup SENT whole is the day of that shelf's last backup (§13.19, lib/backupdays.py)."""
+        try:
+            which = backup_shelf(urllib.parse.urlsplit(self.path).path)
+            if which:
+                backupdays.mark(which)
+        except Exception:
+            traceback.print_exc()
 
     def _received(self):
         """The body is in: the entry stops saying "receiving" and says what
@@ -7274,6 +7316,12 @@ class Handler(SimpleHTTPRequestHandler):
             if method not in ("GET", "HEAD"):
                 return self._method_not_allowed()
             return self._arasaac_picture(picture.group(1))
+        if path == BACKUPS_PAGE.rstrip("/"):
+            return self._redirect(BACKUPS_PAGE)
+        if path == BACKUPS_PAGE:
+            if method != "GET":
+                return self._method_not_allowed()
+            return self.send_html(backupspage.page(self._where()))
         if path == SKILLS_PAGE.rstrip("/"):
             return self._redirect(SKILLS_PAGE)
         if path == SKILLS_PAGE:
@@ -7339,6 +7387,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._arasaac_api(method, path)
         if path in SKILLS_ROUTES:
             return self._skills_api(method, path)
+        if path in BACKUPS_ROUTES:
+            return self._backups_api(method, path)
         if path not in ("/settings/api/network", "/settings/api/code",
                         "/settings/api/forget"):
             return self._not_found()
@@ -7675,6 +7725,118 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json({"ok": False, "error": str(e)}, 500)
         return self.send_bytes(data, "application/zip", 200,
                                {"Content-Disposition": 'attachment; filename="%s.zip"' % name})
+
+    def _backups_api(self, method, path):
+        """Settings -> Backups (lib/backupspage.py, §13.19).  The days and the two downloads are reads (GET); reading
+        a settings backup, loading it and loading everything are POSTs, gated above (lib/settingspage.py ROUTES)."""
+        what = BACKUPS_ROUTES[path]
+        if what in ("state", "settings", "everything"):
+            if method != "GET":
+                return self._method_not_allowed()
+            if what == "state":
+                return self.send_json(backupspage.state())
+            try:
+                if what == "settings":
+                    made, name = configbackup.pack()
+                else:
+                    made, name, _notes = wholebackup.pack(self._whole_env(), version.VERSION)
+            except (OSError, wholebackup.BackupError, configbackup.BackupError) as e:
+                return self.send_json({"ok": False, "error": str(e)}, 500)
+            try:
+                return self.send_file(made, download_name=name)
+            finally:
+                try:
+                    os.unlink(made)
+                except OSError:
+                    pass
+        if method != "POST":
+            return self._method_not_allowed()
+        if what == "apply":
+            body = self._json_body()
+            got = configbackup.held(body.get("token"))
+            if got is None:
+                return self.send_json({"ok": False, "error": "that backup is no longer held here (an hour has "
+                                                             "passed, or Parseh started again): choose it again"}, 410)
+            choose = body.get("choose") if isinstance(body.get("choose"), dict) else {}
+            try:
+                out = configbackup.apply(got, choose)
+            except (OSError, ValueError) as e:
+                return self.send_json({"ok": False, "error": "your settings could not be written: %s" % e}, 500)
+            return self.send_json(dict(out, ok=True))
+        source = self._spool or self._raw
+        if not source:
+            return self.send_json({"ok": False, "error": "nothing to load: choose a backup zip"}, 400)
+        if what == "read":
+            try:
+                got = configbackup.read(source)
+            except configbackup.BackupError as e:
+                return self.send_json({"ok": False, "error": str(e)}, 400)
+            return self.send_json(dict(configbackup.plan(got), ok=True, token=configbackup.hold(got)))
+        replace = (self.query.get("replace", ["0"])[0] or "") in ("1", "true", "yes")
+        if not self._spool:
+            # the whole backup is read from a file; a small one came in memory
+            fd, tmp = tempfile.mkstemp(prefix="parseh-upload-", suffix=".zip")
+            with os.fdopen(fd, "wb") as f:
+                f.write(source)
+            source = tmp
+        try:
+            out = wholebackup.load(source, self._whole_env(), replace=replace)
+        except wholebackup.BackupError as e:
+            return self.send_json({"ok": False, "error": str(e)}, 400)
+        finally:
+            if not self._spool:
+                os.unlink(source)
+        return self.send_json(dict(out, ok=True), 201)
+
+    def _whole_env(self):
+        """The doors the backup of everything goes through (lib/wholebackup.py): each shelf's own packer and its own
+        restore, as its page's buttons use them."""
+        store, decks = studio.store, studio.decks
+
+        def books_or_videos(kind):
+            return lambda: shelf.pack(kind) if shelf.items(kind) else None
+
+        def pack_studio():
+            files = store.backup_files()
+            if not files:
+                return None
+            fd, path = tempfile.mkstemp(prefix="parseh-studio-", suffix=".zip")
+            os.close(fd)
+            with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for f, rel in files:
+                    zf.write(f, rel)
+            return path, "studio.zip"
+
+        def pack_decks():
+            if not decks._shelf_decks():
+                return None
+            data, name = decks.backup_zip()
+            fd, path = tempfile.mkstemp(prefix="parseh-decks-", suffix=".zip")
+            with os.fdopen(fd, "wb") as f:
+                f.write(data)
+            return path, name
+
+        def restore_shelf(kind):
+            def put(path, replace):
+                out = shelf.restore(kind, path, replace=replace)
+                for d in out.pop("dirs", []):
+                    notes_came_back(os.path.join(ROOT, d))
+                if kind == "book" and out["restored"]:
+                    self._write_library()
+                return out
+            return put
+
+        def restore_studio(path, replace):
+            try:
+                return store.import_library(path, replace=replace)
+            except store.NameConflict as e:
+                raise ValueError("%s: load the studio's own backup from its page to choose the names" % e)
+        return wholebackup.Env(
+            pack={"books": books_or_videos("book"), "videos": books_or_videos("video"),
+                  "studio": pack_studio, "decks": pack_decks},
+            restore={"books": restore_shelf("book"), "videos": restore_shelf("video"),
+                     "studio": restore_studio, "decks": lambda path, replace: decks.restore_zip(path, replace=replace)},
+            anki=ANKI, clips=clips.DIR)
 
     def _arasaac_picture(self, pid):
         """One pictogram's picture (the picker's thumbnail and preview, and the bytes an editor puts into a
