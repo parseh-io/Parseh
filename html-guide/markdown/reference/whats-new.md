@@ -40,6 +40,25 @@ labelled; Gulf and Moroccan have too few yet, and the panel says so. Adding a vi
 transcript tracks to paste.
 [Arabic dialects](../lookup-and-languages/dictionaries.md#arabic-dialects).
 
+### Backups of everything
+
+**Settings → Backups** keeps a copy of **your settings** — reading places, review-later flags, level names, your own
+prompts and languages, the LaTeX themes — and loads one back by merging: what only the copy has is added, the later
+reading place wins, and where the two differ otherwise you choose; device codes and this computer's own details are
+never in it. **One backup of everything** — the four shelves, the cards and the clip tray and your settings — moves Parseh
+to a new computer in one file. Every place that offers a backup says when the last one was made.
+[Backups](../getting-started/backups.md).
+
+### No terminal on any page
+
+No page tells you to type a command any more. **Settings → Updating Parseh** lists the packages this Parseh lacks and
+adds them; **Settings → Reading help** fetches the Chinese word models; the library has a button that writes its list
+again; and what cannot be installed from the pages yet — TeX itself — is said plainly. Each page links to its own page
+of this guide, and a book's card says how many of its chunks are glossed. The add pages say when sense groups fell back
+to whole sentences and why; a video started empty fetches its title and channel; Japanese and Chinese say why there is
+no "propose"; and saving the same card to Anki twice asks first.
+[Updating Parseh](../getting-started/updating.md).
+
 ### Pictures in any common format
 
 A document and a deck take **WebP** and **GIF** pictures as well as PNG, JPEG and SVG — an animated GIF moves on the page,

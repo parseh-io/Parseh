@@ -6,6 +6,9 @@
 - Arabic dialects: studio documents, decks and books made in place say their dialect; Settings → Languages shows each
 - Arabic dialects: their own phrase lists, romanisation and question words, translated sentences for Egyptian and Levantine
 - WebP, GIF and HEIC pictures in documents and decks (Pillow and pillow-heif join the installed packages)
+- Settings → Backups: your settings backed up and merged back, one backup of everything, and the day of each shelf's last backup
+- No page asks for a terminal any more: missing packages and Chinese word models are added from Settings
+- A book's card says how much of it is glossed, and every page links to its own page of the guide
 
 ### Fixed
 - A settings file that cannot be read is set aside, never written over; a damaged deck is shown
@@ -19,6 +22,8 @@
 - A book's text may hold %, &, $ and TeX's other special characters
 - Downloads carry their real names in every script
 - The build log says in plain words why a PDF was not made
+- The add pages say when sense groups fell back to sentences, and an empty video fetches its title
+- Saving the same card to Anki twice asks first
 
 ### Removed
 - The connection to a model service (Settings → LLM Integration); copy-paste review and skills stay
