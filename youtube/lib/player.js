@@ -6110,7 +6110,10 @@
     }
     if (pressBusy()) return;
     var c = collectCard();
+    // a card the deck has already (10.7) is asked about, as an exercise deck's is: armed, a press adds it again
+    var force = dupArmed;
     var body = { deck: deckName, deck_lang: deckLang, card: c.card };
+    if (force) body.force = true;
     if (c.shot) body.shot = c.shot;
     if (c.clip) body.clip = c.clip;
     var p = press(c.clip ? ankiClip.clip : null, null);
@@ -6120,7 +6123,16 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     }).then(function (r) { return r.json(); }).then(function (res) {
+      if (!res.ok && res.conflict === 'duplicate' && !force) {
+        p.done(false);
+        if (!p.here()) { p.say(res.error + ' — nothing was saved', true); return; }
+        dupArmed = true;
+        A.saveLab.textContent = 'add it again';
+        A.stat.textContent = res.error + ' — press “add it again” to add a second one';
+        return;
+      }
       if (!res.ok) throw new Error(res.error || 'save failed');
+      unarm();
       p.done(true, null);
       localStorage.setItem('yt_deck', res.deck.folder + '/' + res.deck.slug);
       deckPicked = false;

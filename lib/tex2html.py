@@ -6304,7 +6304,10 @@ function saveAnki() {
     AN.opp.focus(); return; }
   if (pressBusy()) return;
   const c = collectCard();
+  // a card the deck has already (10.7) is asked about, as an exercise deck's is: armed, a press adds it again
+  const force = dupArmed;
   const body = { deck: deckName, deck_lang: deckLang, card: c.card };
+  if (force) body.force = true;
   if (c.clip) body.clip = c.clip;
   const p = press(c.clip ? ankiClip : null);
   p.note('saving…');
@@ -6312,7 +6315,16 @@ function saveAnki() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   }).then(r => r.json()).then(res => {
+    if (!res.ok && res.conflict === 'duplicate' && !force) {
+      p.done(false);
+      if (!p.here()) { p.say(res.error + ' — nothing was saved', true); return; }
+      dupArmed = true;
+      AN.saveLab.textContent = 'add it again';
+      tell(res.error + ' — press “add it again” to add a second one');
+      return;
+    }
     if (!res.ok) throw new Error(res.error || 'save failed');
+    unarm();
     p.done(true);
     localStorage.setItem('bk_deck', res.deck.folder + '/' + res.deck.slug);
     deckPicked = false;

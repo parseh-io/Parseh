@@ -29,6 +29,7 @@ import re
 import secrets
 import sys
 import time
+import unicodedata
 
 import anki_export  # sibling in youtube/lib/
 import languages    # the registry; anki_export has put lib/ on the path
@@ -349,6 +350,30 @@ def deck_for(anki_dir, name, lang):
     return L.folder + "/" + slug, slug, None
 
 
+def _same_front(text):
+    """A card's front as Anki compares two notes' first fields: the same text, whatever its white space and
+    its Unicode composition."""
+    return " ".join(unicodedata.normalize("NFC", str(text or "")).split())
+
+
+def duplicate_of(ddir, kind, fa):
+    """The card of this deck directory that this one would duplicate -> its JSON, or None: the same note type
+    (`kind`) with the same front, which is what Anki itself calls a duplicate when the deck is imported.  Every
+    card file is read: a deck is hundreds of small files, and this runs on a press, not in a loop."""
+    want = _same_front(fa)
+    try:
+        names = sorted(os.listdir(os.path.join(ddir, "cards")))
+    except OSError:
+        return None
+    for name in names:
+        if not name.endswith(".json"):
+            continue
+        c = as_dict(read_json(os.path.join(ddir, "cards", name)))
+        if (c.get("kind") or "vocab") == kind and _same_front(c.get("fa")) == want:
+            return c
+    return None
+
+
 def add_card(anki_dir, data):
     """Store one card (and its screenshot) under anki/<folder>/<deck>/.
 
@@ -463,6 +488,11 @@ def add_card(anki_dir, data):
     if card["kind"] == "opposites" and not card["opp"]:
         return {"ok": False,
                 "error": "an opposites card needs the opposite written in"}, 400
+    # A DUPLICATE IS ASKED ABOUT, NOT REFUSED (TO-DO 10.7), as an exercise deck asks (markdown/app/decks.py):
+    # the answer says the deck has it, and the page's button then reads "add it again", which sends `force`
+    if not data.get("force") and duplicate_of(ddir, card["kind"], card["fa"]):
+        return {"ok": False, "conflict": "duplicate",
+                "error": "this card is already in \u201c%s\u201d" % name}, 409
     shot = as_dict(data.get("shot"))
     if shot.get("data"):
         blob = base64.b64decode(shot["data"].split(",", 1)[-1])

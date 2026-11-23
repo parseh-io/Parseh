@@ -84,8 +84,10 @@ class Base(unittest.TestCase):
     def add(self, deck="English::Clips", **body):
         cdir = os.path.join(self.anki, "english", "english-clips", "cards")
         had = set(os.listdir(cdir)) if os.path.isdir(cdir) else set()
+        # the same front again and again, each time with other recordings: "add it again" (`force`), since a card
+        # a deck already has is asked about first (TO-DO 10.7)
         res, status = anki_store.add_card(self.anki, dict({"deck": deck, "deck_lang": "en",
-                                                           "card": self.card()}, **body))
+                                                           "card": self.card(), "force": True}, **body))
         self.assertEqual(status, 200, res)
         self.assertEqual(res["deck"]["path"], "english/english-clips")
         (made,) = set(os.listdir(cdir)) - had

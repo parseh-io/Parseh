@@ -16,6 +16,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'lib'))
 sys.path.insert(0, str(ROOT / 'youtube' / 'lib'))
+import anki_store  # noqa: E402
 import books      # noqa: E402
 import chunker    # noqa: E402
 import draft      # noqa: E402
@@ -151,6 +152,49 @@ class StartItEmptyFetches(unittest.TestCase):
         for why in ('offline', 'refused'):
             self.assertIn('video info', ytpages.FETCH_SAID[why])
             self.assertIn('Unknown channel', ytpages.FETCH_SAID[why])
+
+
+class AnkiDuplicateAsked(unittest.TestCase):
+    """10.7: a card the Anki deck already has is asked about, as an exercise deck asks; `force` adds it again."""
+
+    def add(self, anki, deck='Mots', **card):
+        c = dict({'lang': 'fr', 'kind': 'vocab', 'fa': 'la ville', 'en': 'the town'}, **card)
+        force = c.pop('force', False)
+        return anki_store.add_card(anki, {'deck': deck, 'deck_lang': 'fr', 'card': c, 'force': force})
+
+    def test_asked_then_added_again(self):
+        with tempfile.TemporaryDirectory() as anki:
+            self.assertEqual(self.add(anki)[1], 200)
+            res, status = self.add(anki, fa='  la\u00a0ville ', en='another meaning')
+            self.assertEqual((status, res.get('conflict')), (409, 'duplicate'), res)
+            self.assertIn('already in \u201cMots\u201d', res['error'])
+            cards = Path(anki) / 'french' / 'mots' / 'cards'
+            self.assertEqual(len(list(cards.glob('*.json'))), 1, 'nothing was written')
+            res, status = self.add(anki, force=True)
+            self.assertEqual(status, 200, res)
+            self.assertEqual(res['deck']['cards'], 2)
+
+    def test_not_a_duplicate(self):
+        with tempfile.TemporaryDirectory() as anki:
+            self.assertEqual(self.add(anki)[1], 200)
+            self.assertEqual(self.add(anki, fa='la vile')[1], 200, 'another front')
+            self.assertEqual(self.add(anki, kind='opposites', opp='le village')[1], 200, 'another note type')
+            self.assertEqual(self.add(anki, deck='Autres')[1], 200, 'another deck')
+
+    def test_every_language(self):
+        """The front is compared as it is written: right to left, CJK, decomposed marks alike."""
+        import unicodedata
+        with tempfile.TemporaryDirectory() as anki:
+            for code, text in SENTENCE.items():
+                with self.subTest(code=code):
+                    word = text.split()[0] if ' ' in text else text[:3]
+                    card = {'lang': code, 'kind': 'vocab', 'fa': word, 'en': 'x'}
+                    if languages.get(code).reading:
+                        card['kana'] = 'かな'
+                    body = {'deck': 'All', 'deck_lang': code, 'card': card}
+                    self.assertEqual(anki_store.add_card(anki, body)[1], 200)
+                    again = dict(body, card=dict(card, fa=unicodedata.normalize('NFD', word)))
+                    self.assertEqual(anki_store.add_card(anki, again)[1], 409)
 
 
 class NoProposeSaysWhy(unittest.TestCase):
