@@ -34,6 +34,7 @@ import tempfile
 import time
 import unicodedata
 import uuid
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -979,16 +980,39 @@ def local_target(data, taken=None):
 
 def oembed(vid):
     """The real title and channel, from YouTube's oEmbed answer (best effort)."""
+    return oembed_why(vid)[0]
+
+
+def oembed_why(vid):
+    """oembed(), and why it is empty when it is -> ({"title", "channel"} or {}, "" | "offline" | "refused").
+
+    "offline": YouTube did not answer (no network, or it is unreachable from here); "refused": it answered and
+    gave no title -- a private video, or an id that names none.  "Start it empty" says which (TO-DO 7.6)."""
     try:
         q = urllib.parse.urlencode({"url": "https://www.youtube.com/watch?v=" + vid,
                                     "format": "json"})
         with urllib.request.urlopen("https://www.youtube.com/oembed?" + q,
                                     timeout=6) as r:
             d = json.loads(r.read().decode("utf-8"))
-        return {"title": str(d.get("title") or ""),
-                "channel": str(d.get("author_name") or "")}
+        got = {"title": str(d.get("title") or ""),
+               "channel": str(d.get("author_name") or "")}
+        return (got, "") if got["title"] or got["channel"] else ({}, "refused")
+    except urllib.error.HTTPError:
+        return {}, "refused"
     except Exception:
-        return {}
+        return {}, "offline"
+
+
+# What "Start it empty" says when it could fetch no title or channel (TO-DO 7.6): the video is made either way, and
+# the two are filled in later, by hand, in the player's video info.
+FETCH_SAID = {
+    "offline": ("YouTube could not be reached, so its title and channel were not fetched: the video is called by "
+                "its id, and its channel is \u201cUnknown channel\u201d, until you fill them in \u2014 video info, "
+                "in the player\u2019s bar."),
+    "refused": ("YouTube gave no title for this video (it may be private, or the id names none), so the video is "
+                "called by its id, and its channel is \u201cUnknown channel\u201d, until you fill them in \u2014 "
+                "video info, in the player\u2019s bar."),
+}
 
 
 def parse_transcript_text(text, lang="fa"):
@@ -3030,10 +3054,14 @@ ADD_PAGE_JS = r'''
         res.innerHTML = '<div class="note good"><b>Drafted.</b> ' + j.captions + ' captions, ' +
           j.glossed + ' to gloss, ' + j.plain + ' plain, ' + j.chunks + ' blank chunks, in <code>videos/' +
           esc(j.folder) + '/' + esc(j.id) + '/</code>.' + esc(film) + ' <a href="' + esc(href) +
-          '"><b>Open the player &rarr;</b></a></div>';
+          '"><b>Open the player &rarr;</b></a></div>' +
+          // "sense groups" asked for and not (fully) given: said, with why, and the page stays (6.11)
+          (j.cut_note ? '<div class="note warn" id="cutnote">' + esc(j.cut_note) + '</div>' : '') +
+          // no title or channel could be fetched: said, and the page stays (7.6)
+          (j.fetch_note ? '<div class="note warn" id="fetchnote">' + esc(j.fetch_note) + '</div>' : '');
         try { localStorage.removeItem(KEY); } catch (e) {}
         if (stt) stt.videoAdded();
-        location.href = href;          // the glossing is done there, not here
+        if (!j.cut_note && !j.fetch_note) location.href = href;          // the glossing is done there, not here
       }).catch(function (e) { $('empty').disabled = false; $('estat').textContent = '';
         Parseh.toast(String(e), true); });
   };

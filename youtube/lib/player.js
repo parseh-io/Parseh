@@ -1808,14 +1808,15 @@
      what that box holds -- so it is made again, keeping its line, whenever
      the text or the reading is changed.  Propose is offered once the server
      has said, a single time for the page, that it can propose at all. */
-  var strip = null, proposing = null, canPropose = false;
+  var strip = null, proposing = null, canPropose = false, noPropose = '';
   function askPropose() {
     if (!proposing)
       proposing = fetch('/youtube/api/words', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ video: CFG.id, text: '' })
       }).then(function (r) { return r.json(); }).then(function (j) {
-        return (canPropose = !!(j && j.ok && j.available));
+        noPropose = (j && j.ok && j.why) || '';      // why not, and where the analyzers come from (6.12)
+        return (canPropose = !!(j && j.ok && j.available)) || !!noPropose;
       }).catch(function () { return false; });
     return proposing;
   }
@@ -1841,6 +1842,7 @@
           return j.available ? (j.words || '') : '';
         });
       };
+    else if (noPropose) o.nopropose = noPropose;
     if (strip) strip.destroy();
     strip = Parseh.wordstrip(o);
     box.appendChild(strip.el);
@@ -6108,7 +6110,10 @@
     }
     if (pressBusy()) return;
     var c = collectCard();
+    // a card the deck has already (10.7) is asked about, as an exercise deck's is: armed, a press adds it again
+    var force = dupArmed;
     var body = { deck: deckName, deck_lang: deckLang, card: c.card };
+    if (force) body.force = true;
     if (c.shot) body.shot = c.shot;
     if (c.clip) body.clip = c.clip;
     var p = press(c.clip ? ankiClip.clip : null, null);
@@ -6118,7 +6123,16 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     }).then(function (r) { return r.json(); }).then(function (res) {
+      if (!res.ok && res.conflict === 'duplicate' && !force) {
+        p.done(false);
+        if (!p.here()) { p.say(res.error + ' — nothing was saved', true); return; }
+        dupArmed = true;
+        A.saveLab.textContent = 'add it again';
+        A.stat.textContent = res.error + ' — press “add it again” to add a second one';
+        return;
+      }
       if (!res.ok) throw new Error(res.error || 'save failed');
+      unarm();
       p.done(true, null);
       localStorage.setItem('yt_deck', res.deck.folder + '/' + res.deck.slug);
       deckPicked = false;

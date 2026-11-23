@@ -236,6 +236,25 @@ def seeded(c):
     return "" if any((v or "").strip() for f, v in have.items() if f != field) else seed
 
 
+def glossing(chapters):
+    """(glossed, glossable) of a whole book: the chunks asked for a gloss (\\ch, not \\chp), and how many of
+    them have one -- texwrite._unglossed's answer, so the seeded reading of a drafted Japanese or Chinese chunk
+    is no gloss, as the checkers and the reader's rows (seeded()) have it.  The video card's count, for a book."""
+    import texwrite
+    glossed = glossable = 0
+    for ch in chapters:
+        for pp in ch.paragraphs:
+            for s in pp.subs:
+                for c in s.chunks:
+                    if not c.glossed or not (c.fa or "").strip():
+                        continue
+                    glossable += 1
+                    if not texwrite._unglossed({"kana": c.kana, "tr": c.tr, "voc": c.voc, "en": c.en,
+                                                "words": c.wordline or ""}, LANG):
+                        glossed += 1
+    return glossed, glossable
+
+
 def render_voc(voc):
     """The vocabulary line: each word of the language isolated, as \\pw does.
 
@@ -6285,7 +6304,10 @@ function saveAnki() {
     AN.opp.focus(); return; }
   if (pressBusy()) return;
   const c = collectCard();
+  // a card the deck has already (10.7) is asked about, as an exercise deck's is: armed, a press adds it again
+  const force = dupArmed;
   const body = { deck: deckName, deck_lang: deckLang, card: c.card };
+  if (force) body.force = true;
   if (c.clip) body.clip = c.clip;
   const p = press(c.clip ? ankiClip : null);
   p.note('saving…');
@@ -6293,7 +6315,16 @@ function saveAnki() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   }).then(r => r.json()).then(res => {
+    if (!res.ok && res.conflict === 'duplicate' && !force) {
+      p.done(false);
+      if (!p.here()) { p.say(res.error + ' — nothing was saved', true); return; }
+      dupArmed = true;
+      AN.saveLab.textContent = 'add it again';
+      tell(res.error + ' — press “add it again” to add a second one');
+      return;
+    }
     if (!res.ok) throw new Error(res.error || 'save failed');
+    unarm();
     p.done(true);
     localStorage.setItem('bk_deck', res.deck.folder + '/' + res.deck.slug);
     deckPicked = false;
@@ -8078,7 +8109,7 @@ function insertVoc(name) {
    and the reading box hold -- so it is made again, keeping its line,
    whenever either of them changes.  Propose is offered once the server has
    said, a single time for the page, that it can propose at all. */
-let chStrip = null, proposing = null, canPropose = false;
+let chStrip = null, proposing = null, canPropose = false, noPropose = '';
 // null takes the strip away
 function stripMake(value) {
   if (chStrip) { chStrip.destroy(); chStrip = null; }
@@ -8098,6 +8129,7 @@ function stripMake(value) {
         if (!j || !j.ok) throw new Error((j && j.error) || 'nothing could be proposed');
         return j.available ? (j.words || '') : '';
       });
+  else if (noPropose) o.nopropose = noPropose;     // why not, and where the analyzers come from (6.12)
   chStrip = Parseh.wordstrip(o);
   $('#chwords').appendChild(chStrip.el);
 }
@@ -8105,12 +8137,13 @@ function askPropose() {
   if (proposing) return;
   proposing = fetch('__words/propose', {method: 'POST',
       headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text: ''})})
-    .then(r => r.json()).then(j => { canPropose = !!(j && j.ok && j.available); })
+    .then(r => r.json()).then(j => { canPropose = !!(j && j.ok && j.available);
+                                      noPropose = (j && j.ok && j.why) || ''; })
     .catch(() => {})
     .then(() => {
-      // the sheet it was asked for gets the button -- unless somebody is at
+      // the sheet it was asked for gets the button (or the why of its absence) -- unless somebody is at
       // work in its strip, and then the next chunk opened has it
-      if (canPropose && chStrip && !chStrip.el.contains(document.activeElement))
+      if ((canPropose || noPropose) && chStrip && !chStrip.el.contains(document.activeElement))
         stripMake(chStrip.value());
     });
 }
@@ -11245,8 +11278,12 @@ def main():
     timed = sum(1 for t in subs if t[0] is not None)
     stamp = hashlib.sha1((body + tocpanel + json.dumps(subs) + CSS + JS)
                          .encode("utf-8")).hexdigest()[:6]
+    glossed, glossable = glossing(chapters)
     meta = {"chunks": len(times), "subs": len(subs), "timed": timed,
             "paragraphs": len(toc),
+            # the library card's "N of M chunks glossed" (lib/make_index.py card), counted here where every chunk
+            # is already in hand, so the library page reads two numbers and parses no book (6.19)
+            "glossed": glossed, "glossable": glossable,
             "build": stamp, "built": time.strftime("%H:%M"),
             "book": book.slug, "title": book.title,
             "title_latin": book.title_latin, "author": book.author_latin,

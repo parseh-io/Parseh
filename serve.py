@@ -181,6 +181,7 @@ import captimes            # noqa: E402  a caption's start, moved in every file 
 import reflow              # noqa: E402  text moved from one line of an added video to the line before or after it
 import wordline            # noqa: E402  a Japanese or Chinese chunk's word line, read
 import words               # noqa: E402  and one proposed, where the analyzers are installed
+import segmenter           # noqa: E402  and why there is no proposing where they are not (6.12)
 import audiofile           # noqa: E402  what a recording is, and ffmpeg's three jobs on one
 import clips               # noqa: E402  the tray a card's recording is cut into
 import guidebuild          # noqa: E402  the HTML guide: its files, and its compile as a job
@@ -3789,6 +3790,18 @@ class Handler(SimpleHTTPRequestHandler):
             if method != "GET":
                 return self._method_not_allowed()
             return self._shelf_backup("book")
+        # EACH BOOK'S GLOSSING AS IT STANDS NOW (6.19): the library page is a file written when a book is added,
+        # and a chunk glossed in the reader since then rebuilt the reader and not that page -- so the page asks
+        # here and puts the counts on its cards.  Two numbers a book, from the reader's head (make_index.stats)
+        if path == "/books/__glossing":
+            if method not in ("GET", "HEAD"):
+                return self._method_not_allowed()
+            got = {}
+            for b in booklib.all_books():
+                st = make_index.stats(b)
+                if isinstance(st.get("glossable"), int):
+                    got[b.rel_from_books()] = [st.get("glossed", 0), st["glossable"]]
+            return self.send_json({"ok": True, "books": got})
         # one segment or two: a book from before languages lies directly
         # under books/, is still read and still served (lib/books.py), and its
         # seams must not offer a + with no route behind it
@@ -4499,8 +4512,10 @@ class Handler(SimpleHTTPRequestHandler):
         if have and text.strip():
             with WORDS_LOCK:
                 line = words.line(text, L.code, reading or "")
+        # where there is no proposing, the sheet says why and where the analyzers come from (6.12)
         return self.send_json({"ok": True, "words": line, "available": have,
-                               "python": sys.executable})
+                               "python": sys.executable,
+                               "why": "" if have or not L.words else segmenter.why_not(L.code, NAME)})
 
     def _lookup_api(self, what):
         """What the reading help asks (/settings/reading-help/, lib/lookuppage.py):
@@ -6067,6 +6082,13 @@ class Handler(SimpleHTTPRequestHandler):
     def _video_empty(self):
         """A video whose captions are chunked and whose glosses are all blank."""
         body = self._json_body()
+        # THE TITLE AND THE CHANNEL, FETCHED AS THE LLM ROAD FETCHES THEM (YouTube's oEmbed, 7.6), where the
+        # person typed not both; what they typed wins.  No answer is said, and the video is made all the same.
+        said = {"title": (body.get("title") or "").strip(), "channel": (body.get("channel") or "").strip()}
+        vid = ytpages.video_id(body.get("video") or "") or ytpages.video_id(body.get("url") or "")
+        fetched, unfetched = {}, ""
+        if vid and not (said["title"] and said["channel"]):
+            fetched, unfetched = ytpages.oembed_why(vid)
         try:
             r = draft.video_from_transcript(
                 # The add page invites a .srt or .vtt to be pasted whole, and
@@ -6080,14 +6102,15 @@ class Handler(SimpleHTTPRequestHandler):
                 body.get("lang") or "",
                 gloss=body.get("gloss") or "",
                 video_id=(body.get("video") or body.get("url") or None),
-                url=body.get("url") or "", title=body.get("title") or "",
+                url=body.get("url") or "", title=said["title"] or fetched.get("title") or "",
                 title_native=body.get("title_native") or "",
-                channel=body.get("channel") or "",
+                channel=said["channel"] or fetched.get("channel") or "",
                 level=body.get("level") or "beginner",
                 blurb=body.get("blurb") or "", into=ytpages.VIDEOS,
                 how=chunk_way(body), variety=body.get("variety") or "")
         except ValueError as e:
             return self.send_json({"ok": False, "error": str(e)}, 400)
+        r["fetch_note"] = ytpages.FETCH_SAID.get(unfetched, "")
         self.send_json(dict(r, ok=True, **self._adopt_wave(body, r["dir"])))
 
     def _adopt_wave(self, body, video_dir):

@@ -426,6 +426,25 @@ def _cut_all(texts, code, how, variety=None):
     return chunker.chunk_all(texts, code, how, assist) if assist else chunker.chunk_all(texts, code, how)
 
 
+def _how_used(cuts, code, how, variety=None):
+    """What a person must be told about the cut they asked for -> {"how_used", "cut_note"} for the answer.
+
+    `how` is the way ASKED; "sense groups" can come back as one chunk per sentence where the language has
+    nothing here to cut by (chunker.phrase_short), and the add page says so and why rather than answering the
+    way asked as if it were the way used.  `cuts` is the cut, one list of chunks per sentence."""
+    if how != "phrase":
+        return {"how_used": how, "cut_note": ""}
+    cuts = [c for c in cuts if c]
+    whole = bool(cuts) and all(len(c) == 1 for c in cuts)
+    shown = code
+    if variety and languages.get_or_default(code).variety_of(variety):
+        shown = "%s.%s" % (languages.get_or_default(code).code, variety.strip().lower())
+    why = chunker.phrase_short(shown, chunker.assisting(code, variety) is not None, whole)
+    return {"how_used": "sentence" if whole else how,
+            "cut_note": ("Sense groups were asked for, but every sentence stayed one chunk: " if whole
+                         else "Sense groups were cut, but only partly: ") + why if why else ""}
+
+
 def _cuts_for(paras, L, how, variety=None):
     """Every sentence of the chapter, cut -> {(paragraph, sentence): [chunk]}.
 
@@ -613,6 +632,7 @@ def book_from_text(text, lang, title, gloss="", slug=None, author="",
            "sentences": n_sent, "chunks": n_chunk,
            "how": how,
            "dir": None, "files": files}
+    out.update(_how_used(list(cuts.values()), L.code, how, meta.get("variety")))
     if into:
         out["dir"] = _write(os.path.join(into, L.folder, slug), files, "book.json")
     return out
@@ -737,7 +757,8 @@ def add_to_book(book_dir, text, how=chunker.DEFAULT_WAY, chapter=None):
             "paragraphs": len(paras),
             "sentences": sum(len(sentences(p)) for p in paras),
             "chunks": sum(len(v) for v in cuts.values()),
-            "dir": book_dir, "files": sorted(written)}
+            "dir": book_dir, "files": sorted(written),
+            **_how_used(list(cuts.values()), L.code, how, variety)}
 
 
 def _add_input(main_tex, chapter_file):
@@ -955,6 +976,7 @@ def video_from_transcript(transcript, lang, gloss="", video_id=None, url="",
            "captions": len(captions), "glossed": len(want),
            "plain": len(captions) - len(want), "chunks": nchunks,
            "dir": None, "files": files}
+    out.update(_how_used(list(vcuts.values()), L.code, how, _variety(L, variety).get("variety")))
     if into:
         out["dir"] = _write(os.path.join(into, L.folder, vid), files,
                             "annotations.json")

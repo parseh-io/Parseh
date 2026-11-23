@@ -133,6 +133,15 @@ When the card is in, the sheet says so and closes itself a moment later:
 saved ✓ — “Persian::Market” (Persian) now has 1 card
 ```
 
+**A card the deck already holds** — the same type of card with the same
+front, which is what Anki itself calls a duplicate — is asked about first, as an
+exercise deck asks: the sheet says *this card is already in “Persian::Market”
+— press “add it again” to add a second one*, nothing is saved, and the
+button now reads **add it again**. Press it and a second card goes in.
+Change anything first — a field, the deck, the type — and the button goes
+back to **save card**, and the deck is asked again. It is the same in a
+book's reader and in a video's player, on a computer and on a phone.
+
 It waits a little longer when the card was filed under another language
 than the deck you picked (the answer then says so), and it does not close
 while the cut editor is open over it or once you have typed or clicked in

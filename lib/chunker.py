@@ -1106,6 +1106,34 @@ def phrase(text, lang, analysis=None):
     return _spaced(text, L, R, True) if have_dict else []
 
 
+def phrase_short(lang, assisted=False, whole=False):
+    """Why sense groups cannot be cut properly in this language on this machine, in a sentence a person reads
+    beside the result -> str, or "" where nothing is missing.  `assisted`: an analyzer is helping (assisting()).
+
+    The cases are the ones phrase() itself falls back in: a spaced language with no dictionary and no word lists
+    of its own is cut at its punctuation only (French, German, Spanish, Catalan, Hindi and Arabic ship no
+    lists), and an unspaced one with neither rules nor a dictionary is not cut at all.  Japanese and Chinese
+    always have their rules (closes, marks), so their sense groups are cut with or without the analyzers.
+    `whole`: every sentence of the text stayed one chunk, and that is said even where the lists were there."""
+    L = languages.get_or_default(lang)
+    R = rules(L.key)
+    if not L.spaced and (R.get("closes") or R.get("marks")):
+        return ""
+    name = L.name
+    if assisted or _have_dict(L):
+        return "no sentence had a place to cut it at: each was short enough to be one sense group." if whole else ""
+    if L.spaced and _lexicon(L.key):
+        return ("no %s dictionary is installed, and the short list of words Parseh knows without one found no "
+                "place to cut any sentence. A dictionary is fetched on Settings \u2192 Reading help." % name
+                if whole else "")
+    if L.spaced:
+        return ("no %s dictionary is installed, and without one nothing here can tell its words' parts of speech "
+                "apart, so a sentence was cut only at its commas and other punctuation, and a sentence with none "
+                "stayed one chunk. A dictionary is fetched on Settings → Reading help." % name)
+    return ("no %s dictionary is installed, and without one nothing here can find where its phrases end, so "
+            "every sentence stayed one chunk. A dictionary is fetched on Settings → Reading help." % name)
+
+
 def word_class(token, lang):
     """The class this chunker reads one word as -- "AUX", "VERB", "NOUN",
     "ADP" and the rest -- or "" where nothing can say.

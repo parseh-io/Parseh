@@ -488,6 +488,7 @@ html[data-lang="zh"] :is(.p1,.seg .fa) .wd[data-w] rt{
 .ws-note .ws-warn{color:var(--dim);padding-inline-start:8px;border-inline-start:2px solid var(--warn)}
 .ws-note .ws-warn+.ws-warn,.ws-note .ws-err+.ws-warn{margin-top:2px}
 .ws-note .ws-empty{color:var(--faint)}
+.ws-why{margin-top:6px;font-size:12px;line-height:1.45;color:var(--dim)}
 mark.pair-match{background:transparent;color:var(--accent);font-weight:600}
 .parseh-typo{max-height:calc(100vh - 90px);overflow-y:auto}
 html:not([data-mode=mobile]) .parseh-typo .trow:has(#st-sub){display:none}

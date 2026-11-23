@@ -932,6 +932,7 @@ def book_card(b):
     if st.get("built"):
         n = len(st.get("chapters", []))
         tags.append('<span class="tag">%d chapter%s</span>' % (n, "" if n == 1 else "s"))
+        tags.extend(make_index.gloss_tag(st))      # its glossing, as the computer's card says it (6.19)
         if b.has_audio:
             timed, subs = st.get("timed", 0), st.get("subs", 0)
             tags.append('<span class="tag on">narrated &middot; %d/%d timed</span>'
