@@ -199,6 +199,9 @@ serve._AtRoot.directory = str(tmp / 'root')
 ytpages.VIDEOS = str(tmp / 'root' / 'youtube' / 'videos')
 serve.ANKI = ytpages.ANKI = str(tmp / 'anki')
 ytpages.INBOX = str(tmp / 'anki' / 'inbox')
+# "Start it empty" asks YouTube for the title and the channel (TO-DO 7.6): here YouTube cannot be reached, as on a
+# computer with no network, and the page has to say so
+ytpages.oembed_why = lambda vid: ({}, 'offline')
 import mobile_harness
 
 def write_library(self):
@@ -872,7 +875,15 @@ try {
     eq(abroad.slice(nAsked), [], 'the add page asked nothing of the network, only the computer what it has');
     eq(asked.filter(x => /^\/lookup\/api\//.test(x)), ['/lookup/api/speech'], 'and the one thing it asked was that');
     const nAbroad = abroad.length;
-    await Promise.all([add.waitForURL(B + `/youtube/v/${VIDEO.id}/`, {timeout: 60000}), add.click('#empty')]);
+    // YouTube could not be reached for the title and the channel (TO-DO 7.6): the page stays, says so and how
+    // to fill them later, and the player is a click away
+    await add.click('#empty');
+    await add.waitForSelector('#fetchnote', {timeout: 60000});
+    const said = await add.textContent('#fetchnote');
+    assert(/YouTube could not be reached/.test(said) && /video info/.test(said),
+           'no network: "Start it empty" says the title and the channel were not fetched, and where to fill them: ' + said);
+    await Promise.all([add.waitForURL(B + `/youtube/v/${VIDEO.id}/`, {timeout: 60000}),
+                       add.click('#eresult a[href*="/youtube/v/"]')]);
     const page = add;
     await page.waitForSelector('#segs .seg .fa .w');
     await page.waitForFunction(() => window.__yt && document.querySelector('#novid').hidden);

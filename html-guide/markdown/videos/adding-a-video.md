@@ -506,9 +506,15 @@ checker counts such phrases and asks nothing else of them. Gloss them in the
 player, a phrase at a time or a run at a time by an LLM — see [A video still
 being glossed](video-info-and-drafts.md#drafts).
 
-On this road nothing is fetched from YouTube: the title is the one you type
-in the details, or the video's id, and the channel **Unknown channel** unless
-you name one. A video started empty cannot be started again over itself —
+The title and the channel are fetched from YouTube, as the LLM road fetches
+them, unless you typed both in the details: what you typed wins. When YouTube
+cannot be reached — no network — or gives no title (a private video, an id that
+names none), the video is made all the same, called by its id, with the channel
+**Unknown channel**, and the page does not jump to the player: it says so under
+*Drafted.*, with **Open the player →** beside it. Fill the two in whenever you
+like, in **video info** in the player's bar
+([Video info](video-info-and-drafts.md#video-info)). A film or a sound on this
+machine asks YouTube nothing. A video started empty cannot be started again over itself —
 *annotations.json already exists in … -- draft into a new name, or move that
 one out of the way* — so move the old one off the shelf first; only the LLM
 road can replace.

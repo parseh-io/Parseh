@@ -401,6 +401,10 @@ serve._AtRoot.directory = str(tmp / "root")
 ytpages.VIDEOS = str(tmp / "root" / "youtube" / "videos")
 serve.ANKI = ytpages.ANKI = str(tmp / "anki")
 ytpages.INBOX = str(tmp / "anki" / "inbox")
+
+# "Start it empty" fetches the title and the channel as the LLM road does (TO-DO 7.6): never YouTube itself
+# from a suite, so it is told what YouTube would say
+ytpages.oembed_why = lambda vid: ({"title": "A video", "channel": "A channel"}, "")
 sys.argv = ["serve.py", "--http", "--local", port]
 serve.main()
 `;

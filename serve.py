@@ -6052,6 +6052,13 @@ class Handler(SimpleHTTPRequestHandler):
     def _video_empty(self):
         """A video whose captions are chunked and whose glosses are all blank."""
         body = self._json_body()
+        # THE TITLE AND THE CHANNEL, FETCHED AS THE LLM ROAD FETCHES THEM (YouTube's oEmbed, 7.6), where the
+        # person typed not both; what they typed wins.  No answer is said, and the video is made all the same.
+        said = {"title": (body.get("title") or "").strip(), "channel": (body.get("channel") or "").strip()}
+        vid = ytpages.video_id(body.get("video") or "") or ytpages.video_id(body.get("url") or "")
+        fetched, unfetched = {}, ""
+        if vid and not (said["title"] and said["channel"]):
+            fetched, unfetched = ytpages.oembed_why(vid)
         try:
             r = draft.video_from_transcript(
                 # The add page invites a .srt or .vtt to be pasted whole, and
@@ -6065,14 +6072,15 @@ class Handler(SimpleHTTPRequestHandler):
                 body.get("lang") or "",
                 gloss=body.get("gloss") or "",
                 video_id=(body.get("video") or body.get("url") or None),
-                url=body.get("url") or "", title=body.get("title") or "",
+                url=body.get("url") or "", title=said["title"] or fetched.get("title") or "",
                 title_native=body.get("title_native") or "",
-                channel=body.get("channel") or "",
+                channel=said["channel"] or fetched.get("channel") or "",
                 level=body.get("level") or "beginner",
                 blurb=body.get("blurb") or "", into=ytpages.VIDEOS,
                 how=chunk_way(body), variety=body.get("variety") or "")
         except ValueError as e:
             return self.send_json({"ok": False, "error": str(e)}, 400)
+        r["fetch_note"] = ytpages.FETCH_SAID.get(unfetched, "")
         self.send_json(dict(r, ok=True, **self._adopt_wave(body, r["dir"])))
 
     def _adopt_wave(self, body, video_dir):

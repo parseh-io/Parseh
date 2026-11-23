@@ -56,6 +56,8 @@ sys.path[:0] = [os.path.join(root, "lib"), os.path.join(root, "youtube", "lib"),
 import stt_fakes, prefs, network, offline, ytpages
 sys.modules["getstt"] = stt_fakes.make(os.path.join(work, "fake"))
 ytpages.VIDEOS = os.path.join(work, "videos")
+# "Start it empty" asks YouTube for the title and the channel (TO-DO 7.6): never from a test
+ytpages.oembed_why = lambda vid: ({"title": "A video", "channel": "A channel"}, "")
 prefs.STORE = os.path.join(work, "config", "prefs.json")
 network.STORE = os.path.join(work, "config", "network.json")
 offline.DIGESTS = os.path.join(work, "config", "digests.json")

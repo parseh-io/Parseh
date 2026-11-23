@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'lib'))
+sys.path.insert(0, str(ROOT / 'youtube' / 'lib'))
 import books      # noqa: E402
 import chunker    # noqa: E402
 import draft      # noqa: E402
@@ -22,6 +23,7 @@ import languages  # noqa: E402
 import lookup     # noqa: E402
 import make_index  # noqa: E402
 import segmenter  # noqa: E402
+import ytpages    # noqa: E402
 
 # one sentence a language, long enough to have a phrase to cut, and no comma in it
 SENTENCE = {
@@ -120,6 +122,35 @@ class BookCardGlossing(unittest.TestCase):
 
     def test_a_reader_built_before_says_nothing(self):
         self.assertEqual(make_index.gloss_tag({'built': True, 'chunks': 12, 'subs': 3}), [])
+
+
+class StartItEmptyFetches(unittest.TestCase):
+    """7.6: the oEmbed answer, and which of two reasons it has none: no network, or YouTube said no."""
+
+    def answer(self, raised=None, body=b'{"title": "T", "author_name": "C"}'):
+        import io
+        import urllib.error
+
+        def urlopen(url, timeout=None):
+            self.assertIn('oembed', url)
+            if raised:
+                raise raised
+            return io.BytesIO(body)
+        with patch('urllib.request.urlopen', urlopen):
+            return ytpages.oembed_why('abcdefghijk')
+
+    def test_the_three_answers(self):
+        import urllib.error
+        self.assertEqual(self.answer(), ({'title': 'T', 'channel': 'C'}, ''))
+        self.assertEqual(self.answer(urllib.error.URLError('no network')), ({}, 'offline'))
+        self.assertEqual(self.answer(TimeoutError()), ({}, 'offline'))
+        self.assertEqual(self.answer(urllib.error.HTTPError('u', 404, 'Not Found', {}, None)), ({}, 'refused'))
+        self.assertEqual(self.answer(body=b'{}'), ({}, 'refused'))
+
+    def test_each_reason_is_said(self):
+        for why in ('offline', 'refused'):
+            self.assertIn('video info', ytpages.FETCH_SAID[why])
+            self.assertIn('Unknown channel', ytpages.FETCH_SAID[why])
 
 
 class NoProposeSaysWhy(unittest.TestCase):
