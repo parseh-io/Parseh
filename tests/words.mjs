@@ -23,7 +23,7 @@ const errors=[]; page.on('pageerror', e=>{errors.push(e.message);console.log('PA
 // FOUND rather than answered with the page, which a browser reads as a
 // script full of syntax errors ("Unexpected token '<'").
 const LAYERS = ['activity.js', 'prefs.js', 'keep.js', 'explain.js', 'pagezoom.js',
-                'narrctl.js', 'wordtouch.js', 'mobileplayer.js'];
+                'narrctl.js', 'wordtouch.js', 'mobileplayer.js', 'guidelink.js'];
 const isLayer = p => LAYERS.some(n => p.endsWith('/' + n));
 await page.route(u => u.href.startsWith('http://parseh.test/') && isLayer(u.pathname),
                  route => route.fulfill({status:404, body:''}));

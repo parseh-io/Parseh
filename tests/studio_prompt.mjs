@@ -761,7 +761,8 @@ async function suite(mode) {
       // THE STUDIO RUN ON ITS OWN has no /lib/ of the toolbox (the pages say so in a comment: lib/activity.js is serve.py's;
       // so is lib/prefs.js, which the edit page loads since a0.5.0 so that the theme follows a person -- the gear's own two
       // files, which it answers for itself, are not asked for in vain)
-      if (!base) { forgive(/: 404 \/lib\/activity\.js$/); forgive(/: 404 \/lib\/prefs\.js$/); }
+      // and lib/guidelink.js, the guide link of every bar (15.10), is the toolbox's too
+      if (!base) { forgive(/: 404 \/lib\/activity\.js$/); forgive(/: 404 \/lib\/prefs\.js$/); forgive(/: 404 \/lib\/guidelink\.js$/); }
       eq(problems, [], 'every page of this run stayed quiet');
     });
   } finally {

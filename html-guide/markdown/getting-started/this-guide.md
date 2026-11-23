@@ -19,7 +19,7 @@ put on any website.
 - the **guide** button of the clip tray's top bar, which opens it in a tab
   of its own;
 - the **guide** button in the top bar of every other page — a book's
-  reader, the book library, a video's page, the video index, the pages that
+  reader, the book library, the video index, the pages that
   add a book or a video, a document and its editor, a deck, the Anki page,
   Settings — which opens the page of this guide about that page.
 
@@ -28,7 +28,8 @@ the list of exercise decks, and every page's bar in the
 [mobile interface](mobile-mode.md). There **The guide to this page** is a
 line at the foot of the page. On every page with a **⚙** it is also at the
 foot of the gear's sheet, under *Parseh's own settings*: that is where a
-book's reader and a video's page have it on a phone.
+book's reader has it on a phone, and where a video's page has it everywhere,
+its top bar being full.
 
 Served by Parseh, every page of the guide has a **Parseh** link in its top
 bar, back to the hub.

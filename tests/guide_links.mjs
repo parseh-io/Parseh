@@ -51,7 +51,7 @@ const DOORS = [
   ['a reader (Japanese)', MADE.readers.ja, 'books/reader.html', 'gear'],
   ['adding a book', '/books/add/', 'books/adding.html'],
   ['the video index', '/youtube/', 'videos/finding-a-video.html'],
-  ['the player', `/youtube/v/${MADE.video}/`, 'videos/the-player.html', 'gear'],
+  ['the player', `/youtube/v/${MADE.video}/`, 'videos/the-player.html', 'sheet'],
   ['adding a video', '/youtube/add/', 'videos/adding-a-video.html'],
   ['the phone shelf of books', '/m/books/', 'getting-started/mobile-mode.html'],
   ['the phone shelf of videos', '/m/videos/', 'getting-started/mobile-mode.html'],
@@ -112,21 +112,22 @@ for (const [tag, opts, mode] of [
       const stay = await page.$('.pf-bar .pf-stay');
       if (stay) await stay.click().catch(() => {});
       links = await seen(page);
-      if (links.length || await page.evaluate(ph => !!(window.ParsehGuide && ((ph && document.querySelector('[data-parseh-gear]')) ||
+      if (links.length || await page.evaluate(ph => !!(window.ParsehGuide && (((ph || document.querySelector('header[data-px-guide="sheet"]')) && document.querySelector('[data-parseh-gear]')) ||
                                                     document.querySelector('.px-guide-end a'))), tag === 'phone'))
         break;
     }
     // THE PHONE'S BAR HAS NO ROOM: its line at the foot of the page, scrolled to as a thumb does
     // (the /m/ pages wear the phone's bar alone, on a computer too)
     let foot = false;
-    if (!links.length && phoneWhere !== 'gear' && await page.$('.px-guide-end a')) {
+    if (!links.length && phoneWhere !== 'gear' && phoneWhere !== 'sheet' && await page.$('.px-guide-end a')) {
       await sleep(600);              // what the page draws after it loads must not take the line away
       await page.locator('.px-guide-end a').scrollIntoViewIfNeeded();
       await sleep(200);
       links = (await seen(page)).filter(a => a.text === 'The guide to this page');
       foot = true;
     }
-    if (tag === 'phone' && phoneWhere === 'gear' && !links.length) {
+    // 'sheet': the gear's sheet on the computer too (the player's header has no room: youtube/lib/player.html)
+    if (((tag === 'phone' && phoneWhere === 'gear') || phoneWhere === 'sheet') && !links.length) {
       await gearOpen(page);
       await sleep(300);
       // at the foot of the sheet's list, under Parseh's settings: scrolled to, as a thumb does
@@ -146,7 +147,7 @@ for (const [tag, opts, mode] of [
     assert(await served(a.href), `${tag}: ${name}: ${a.href} is a page this Parseh serves`);
     // as tall as the bar's own button beside it: a phone's bar is made for a finger, and the link is too
     if (foot) assert(a.h >= 44, `${tag}: ${name}: a finger finds the line at the foot (${Math.round(a.w)}×${Math.round(a.h)} px)`);
-    else if (phoneWhere !== 'gear' || tag === 'computer')
+    else if (phoneWhere !== 'sheet' && (phoneWhere !== 'gear' || tag === 'computer'))
       assert(a.h >= a.th - 1, `${tag}: ${name}: as easy to press as the bar's own button beside it (${Math.round(a.w)}×${Math.round(a.h)} px, beside ${Math.round(a.th)})`);
     // and no bar wears two
     const twice = await page.evaluate(() => [...document.querySelectorAll('.parseh-bar, header.topbar, header.m-topbar, body > header')]

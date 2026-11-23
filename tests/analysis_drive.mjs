@@ -165,7 +165,16 @@ try {
     await page.fill('#slug', slug);
     await page.fill('#chtext', TEXT);
     await page.selectOption('#how', 'phrase');
-    await Promise.all([page.waitForURL(`${B}/books/italian/${slug}/reader/`, {timeout: 60000}), page.click('#mkempty')]);
+    // the page goes to the reader, unless the cut was not the one asked for: then it stays to say why (6.11; this
+    // tree has no Italian dictionary) and a person presses "Open the reader" under the note
+    await page.click('#mkempty');
+    const to = `${B}/books/italian/${slug}/reader/`;
+    // (the one that loses the race settles quietly later: no unhandled rejection)
+    const went = await Promise.race([page.waitForURL(to, {timeout: 60000}).then(() => true, () => null),
+                                     page.waitForSelector('#eresult #cutnote', {timeout: 60000}).then(() => false, () => null)]);
+    if (went === null) throw Error(`${slug}: neither the reader nor a note on the cut after 60 s`);
+    if (!went)
+      await Promise.all([page.waitForURL(to, {timeout: 60000}), page.click(`#eresult a[href="/books/italian/${slug}/reader/"]`)]);
     return JSON.parse(await py(CHUNKS, `${TMP}/root/books/italian/${slug}/ch1.tex`));
   }
   console.log('a) new text');

@@ -95,7 +95,9 @@ const KNOWN = [/\/mt\/(en-en|engine)\/meta\.json/, /Failed to load resource: the
 const errors = [];
 function watch(page, label) {
   page.on('pageerror', e => errors.push(`${label}: pageerror: ${e.message}`));
-  page.on('console', m => { if (m.type() === 'error' && !KNOWN.some(k => k.test(m.text()))) errors.push(`${label}: console: ${m.text()}`); });
+  // and the one 409 the video's cards are meant to meet: a card its Anki deck has already is asked about (10.7, scene e)
+  const asked = m => /status of 409/.test(m.text()) && /\/anki\/cards$/.test((m.location() || {}).url || '');
+  page.on('console', m => { if (m.type() === 'error' && !KNOWN.some(k => k.test(m.text())) && !asked(m)) errors.push(`${label}: console: ${m.text()}`); });
 }
 async function shot(page, name, opts) {
   if (!SHOTS) return;
@@ -815,6 +817,11 @@ await scene('e) the video, with a mouse: the four ways, the dotted line, the lis
   await page.waitForFunction(() => !document.getElementById('anki').hidden && document.querySelector('#anki .lq-strip'));
   eq(await page.evaluate(() => [document.querySelector('.lq-n').textContent, afa.value]), ['item 1 of 3', 'The market'], 'one after another: «item 1 of 3»');
   await page.click('#atanki');
+  await page.click('#asave');
+  // "The market" went to Later::Video above: the deck has it, so the sheet asks first (10.7) and the queue waits
+  await page.waitForFunction(() => /add it again/.test(document.getElementById('astat').textContent), null, {timeout: 8000});
+  eq(await page.evaluate(() => [document.querySelector('.lq-n').textContent, afa.value]), ['item 1 of 3', 'The market'],
+     'a card the deck has already: the sheet asks «add it again», and the queue stays on it');
   await page.click('#asave');
   await page.waitForFunction(() => document.querySelector('.lq-n') && document.querySelector('.lq-n').textContent === 'item 2 of 3' && afa.value === 'opens early.', null, {timeout: 8000});
   await page.click('.lq-skip');

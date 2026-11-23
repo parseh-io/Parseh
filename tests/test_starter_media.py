@@ -106,7 +106,8 @@ class Fake:
         self.sent = (status, payload)
 
     def send_file(self, path, download_name=None, inline_type=None):
-        self.sent = ("file", Path(path), download_name)
+        # read now: a route may delete its temporary file once the answer is sent (the studio's Backup)
+        self.sent = ("file", Path(path), download_name, Path(path).read_bytes())
 
     def send_bytes(self, data, ctype, status=200, headers=None):
         self.sent = (status, ctype, data)
@@ -358,9 +359,11 @@ class AdoptTests(LibraryCase):
         # the library's Backup, put back over an emptied library
         h = Fake()
         server.api_export(h)
-        self.assertEqual(h.sent[:2], (200, "application/zip"))
+        # sent from a file in Parseh's .tmp/ (a library carries every recording), named as a zip
+        self.assertEqual(h.sent[0], "file")
+        self.assertTrue(h.sent[2].endswith(".zip"), h.sent[2])
         shutil.rmtree(store.doc_dir(doc))
-        self.assertEqual(store.import_library(h.sent[2])["restored"], [doc])
+        self.assertEqual(store.import_library(h.sent[3])["restored"], [doc])
         self.assertEqual(len(store.starter_media_held(doc)), 3)
         self.save(doc, EVERYWHERE)
         self.assertEqual(self.files(doc, "images"), ["starter-apple.svg"],
@@ -529,10 +532,10 @@ class PreviewTests(LibraryCase):
             self.assertIsNone(re.match(route, bad), bad)
         h = Fake()
         server.serve_starter_media(h, "images", "starter-house.svg")
-        self.assertEqual(h.sent, ("file", HOUSE, None))
+        self.assertEqual(h.sent[:3], ("file", HOUSE, None))
         h = Fake()
         server.serve_starter_media(h, "audio", "starter-chime.mp3")
-        self.assertEqual(h.sent, ("file", CHIME, None))
+        self.assertEqual(h.sent[:3], ("file", CHIME, None))
         for kind, name in (("images", "cat.png"), ("audio", "starter-house.svg")):
             h = Fake()
             server.serve_starter_media(h, kind, name)

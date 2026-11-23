@@ -24,7 +24,11 @@ header a.home:hover{color:var(--accent);border-color:var(--accent)}
    speaks: the registry's Persian alternate face, by its token */
 header a.home.glyph{font-family:var(--tl-alt-fa,serif);
   color:var(--accent);padding:2px 9px 6px}
-header .ttl{display:flex;align-items:baseline;gap:8px;min-width:0}
+/* the title takes the room the buttons leave, from nothing (flex-basis 0) down to a floor of 7em: in a row that
+   wraps, an item is placed by its own size before anything shrinks, so a title placed whole sent the gear down a
+   line as soon as the row was full to the pixel (a0.6.3: the hub's glyph one pixel wider did it) -- placed from
+   nothing it is cut short first, as the note on .lat below says it should be */
+header .ttl{display:flex;align-items:baseline;gap:8px;min-width:7em;flex:1000 1 0}
 /* the native title, in the language's alternate face (nastaliq for
    Persian, gothic for Japanese; the main face where there is none) */
 header .ttl .fa-ttl{font-family:var(--tl-alt,var(--tl-font,serif));

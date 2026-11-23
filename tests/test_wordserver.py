@@ -435,16 +435,18 @@ class ServerTests(unittest.TestCase):
     # --- the proposals
     def assertProposal(self, status, j, text, code, door):
         self.assertEqual(status, 200, j)
-        self.assertEqual(set(j), {"ok", "words", "available", "python"})
+        self.assertEqual(set(j), {"ok", "words", "available", "python", "why"})
         self.assertIs(j["ok"], True)
         self.assertEqual(os.path.realpath(j["python"]), os.path.realpath(sys.executable))
         if words.available(code):
             self.assertIs(j["available"], True)
+            self.assertEqual(j["why"], "", "nothing to explain where it proposes")
             errors, _ = wordline.check(text, j["words"], languages.get(code), door=door)
             self.assertTrue(j["words"])
             self.assertEqual(errors, [], j["words"])
         else:
             self.assertIs(j["available"], False, "no analyzer in %s" % sys.executable)
+            self.assertTrue(j["why"], "where it cannot propose, it says why (6.12)")
             self.assertEqual(j["words"], "")
 
     def test_a_book_proposes_a_line(self):
