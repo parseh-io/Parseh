@@ -8078,7 +8078,7 @@ function insertVoc(name) {
    and the reading box hold -- so it is made again, keeping its line,
    whenever either of them changes.  Propose is offered once the server has
    said, a single time for the page, that it can propose at all. */
-let chStrip = null, proposing = null, canPropose = false;
+let chStrip = null, proposing = null, canPropose = false, noPropose = '';
 // null takes the strip away
 function stripMake(value) {
   if (chStrip) { chStrip.destroy(); chStrip = null; }
@@ -8098,6 +8098,7 @@ function stripMake(value) {
         if (!j || !j.ok) throw new Error((j && j.error) || 'nothing could be proposed');
         return j.available ? (j.words || '') : '';
       });
+  else if (noPropose) o.nopropose = noPropose;     // why not, and where the analyzers come from (6.12)
   chStrip = Parseh.wordstrip(o);
   $('#chwords').appendChild(chStrip.el);
 }
@@ -8105,12 +8106,13 @@ function askPropose() {
   if (proposing) return;
   proposing = fetch('__words/propose', {method: 'POST',
       headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text: ''})})
-    .then(r => r.json()).then(j => { canPropose = !!(j && j.ok && j.available); })
+    .then(r => r.json()).then(j => { canPropose = !!(j && j.ok && j.available);
+                                      noPropose = (j && j.ok && j.why) || ''; })
     .catch(() => {})
     .then(() => {
-      // the sheet it was asked for gets the button -- unless somebody is at
+      // the sheet it was asked for gets the button (or the why of its absence) -- unless somebody is at
       // work in its strip, and then the next chunk opened has it
-      if (canPropose && chStrip && !chStrip.el.contains(document.activeElement))
+      if ((canPropose || noPropose) && chStrip && !chStrip.el.contains(document.activeElement))
         stripMake(chStrip.value());
     });
 }

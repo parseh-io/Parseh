@@ -179,6 +179,7 @@ import captimes            # noqa: E402  a caption's start, moved in every file 
 import reflow              # noqa: E402  text moved from one line of an added video to the line before or after it
 import wordline            # noqa: E402  a Japanese or Chinese chunk's word line, read
 import words               # noqa: E402  and one proposed, where the analyzers are installed
+import segmenter           # noqa: E402  and why there is no proposing where they are not (6.12)
 import audiofile           # noqa: E402  what a recording is, and ffmpeg's three jobs on one
 import clips               # noqa: E402  the tray a card's recording is cut into
 import guidebuild          # noqa: E402  the HTML guide: its files, and its compile as a job
@@ -4474,8 +4475,10 @@ class Handler(SimpleHTTPRequestHandler):
         if have and text.strip():
             with WORDS_LOCK:
                 line = words.line(text, L.code, reading or "")
+        # where there is no proposing, the sheet says why and where the analyzers come from (6.12)
         return self.send_json({"ok": True, "words": line, "available": have,
-                               "python": sys.executable})
+                               "python": sys.executable,
+                               "why": "" if have or not L.words else segmenter.why_not(L.code, NAME)})
 
     def _lookup_api(self, what):
         """What the reading help asks (/settings/reading-help/, lib/lookuppage.py):

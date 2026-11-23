@@ -89,5 +89,24 @@ class SenseGroupsFellBack(unittest.TestCase):
             self.assertIn('Spanish', v['cut_note'])
 
 
+class NoProposeSaysWhy(unittest.TestCase):
+    """6.12: with no analyzers, the answer the word strip reads says why, and where they come from."""
+
+    def test_without_the_analyzers(self):
+        with patch.object(segmenter, 'available', lambda code: False):
+            for code, name in (('ja', 'SudachiPy'), ('zh', 'spacy-pkuseg and pypinyin')):
+                with self.subTest(code=code):
+                    why = segmenter.why_not(code, 'Parseh')
+                    self.assertIn(name, why)
+                    self.assertIn(sys.executable, why)
+                    self.assertIn('installer', why)
+                    self.assertNotIn('pip', why, 'no command to type')
+
+    def test_with_them_or_another_language(self):
+        with patch.object(segmenter, 'available', lambda code: True):
+            self.assertEqual(segmenter.why_not('ja'), '')
+        self.assertEqual(segmenter.why_not('fa'), '')
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -82,6 +82,27 @@ def available(code):
         return False
 
 
+def why_not(code, name=None):
+    """Why a page offers no "propose" for this language's word line, and where the analyzers come from, in a
+    sentence for the page -> str, or "" when this Python has them (or the language divides into no words).
+
+    NO COMMAND IN IT: a person on Windows reads it, and the analyzers are part of Parseh's own environment
+    (lib/runtime.py PACKAGES), which the installers and the Windows start-up wizard complete."""
+    b = BACKENDS.get(code)
+    if not b or available(code):
+        return ""
+    n = name or "Parseh"
+    if code == "ja":
+        said = "SudachiPy, which divides Japanese into words and reads them in kana, is"
+        it = "It is part of %s's own environment: %s's installer puts it there" % (n, n)
+    else:
+        said = "%s, which divide Chinese into words and read them in pinyin, are" % b["analyzer"]
+        it = "They are part of %s's own environment: %s's installer puts them there" % (n, n)
+    return ("No \u201cpropose\u201d here: %s not installed in the Python %s is running with (%s). %s, and on "
+            "Windows starting %s offers to add what the environment lacks. Until then a chunk's words are "
+            "divided by hand, and everything else works without them." % (said, n, sys.executable, it, n))
+
+
 def about(code):
     b = BACKENDS.get(code)
     if not b:

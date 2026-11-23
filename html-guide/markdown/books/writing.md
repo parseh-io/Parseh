@@ -227,6 +227,11 @@ right:
 | write the line itself | **edit as text**: the line as it is stored, `山(やま) へ 柴刈り(しばかり) に`, and the chips redrawn whenever what you type can be read |
 | start again | **propose** asks the machine once more (and asks you first, if what is there is not its last proposal: *What is written here now is lost*); **divide by hand** starts a chunk that has no words from its whole text as one word |
 
+Where SudachiPy (Japanese) or pkuseg and pypinyin (Chinese) are not installed in the Python Parseh runs
+with, there is no **propose**: in its place **why no propose?** says so, names that Python, and says where
+they come from — Parseh's own environment, which its installer fills, and which on Windows starting Parseh
+offers to complete. Every other part of the strip works without them.
+
 Under the chips the strip says what is wrong with the line as it stands. An
 **error** — the words do not join back into the text, a reading put in
 fullwidth brackets — refuses the save, as the checker would. A **warning**
