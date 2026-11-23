@@ -164,5 +164,28 @@ class TheAddABookPage(unittest.TestCase):
         self.assertNotIn("build.sh", newbook.MAIN_TEX)
 
 
+class TheBundleNote(unittest.TestCase):
+    """5.7: a text bundle over a narrated book says a build restores the timings."""
+
+    def test_says_the_build_writes_them_back(self):
+        import json
+        import tempfile
+        import bundle
+        with tempfile.TemporaryDirectory() as tmp:
+            old, dest = Path(tmp, "old"), Path(tmp, "dest")
+            old.mkdir()
+            dest.mkdir()
+            (old / "book.json").write_text(json.dumps({"audio": "audio/a.m4a"}), encoding="utf-8")
+            (dest / "book.json").write_text("{}", encoding="utf-8")
+            (dest / "audio").mkdir()
+            (dest / "audio" / "a.m4a").write_bytes(b"x")
+            (note,) = bundle._reattach(str(dest), str(old), ["audio", "timings.json"])
+        self.assertNotRegex(note, COMMAND)
+        self.assertNotIn("timestamp.py", note)
+        self.assertIn("comments, which is what the reader reads them from: the next build of the book "
+                      "(build on its card in the library) writes them back", note)
+        self.assertIn("`% @par`", note)
+
+
 if __name__ == "__main__":
     unittest.main()
