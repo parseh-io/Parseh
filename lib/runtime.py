@@ -76,6 +76,8 @@ PACKAGES = (
     ("pypinyin", "pypinyin", "reading Chinese words in pinyin"),
     ("zstandard", "zstandard", "opening a modern Anki export"),
     ("numpy", "numpy", "estimating timings by the sound of a recording"),
+    ("PIL", "Pillow", "printing a WebP or GIF picture in a studio PDF, and a HEIC turned into a JPEG"),
+    ("pillow_heif", "pillow-heif", "reading a phone's HEIC picture"),
 )
 # (the program, the name environment.yml gives it, what it is for): programs
 # the environment carries, so that no machine has to find them for itself

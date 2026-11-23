@@ -765,8 +765,8 @@ def api_image_upload(h, folder, slug):
     raw = h._body() or b""
     if not raw:
         raise decks.DeckError("the upload is empty: send the picture as the body")
-    if store._img_kind(bytes(raw)) is None:
-        raise decks.DeckError("only PNG, JPEG, SVG and PDF pictures can be added")
+    if store._img_kind(bytes(raw)) is None and not store._is_heif(bytes(raw)):
+        raise decks.DeckError("only %s pictures can be added" % store.IMG_FORMATS)
     name = decks.add_image(folder, slug, _q1(h, "name", "img") or "img", bytes(raw))
     h.send_json({"ok": True, "name": name, "path": "images/" + name,
                  "url": _asset_base(folder, slug) + "images/" + name}, 201)

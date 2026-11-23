@@ -260,9 +260,10 @@ def stage_images(images, outdir):
     test.
 
     XeLaTeX reads no SVG, so each becomes the sibling `.svg.pdf` that
-    texgen's \\includegraphics points at.  Raises if a conversion fails --
-    the caller knows what that means to whoever asked.  Returns whether
-    there were any images at all.
+    texgen's \\includegraphics points at; nor WebP nor GIF, so each becomes a
+    sibling `.webp.png` / `.gif.png` (texgen.tex_picture), a GIF its first
+    frame.  Raises if a conversion fails -- the caller knows what that means
+    to whoever asked.  Returns whether there were any images at all.
     """
     images = Path(images)
     if not images.is_dir():
@@ -273,7 +274,30 @@ def stage_images(images, outdir):
         import pymupdf
         with pymupdf.open(str(svg)) as sd:
             svg.with_name(svg.name + ".pdf").write_bytes(sd.convert_to_pdf())
+    for pic in sorted(list(dst.glob("*.webp")) + list(dst.glob("*.gif"))):
+        png_twin(pic, pic.with_name(pic.name + ".png"))
     return True
+
+
+def png_twin(src, out):
+    """Write a WebP's or a GIF's first frame to `out` as a PNG, for paper.
+
+    Needs Pillow (environment.yml); without it the words say so plainly,
+    as the PDF build's error, rather than a traceback."""
+    try:
+        from PIL import Image
+    except ImportError:
+        raise RuntimeError(
+            "%s is a %s picture, and printing one needs the package Pillow, which the Python "
+            "running Parseh does not have. It is one of the packages Parseh's installer adds, "
+            "and an update from Settings adds it too; until then the page shows the picture, "
+            "and the PDF cannot" % (Path(src).name, Path(src).suffix[1:].upper().replace("WEBP", "WebP")))
+    with Image.open(str(src)) as im:
+        im.seek(0)                      # an animated one: its first frame
+        im.load()
+        frame = im.convert("RGBA" if ("transparency" in im.info or im.mode in ("RGBA", "LA", "PA"))
+                           else "RGB")
+    frame.save(str(out), "PNG")
 
 
 def ensure_all(verbose=True):

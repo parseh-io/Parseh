@@ -64,6 +64,8 @@ computer's own Python is never touched:
 | pypinyin | reading Chinese words in pinyin |
 | zstandard | opening a modern Anki export |
 | numpy | estimating the timings by the sound ([Fixing the timings](../books/timings.md#estimate-the-rest-by-the-text-or-by-the-sound)) |
+| Pillow | printing a WebP or GIF picture in a studio document's PDF, and turning a HEIC into a JPEG ([Pictures and recordings](../studio/editor-media.md)) |
+| pillow-heif | reading a phone's HEIC picture, for Pillow |
 
 The environment also carries two programs of its own, `openssl` (the
 certificate) and `deno` (the browser tests), so that no computer has to

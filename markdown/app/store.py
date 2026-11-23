@@ -1667,10 +1667,28 @@ def set_run_kana(doc_id, text, occurrence, kana):
 
 # ---- images -----------------------------------------------------------
 
-IMG_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9._\-]*\.(png|jpe?g|svg|pdf)$")
+IMG_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9._\-]*\.(png|jpe?g|webp|gif|svg|pdf)$")
 IMG_MAGIC = {b"\x89PNG\r\n\x1a\n": ".png", b"\xff\xd8\xff": ".jpg",
-             b"%PDF-": ".pdf"}
+             b"GIF87a": ".gif", b"GIF89a": ".gif", b"%PDF-": ".pdf"}
 IMG_MAX = 15 * 1024 * 1024
+# What every door that takes a picture says it takes, in one place.  HEIC is
+# among them although no picture is ever STORED as one: it is turned into a
+# JPEG as it comes in (intake_image).
+IMG_FORMATS = "PNG, JPEG, WebP, GIF, HEIC, SVG and PDF"
+
+# THE FORMATS, AND WHY EACH IS STORED AS IT IS (TO-DO 8.19, a0.6.3):
+#   PNG, JPEG       go everywhere as they are.
+#   WebP, GIF       kept as they came: every browser Parseh supports shows
+#                   both, Anki shows both, and a GIF keeps its animation on
+#                   the page.  XeLaTeX reads neither, so the studio's PDF
+#                   build makes a PNG of each beside its copy (<name>.webp.png,
+#                   <name>.gif.png -- a GIF's first frame), as it makes an
+#                   SVG's PDF: envsetup.stage_images, with Pillow.
+#   HEIC / HEIF     what a phone's camera saves; almost no browser shows it,
+#                   so it is turned into a JPEG at intake (the picture turned
+#                   upright as its EXIF says) and only the JPEG is kept: the
+#                   original would be a second copy nothing can show.  Needs
+#                   Pillow and pillow-heif, which environment.yml lists.
 
 # Each of the two vector formats is unreadable by one of the two
 # renderers, so each gets a sibling twin made where it is missing — and
@@ -1681,7 +1699,9 @@ IMG_MAX = 15 * 1024 * 1024
 #                             shows no PDF inside a figure
 # Glyphs are written as outlines, so the SVG needs none of the original
 # PDF's fonts to render exactly as the PDF does.
-DERIVED_RE = re.compile(r"\.(?:pdf\.svg|pdf\.png|svg\.pdf)$")
+#   *.webp, *.gif -> <name>.webp.png, <name>.gif.png   at build time, the
+#                             same way, and only in the build's own copy
+DERIVED_RE = re.compile(r"\.(?:pdf\.svg|pdf\.png|svg\.pdf|webp\.png|gif\.png)$")
 
 
 def images_dir(doc_id):
@@ -1689,9 +1709,14 @@ def images_dir(doc_id):
 
 
 def _img_kind(data):
+    """The extension a stored picture of these bytes has, or None.  A HEIC is
+    None here: it is not a picture Parseh keeps, but one it converts
+    (intake_image), so a zip or a tray holding one is not taken as it is."""
     for magic, ext in IMG_MAGIC.items():
         if data.startswith(magic):
             return ext
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return ".webp"
     # SVG is text: look for an <svg root in the first kilobyte
     head = data[:1024].lstrip(b"\xef\xbb\xbf \t\r\n").lower()
     if head.startswith(b"<?xml") or head.startswith(b"<svg") \
@@ -1700,16 +1725,97 @@ def _img_kind(data):
     return None
 
 
+# HEIF's brands (the `ftyp` box an ISO media file opens with): the HEVC
+# ones a camera writes, and the general image ones -- unless the file also
+# names AVIF, which is another format that merely shares the box.
+_HEIF_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"hevm", b"hevs",
+                b"mif1", b"msf1"}
+
+
+def _is_heif(data):
+    """Whether the bytes are a HEIC/HEIF picture, by their `ftyp` box."""
+    if len(data) < 16 or data[4:8] != b"ftyp":
+        return False
+    size = int.from_bytes(data[:4], "big")
+    if size < 16 or size > 4096:
+        return False
+    box = data[8:min(size, len(data))]
+    brands = {box[i:i + 4] for i in range(0, len(box) - 3, 4)} - {box[4:8]}  # not the minor version
+    if b"avif" in brands or b"avis" in brands:
+        return False
+    return bool(brands & _HEIF_BRANDS)
+
+
+class MissingPackage(Exception):
+    """A picture needs a package the Python running Parseh lacks."""
+
+
+def heif_to_jpeg(data):
+    """A HEIC/HEIF picture's bytes -> a JPEG's: its first image, turned
+    upright as its EXIF says (a phone stores a portrait photo lying on its
+    side and a note that says so), in its colour profile, with no other
+    metadata (where it was taken stays on the phone).  Raises
+    MissingPackage when Pillow or pillow-heif is not there."""
+    try:
+        from PIL import Image, ImageOps
+    except ImportError:
+        raise MissingPackage("Pillow")
+    try:
+        import pillow_heif
+    except ImportError:
+        raise MissingPackage("pillow-heif")
+    import io
+    pillow_heif.register_heif_opener()
+    with Image.open(io.BytesIO(data)) as im:
+        im.load()
+        icc = im.info.get("icc_profile")
+        im = ImageOps.exif_transpose(im)
+        if im.mode not in ("RGB", "L"):
+            im = im.convert("RGB")
+        out = io.BytesIO()
+        im.save(out, "JPEG", quality=92, optimize=True, **({"icc_profile": icc} if icc else {}))
+    return out.getvalue()
+
+
+def missing_package_words(e):
+    return ("a HEIC picture is turned into a JPEG as it comes in, which needs the package %s, "
+            "and the Python running Parseh does not have it. It is one of the packages Parseh's "
+            "installer adds, and an update from Settings adds it too; until then, save the "
+            "picture as a JPEG on the phone or computer it came from" % e)
+
+
+def intake_image(data, refuse=StoreError):
+    """The bytes of an upload -> (the bytes to store, their extension).
+
+    Every door that takes a picture comes through here: the studio's
+    (save_image) and a deck's (decks.add_image).  What is stored as it came
+    is returned as it came; a HEIC comes back as a JPEG.  `refuse` is the
+    door's own error, raised with words a page shows."""
+    if not data:
+        raise refuse("empty upload")
+    if len(data) > IMG_MAX:
+        raise refuse("the picture is larger than %d MB" % (IMG_MAX // 2 ** 20))
+    ext = _img_kind(data)
+    if ext is not None:
+        return data, ext
+    if not _is_heif(data):
+        raise refuse("only %s pictures can be added" % IMG_FORMATS)
+    try:
+        jpeg = heif_to_jpeg(data)
+    except MissingPackage as e:
+        raise refuse(missing_package_words(e))
+    except Exception as e:                      # noqa: BLE001 -- a damaged file, whatever the cause
+        raise refuse("this HEIC picture could not be read (%s)" % (str(e) or type(e).__name__))
+    if len(jpeg) > IMG_MAX:
+        raise refuse("the picture, turned into a JPEG, is larger than %d MB: make it smaller "
+                     "first" % (IMG_MAX // 2 ** 20))
+    return jpeg, ".jpg"
+
+
 def save_image(doc_id, name, data):
     """Store an uploaded image under library/<id>/images/, returning its
     final (collision-free, sanitised) name."""
-    if not data:
-        raise StoreError("empty upload")
-    if len(data) > IMG_MAX:
-        raise StoreError("image larger than 15 MB")
-    ext = _img_kind(data)
-    if ext is None:
-        raise StoreError("only PNG, JPEG, SVG and PDF figures are supported")
+    data, ext = intake_image(data)
     stem = unicodedata.normalize("NFKD", Path(name or "img").stem)
     stem = stem.encode("ascii", "ignore").decode("ascii").lower()
     stem = re.sub(r"[^a-z0-9._\-]+", "-", stem).strip("-.") or "img"

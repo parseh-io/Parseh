@@ -35,6 +35,11 @@ dependencies:
       - brotli>=1.1       # woff2 compression, required by fonttools
       - zstandard>=0.22   # a modern Anki export is zstd-compressed
       - numpy>=1.24       # estimating timings by the sound of a recording (lib/wavealign.py)
+      # Pictures a page can show but XeLaTeX cannot print, or no browser shows
+      # (markdown/app/store.py intake_image): a WebP's or a GIF's PNG for the
+      # studio's PDF, and a phone's HEIC turned into a JPEG as it is added.
+      - Pillow>=11.0        # WebP, GIF -> PNG for paper; the HEIC's JPEG
+      - pillow-heif>=0.18   # reading HEIC, for Pillow
       # A Japanese or Chinese chunk divided into words, each with a proposed
       # reading (lib/words.py).  Without them no words are proposed and a
       # chunk is written without a word line, which is always legal.

@@ -1108,7 +1108,9 @@ const AUDIO_ACCEPT = "audio/*,.mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.flac,.webm";
 const AUDIO_EXTS = AUDIO_ACCEPT.split(",").filter(x => x.startsWith(".")).map(x => x.slice(1)).join("|");
 const AUDIO_NAME_RE = new RegExp(`\\.(?:${AUDIO_EXTS})$`, "i");
 const AUDIO_PATH_RE = new RegExp(`^audio/[A-Za-z0-9][A-Za-z0-9._\\-]*\\.(?:${AUDIO_EXTS})$`, "i");
-const IMAGE_ACCEPT = ".png,.jpg,.jpeg,.svg,.pdf";
+/* WebP and GIF are kept as they come; a HEIC (a phone camera's) is turned
+   into a JPEG by the server as it arrives (store.intake_image). */
+const IMAGE_ACCEPT = ".png,.jpg,.jpeg,.webp,.gif,.heic,.heif,.svg,.pdf";
 // what a click on a flashcard may land on without turning it: a player, a
 // link, a form control, a note's mark and its cloud -- each does its own
 // thing there (a tap on the mark is how a phone opens the note)
