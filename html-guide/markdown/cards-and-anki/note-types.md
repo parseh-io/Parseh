@@ -44,6 +44,7 @@ the language:
 | Hindi | Frank Hindi | Frank Hindi Opposites |
 | Spanish | Frank Spanish | Frank Spanish Opposites |
 | Chinese | Frank Chinese | Frank Chinese Opposites |
+| Catalan | Frank Catalan | Frank Catalan Opposites |
 
 The first field of each is named after the language — `Persian`,
 `Arabic`, `Japanese`, `Hindi` — except English's, which is `Headword`,

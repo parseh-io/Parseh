@@ -164,7 +164,7 @@ def lang_records():
 def gloss_records():
     """One record per language a book's glosses may be written in.
 
-    languages.GLOSSES is the whole answer -- the eight the toolbox teaches,
+    languages.GLOSSES is the whole answer -- every language the toolbox teaches,
     each named by the registry, then the prose languages it can set but does
     not teach -- so nothing is listed here.  `taught` is what divides the
     select into its two groups: a language with a folder under books/ and a

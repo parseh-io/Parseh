@@ -16,7 +16,7 @@ result. You choose what it is used for, one thing at a time.
 
 | Language | Analyzer | What it takes |
 |---|---|---|
-| English, German, Spanish, French, Italian, Hindi, Persian | UDPipe, one model per language | the program, a few MB, and a model of 11 to 26 MB |
+| English, German, Spanish, French, Italian, Catalan, Hindi, Persian | UDPipe, one model per language | the program, a few MB, and a model of 11 to 26 MB |
 | Arabic | Farahidi: every reading of a word, and the lemma its sentence chooses | about 12 MB, and half a gigabyte of memory while it works |
 | Turkish | Starlang: every reading of a word, without choosing | about 75 MB with what compiling it takes; compiled when installed, so it needs a C compiler |
 | Arabic, Turkish | UDPipe as well, for the structure of the sentence | a model of 20 or 8 MB |

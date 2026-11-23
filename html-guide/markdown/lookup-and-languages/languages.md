@@ -77,7 +77,7 @@ target: hi
 The word किताब means *book*; नमस्ते is how you greet somebody.
 ```
 
-**Italian, French, German, Turkish, English and Spanish** are written in the
+**Italian, French, German, Turkish, English, Spanish and Catalan** are written in the
 same letters as the prose around them, so nothing can be found by its
 script: every stretch of them is **marked**, with `[…]{tl}` (or the
 language's code, or any mark such as a colour or a transliteration):

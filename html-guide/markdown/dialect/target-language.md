@@ -17,7 +17,7 @@ There are two ways a word becomes target-language text:
   the prose without being told.
 - **It is marked**, `[…]{tl}`. That is how a Latin word goes inside a
   Persian sentence, and the only way at all for Italian, French, German,
-  Turkish, English and Spanish, whose words cannot be told from the
+  Turkish, English, Spanish and Catalan, whose words cannot be told from the
   prose's by their letters.
 
 ## Words found by their script
@@ -244,7 +244,7 @@ and its brackets turned the way the sentence reads.
 
 ## Latin-script targets: every run is marked
 
-Italian, French, German, Turkish, English and Spanish have no letters of
+Italian, French, German, Turkish, English, Spanish and Catalan have no letters of
 their own, so nothing is found by its script: **every** word of the target
 language you want set as such is marked. Any mark does it:
 

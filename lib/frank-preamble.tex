@@ -260,9 +260,9 @@
 % vocabulary line and contents row below said `english' outright.
 % \FrankGlossName is what they say now.
 %
-% A gloss language is PROSE and need not be one of the eight this toolbox
-% teaches -- somebody may gloss Persian in Spanish, and nobody studies Spanish
-% here.  So the name is asked of the registry first, which for a language the
+% A gloss language is PROSE and need not be one of the languages this toolbox
+% teaches -- somebody may gloss Persian in Portuguese, and nobody studies
+% Portuguese here.  So the name is asked of the registry first, which for a language the
 % toolbox does teach also gives the direction it runs in and the face it is
 % set in; and of babel's own locale file otherwise, under a name of ours,
 % because babel takes any name and reads the locale from `import'.  That is
@@ -307,7 +307,7 @@
 \makeatletter
 \edef\FrankGlossName{\directlua{tex.sprint(-2, frank_reg("\BookGloss", "tex", "babel"))}}
 \ifdefempty{\FrankGlossName}{\def\FrankGlossName{frankgloss}}{}
-% Which way the glosses run.  The registry answers for the eight; a code it
+% Which way the glosses run.  The registry answers for its own; a code it
 % does not carry is one of the prose languages the studio writes notes in
 % (docs/languages.md section 5), every one of them Latin-script and left to
 % right, and guessing otherwise would set a page backwards without a word.

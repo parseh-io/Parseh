@@ -200,7 +200,7 @@ def gloss_for_code(v, where="card"):
 
     Absent or empty means English: every card made before the field
     existed says nothing and meant English.  Anything else must be a code
-    languages.gloss accepts -- the eight the toolbox teaches plus the
+    languages.gloss accepts -- the languages the toolbox teaches plus the
     prose-only ones -- and a value that is not one is refused rather than
     quietly taken as English, for lang_for_code's reason turned round: a
     card built as English would carry no lang at all, and its meaning

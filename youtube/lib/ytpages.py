@@ -550,7 +550,7 @@ def player_page(vid):
 
     Beside it, window.YTFRANK.gloss: the language the meanings are written
     in (languages.Gloss.as_json), which may be a language the toolbox does
-    not teach -- somebody may gloss Persian in Spanish -- and which the
+    not teach -- somebody may gloss Persian in Portuguese -- and which the
     script uses for exactly the same job on the other half of a gloss
     cloud, the label and the lang/dir of every line that is prose rather
     than target text.
@@ -3171,11 +3171,11 @@ def add_page():
                                                      "tracks": [c for _n, c in (v.get("kaikki") or []) if c]}
                                                     for v in L.varieties]}
                              for L in languages.LANGS.values()}, ensure_ascii=False)
-    # Every language a gloss may be written in, in two groups: the eight
+    # Every language a gloss may be written in, in two groups: those
     # the toolbox teaches (named by the registry, which is what names them
     # everywhere else on screen) and the prose-only ones it can still set.
-    # The grouping is the honest label -- picking Spanish gets meanings in
-    # Spanish and nothing else, no folder, no fonts, no note types.
+    # The grouping is the honest label -- picking Portuguese gets meanings in
+    # Portuguese and nothing else, no folder, no fonts, no note types.
     # English is marked selected HERE and not left to the page's script:
     # English is what a video that says nothing means, so the field must
     # already read it before any javascript has run.

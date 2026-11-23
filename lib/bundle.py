@@ -130,7 +130,7 @@ INSTALLING refuses, always with a sentence naming what to do about it:
     * a language code the registry does not know, or one the manifest and
       the JSON inside disagree about -- and the same for the gloss language,
       the one the meanings are WRITTEN in, which may be a language nobody
-      here studies (Spanish) but not one nothing here can set at all
+      here studies (Portuguese) but not one nothing here can set at all
     * a book whose main file is missing, whose main.tex inputs a chapter the
       bundle does not carry, whose chapters do not parse, whose text no
       longer reproduces its own source paragraphs (verify_book.py's check),
@@ -1389,7 +1389,7 @@ def inspect(data, root=ROOT):
                         "got (it teaches: %s)" % (man.get("language"),
                                                   ", ".join(languages.CODES)))
     # The gloss language is read the same way and refused separately: a
-    # bundle may be glossed in a language nobody here studies (Spanish is
+    # bundle may be glossed in a language nobody here studies (Portuguese is
     # nobody's target and a perfectly good gloss), but not in one nothing
     # here can set -- the preamble, the reader and the Anki card would each
     # have to guess a direction and a set of hyphenation patterns, and each

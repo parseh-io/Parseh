@@ -11,7 +11,7 @@ in which the **target language** appears large, in its own font (Vazirmatn
 for Persian, Noto Naskh Arabic for Arabic, Noto Serif Devanagari for Hindi,
 Noto Serif CJK JP and CJK SC for Japanese and Chinese, and the text face
 itself for the Latin-script ones: Italian, French, German, Turkish,
-English, Spanish), with **provably correct rendering**
+English, Spanish, Catalan), with **provably correct rendering**
 — right-to-left inside left-to-right prose for the RTL languages — and the
 studio is a local web application around it: a document library, a reading
 view with the typography of the LaTeX output, a live-preview editor, hover
@@ -190,7 +190,7 @@ Inline: `**bold**`, `*italic*` (Latin only), `` `code` ``, `→`/`->` →
 | `[متن]{teal}` / `[متن]{#2F6B8F}` | `\textcolor{fateal}` / `\textcolor[HTML]{…}` | tinted span, editable by hover (HSV picker for hex) |
 | `[تند]{translit:tond}`, or a 2–3 word group `[یواش برو]{translit:yavâš borou}`; colour may share the braces: `{teal translit:tond}` | mark vanishes — bare `\pe` (colour kept if present) | renders bare; transliteration shown in the hover overlay and in the glossary |
 | `[漢字]{kana:かんじ translit:kanji}` — the **reading** mark of a reading language (`reading:` is an alias of `kana:`) | mark vanishes; the reading is not printed inline | renders bare; the kana is shown above the transliteration in the hover overlay and fills the glossary's reading column |
-| `[bello]{tl}`, or the code `[bello]{it}` — a **marked run** of a Latin-script target. Italian, French, German, Turkish and English have no character range of their own in the registry, so nothing detects a run of one — and in prose that is Latin-script too, which is what `lang:` usually names, nothing tells them apart by eye either (an English document's target not by so much as an accent) — so every run of them is marked; any bracket mark already on it (`[bello]{translit:'bɛllo}`, `[bello]{teal}`) counts as the mark too | set in the target font | the `.fa` span: target font, scaled by the slider, colourable and translit-able by hover |
+| `[bello]{tl}`, or the code `[bello]{it}` — a **marked run** of a Latin-script target. Italian, French, German, Turkish, English, Spanish and Catalan have no character range of their own in the registry, so nothing detects a run of one — and in prose that is Latin-script too, which is what `lang:` usually names, nothing tells them apart by eye either (an English document's target not by so much as an accent) — so every run of them is marked; any bracket mark already on it (`[bello]{translit:'bɛllo}`, `[bello]{teal}`) counts as the mark too | set in the target font | the `.fa` span: target font, scaled by the slider, colourable and translit-able by hover |
 | `![didascalia](images/f.png){width=55 align=center offset=-10}` | `\includegraphics` in an indented minipage | `<figure>`, laid out by click |
 | `![didascalia](audio/f.mp3){width=60 align=center offset=0 start=1:05.2 end=1:09}` — a **recording**, written like a picture | a card like the video's, not a link: ♪, the caption, `audio · f.mp3 · 1:05.2–1:09` | `<audio>` player laid out like a figure, playing only its clip |
 | `@[didascalia](youtube url){… start=90 end=150}` | clickable play-card linking the clip | embedded player, clipped to start/end |

@@ -193,11 +193,11 @@ in, never taught — and it is now a row of its own, with a folder, a script
 kind, passes and note types. Nothing had to be taken out of the prose table
 for that to work: `languages._glosses()` builds the registry's rows first
 and adds a prose-only row only for a code the registry has not got, so the
-`es` line still sitting in `_PROSE` is passed over and Spanish is named on
+`es` line that sat in `_PROSE` was passed over and Spanish was named on
 screen by its registry row. That ordering was written against exactly this
 collision — one name for a language on screen, and it is the registry's —
-and this is the first time anything has landed on it. The stale line is
-worth clearing when somebody is next in that file; it is inert, not wrong.
+and this was the first time anything landed on it. The stale `es` line has
+since been taken out of `_PROSE`.
 
 ---
 
@@ -1442,8 +1442,8 @@ Recorded after the first implementation, so the contract and the tools say
 the same thing.
 
 - **The Latin-script model is a shape, not a list.** Its members are the rows
-  whose `chars` is null — six of them today, Italian, French, German, Turkish,
-  English and Spanish — and they are one shape in the registry: `chars` null,
+  whose `chars` is null — seven of them today, Italian, French, German, Turkish,
+  English, Spanish and Catalan — and they are one shape in the registry: `chars` null,
   `strip` null, two passes, no reading, no vertical setting, `require_tr`
   false, `translit_label` "pronunciation", and no font of their own — the core
   roman (TeX Gyre Pagella) sets them, so a chunk and its English gloss differ
