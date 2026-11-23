@@ -398,10 +398,12 @@ async function partShelf() {
                   'button:fa', 'button:ar', 'button:it', 'button:ja', 'button:en', 'button:hi', 'button:zh',
                   'a:/books/persian/mini-fa/reader/', 'a:/books/arabic/mini-ar/reader/',
                   'a:/books/japanese/mini-ja/reader/', 'a:/books/english/mini-en/reader/',
-                  'a:/books/hindi/mini-hi/reader/', 'a:/books/chinese/mini-zh/reader/'];
+                  'a:/books/hindi/mini-hi/reader/', 'a:/books/chinese/mini-zh/reader/',
+                  // a0.6.3 (15.10): the foot line "The guide to this page" (lib/guidelink.js)
+                  'a:/guide/site/getting-started/mobile-mode.html'];
     // (the chips row scrolls on a phone and wraps for a mouse: either way
     // every chip is drawn)
-    eq(got, want, 'all there is to tap: home, the switch, the theme, the chips, one card per built book');
+    eq(got, want, 'all there is to tap: home, the switch, the theme, the chips, one card per built book, the guide');
     for (const no of ['[data-del]', '[data-build]', '[data-parseh-stop]', 'input[type=file]', '#take', '#shelf'])
       assert(!(await page.$(no)), 'nothing on the shelf is ' + no);
     const cards = await targets(page, 'a.m-book');
@@ -3223,9 +3225,11 @@ async function partDecks() {
     const ask = tag === 'desktop' ? [] : ['button:px-ask'];
     eq(got.filter(x => !/^a:\/exercises\/deck\//.test(x)),
        ['a:/', 'button:browser', 'button:mobile', 'button:theme', ...ask,
-        'button:all', 'button:fa', 'button:it', 'button:en'],
+        'button:all', 'button:fa', 'button:it', 'button:en',
+        // a0.6.3 (15.10): the foot line "The guide to this page" (lib/guidelink.js)
+        'a:/guide/site/exercises/decks-page.html'],
        'the bar and the chips: home, the switch, the theme' + (ask.length ? ', the ?' : '') +
-       ', one chip a language');
+       ', one chip a language, the guide');
     eq(got.filter(x => /^a:\/exercises\/deck\//.test(x)).sort(), deckLinks.sort(),
        'and each deck its name, Study and Open');
     eq(await page.evaluate(() => {
