@@ -49,6 +49,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import texesc  # noqa: E402
 import texparse as T  # noqa: E402
 import texwrite  # noqa: E402
 
@@ -60,37 +61,28 @@ CHAPNAME = "chapname"
 SECMARK = "secmark"
 
 # A title is typed into a box in the reader, so it is TEXT and not LaTeX: what
-# is typed is what is printed.  These are the characters TeX would otherwise
-# read as instructions -- a stray & or % in "Water & Waste" or "100% clear"
-# would break the build or silently eat the rest of the line.
-_ESCAPE = [("\\", "\\textbackslash{}"), ("{", "\\{"), ("}", "\\}"),
-           ("&", "\\&"), ("%", "\\%"), ("$", "\\$"), ("#", "\\#"),
-           ("_", "\\_"), ("~", "\\textasciitilde{}"),
-           ("^", "\\textasciicircum{}")]
+# is typed is what is printed.  The characters TeX would otherwise read as
+# instructions -- a stray & or % in "Water & Waste" or "100% clear" would break
+# the build or silently eat the rest of the line -- are escaped, by the one
+# table a chunk's text is escaped with too (lib/texesc.py).
 
 
 def escaped(title):
     """A typed title as it is written into the .tex."""
-    out = str(title or "")
-    for ch, tex in _ESCAPE:
-        out = out.replace(ch, tex)
-    return out
+    return texesc.escape(title)
 
 
 def plain(tex):
     r"""The inverse: what the box should show again, and what the reader
-    prints.  Read as the exact undoing of `escaped`, longest first so
-    \textbackslash{} is not mistaken for a backslash followed by text.
+    prints -- the exact undoing of `escaped`, read in one pass so that
+    \textbackslash{} is never mistaken for a backslash followed by text.
 
     A title written by hand in a .tex may hold a macro this cannot undo --
     \emph{x} say.  It is left as it stands rather than guessed at: the parser
     reads such a group whole (texparse reads \secmark's one argument with
     read_group), so nothing is lost, and what the box shows is what the file
     says."""
-    out = str(tex or "")
-    for ch, esc in sorted(_ESCAPE, key=lambda p: -len(p[1])):
-        out = out.replace(esc, ch)
-    return out
+    return texesc.unescape(tex)
 
 
 def check_title(title):

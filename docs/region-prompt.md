@@ -117,8 +117,8 @@ What each chunk asks of you:
      `\textit{…}`, `\emph{…}` and `\nobreak`. None of `$ % & # _ ^ ~` may
      appear in it, nor a double backslash, and every brace must close. In
      the JSON a backslash is written twice: `"\\dw{…}{…} …"`.
-   - {{TEXT_FIELDS}} are plain text, and none of
-     `\ { } $ % & # _ ^ ~` may appear in them.
+   - {{TEXT_FIELDS}} are plain text: write every character as it is
+     ("50%", "R&D"), never as a LaTeX escape — Parseh escapes them itself.
 {{/book}}{{?video}}     In a video `voc` is written with the books' **macros** — the same ones as in
      a book — and only these may appear in it: `\dw{word}{rom} meaning`,
      `\vb{…}` (seven arguments, as the conventions give them),

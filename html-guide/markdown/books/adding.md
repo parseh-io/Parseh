@@ -102,7 +102,6 @@ chunk](doc:Writing a chunk)); every other line is blank.
 | *a book needs a title in Persian* | the title box is empty |
 | *no directory name could be made from '…'* | the title is all in its own script and leaves no ASCII letters for a folder name: give a slug, or a transliterated title |
 | *the text is empty: there is nothing to draft* | the chapter box is empty |
-| *paragraph 3 of chapter 1 carries '%', which LaTeX reads as an instruction …* | the text holds one of `\ { } $ % & # _ ^ ~`. Take it out, or spell it in words: escaping it would make the text disagree with its source |
 | *paragraph 0 of chapter 1 carries U+0007 at character 12, which is not text …* | an invisible control character came in with the paste; the message shows where it is, so you can take it out |
 | *book.json already exists in … — draft into a new name, or move that one out of the way* | a book (built or not) already has that folder; choose another slug |
 

@@ -170,7 +170,6 @@ sentence you are shown names the rule. Each begins with where the chunk is
 | It says | Which means |
 |---|---|
 | *'purple' is not a colour — the four are red, blue, orange, green, or '' for none* | there are four and no fifth: a colour must mean the same thing in the book's LaTeX, in the reader and in the video player |
-| *en may not contain '%' — LaTeX reads it as an instruction …* | none of `\ { } $ % & # _ ^ ~` may go into the text, the reading, the transliteration or the meaning. They are refused rather than escaped, because no spelling of them satisfies the PDF, the checker and the reader at once. Take the character out, or spell it in words. |
 | *voc may not use \foo — the gloss macros are \bw, \dw, \emph, \nobreak, \pw, \textit, \vb* | the vocabulary line is LaTeX, but only that much of it |
 | *\vb needs 7 arguments and has 5* | a macro is short of braces; the buttons insert them for you |
 | *voc leaves 1 brace open* | a brace is not closed — which would swallow the arguments after it |

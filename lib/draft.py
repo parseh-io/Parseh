@@ -94,14 +94,14 @@ build and the wire at once.  The tab, the newline and the carriage return are
 text; `paragraphs()` has already collapsed them to a space by the time a
 book's text is judged.
 
-TeX's own characters (\\ { } $ % & # _ ^ ~) in the text of a book.  They
-cannot be escaped here: the reading editions measure fidelity by comparing
-the second argument of each `\\ch` with the source paragraph character for
-character (verify_book.py, check_batch.py), so a `\\%` in the .tex beside a
-`%` in the source is a mismatch in every one of them.  The text is the
-author's to fix, and this says which character and which paragraph.  Every
-refusal from this module is a ValueError, so one `except ValueError` in a
-route answers all of them.
+TeX's own characters (\\ { } $ % & # _ ^ ~) in the text of a book are NOT
+refused (they were until a0.6.3, TO-DO §6.6): "50%" and "R&D" are text.
+The source paragraph keeps them as typed, the chapter holds their escapes
+(`50\\%`, lib/texesc.py), and every reader of a chapter -- texparse, so the
+reader and the timings keys; texwrite, so the chunk sheet; verify_book.py,
+so the fidelity check -- undoes the escapes before it compares or shows
+anything.  Every refusal from this module is a ValueError, so one
+`except ValueError` in a route answers all of them.
 
 Standard library only: the server imports this.
 """
@@ -121,6 +121,7 @@ for _p in (LIB, YT_LIB):
         sys.path.insert(0, _p)
 import chunker
 import languages                                        # noqa: E402  the registry
+import texesc                                           # noqa: E402  a text's TeX specials, escaped
 import wordline                                         # noqa: E402  the word line's grammar
 import words                                            # noqa: E402  and a proposal of one
 import books                                            # noqa: E402  where books live
@@ -132,12 +133,11 @@ import ytpages                                          # noqa: E402  the video 
 BOOKS_DIR = books.BOOKS_DIR
 VIDEOS = ytpages.VIDEOS
 
-# The characters LaTeX reads as instructions.  A book's text may not carry
-# them (see the header); a video's may, since a caption never becomes TeX.
-# The same class assemble.py and check_batch.py refuse in a gloss, plus the
-# braces and the backslash -- those would end the \ch argument early and the
-# chapter would not even parse, let alone build.
-TEX_SPECIAL = re.compile(r"[\\{}$%&#_^~]")
+# The characters LaTeX reads as instructions -- \ { } $ % & # _ ^ ~ -- are
+# no longer refused in a book's text: "50%" and "R&D" are text, written into
+# the chapter as their escapes (lib/texesc.py) and read back as typed.  The
+# source paragraphs keep what was typed, so the fidelity checks compare text
+# with text.  A video's captions never become TeX at all.
 
 # What is not text at all: the C0 controls, DEL, the C1 controls, and the
 # unpaired surrogates UTF-8 cannot encode.  Refused in BOTH doors -- a
@@ -331,24 +331,6 @@ def _refuse_not_text(text, where):
            + text[k + 1:k + 31]))
 
 
-def _refuse_tex_specials(paras, chapter):
-    """A book's text may carry no character LaTeX reads as an instruction.
-    Names the paragraph, the character and where it is, because the fix is
-    in the author's text file and they have to find it."""
-    for i, p in enumerate(paras):
-        m = TEX_SPECIAL.search(p)
-        if m:
-            k = m.start()
-            raise ValueError(
-                "paragraph %d of chapter %d carries %r, which LaTeX reads as an "
-                "instruction and the reading editions cannot hold in their text: "
-                "...%s...\n"
-                "Take it out of the text (or spell it in words) and try again -- "
-                "escaping it here would make the .tex disagree with the source "
-                "and every fidelity check would report a mismatch."
-                % (i, chapter, m.group(), p[max(0, k - 30):k + 30]))
-
-
 # ------------------------------------------------------------------- a book
 def _incipit(text, L, words=6, chars=12):
     """What names a paragraph in the contents and the PDF outline: the
@@ -391,6 +373,9 @@ def _chunk_line(fa, L):
     if line and wordline.check(fa, line, L, reading="", door=wordline.BOOK)[0]:
         line = ""
     said = wordline.reading_from(line, L) if line else ""
+    # the text as LaTeX must be handed it: "50%" is written 50\%, and every
+    # reader of the chapter reads it back as 50% (lib/texesc.py)
+    fa = texesc.escape(fa)
     if L.reading:
         return (r"\chrw{}{%s}{%s}{}{}{}{%s}" % (fa, said, line) if line
                 else r"\chr{}{%s}{}{}{}{}" % fa)
@@ -474,7 +459,7 @@ def _chapter_tex(paras, L, G, chapter, how=chunker.DEFAULT_WAY, cuts=None,
     for i, para in enumerate(paras):
         sents = sentences(para)
         pn = num(offset + i + 1)
-        out.append(r"\parstart{%s.%s}{%s}" % (lab, pn, _incipit(sents[0], L)))
+        out.append(r"\parstart{%s.%s}{%s}" % (lab, pn, texesc.escape(_incipit(sents[0], L))))
         for k, s in enumerate(sents):
             out.append(r"\parnum{%s.%s}" % (pn, num(k + 1)))
             out.append(r"\begin{frank}")
@@ -570,7 +555,6 @@ def book_from_text(text, lang, title, gloss="", slug=None, author="",
         raise ValueError("the text is empty: there is nothing to draft")
     for i, p in enumerate(paras):
         _refuse_not_text(p, "paragraph %d of chapter %d" % (i, chapter))
-    _refuse_tex_specials(paras, chapter)
 
     meta = {
         "slug": slug,
@@ -700,7 +684,6 @@ def add_to_book(book_dir, text, how=chunker.DEFAULT_WAY, chapter=None):
     n = (have[-1] + 1) if where == "new" else have[-1]
     for i, para in enumerate(paras):
         _refuse_not_text(para, "paragraph %d of chapter %d" % (i, n))
-    _refuse_tex_specials(paras, n)
 
     # the book's variety, where it has one it knows (books.Book.variety): no analyzer cuts a dialect
     variety = meta.get("variety") if isinstance(meta.get("variety"), str) and L.variety_of(meta["variety"]) else None

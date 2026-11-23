@@ -28,21 +28,19 @@ throws away and changes nothing else.  (data-c counts across the whole book,
 in the order main.tex \\inputs the files; book_chapters turns one of those
 numbers into a file and a local index.)
 
-WHAT MAY BE WRITTEN, and why nothing is escaped.  fa, kana, tr and en are set
-by LaTeX as literal text, and this file refuses any of \\ { } $ % & # _ ^ ~ in
-them rather than escaping them.  That is the one decision here worth arguing,
-so: there is no escape that the PDF, the checker and the reader all accept.
-
-  * $ % & # _ ^ ~ and \\\\ are what check_batch.py's BADTEX rejects, and it
-    rejects them escaped exactly as it rejects them raw -- \\% in a tr would
-    leave the chapter failing the checker that guards it.
-  * \\{ and \\} would satisfy LaTeX and read back through read_group, which
-    steps over a backslash-escaped brace.  But the reader prints what the
-    field says: tex2html html-escapes fa, tr, kana and en and never
-    un-escapes LaTeX, so the page would show the backslash.
-  * across every edition in this repository -- the Persian book and every
-    fixture, in every language -- those four fields contain not one of these
-    characters.  Nothing is being taken away.
+WHAT MAY BE WRITTEN, and how it is escaped.  fa, kana, tr and en are set by
+LaTeX as literal text, and they are TEXT here: what a person types, "50%" or
+"R&D", is what they are handed back.  Each of \\ { } $ % & # _ ^ ~ is written
+into the file as its LaTeX escape (\\%, \\&, \\textasciitilde{} ...) and read
+back out of it by lib/texesc.py, at the two edges of this file and nowhere in
+between: _values undoes the escapes of what it reads, and _render, the
+regions edit_chunk splices and the \\parstart incipit write them.  Every check
+in the middle -- fidelity against source/paras, the word line, the incipit,
+the proof that nothing else moved -- compares the text as typed, so it
+compares what the source paragraph says.  texparse undoes the same escapes, so
+the reader, the timings keys and every export see the text, never the escape
+(TO-DO §6.5, §6.6).  A text with none of the ten is the same string either
+way, which is every chapter written before this.
 
 voc is the exception, and is written through byte for byte: it is LaTeX by
 design (\\dw, \\vb, \\bw, \\pw, \\textit, \\emph, \\nobreak, \\,), and escaping
@@ -123,6 +121,7 @@ import chunkdiv                                                 # noqa: E402
 import languages                                                # noqa: E402
 import pathlock                                                 # noqa: E402
 import reading                                                  # noqa: E402
+import texesc                                                   # noqa: E402
 import texparse as T                                            # noqa: E402
 import wordline                                                 # noqa: E402
 from check_batch import ALLOWED, BADTEX, count_args             # noqa: E402
@@ -165,10 +164,9 @@ COLOURS = {"red": "\\Cred", "blue": "\\Cblue",
            "orange": "\\Corange", "green": "\\Cgreen"}
 _COLOUR_OF = {v: k for k, v in COLOURS.items()}
 
-# What LaTeX reads as an instruction.  None of it may go into fa, kana, tr or
-# en -- refused, not escaped; the docstring says why.  wordline's, so that the
-# word line and the fields beside it refuse one list (lib/bookmeta.py and
-# youtube/lib/ytpages.py read both names from here).
+# What LaTeX reads as an instruction.  Escaped in fa, kana, tr and en (the
+# docstring says how); refused in the word line, which is wordline's own list
+# (lib/bookmeta.py and youtube/lib/ytpages.py read both names from here).
 TEX_SPECIALS = wordline.TEX_SPECIALS
 
 # What is not text, in ANY field: the C0 controls, DEL, the C1 controls, and
@@ -319,8 +317,17 @@ def _scan(text, path="<text>"):
 
 
 def _values(text, call):
-    """The argument groups of one call, by field name, exactly as written."""
-    return {f: text[a:b] for f, (a, b) in zip(SLOTS[call.name], call.args)}
+    """The argument groups of one call, by field name: as written, except that
+    the text fields (texesc.TEXT_FIELDS) are read back to what was typed --
+    "50\\%" in the file is "50%" here."""
+    return {f: (texesc.unescape(text[a:b]) if f in texesc.TEXT_FIELDS else text[a:b])
+            for f, (a, b) in zip(SLOTS[call.name], call.args)}
+
+
+def _tex(field, value):
+    """A field's value as it is written into the file: the text fields with
+    their TeX specials escaped, the others as they are."""
+    return texesc.escape(value) if field in texesc.TEXT_FIELDS else value
 
 
 def _label_no(label, k):
@@ -372,9 +379,10 @@ def read_chunks(path):
         line     0-based line of the macro, as texparse's Chunk.line
         label    the \\parnum in force ('۱.۲'), and `para` its paragraph number
         col      '' or red/blue/orange/green; col_tex is the slot as written
-        fa kana tr voc en words   the argument groups, verbatim ('' for a
-                 slot the macro does not have -- words for all but \\chw
-                 and \\chrw)
+        fa kana tr voc en words   the argument groups ('' for a slot the
+                 macro does not have -- words for all but \\chw and \\chrw):
+                 voc and words verbatim, the other four as typed, their TeX
+                 escapes undone (lib/texesc.py)
         span     [start, end] of the whole call in the file as _read gives it
 
     Raises Refused when a macro call is malformed -- an argument missing, a
@@ -410,20 +418,6 @@ def _check_common(field, value, where):
         raise Refused("%s: a blank line inside %s ends the paragraph -- LaTeX "
                       "would stop with 'Paragraph ended before \\ch was "
                       "complete'" % (where, field))
-
-
-def _check_text(field, value, where):
-    """fa, kana, tr and en are set as literal text: no LaTeX special may reach
-    them, and none of them can be escaped into one (the module docstring says
-    why).  Naming the character is the whole point of the message -- the
-    author has to know which one to take out."""
-    bad = sorted({c for c in value if c in TEX_SPECIALS})
-    if bad:
-        it = "them" if len(bad) > 1 else "it"
-        raise Refused("%s: %s may not contain %s -- LaTeX reads %s as an "
-                      "instruction, and no escape of %s satisfies the PDF, "
-                      "check_batch.py and the reader at once"
-                      % (where, field, " ".join(repr(c) for c in bad), it, it))
 
 
 def _balanced(value, where):
@@ -567,7 +561,8 @@ def _value(field, value, lang, where):
             return ""                           # no words: the macro without them
         _check_words(value, lang, where)
         return value
-    _check_text(field, value, where)
+    # fa, kana, tr, en: text, any character of it -- a TeX special is escaped
+    # when it is written (_tex), never refused
     if field == "fa" and not value.strip():
         raise Refused("%s: a chunk with no text is not a chunk -- an empty fa is "
                       "an error to check_batch.py, glossed or not" % where)
@@ -723,7 +718,7 @@ def _paragraph(path, text, calls, chapter, para, lang, swap=None):
             if swap and mine and k in swap:
                 out.extend(swap[k])
             else:
-                out.append(body[a:b])
+                out.append(texesc.unescape(body[a:b]))
     return (lang.word_sep or "").join(out)
 
 
@@ -824,7 +819,9 @@ def _incipit(text, calls, para, lang, swap=None, words=6, chars=12):
         if swap and k in swap:
             out.extend(swap[k])
         else:
-            out.append(text[a:b])
+            out.append(texesc.unescape(text[a:b]))
+    # the text as typed, so twelve characters never end inside an escape;
+    # _parstart_edit escapes it again on its way into the file
     joined = (lang.word_sep or "").join(out)
     if lang.spaced:
         return " ".join(joined.split()[:words])
@@ -858,12 +855,12 @@ def _parstart_edit(text, calls, index, swap, lang):
                       % (para, "no \\parstart" if not mine
                          else "%d \\parstart anchors" % len(mine)))
     a, b = mine[0]
-    if text[a:b] != before:
+    if texesc.unescape(text[a:b]) != before:
         return None, ("behind: paragraph %d's \\parstart is not the opening of "
                       "its text, so somebody wrote it by hand and it is left "
                       "alone -- the contents still reads %r, and the paragraph "
-                      "now opens %r" % (para, text[a:b], after))
-    return (a, b, after), ("updated: the contents entry for paragraph %d now "
+                      "now opens %r" % (para, texesc.unescape(text[a:b]), after))
+    return (a, b, texesc.escape(after)), ("updated: the contents entry for paragraph %d now "
                            "reads %r" % (para, after))
 
 
@@ -987,7 +984,7 @@ def edit_chunk(path, index, fields, lang=None):
     # into at all.  Nothing the pipeline writes can hold one -- check_batch
     # rejects a per cent sign in every field, escaped as well as raw -- so
     # this fires only on a file that is already wrong, and says where.
-    if "%" in text[call.start:call.end]:
+    if texesc.raw_percent(text, call.start, call.end) >= 0:
         raise Refused("%s: there is a per cent sign inside the macro call, so "
                       "LaTeX and this file disagree about where the chunk ends "
                       "-- take it out by hand before editing here" % where)
@@ -1078,7 +1075,7 @@ def edit_chunk(path, index, fields, lang=None):
     # something this file has not met, and the guarantee is worth more than
     # the edit.
     if name == call.name:
-        regions = [(a, b, new[f]) for f, (a, b) in zip(slots, call.args)
+        regions = [(a, b, _tex(f, new[f])) for f, (a, b) in zip(slots, call.args)
                    if f in changed]
     else:
         regions = [(call.start, call.end, _render(name, merged))]
@@ -1097,7 +1094,7 @@ def _render(name, values):
     """One macro call as the pipeline writes it: the macro, then its argument
     groups run together with nothing between them -- which is what
     assemble.py writes and what every chapter of every book already has."""
-    return "\\" + name + "".join("{%s}" % (values.get(f) or "")
+    return "\\" + name + "".join("{%s}" % _tex(f, values.get(f) or "")
                                  for f in SLOTS[name])
 
 
@@ -1151,8 +1148,9 @@ def _no_percent(text, start, end, where):
     """edit_chunk's rule, applied to a stretch of the file rather than to one
     call: LaTeX reads a per cent sign as the end of the line and this file
     does not, so where there is one the two disagree about where a chunk ends
-    and nothing here may touch it."""
-    if "%" in text[start:end]:
+    and nothing here may touch it.  An escaped one, \\%, is text to both
+    (lib/texesc.py): it is how "50%" is written."""
+    if texesc.raw_percent(text, start, end) >= 0:
         raise Refused("%s: there is a per cent sign in these chunks, so LaTeX "
                       "and this file disagree about where they end -- take it "
                       "out by hand before dividing them here" % where)

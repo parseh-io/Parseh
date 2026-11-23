@@ -36,6 +36,7 @@ import json, os, re, sys, unicodedata
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from books import find_book                                     # noqa: E402
 import languages                                                # noqa: E402
+import texesc                                                   # noqa: E402
 import wordline                                                 # noqa: E402
 import words                                                    # noqa: E402
 
@@ -83,9 +84,10 @@ def check_para(chunks, source, warnings=None):
                         % (i, rebuilt[max(0, i-40):i+40], want[max(0, i-40):i+40]))
     for c in chunks:
         fa = c.get("fa", "")
-        for field in ("voc", "en", "tr", "kana"):
-            if BAD.search(c.get(field, "") or ""):
-                problems.append("unescaped TeX char in %s of %r" % (field, fa))
+        # en, tr and kana are text, written escaped (chunk_line); only the
+        # vocabulary is LaTeX, and only there is a raw special a fault
+        if BAD.search(c.get("voc", "") or ""):
+            problems.append("unescaped TeX char in voc of %r" % fa)
         voc = c.get("voc", "")
         for m in re.finditer(r"\\([a-zA-Z]+)", voc):
             if m.group(1) not in ALLOWED:
@@ -179,8 +181,8 @@ def incipit(para, words=6, chars=12):
     chunks = para["sentences"][0]["chunks"]
     text = join_chunks(c["fa"] for c in chunks)
     if LANG.spaced:
-        return " ".join(text.split()[:words])
-    return re.sub(r"\s+", "", text)[:chars]
+        return texesc.escape(" ".join(text.split()[:words]))
+    return texesc.escape(re.sub(r"\s+", "", text)[:chars])
 
 def chunk_line(c):
     """One chunk as LaTeX.  The first argument is the highlight colour, left
@@ -197,6 +199,8 @@ def chunk_line(c):
     # the file walks by.
     words = c.get("words")
     words = " ".join(words.split()) if isinstance(words, str) else ""
+    # the text fields are text: "50%" is written 50\% (lib/texesc.py)
+    c = dict(c, **{f: texesc.escape(c.get(f, "")) for f in texesc.TEXT_FIELDS})
     if LANG.reading:
         args = "{}{%s}{%s}{%s}{%s}{%s}" % (c["fa"], c.get("kana", ""), c.get("tr", ""),
                                            voc, c["en"])

@@ -27,6 +27,7 @@ import unicodedata
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import languages  # noqa: E402
+import texesc     # noqa: E402  the TeX specials of a text, written and read back
 
 # --- the passes are built from the same chunks, exactly as in LaTeX ----------
 # frank_strip in the preamble drops the language's marks (Persian: U+064B..
@@ -961,6 +962,11 @@ def parse_chapter(path, lang=None):
                 fa_, kana, tr, voc, en = args[1], "", args[2], args[3], args[4]
             else:
                 fa_, kana, tr, voc, en = args[1], "", "", "", ""
+            # the text and what is set beside it as text carry LaTeX's
+            # specials escaped ("50\\%"); every reader of a chunk is handed
+            # what was typed ("50%") -- lib/texesc.py
+            fa_, kana, tr, en = (texesc.unescape(fa_), texesc.unescape(kana),
+                                 texesc.unescape(tr), texesc.unescape(en))
             wordline = args[-1] if name.endswith("w") else ""
             if name.endswith("w") and not wordline.strip():
                 # the PDF refuses it too: a chunk without words has a name

@@ -84,6 +84,7 @@ import languages                                                # noqa: E402
 # raises UnboundLocalError on the one path this import exists for, a paragraph
 # whose text does not match its source.
 import reading as readingjson                                   # noqa: E402
+import texesc                                                   # noqa: E402  a text field read escape by escape
 from texparse import read_args                                  # noqa: E402
 import wordline                                                 # noqa: E402
 
@@ -105,7 +106,7 @@ NEVER_GLOSS = set("""در از با به که این آن و را تا هم یا
 # argument of all four (the first is the colour, the reader's own mark).  Only
 # the text is read here, so the pattern stops after it; the arguments that
 # follow may nest braces and are not for a regex.  The longer names first.
-CHUNK_RE = re.compile(r"\\ch(rw|w|r)?\{(.*?)\}\{(.*?)\}\{")
+CHUNK_RE = re.compile(r"\\ch(rw|w|r)?\{(.*?)\}\{" + texesc.FIELD + r"\}\{")
 # ...and what follows the text, in each of the four's order, for the one
 # question corpus() asks of those arguments: is anything written in them
 AFTER_FA = {"": ("tr", "voc", "en"), "r": ("kana", "tr", "voc", "en"),
@@ -253,9 +254,11 @@ def main(path, book=None, ch_opt=None):
         fa = c.get("fa", "")
         if not fa.strip():
             err("empty fa in a chunk (tr %r, en %r)" % (c.get("tr", ""), c.get("en", "")))
-        for field in ("voc", "en", "tr", "kana"):
-            if BADTEX.search(c.get(field, "") or ""):
-                err("unescaped TeX char in %s of %r" % (field, fa))
+        # en, tr and kana are text: a TeX special in them is written escaped
+        # (lib/texesc.py) and read back as typed.  Only the vocabulary is
+        # LaTeX, and only there is a raw one a fault (TO-DO §6.6)
+        if BADTEX.search(c.get("voc", "") or ""):
+            err("unescaped TeX char in voc of %r" % fa)
         voc = c.get("voc", "")
         for m in re.finditer(r"\\([a-zA-Z]+)", voc):
             if m.group(1) not in ALLOWED:

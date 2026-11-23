@@ -869,14 +869,24 @@ def test_texwrite(targets):
             if n == 0:
                 refused = 0
                 for bad_fields in ({"fa": mine[i]["fa"] + "zz"}, {"col": "purple"},
-                                   {"en": "100% sure"}, {"notes": "hello"}):
+                                   {"notes": "hello"}):
                     try:
                         X.edit_chunk(path, i, bad_fields)
                     except X.Refused:
                         refused += 1
-                check(refused == 4, "%s: texwrite refuses a broken fa, an unknown "
-                      "colour, a per cent sign and a field that does not exist" % tag,
-                      "%d of 4 refused" % refused)
+                check(refused == 3, "%s: texwrite refuses a broken fa, an unknown "
+                      "colour and a field that does not exist" % tag,
+                      "%d of 3 refused" % refused)
+                # a TeX special is text (TO-DO §6.5): written escaped, read
+                # back as typed, by texwrite and by texparse alike
+                X.edit_chunk(path, i, {"en": "100% sure, R&D"})
+                raw = open(path, encoding="utf-8").read()
+                again = [c for p in T.parse_chapter(path, b.lang).paragraphs
+                         for s in p.subs for c in s.chunks][i]
+                check(X.read_chunks(path)[i]["en"] == "100% sure, R&D"
+                      and again.en == "100% sure, R&D" and "100\\% sure, R\\&D" in raw,
+                      "%s: a per cent sign and an ampersand are written escaped "
+                      "and read back as typed" % tag)
 
 
 def test_books(pdf):
