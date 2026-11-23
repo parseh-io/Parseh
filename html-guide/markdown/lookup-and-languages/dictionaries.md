@@ -348,7 +348,13 @@ give 53–67%.
   pronouns and demonstratives (*ده*, *هاد*), *اللي*, the possessive *بتاع*,
   *تبع*, *مال* or *ديال*, Levantine *عم* and *رح*, Moroccan *غادي* — as
   well as standard Arabic's, so *مش عارف* stays together and *اللي* opens
-  the clause it begins.
+  the clause it begins. Whether a word is a verb, a noun or a preposition
+  is read from the dialect's dictionary first and the standard one after
+  it, and a word made a verb by the dialect's own prefix (*كيخدم*,
+  *بيشتغل*) is read as a verb. On longer sentences cut by hand, the seams
+  fall in the right place 8 times of 11 in Egyptian, 5 of 9 in Levantine,
+  3 of 9 in Gulf and 4 of 8 in Moroccan (standard Arabic's rules alone: 5,
+  2, 3 and 0): a help to start from, not a finished cut.
 - **Romanisation.** A word found only in the standard dictionary is
   romanised the way the dialect says its letters: ق as *ʾ* in Egyptian and
   Levantine and as *g* in the Gulf, ج as *g* in Egyptian, ث ذ ظ as *t d ḍ*

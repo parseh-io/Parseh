@@ -1,6 +1,7 @@
 {
   "_comment": "How a word of a text in Levantine Arabic is turned into something a dictionary can be asked about: the Levantine dictionary first (kaikki's South and North Levantine Arabic), the standard one after it, these rules and then lib/lang/ar.lookup.json's. Written onto a word standard Arabic also has: the present's b- (بيكتب, بحكي = أحكي), the future's ḥa- (حيروح; رح is a word of its own), the demonstrative and the preposition fused with the article (هالبيت = هذا البيت, عالطاولة = على الطاولة), the pronoun written onto the verb with -l- (قلّي, احكيلو), the negation's -š (مابعرفش) and the dropped hamza. Measured with tests/dialect_bench.py on tests/fixtures/arabic-dialects/ar-lev.txt.",
   "max_peel": 3,
+  "_verb": "`verb`: a prefix that only a verb takes (the present's and the future's marks of two letters, alone or after the negation's ما), so lib/chunker.py reads a word it takes off, leaving a verb one of the dictionaries has, as a verb where the word as written is in neither dictionary. The one-letter marks (ب, ح, ه), the first person's ن and من are left out: a preposition or a noun begins with them as often. Lookup itself does not read the key.",
   "affixes": [
     {
       "prefix": "مب",
@@ -11,34 +12,40 @@
     {
       "prefix": "مبي",
       "min_stem_length": 3,
-      "note": "ما + بي- taken off together"
+      "note": "ما + بي- taken off together",
+      "verb": true
     },
     {
       "prefix": "مبت",
       "min_stem_length": 3,
-      "note": "ما + بت- taken off together"
+      "note": "ما + بت- taken off together",
+      "verb": true
     },
     {
       "prefix": "بي",
       "note": "the present's بي- taken off a verb: بيكتب is يكتب",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بي",
       "front": "أ",
       "note": "the present's بي- taken off a first person, its أ put back (بكتب is أكتب)",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بت",
       "note": "the present's بت- taken off a verb: بتحكي is تحكي",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بت",
       "front": "أ",
       "note": "the present's بت- taken off a first person, its أ put back (بكتب is أكتب)",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "من",
@@ -54,13 +61,15 @@
     {
       "prefix": "بن",
       "note": "the present's بن- taken off a verb: بنروح is نروح",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بن",
       "front": "أ",
       "note": "the present's بن- taken off a first person, its أ put back (بكتب is أكتب)",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "ب",
@@ -76,35 +85,41 @@
     {
       "prefix": "حي",
       "note": "the future's حي- taken off a verb: حيروح is يروح",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "حي",
       "front": "أ",
       "note": "the future's حي- taken off a first person, its أ put back",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "حت",
       "note": "the future's حت- taken off a verb: حتروح",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "حت",
       "front": "أ",
       "note": "the future's حت- taken off a first person, its أ put back",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "حن",
       "note": "the future's حن- taken off a verb: حنروح",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "حن",
       "front": "أ",
       "note": "the future's حن- taken off a first person, its أ put back",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "ح",

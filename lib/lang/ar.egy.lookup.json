@@ -1,6 +1,7 @@
 {
   "_comment": "How a word of a text in Egyptian Arabic is turned into something a dictionary can be asked about: the Egyptian dictionary first, the standard one after it, with these rules and then lib/lang/ar.lookup.json's (lib/lookup.py rules(): a variety's rules come first). The words Egyptian has and standard Arabic has not (دلوقتي, إزاي, عايز) are pages of the Egyptian dictionary and need no rule; these are the ones written onto a word standard Arabic also has: the present's b- (بيكتب, بتقول, بكتب), the future's ha- (هنروح, هيكتب), the negation's ma-...-š (ماكتبش, مابيكتبش), the pronoun written onto the verb with -l- (قولّي, كتبتلوش) and the hamza a text writes as a plain letter (تاكل, تقرا). Measured with tests/dialect_bench.py on tests/fixtures/arabic-dialects/ar-egy.txt.",
   "max_peel": 3,
+  "_verb": "`verb`: a prefix that only a verb takes (the present's and the future's marks of two letters, alone or after the negation's ما), so lib/chunker.py reads a word it takes off, leaving a verb one of the dictionaries has, as a verb where the word as written is in neither dictionary. The one-letter marks (ب, ح, ه), the first person's ن and من are left out: a preposition or a noun begins with them as often. Lookup itself does not read the key.",
   "affixes": [
     {
       "prefix": "مب",
@@ -11,45 +12,53 @@
     {
       "prefix": "مبي",
       "min_stem_length": 3,
-      "note": "ما + بي- taken off together"
+      "note": "ما + بي- taken off together",
+      "verb": true
     },
     {
       "prefix": "مبت",
       "min_stem_length": 3,
-      "note": "ما + بت- taken off together"
+      "note": "ما + بت- taken off together",
+      "verb": true
     },
     {
       "prefix": "بي",
       "note": "the present's بي- taken off a verb: بيكتب is يكتب",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بي",
       "front": "أ",
       "note": "the present's بي- taken off a first person, its أ put back (بكتب is أكتب)",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بت",
       "note": "the present's بت- taken off a verb: بتقول is تقول",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بت",
       "front": "أ",
       "note": "the present's بت- taken off a first person, its أ put back (بكتب is أكتب)",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بن",
       "note": "the present's بن- taken off a verb: بنروح is نروح",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بن",
       "front": "أ",
       "note": "the present's بن- taken off a first person, its أ put back (بكتب is أكتب)",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "ب",
@@ -65,35 +74,41 @@
     {
       "prefix": "هي",
       "note": "the future's هي- taken off a verb: هيكتب is يكتب",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "هي",
       "front": "أ",
       "note": "the future's هي- taken off a first person, its أ put back",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "هت",
       "note": "the future's هت- taken off a verb: هتروح is تروح",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "هت",
       "front": "أ",
       "note": "the future's هت- taken off a first person, its أ put back",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "هن",
       "note": "the future's هن- taken off a verb: هنروح is نروح",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "هن",
       "front": "أ",
       "note": "the future's هن- taken off a first person, its أ put back",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "ه",
@@ -109,13 +124,15 @@
     {
       "prefix": "حي",
       "note": "the future's حي- taken off a verb: حيكتب",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "حي",
       "front": "أ",
       "note": "the future's حي- taken off a first person, its أ put back",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "ح",
@@ -136,7 +153,8 @@
     {
       "prefix": "مابي",
       "note": "ما + بي- taken off together: مابيكتبش",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "ماب",

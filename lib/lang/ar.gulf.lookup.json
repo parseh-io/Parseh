@@ -1,39 +1,46 @@
 {
   "_comment": "How a word of a text in Gulf Arabic is turned into something a dictionary can be asked about: the Gulf dictionary first (kaikki's Gulf and Hijazi Arabic), the standard one after it, these rules and then lib/lang/ar.lookup.json's. Gulf writes less onto its words than Egyptian or Levantine: the future's b- (بيروح, باكتب = أكتب), the progressive's qāʿid is a word of its own, and the negations ما, مب, مو are words of their own; the pronoun written onto the verb with -l- and the dropped hamza are as elsewhere. Measured with tests/dialect_bench.py on tests/fixtures/arabic-dialects/ar-gulf.txt.",
   "max_peel": 3,
+  "_verb": "`verb`: a prefix that only a verb takes (the present's and the future's marks of two letters, alone or after the negation's ما), so lib/chunker.py reads a word it takes off, leaving a verb one of the dictionaries has, as a verb where the word as written is in neither dictionary. The one-letter marks (ب, ح, ه), the first person's ن and من are left out: a preposition or a noun begins with them as often. Lookup itself does not read the key.",
   "affixes": [
     {
       "prefix": "بي",
       "note": "the present's بي- taken off a verb: بيروح is يروح",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بي",
       "front": "أ",
       "note": "the present's بي- taken off a first person, its أ put back (بكتب is أكتب)",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بت",
       "note": "the present's بت- taken off a verb: بتروح is تروح",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بت",
       "front": "أ",
       "note": "the present's بت- taken off a first person, its أ put back (بكتب is أكتب)",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بن",
       "note": "the present's بن- taken off a verb: بنروح is نروح",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "بن",
       "front": "أ",
       "note": "the present's بن- taken off a first person, its أ put back (بكتب is أكتب)",
-      "min_stem_length": 3
+      "min_stem_length": 3,
+      "verb": true
     },
     {
       "prefix": "ب",

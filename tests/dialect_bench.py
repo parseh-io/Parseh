@@ -22,7 +22,8 @@ it), m (a dialect's morphology on a word standard Arabic has) or d (a word only 
     --misses every word whose right entry is not first
     --chunks the dialect's phrase set (phrases/ar-<v>.txt: longer sentences cut by hand, since the word sets'
              sentences are each one phrase) cut with standard Arabic's rules and with the dialect's word lists
-             (lib/lang/ar.<v>.chunk.json): the seams that fall where the hand put them, and how many of the words
+             (lib/lang/ar.<v>.chunk.json) and its dictionary's word classes (dict/ar.<v>.db read before dict/ar.db,
+             lib/chunker.py _dictionary_classes, and the verb prefixes of ar.<v>.lookup.json): the seams that fall where the hand put them, and how many of the words
              the dialect's list names were read as no class at all without it
 """
 import os
@@ -234,7 +235,7 @@ def main(argv):
                 out, n, (listed, before, after) = chunks(rows, variety)
                 print("  phrases (tests/fixtures/arabic-dialects/phrases/ar-%s.txt):" % variety)
                 print("    standard Arabic's rules        " + _prf(n["standard"]))
-                print("    with the dialect's word lists  " + _prf(n["dialect"]))
+                print("    with the dialect's lists, dict " + _prf(n["dialect"]))
                 print("    words the dialect's list names: %d in both sets, %d read as no class without it, %d with it"
                       % (listed, before, after))
                 print("\n".join(out))
