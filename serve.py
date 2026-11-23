@@ -2617,6 +2617,8 @@ def long_work(method, path, query, length=0):
         return "restore", "Restoring books from " + file, "putting them back"
     if path == "/books/__empty":
         return "build", "Writing a new book", None
+    if path == "/books/__relist":
+        return "build", "Writing the list of books again", None
     if path == "/books/__make":
         return "upload", "Making the folder of a book for an agent, from " + file, "writing it"
     if path.startswith("/books/"):
@@ -3747,6 +3749,13 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._method_not_allowed()
             return self.send_bytes(languages.css().encode("utf-8"),
                                    "text/css; charset=utf-8")
+        if path == "/books/__relist":
+            # THE LIBRARY PAGE WRITTEN AGAIN, from its own button (TO-DO
+            # §5.5): what `python3 lib/make_index.py` did from a terminal
+            if method != "POST":
+                return self._method_not_allowed()
+            lib = self._write_library()
+            return self.send_json(dict(lib, ok=lib["ok"]), 200 if lib["ok"] else 500)
         if path in ("/books/__upload", "/books/__empty", "/books/__restore"):
             if method != "POST":
                 return self._method_not_allowed()

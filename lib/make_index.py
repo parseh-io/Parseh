@@ -213,7 +213,8 @@ PANEL_JS = r"""
     if (j.library && j.library.ok === false)
       h += ' (The list could not be written again' +
         (j.library.error ? ': ' + esc(j.library.error) : '') +
-        ' — run <code>python3 lib/make_index.py</code> if it stays empty.)';
+        ' — <button type="button" class="plain" data-relist>write the list again</button>' +
+        ' if it stays empty.)';
     // a book's reader is not in a bundle -- it is built -- so the link is
     // offered only when install says it carried an old one over
     var href = j.kind === 'video' ? '/youtube/v/' + encodeURIComponent(j.name) + '/'
@@ -471,8 +472,8 @@ def card(b):
                   % (esc(b.rel_from_books()), esc(b.title_latin or b.slug)))
     build_btn = ('<button type="button" class="card-build" title="%s" data-build="%s" '
                  'data-what="%s">%s</button>'
-                 % ("build it again: the PDF and the reader (./build.sh)" if st.get("built")
-                    else "build this book: its reader and its PDF (./build.sh)",
+                 % ("build it again: the PDF and the reader" if st.get("built")
+                    else "build this book: its reader and its PDF",
                     esc(build), esc(what), "rebuild" if st.get("built") else "build"))
     whole = "" if st.get("built") else ' data-build="%s" data-what="%s"' % (esc(build), esc(what))
     if made:
@@ -520,6 +521,34 @@ MAKING_JS = """<script>
   }
   poll();
   setInterval(function () { if (!document.hidden) poll(); }, 8000);
+})();
+</script>"""
+
+
+# WRITE THE LIST AGAIN (TO-DO §5.5): this page is a file the server writes
+# after whatever changes the shelf; a book folder put there some other way,
+# or a write that failed, is mended by this button (POST /books/__relist)
+# rather than by a command.  One delegated handler, for the footer's button
+# and the one an upload's answer draws when the list could not be written.
+RELIST_JS = """<script>
+(function () {
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-relist]');
+    if (!b) return;
+    ev.preventDefault();
+    var said = document.querySelector('[data-relist-said]');
+    function say(t, bad) { if (said) { said.textContent = t; said.className = bad ? 'bad' : ''; } }
+    b.disabled = true; say('writing it…');
+    fetch('/books/__relist', {method: 'POST', cache: 'no-store'})
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        b.disabled = false;
+        if (j.ok) { say('written'); location.reload(); return; }
+        say('it could not be written: ' + (j.error || 'no reason given'), true);
+        if (!said) alert('The list could not be written: ' + (j.error || 'no reason given'));
+      })
+      .catch(function () { b.disabled = false; say('Parseh’s computer did not answer', true); });
+  });
 })();
 </script>"""
 
@@ -591,15 +620,18 @@ def main():
   <footer class="idx">
     Each book is a directory under <code>books/&lt;language&gt;/</code> with a
     <code>book.json</code>. A card&rsquo;s <b>build</b> button makes that book&rsquo;s
-    reader and PDF; <code>./build.sh</code> does every book from a terminal.
+    reader and PDF. A book folder put there by other means joins this list when it is
+    written again: <button type="button" class="plain" data-relist>write the list again</button>
+    <span data-relist-said></span>
   </footer>
 </main>
 %(making)s
+%(relist)s
 </body></html>
 """ % {"app": APP_NAME, "lib": lib_rel, "cards": cards, "chips": chips,
        "take": (bundle_panel("book", "/books/__upload")
                 + shelf_panel("book", "/books/__backup", "/books/__restore")),
-       "making": MAKING_JS}
+       "making": MAKING_JS, "relist": RELIST_JS}
     out = os.path.join(BOOKS_DIR, "index.html")
     open(out, "w", encoding="utf-8").write(page)
     print("books/index.html  %d book%s: %s"

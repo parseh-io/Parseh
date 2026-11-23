@@ -122,7 +122,7 @@ More in [Compiling and publishing](../writing-this-guide/compiling.md).
 | **estimate the rest** by the sound says *another estimate by the sound is running: try again when it has finished* | One runs on the computer at a time, and one is running — perhaps one you gave up with **stop estimating**, which the computer still finishes. Wait a little and press **E** again (its **Working…** entry is gone when it is done), or go **by the text**. |
 | … or *this stretch is too long to estimate by the sound at once: estimate from a line nearer the end, or by the text* | The computer ran short of memory for a stretch that long. Estimate a shorter stretch — from a line further on — or by the text. |
 | The server's console says `!! … declares a narration at …, which is missing` | `book.json` names a recording that is not in the book's `audio/`. Put the file back, or open the reader's **narration** panel, which says the same and lets you add it again. |
-| A book taken off the shelf with ✕ is gone from the library. | Nothing was deleted: the whole folder was moved to `books/.trash/`, named after the book and the minute. Move it back into `books/<language>/` and write the library page again: **rebuild** on any book's card does, or `python3 lib/make_index.py`. |
+| A book taken off the shelf with ✕ is gone from the library. | Nothing was deleted: the whole folder was moved to `books/.trash/`, named after the book and the minute. Move it back into `books/<language>/` and press **write the list again** at the foot of the library page. |
 
 More in [Books](../books/_index.md).
 

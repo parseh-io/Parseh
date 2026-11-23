@@ -121,5 +121,35 @@ class MissingPackages(unittest.TestCase):
             self.assertEqual(envpackages.start()[0].get("nothing"), True)
 
 
+class TheLibraryPage(unittest.TestCase):
+    """5.5: the library page names no make_index.py or build.sh; a button writes
+    the list again (POST /books/__relist)."""
+
+    def _page(self):
+        import tempfile
+        from unittest import mock
+        import languages
+        import make_index
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(make_index, "BOOKS_DIR", tmp), \
+                mock.patch.object(make_index, "all_books", lambda: []), \
+                mock.patch.object(languages, "write_css", lambda *a, **k: None):
+            make_index.main()
+            return Path(tmp, "index.html").read_text(encoding="utf-8")
+
+    def test_the_page_has_the_button_and_no_command(self):
+        html = self._page()
+        self.assertIn("data-relist>write the list again</button>", html)
+        self.assertIn("fetch('/books/__relist'", html)
+        self.assertNotIn("./build.sh", html)
+        self.assertNotIn("make_index.py", html)
+        self.assertNotRegex(html, COMMAND)
+
+    def test_the_route_is_named_for_the_activity_list(self):
+        import serve
+        self.assertEqual(serve.long_work("POST", "/books/__relist", {})[:2],
+                         ("build", "Writing the list of books again"))
+
+
 if __name__ == "__main__":
     unittest.main()
