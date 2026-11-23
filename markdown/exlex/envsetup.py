@@ -11,8 +11,8 @@ Idempotent; every step checks before acting.  Three concerns:
                     with Parseh, so a machine with no network still builds);
                     only what is still missing afterwards is fetched -- the
                     official Vazirmatn release zip, whose .woff2 is
-                    decompressed (no TeX engine reads woff2).  Japanese uses
-                    the system's CJK fonts and nothing is bundled for it;
+                    decompressed (no TeX engine reads woff2).  Japanese and
+                    Chinese use the system's CJK fonts, nothing bundled;
   3. hyphenation  : Italian patterns are NOT in every TeX Live.  XeTeX
                     can only load patterns at format-build time, so we
                     install assets/hyph into the user texmf tree,

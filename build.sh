@@ -12,7 +12,7 @@
 #
 # Each book is a directory books/<language>/<slug>/ with a book.json, the
 # language folder being the registry's (lib/languages.json: persian, arabic,
-# italian, japanese -- docs/languages.md section 2).  Nothing here has a list
+# italian and so on, one per row -- docs/languages.md section 2).  Nothing here has a list
 # of books or of languages in it: adding a directory is all it takes.  A
 # book.json lying directly under books/, the layout before languages, is still
 # built, as a Persian book, with a note asking for it to be moved.

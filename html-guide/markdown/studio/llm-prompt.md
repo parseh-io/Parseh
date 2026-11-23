@@ -96,7 +96,7 @@ Whatever is ticked, the copy has the same first and last parts:
   subsections and nothing deeper, and no numbers typed into titles.
 - **How the target language is written.** A script of its own is found by the
   studio without a mark, and a Latin-script target — Italian, French,
-  German, Turkish, English, Spanish — has every run of it marked `[…]{tl}`,
+  German, Turkish, English, Spanish, Catalan — has every run of it marked `[…]{tl}`,
   which the copy says for those languages only.
 - **One paragraph, one line.** The studio joins the lines of a paragraph
   with a space and reads certain marks at the start of *any* line, so a

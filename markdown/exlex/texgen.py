@@ -3172,7 +3172,7 @@ COLOPHON = colophon_for(languages.get("fa"), "Vazirmatn")   # the old name
 # come from the distribution.
 #
 # These are PROSE languages -- what a note is WRITTEN in -- and that is a
-# wider set than the languages the toolbox teaches: nobody studies English
+# wider set than the languages the toolbox teaches: nobody studies Dutch
 # or Russian here, but notes are written in them, so their pattern names
 # have nowhere else to live.  A code that is also a registry code is left
 # `None` and takes its name from `tex.hyphen`, because one word must not
@@ -3183,13 +3183,13 @@ COLOPHON = colophon_for(languages.get("fa"), "Vazirmatn")   # the old name
 # gives Zu-cker, ba-cken, Dru-cker -- which is what a book printed today
 # wants.  The minima are ours either way; the registry does not carry them.
 _HYPHEN_PROSE = {
-    "en": ("english", 2, 3),
+    "en": (None, 2, 3),
     "en-gb": ("british", 2, 3), "en-us": ("USenglish", 2, 3),
     "it": (None, 2, 2), "fr": (None, 2, 3),
     "de": (None, 2, 2), "tr": (None, 2, 2),
-    "es": ("spanish", 2, 2),
+    "es": (None, 2, 2),
     "pt": ("portuguese", 2, 3), "nl": ("dutch", 2, 2),
-    "ca": ("catalan", 2, 2), "ro": ("romanian", 2, 2),
+    "ca": (None, 2, 2), "ro": ("romanian", 2, 2),
     "pl": ("polish", 2, 2), "ru": ("russian", 2, 2),
 }
 # The ISO 639-2 spellings of the same prose languages: a writer told to

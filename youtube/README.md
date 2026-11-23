@@ -6,8 +6,7 @@ phrases, and a hover (or tap) on any phrase opening a cloud with the
 transliteration (and, for Japanese, the kana reading above it), the
 vocabulary and the meaning — the same fonts, the same palette, the same
 conventions as the books. The player speaks every language of the registry
-(`../lib/languages.json`: Persian, Arabic, Italian, Japanese, French,
-German, Turkish, English) and glosses each of them in whatever language the
+(`../lib/languages.json`, the only list of them) and glosses each of them in whatever language the
 video says its glosses are written in — English unless it says otherwise,
 which is what every video written before the key existed says. The Persian
 examples below are examples, not the rule.
@@ -643,7 +642,7 @@ language written in its own script (Persian, Arabic, Hindi, Japanese,
 Chinese) it is recognised by having no character of that script, filled in
 from the transcript and shown as it stands, quieter than the target text and
 not hoverable. For a Latin-script target (Italian, French, German, Turkish,
-English, Spanish) no caption can be told plain automatically, so the
+English, Spanish, Catalan) no caption can be told plain automatically, so the
 annotator marks such an aside as a chunk with `"plain": true` — the only
 place where an annotator may write that key. A **chapter marker** pasted into the
 transcript (`Capitolo 3: …`, `فصل ۳: …`, `第3章：…` — a bare number is

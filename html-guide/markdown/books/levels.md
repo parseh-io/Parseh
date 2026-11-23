@@ -36,7 +36,7 @@ own ([Adding a language](../lookup-and-languages/adding-a-language.md)).
 | Arabic | **With vowels** | the sentence with its vowels, to read on its own |
 | | **Chunks** | the sentence cut into chunks, each with its gloss beside it |
 | | **Plain** | the sentence as Arabic is ordinarily printed, with no marks |
-| Italian, French, German, Turkish, English, Hindi, Spanish | **Sentence** | the sentence, to read on its own |
+| Italian, French, German, Turkish, English, Hindi, Spanish, Catalan | **Sentence** | the sentence, to read on its own |
 | | **Chunks** | the sentence cut into chunks, each with its gloss beside it |
 | Japanese | **Furigana** | with furigana over each word |
 | | **Kana only** | the reading alone, in kana |

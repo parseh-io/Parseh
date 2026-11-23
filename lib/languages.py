@@ -793,7 +793,7 @@ def migrate(shipped=None, personal=None, force=False):
 DEFAULT_GLOSS = "en"
 
 # A gloss language is PROSE, not a subject: somebody may gloss Persian in
-# Spanish, and nobody studies Spanish here.  So what may be written in is the
+# Portuguese, and nobody studies Portuguese here.  So what may be written in is the
 # registry's languages PLUS the prose-only codes below -- the same set the
 # studio accepts for `lang:`, because it is the same question at the other
 # door and one document must not be sayable there and unsayable here.
@@ -813,7 +813,7 @@ DEFAULT_GLOSS = "en"
 # A prose language cannot be a registry entry instead.  An entry there is a
 # language somebody STUDIES: a folder under books/, a script, digits, fonts,
 # passes, Anki note types, lib/lang/<code>.tex and docs/lang/<code>.md, every
-# one of them checked by `newlang.py --check`.  Spanish has none of that and
+# one of them checked by `newlang.py --check`.  Portuguese has none of that and
 # needs none -- it is a language the toolbox WRITES IN, not one it teaches --
 # and inventing the rest of an entry to hold two strings would put a books/
 # directory and a pair of Anki model ids in the way of a gloss.  Nothing here
@@ -875,9 +875,9 @@ class Gloss:
 
     @property
     def taught(self):
-        """True when the gloss language is also one of the eleven: an English
-        edition glossed in Persian has a registry record to draw a font from,
-        a Spanish one has not (the roman sets it, as it sets every gloss)."""
+        """True when the gloss language is also one the registry teaches: an
+        English edition glossed in Persian has a registry record to draw a font
+        from, a Portuguese one has not (the roman sets it, as it sets every gloss)."""
         return self.lang is not None
 
     def html_attrs(self):
@@ -894,7 +894,7 @@ class Gloss:
 
 
 def _glosses():
-    """Every code a gloss may be written in: the registry's eleven, each named
+    """Every code a gloss may be written in: every language of the registry, each named
     by the registry, then the prose-only ones.  Registry first, so a prose
     row written for a code the registry teaches would be passed over rather
     than allowed to rename it -- there is one name for Italian on screen and

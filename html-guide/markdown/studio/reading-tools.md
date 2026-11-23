@@ -43,7 +43,7 @@ works in [the editor's preview](editor.md#tools-in-the-preview).
 > **Which word is which.** The same word can stand in a document many
 > times; the page counts which occurrence you pointed at, and the Markdown
 > changes at exactly that one. For a Latin-script target language — Italian,
-> French, German, Turkish, English, Spanish — only the runs marked as the
+> French, German, Turkish, English, Spanish, Catalan — only the runs marked as the
 > target language (`[parola]{tl}` or any mark on them) are words of it: the
 > studio cannot tell the rest apart from the prose.
 

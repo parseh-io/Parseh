@@ -40,8 +40,8 @@ You choose both when you add the thing:
   video.
 
 Both selects of the gloss list the languages Parseh teaches, then
-the languages it only **writes in**: Portuguese, Dutch, Catalan, Romanian,
-Polish, Russian, British English and American English. A book glossed in
+the languages it only **writes in**: Portuguese, Dutch, Romanian, Polish,
+Russian, British English and American English. A book glossed in
 Portuguese gets its meanings in Portuguese, set and hyphenated as
 Portuguese — and nothing else, because Portuguese has no folder, no fonts
 and no note types here: nobody studies it in Parseh.

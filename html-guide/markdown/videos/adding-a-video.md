@@ -67,7 +67,7 @@ to the videos page for a video you already have as a zip.
 - **Glossed in** is the language the meanings are **written** in: an
   Italian learning English wants them in Italian. It lists first the
   languages this toolbox teaches, then a few it can write in but does not
-  teach (Portuguese, Dutch, Catalan, Romanian, Polish, Russian, British and
+  teach (Portuguese, Dutch, Romanian, Polish, Russian, British and
   American English). It starts on English and remembers your choice for the
   next video.
 - **Details the answer may not know (optional)** — or, where there is no

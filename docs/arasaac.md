@@ -36,7 +36,7 @@ From https://arasaac.org/terms-of-use, read in a real browser on 2 October 2026 
 Measured against the real hosts on 2 October 2026 (the table in `lib/getarasaac.py` `MEASURED` is what the page quotes before a download, so nobody is asked for anything blind) and recounted from the saved lists on 5 October (every figure in `MEASURED` reproduces exactly).
 
 - **13,829 pictograms**, the same 13,829 in every list I counted. A pictogram's `_id` is stable; its picture can change (`lastUpdated` moves; the host's `Last-Modified` is the picture's own date).
-- **The API's languages** are forty (an ar bg br ca cs da de el en es et eu fa fr gl he hi hr hu it is ko lt lv mk nb nl pl pt ro ru sk sq sv sr tr val uk zh), asked for as `GET /v1/pictograms/all/{locale}`. Of Parseh's eleven: Persian, Arabic, Italian, French, German, Turkish, Spanish and Chinese have words, English names every pictogram, **Japanese has none** (no list), **Hindi has one word** (and it is Spanish). The door offers the first nine and says why it does not offer the last two.
+- **The API's languages** are forty (an ar bg br ca cs da de el en es et eu fa fr gl he hi hr hu it is ko lt lv mk nb nl pl pt ro ru sk sq sv sr tr val uk zh), asked for as `GET /v1/pictograms/all/{locale}`. Of Parseh's eleven then (Catalan, the twelfth, came later; `ca` is one of the forty): Persian, Arabic, Italian, French, German, Turkish, Spanish and Chinese have words, English names every pictogram, **Japanese has none** (no list), **Hindi has one word** (and it is Spanish). The door offers the first nine and says why it does not offer the last two.
 
 | Language | Words (entries) | Pictograms they name | List as served | Kept by Parseh |
 |---|---|---|---|---|

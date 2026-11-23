@@ -44,7 +44,7 @@ the reader has one button for each, named for what it shows, to show or hide it:
 | Arabic | **With vowels** · **Chunks** · **Plain** |
 | Japanese | **Furigana** · **Kana only** · **Chunks** · **Plain** · **Vertical** |
 | Chinese | **Pinyin** · **Pinyin only** · **Chunks** · **Plain** · **Vertical** |
-| Italian, French, German, Turkish, English, Hindi, Spanish | **Sentence** · **Chunks** |
+| Italian, French, German, Turkish, English, Hindi, Spanish, Catalan | **Sentence** · **Chunks** |
 
 The first level is your own attempt at the sentence, before any help arrives; the
 chunks level is the help; the others give the sentence again — as

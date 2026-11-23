@@ -13,8 +13,8 @@ spoken is lit as the video plays, and a click on any line plays it again
 from its beginning — as many times as you like, which is the whole point.
 
 It works for every language Parseh teaches — Persian and Arabic right to
-left, Italian, French, German, Spanish, Turkish and English in Latin
-letters, Hindi in Devanagari, Japanese and Chinese with the reading set over
+left, Italian, French, German, Spanish, Catalan, Turkish and English in
+Latin letters, Hindi in Devanagari, Japanese and Chinese with the reading set over
 each word — and the meanings are written in whatever language the video
 says they are: English unless it says otherwise, Italian for an Italian
 learning English, Persian for a Persian learning Japanese.
