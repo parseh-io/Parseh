@@ -1783,7 +1783,7 @@ def _put(tree, dest, kind, mode):
                      "put that one in %s/ instead" % (NARR_DIR, NARR_DIR))
     if dropped:
         notes.append("%s came from the book that was here and describe its text, "
-                     "not this one, so %s thrown away -- run the rebuild above"
+                     "not this one, so %s thrown away -- build the book again to make them anew"
                      % (", ".join(dropped),
                         "it was" if len(dropped) == 1 else "they were"))
     if not stuck:
@@ -1837,7 +1837,7 @@ def install(data, replace=False, root=ROOT):
     """Put a bundle into the toolbox, or refuse.
 
     -> {ok, kind, language, gloss, audio, name, folder, dir, files, bytes,
-        dropped, replaced, kept, notes, rebuild}
+        dropped, replaced, kept, notes}
 
     `replace` is the caller's word that overwriting is meant; without it a
     name already in the toolbox is an Exists refusal naming where it is.
@@ -1851,10 +1851,6 @@ def install(data, replace=False, root=ROOT):
     carry and, for `text`, has the tree cleaned before a check runs on it --
     but it never deletes anything at the destination, which the docstring at
     the top of this file argues out.
-
-    `rebuild` is what to run to make the reading edition's PDF and reader say
-    what the new text says; it is None for a video, whose player reads
-    annotations.json as it stands and has nothing to build.
     """
     what = inspect(data, root)
     if what["problems"]:
@@ -1948,8 +1944,7 @@ def install(data, replace=False, root=ROOT):
             # which of them counted and which listed
             "files": what["files"], "bytes": what["bytes"],
             "dropped": what["dropped"],
-            "replaced": here, "kept": kept, "notes": notes,
-            "rebuild": ("./build.sh %s" % name) if kind == "book" else None}
+            "replaced": here, "kept": kept, "notes": notes}
 
 
 # ------------------------------------------------------------------ the CLI
@@ -2050,8 +2045,8 @@ def main(argv=None):
                                             ", kept " + ", ".join(r["kept"]) if r["kept"] else ""))
             for n in r["notes"]:
                 print("   note: " + n)
-            if r["rebuild"]:
-                print("   rebuild with: " + r["rebuild"])
+            if r["kind"] == "book":         # a video's player has nothing to build
+                print("   rebuild with: ./build.sh %s/%s" % (r["folder"], r["name"]))
     except BundleError as e:
         print("refused: %s" % e, file=sys.stderr)
         return 1

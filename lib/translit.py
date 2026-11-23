@@ -98,13 +98,6 @@ SIGNS = {
     "्": "",         # a trailing virama (a half-form at the end of a word)
 }
 
-_DEVA = re.compile(r"[ऀ-ॿ᳐-᳿꣠-ꣿ]")
-
-
-def has_devanagari(s):
-    return bool(_DEVA.search(s or ""))
-
-
 def deva_to_iast(s):
     """One Devanagari string in the Roman of the dictionaries.
 
