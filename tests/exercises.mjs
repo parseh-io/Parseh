@@ -852,7 +852,7 @@ prompt: |
   await openFlashcard(true);
   if(await pairsPage.locator('.ex-form-modal .ex-upload').count()!==2)
     throw Error('picture fields with an Upload button: '+await pairsPage.locator('.ex-form-modal .ex-upload').count());
-  if(await pairsPage.locator('.ex-form-modal input[type=file]').evaluateAll(xs=>xs.map(x=>x.accept+(x.hidden?'':' shown')).join())!=='.png,.jpg,.jpeg,.svg,.pdf,.png,.jpg,.jpeg,.svg,.pdf')
+  if(await pairsPage.locator('.ex-form-modal input[type=file]').evaluateAll(xs=>xs.map(x=>x.accept+(x.hidden?'':' shown')).join())!=='.png,.jpg,.jpeg,.webp,.gif,.heic,.heif,.svg,.pdf,.png,.jpg,.jpeg,.webp,.gif,.heic,.heif,.svg,.pdf')
     throw Error('the picture pickers accept the wrong files, or show');
   const frontImage=pairsPage.locator('.ex-form-modal .ex-author-field').filter({hasText:'Front image path'}).locator('input:not([type=file])');
   await pickPicture('cat.png');
@@ -1096,7 +1096,7 @@ explanation-incorrect: No, north.
   };
   await openCard('Embedded vocabulary flashcard', true, true);
   const pickers = await pairsPage.locator('.ex-form-modal input[type=file]').evaluateAll(xs => xs.map(x => x.accept + (x.hidden ? '' : ' shown')));
-  if (JSON.stringify(pickers) !== JSON.stringify(['.png,.jpg,.jpeg,.svg,.pdf', '.png,.jpg,.jpeg,.svg,.pdf', AUDIO_ACCEPT_PY, AUDIO_ACCEPT_PY]))
+  if (JSON.stringify(pickers) !== JSON.stringify(['.png,.jpg,.jpeg,.webp,.gif,.heic,.heif,.svg,.pdf', '.png,.jpg,.jpeg,.webp,.gif,.heic,.heif,.svg,.pdf', AUDIO_ACCEPT_PY, AUDIO_ACCEPT_PY]))
     throw Error('the pickers of a card with both uploaders: ' + JSON.stringify(pickers) + ' (audiofile.ACCEPT is ' + AUDIO_ACCEPT_PY + ')');
   // what else app.js knows of recordings is made from that one list: a file
   // name a drop takes, and the path a card's recording field takes, answer

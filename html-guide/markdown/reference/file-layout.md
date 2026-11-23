@@ -165,7 +165,7 @@ whatever the document is renamed to.
 |---|---|
 | `source.md` | The document: its front matter and its Markdown — the one truth. |
 | `meta.json` | Its name, its tags, its uid, its dates, its last build and the options it was built with. |
-| `images/` | Its pictures. An SVG gets a `.svg.pdf` twin for the PDF, a PDF a `.pdf.svg` twin for the page. |
+| `images/` | Its pictures. An SVG gets a `.svg.pdf` twin for the PDF, a PDF a `.pdf.svg` twin for the page; a WebP or a GIF gets a PNG for the PDF, made in the build's own copy only. A HEIC is never here: it is stored as the JPEG it is turned into. |
 | `audio/` | Its recordings. |
 | `build/` | *Built:* `main.tex`, `main.pdf`, and what the build needed beside them. |
 
