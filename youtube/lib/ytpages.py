@@ -348,7 +348,7 @@ PAGE_FOOT = """  <footer class="idx">
 FOOT_NOTE = (
     'Each video is a directory <code>youtube/videos/&lt;language&gt;/&lt;id&gt;/</code> '
     'with a <code>video.json</code> and an <code>annotations.json</code>. '
-    'To add one, follow <code>youtube/PROMPT.md</code>.')
+    'To add one, press <b>Add a video</b> above.')
 
 # the one place the Anki round-trip is explained and driven; linked from
 # the index so it is found BEFORE a rebuild overwrites an edit, not after
@@ -524,7 +524,9 @@ def channel_page(slug):
         '<a class="crumb" href="%s/">&lsaquo; all channels</a>' % BASE,
         '<a href="%s/">videos</a> &rsaquo; %s' % (BASE, esc(name)))
     body = "\n".join(video_card(m) for m in videos)
-    return head + body + (PAGE_FOOT % FOOT_NOTE)
+    # THE ADD CARD HERE TOO (TO-DO §5.14): the foot says "press Add a video
+    # above", and a channel's page is where one more of its videos is wanted
+    return head + body + ADD_CARD + (PAGE_FOOT % FOOT_NOTE)
 
 
 def bundle_bytes(video_dir):

@@ -74,6 +74,9 @@ Click anywhere on the card to open the [player](the-player.md). A video's
 address is `/youtube/v/<id>/`, whatever its language: an id is unique
 across languages, so the address does not name the folder.
 
+Under the videos, **＋ Add a video** opens the add page, as on the list of
+channels: one more video of the channel is added from there.
+
 ## Taking a video off the shelf
 
 Point at a video card and a **✕** appears in its corner (it also appears
@@ -113,7 +116,8 @@ The last two are explained in
 [Taking videos away and bringing them back](downloads-and-backups.md).
 With no video at all, the page says *No videos yet — add one below.*
 
-The line at the foot of the page names `youtube/PROMPT.md`, the recipe for
-writing a video by hand in a Claude Code session opened in the project —
-the long way, for a video that wants a word list of its own. Everything it
-does, the add page does from the browser.
+The line at the foot of the page says where a video lives on the disk,
+and that **＋ Add a video** adds one. (`youtube/PROMPT.md`, the recipe for
+writing a video by hand in a session of a coding agent opened in the
+project, is still there for whoever works on Parseh itself; everything it
+does, the add page does from the browser.)

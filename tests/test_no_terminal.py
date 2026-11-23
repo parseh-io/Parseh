@@ -318,5 +318,25 @@ class TheStudiosPdf(unittest.TestCase):
         self.assertIn("not from Parseh's pages; once it is there, build ", src)
 
 
+class TheVideoPages(unittest.TestCase):
+    """5.14: the video index and a channel's page name no youtube/PROMPT.md; the
+    channel's page has the Add card the foot points at."""
+
+    def test_index_and_channel(self):
+        from unittest import mock
+        import ytpages
+        chans = [{"slug": "ch", "name": "A channel", "lang": "fa",
+                  "videos": [{"id": "v1", "title": "t", "lang": "fa", "added": "2026-11-01"}]}]
+        with mock.patch.object(ytpages, "list_channels", lambda: chans), \
+                mock.patch.object(ytpages, "video_card", lambda m: "<a class=\"book\" data-lang=\"fa\">v</a>"), \
+                mock.patch.object(ytpages, "channel_card", lambda c: "<a class=\"book\" data-lang=\"fa\">c</a>"):
+            index = ytpages.index_page()
+            channel = ytpages.channel_page("ch")
+        for html in (index, channel):
+            self.assertNotIn("PROMPT.md", html)
+            self.assertIn("To add one, press <b>Add a video</b> above.", html)
+            self.assertIn('<a class="book sync add" href="%s/add/">' % ytpages.BASE, html)
+
+
 if __name__ == "__main__":
     unittest.main()
