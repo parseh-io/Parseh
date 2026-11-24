@@ -384,6 +384,15 @@ def diff_file(did):
 
 # ---------------------------------------------------------------- the pages
 
+def _door_shut_with_partners():
+    """Settings -> Network's Paired computers door shut while there are partners: sync from them is paused."""
+    try:
+        import network
+        return not network.paired_open() and bool(_partners())
+    except Exception:                                   # noqa: BLE001 -- a note never breaks the page
+        return False
+
+
 def page(where=""):
     may = settingspage.may(SETTING, where)
     lock = settingspage.lockline(SETTING, where, "Sync is set up on the computer only.")
@@ -419,6 +428,9 @@ still syncs with them. Pair this computer with each of them again.</p>
 <section id="partners"><h2>Partners</h2>
 <p class="why">Each paired computer, whether it answers now, when you last synced with it and what it holds that
 this one leaves out. Sync runs by itself when both are on; &ldquo;Sync now&rdquo; asks for it at once.</p>
+<div class="dv-sum" data-door-shut role="status"%(door_hidden)s><p><b>Sync from your partners is paused.</b> The
+<a href="/settings/network/">Paired computers door on Network</a> is shut, so no partner can reach this computer;
+what they change waits until it is open again.</p></div>
 <div data-partners></div>
 <div data-identical hidden></div>
 <div class="actions"><button type="button" class="plain" data-sync-all>Sync now with every partner</button></div>
@@ -426,7 +438,8 @@ this one leaves out. Sync runs by itself when both are on; &ldquo;Sync now&rdquo
 
 <section id="pair"><h2>Pair a computer</h2>
 <p class="why">On one computer show a code; on the other type it, with the address shown beside it. The code
-lasts fifteen minutes and is used once.</p>
+lasts fifteen minutes and is used once. Showing a code, or pairing, opens the Paired computers door on
+<a href="/settings/network/">Network</a>.</p>
 <div class="actions"><button type="button" class="go" data-pair-start>Show a code</button>
 <button type="button" class="plain" data-pair-stop hidden>Throw the code away</button></div>
 <div data-offer hidden></div>
@@ -482,7 +495,8 @@ computer's change, which then syncs like any other.</p>
 <p class="foot">Kept in <code>config/sync/</code> on this computer. <a href="%(guide)s">Several computers, one
 shelf</a>, in the guide &mdash; and sync is not a backup.</p>
 </main>""" % {"doors": settingspage.settings_doors(PAGE), "gate": settingspage.gate(settingspage.door_keys(PAGE)),
-              "name": settingspage.NAME, "lock": lock, "guide": esc(GUIDE), "may": "1" if may else "0"}
+              "name": settingspage.NAME, "lock": lock, "guide": esc(GUIDE), "may": "1" if may else "0",
+              "door_hidden": "" if _door_shut_with_partners() else " hidden"}
     return settingspage.frame("Devices &mdash; %s settings" % settingspage.NAME,
                               '<a href="/settings/">settings</a> &middot; devices', "Devices", GUIDE, main,
                               style=STYLE, script="<script>%s</script>" % SCRIPT.replace(
@@ -733,6 +747,7 @@ SCRIPT = r"""
     names = {};
     (st.partners || []).forEach(function (p) { names[p.id] = p.name; });
     $('[data-pair-stop]').hidden = !st.pairing;
+    $('[data-door-shut]').hidden = st.door !== false || !(st.partners || []).length;
     return st;
   }
   function drawPartners(st, ov) {

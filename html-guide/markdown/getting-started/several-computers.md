@@ -47,7 +47,13 @@ another machine, the page says so and offers the same button, or **It is
 the same computer** if you only moved your system to a new disk. It never
 changes the identity on its own.
 
-Both computers must reach each other — the same Wi-Fi, or a VPN. The
+Both computers must reach each other — the same Wi-Fi, or a VPN — through
+the third door on **Settings → Network**, **Paired computers**. It lets in
+only a computer paired with this one, never a browser, and it opens by
+itself when you show a code or pair a computer: you need not open the Wi-Fi
+door for sync. Shut it when you want this computer left alone; your partners
+stay paired, **Settings → Devices** says that sync from them is paused, and it
+resumes when you open the door again. The
 browser on a phone still opens a computer's pages as before
 ([From a phone or another computer](other-devices.md)); pairing is for
 computers that each have Parseh installed.

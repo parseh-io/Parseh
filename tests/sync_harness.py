@@ -84,7 +84,8 @@ def serve_tree(tmp, port):
         if device:
             syncid.set_device(**device)      # what this install says of itself ("send only", "holds little")
         # serve_it asks for --http; this install speaks TLS, as one a partner calls does
-        sys.argv = ["serve.py", "--local", str(port)]
+        # -- unless the test is about what this install binds (tests/test_sync_door.py): then the doors decide
+        sys.argv = ["serve.py", str(port)] if os.environ.get("SYNC_BIND_FREE") else ["serve.py", "--local", str(port)]
         real_main()
     serve.main = main
     import cardkit_harness

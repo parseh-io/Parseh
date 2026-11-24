@@ -35,6 +35,7 @@ LIB = os.path.join(ROOT, "lib")
 if LIB not in sys.path:
     sys.path.insert(0, LIB)
 
+import network          # noqa: E402
 import prefs            # noqa: E402
 import syncid           # noqa: E402
 import synclog          # noqa: E402
@@ -54,7 +55,7 @@ def free_port():
 class Install:
     def __init__(self, base, name, env=None):
         self.tree = os.path.join(base, name)
-        os.makedirs(self.tree)
+        os.makedirs(self.tree, exist_ok=True)       # a test may write its config/ first
         self.port = free_port()
         self.log = open(os.path.join(base, name + ".log"), "w")
         self.proc = subprocess.Popen(
@@ -68,6 +69,15 @@ class Install:
                       headers={"Content-Type": "application/json"})
             r = c.getresponse()
             return r.status, json.loads(r.read() or b"{}")
+        finally:
+            c.close()
+
+    def post_get(self, route, timeout=30):
+        """A page, as GET (the name says it is this harness's other verb)."""
+        c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=timeout)
+        try:
+            c.request("GET", route)
+            return c.getresponse().read().decode("utf-8")
         finally:
             c.close()
 
@@ -105,7 +115,7 @@ class Pairing(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.base = tempfile.mkdtemp(prefix="sync-pairing-")
-        cls.old_store, cls.old_home = prefs.STORE, synclog.HOME
+        cls.old_store, cls.old_home, cls.old_net = prefs.STORE, synclog.HOME, network.STORE
         cls.A = Install(cls.base, "A", {"SYNC_CODE_LIFE": str(LIFE_A)})
         cls.B = Install(cls.base, "B")
         try:
@@ -121,6 +131,7 @@ class Pairing(unittest.TestCase):
             if i:
                 i.stop()
         prefs.STORE, synclog.HOME = cls.old_store, cls.old_home
+        network.STORE = cls.old_net
         syncpeer._PROTOCOL_TEST = None
         shutil.rmtree(cls.base, ignore_errors=True)
 
@@ -130,6 +141,7 @@ class Pairing(unittest.TestCase):
     def be(self, tree):
         """Calls from this process are made as the install whose tree this is."""
         prefs.STORE = os.path.join(tree, "config", "prefs.json")
+        network.STORE = os.path.join(tree, "config", "network.json")   # pairing opens the third door there
         synclog.HOME = None
         syncpeer._CTX["key"] = None
 

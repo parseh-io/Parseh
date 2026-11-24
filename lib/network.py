@@ -17,13 +17,18 @@ three positions rather than a lock:
   * **the Wi-Fi** -- shut on a fresh install.  Opened, a device on it still
     has to be LET IN ONCE, by typing a short code shown on the computer;
     then it is remembered by a token in a long-lived cookie.
+  * **paired computers** (a0.7.0, lib/syncpeer.py) -- shut on a fresh
+    install, opened by itself when a pairing code is shown or a computer is
+    paired, and shut by hand whenever this person likes.  It lets in ONLY a
+    paired Parseh (its TLS hello and pinned certificate), never a browser,
+    and only from this computer, a VPN range or the local network.
 
 Anything else -- a public address, somebody who found the port from outside
 -- is refused at the socket, before a byte of HTTP is read.
 
     config/network.json
     {"port": 7654,
-     "vpn": true, "lan": false,
+     "vpn": true, "lan": false, "paired": false,
      "extra": ["10.8.0.0/24", "laptop.example.ts.net"],
      "cert": {"cert": "/etc/ssl/mine.pem", "key": "/etc/ssl/mine.key"},
      "devices": {"<token>": {"name": "Android phone · Chrome",
@@ -96,6 +101,9 @@ LAN_RANGES = ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16",
 
 # where(ip) answers one of these four
 SELF, VPN, LAN, AWAY = "self", "vpn", "lan", "away"
+# the three doors, as config/network.json names them: a VPN, the Wi-Fi, and
+# paired computers (a0.7.0) -- each a plain true or false
+DOORS = ("vpn", "lan", "paired")
 WHERE_SAID = {SELF: "this computer", VPN: "a VPN", LAN: "the Wi-Fi",
               AWAY: "somewhere else"}
 
@@ -125,7 +133,7 @@ class NetworkError(ValueError):
 
 # --------------------------------------------------------------- the file
 def _blank():
-    return {"port": DEFAULT_PORT, "vpn": True, "lan": False, "extra": [],
+    return {"port": DEFAULT_PORT, "vpn": True, "lan": False, "paired": False, "extra": [],
             "cert": {}, "devices": {}}
 
 
@@ -168,7 +176,7 @@ def _parse():
         pass
     if not LOWEST_PORT <= doc["port"] <= 65535:
         doc["port"] = DEFAULT_PORT
-    for k in ("vpn", "lan"):
+    for k in DOORS:
         if isinstance(said.get(k), bool):
             doc[k] = said[k]
     if isinstance(said.get("extra"), list):
@@ -208,22 +216,27 @@ def port():
 
 
 def bind_host(doc=None):
-    """The address to bind: a genuinely closed socket when neither door is
-    open, and every interface otherwise.
+    """The address to bind: a genuinely closed socket when no door is open,
+    and every interface otherwise.
 
     "This computer only" is not enforced by turning requests away -- it is
     enforced by there being nothing to send a request to.  That is the one
     position of this door that does not depend on a line of Parseh's code
     being right.
 
-    SYNC BETWEEN COMPUTERS (a0.7.0, lib/syncpeer.py) adds itself to
-    BIND_WANTED: while this install has a partner, or shows a pairing code,
-    it listens on every interface whatever the doors say -- the doors are for
-    browsers, and a partner gets past Server.verify_request only to be told
-    apart by its TLS ClientHello and its pinned certificate."""
+    THE THIRD DOOR, PAIRED COMPUTERS (a0.7.0): sync between computers
+    (lib/syncpeer.py) adds itself to BIND_WANTED, which says whether there is
+    anybody behind that door -- a partner, or a pairing code being shown.
+    Open AND somebody behind it, Parseh listens on every interface even with
+    the browsers' two doors shut, and a partner gets past
+    Server.verify_request only to be told apart by its TLS ClientHello and
+    its pinned certificate.  Shut, it counts for nothing here: with all three
+    doors shut the socket is 127.0.0.1 again, partners or not."""
     doc = doc or _read()
     if doc["vpn"] or doc["lan"]:
         return "0.0.0.0"
+    if not doc.get("paired"):
+        return "127.0.0.1"
     for wanted in BIND_WANTED:
         try:
             if wanted():
@@ -233,7 +246,13 @@ def bind_host(doc=None):
     return "127.0.0.1"
 
 
-BIND_WANTED = []     # functions() -> True when something besides the doors needs the network
+BIND_WANTED = []     # functions() -> True when somebody is behind the paired-computers door
+
+
+def paired_open(doc=None):
+    """Is the third door, paired computers, open?  (A partner still has to be
+    one: this says only that partners are not shut out.)"""
+    return bool((doc or _read()).get("paired"))
 
 
 def own_cert(doc=None):
@@ -634,12 +653,12 @@ def save(changes, check_port=True):
             # another: a port free on 127.0.0.1 and taken on the Wi-Fi is
             # exactly the case this is here to catch
             why = free_port(p, bind_host(dict(doc, **{k: bool(changes[k])
-                                                      for k in ("vpn", "lan")
+                                                      for k in DOORS
                                                       if k in changes})))
             if why:
                 raise NetworkError(why)
         doc["port"] = p
-    for k in ("vpn", "lan"):
+    for k in DOORS:
         if k in changes:
             doc[k] = bool(changes[k])
     if "extra" in changes:

@@ -8339,7 +8339,8 @@ class Handler(SimpleHTTPRequestHandler):
                                             "protocol": ident["protocol"], "key": bool(ident.get("key")),
                                             "fingerprint": (ident.get("key") or {}).get("fingerprint"),
                                             "copied": syncid.copied(), "device": syncid.device()},
-                       "partners": syncpeer.partners(), "pairing": c["left"], "ops": syncroutes.ops()}
+                       "partners": syncpeer.partners(), "pairing": c["left"], "ops": syncroutes.ops(),
+                       "door": syncpeer.door_open()}
             elif what == "pair-start":
                 out = dict(syncpeer.offer(), ok=True)
                 import qrsvg                                  # the page draws the payload as a QR code (lane E)
@@ -8439,7 +8440,9 @@ class Handler(SimpleHTTPRequestHandler):
                 "left_said": _code_said(c),
                 "own_cert": network.own_cert(doc),
                 "has_authority": authority_der() is not None,
-                "addresses": list(ADDRESSES)}
+                "addresses": list(ADDRESSES),
+                # the third door's line says who is behind it
+                "partners": len(syncpeer.partners()), "pairing": syncpeer.code_live()}
 
     def _pair(self):
         """A device typing the code.  Open to a device that has NOT been let
@@ -8489,6 +8492,10 @@ class Handler(SimpleHTTPRequestHandler):
         except OSError as e:
             return self.send_json({"ok": False, "error": "config/network.json could "
                                    "not be written: %s" % e}, 500)
+        if not doc.get("paired"):
+            # the paired computers' door shut: a pairing code being shown could
+            # no longer be used by anybody, so it is thrown away with the door
+            syncpeer.stop_offer()
         # RUN is empty when this server was not started by main -- a test
         # harness holding a Server of its own -- and there is then no loop to
         # bind the next socket, so nothing is moved and the save is just a save
@@ -8496,7 +8503,7 @@ class Handler(SimpleHTTPRequestHandler):
             doc["port"] != RUN["port"]
             or network.bind_host(doc) != RUN["host"]
             or network.own_cert(doc) != network.own_cert(was))
-        out = {"ok": True, "settings": {k: doc[k] for k in ("port", "vpn", "lan", "extra")},
+        out = {"ok": True, "settings": {k: doc[k] for k in ("port", "vpn", "lan", "paired", "extra")},
                "said": settingspage.doors_said(doc), "moving": moving}
         if moving:
             out["go"] = _where_to_go(doc)
@@ -8623,6 +8630,11 @@ class Server(socketserver.ThreadingTCPServer):
         # never in the browsers'.  Anything else that got past
         # verify_request only because sync may knock is closed here.
         if head[:1] == b"\x16" and syncpeer.hello_name(request) == syncpeer.SNI:
+            # the third door (Settings -> Network, "Paired computers"): shut,
+            # no partner is served, from wherever it knocks -- even through
+            # a VPN or Wi-Fi door that is open for browsers
+            if not syncpeer.door_open():
+                return _close(request)
             return syncpeer.serve(self, request, client_address)
         ip = (client_address or ("",))[0]
         if not network.may_connect(ip) and syncpeer.may_knock(ip):

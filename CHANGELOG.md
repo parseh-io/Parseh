@@ -7,6 +7,7 @@
 - Deletions are always asked, many at once as one question; what a sync replaced is kept for a day
 - A computer without speech to text records a video's sound and sends it to a paired computer to transcribe
 - A book's reader and PDF, a document's PDF and its LaTeX drawings travel with their source: a computer without LaTeX reads them
+- Settings → Network: a third door, Paired computers, that lets in only paired computers and can be shut
 - A guide page: Several computers, one shelf
 
 ## [a0.6.3] - 2026-11-23

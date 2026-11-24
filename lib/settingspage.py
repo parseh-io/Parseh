@@ -698,6 +698,23 @@ def _switch(key, title, said, on, may_save):
                "" if may_save else " disabled", esc(title), said))
 
 
+def _paired_said(state):
+    """The third door's line (a0.7.0): what it lets in, and who is behind it now."""
+    n, code = int(state.get("partners") or 0), bool(state.get("pairing"))
+    if n:
+        who = ("%d computer is paired with this one." % n if n == 1
+               else "%d computers are paired with this one." % n)
+    elif code:
+        who = "No computer is paired yet; a pairing code is being shown."
+    else:
+        who = "No computer is paired yet."
+    return ("Only another %s paired with this one on Settings, Devices may come in, "
+            "never a browser, and only from this computer&rsquo;s own network or a VPN. "
+            "It opens by itself when you show a pairing code or pair a computer; shut, "
+            "partners cannot reach this computer and sync from them waits. %s"
+            % (NAME, who))
+
+
 def network_page(state):
     """/settings/network/.  `state` is what serve.py knows and this module
     must not find out for itself: the settings, the addresses the server is
@@ -767,11 +784,11 @@ def network_page(state):
 <section>
   <h2>Who may reach %(name)s</h2>
   <p class="why">This computer always can, and is never asked anything. The other
-  two are doors, and they are shut until you open them. With both of them shut
-  %(name)s listens on <code>127.0.0.1</code> and nothing on the network can knock
-  at all.</p>
+  three are doors. With all three of them shut %(name)s listens on
+  <code>127.0.0.1</code> and nothing on the network can knock at all.</p>
   %(vpn)s
   %(lan)s
+  %(paired)s
   <div class="fld"><span>Other networks that count as a VPN &mdash; one address
   range (<code>10.8.0.0/24</code>) or name (<code>laptop.example.ts.net</code>) per
   line. A device on one of these is trusted without a code, as a Tailscale device
@@ -845,6 +862,8 @@ reaches %(name)s</a>, in the guide.</p>
                        "Each one still has to be let in once with the code below. "
                        "Shut on a fresh install.",
                        doc["lan"], can["network.doors"]),
+        "paired": _switch("paired", "Paired computers",
+                          _paired_said(state), doc.get("paired"), can["network.doors"]),
         "lock_doors": lockline("network.doors", where) or lockline("network.extra", where),
         "shut_extra": "" if can["network.extra"] else " disabled",
         "extra": esc("\n".join(doc["extra"])),
@@ -917,7 +936,7 @@ reaches %(name)s</a>, in the guide.</p>
   on('[data-save]', function () {
     say('Saving\\u2026');
     var body = {
-      vpn: doorOn('vpn'), lan: doorOn('lan'),
+      vpn: doorOn('vpn'), lan: doorOn('lan'), paired: doorOn('paired'),
       port: parseInt(document.querySelector('[data-port]').value, 10),
       extra: document.querySelector('[data-extra]').value.split(/\\r?\\n/)
                .map(function (s) { return s.trim(); }).filter(Boolean),
@@ -1106,6 +1125,13 @@ def _came_in(where):
 def doors_said(doc):
     """The one line that says who can reach Parseh as it stands -- on the
     Settings door, and in what the server prints when it starts."""
+    said = _browsers_said(doc)
+    if doc.get("paired"):
+        said += " (and paired computers)"
+    return said
+
+
+def _browsers_said(doc):
     if doc["lan"] and doc["vpn"]:
         return "this computer, a VPN and the Wi-Fi"
     if doc["lan"]:

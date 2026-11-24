@@ -11,6 +11,9 @@ on the same Wi-Fi could do all three. This is the door.
 
 ## The three places a knock can come from
 
+(and three doors: a VPN, the Wi-Fi, and — for other Parseh installs only —
+paired computers, below)
+
 | Where | What counts as it | What Parseh does |
 |---|---|---|
 | **This computer** | `127.0.0.0/8`, `::1` | always served, never asked anything, and the only place the settings can be *changed* |
@@ -36,10 +39,46 @@ address it asks for — one sentence, one field, one button, carrying its own
 style and its own script, because it cannot fetch `/lib/parseh.css` either —
 and the one route that page posts to, `POST /settings/api/pair`.
 
-**"This computer only" is not a rule; it is a closed socket.** With both
-doors shut Parseh binds `127.0.0.1`, and there is nothing on the network to
-knock at. That is the one position of this door that does not depend on a
-line of Parseh's code being right.
+**"This computer only" is not a rule; it is a closed socket.** With all
+three doors shut — a VPN, the Wi-Fi and paired computers — Parseh binds
+`127.0.0.1`, and there is nothing on the network to knock at, even with
+partners paired. That is the one position of this door that does not depend
+on a line of Parseh's code being right.
+
+## The third door: paired computers (a0.7.0)
+
+Sync between computers ([sync.md](sync.md)) needs another Parseh to reach
+this one. Lane A first let it in quietly, whatever the doors said; the owner
+made it a door of its own (2026-11-24), the third switch on
+**Settings → Network**, kept as `"paired"` in `config/network.json` beside
+`"vpn"` and `"lan"` and saved the same way (a change that moves the socket
+answers `"moving": true` and the server re-binds).
+
+- **What it lets in: only a paired Parseh.** A partner asks for the name
+  `sync.parseh.invalid` in its TLS hello, which no browser ever does, and
+  shows the certificate pinned at pairing (`Server.finish_request`,
+  `syncpeer.serve`). A browser that gets past `verify_request` only because
+  this door is open is closed after the peek, with nothing said. And only
+  from this computer, a VPN range or the local network: a public address is
+  refused at the socket (`syncpeer.may_knock`), whichever doors are open.
+- **Shut on a fresh install; it opens by itself** when a computer is paired —
+  on both sides, since a partner that cannot reach back syncs one way only —
+  **and when a pairing code is shown.** A code is something another computer
+  must come and type; a code shown behind a shut door could never be used,
+  so showing one is the person asking to be reached, and the door opens with
+  it (the socket moves, the Devices answer says `"moving"`).
+- **It can be shut at any time.** Shut, no partner is served from anywhere —
+  not even through a VPN or Wi-Fi door that is open for browsers: the partner's
+  hello is closed before the handshake, which the partner reads as silence
+  (`Unreachable`), never as "pair them again". A pairing code being shown is
+  thrown away with the door. The partners are kept; Settings → Devices says
+  that sync from them is paused, with a link back here. What this computer
+  asks of its partners still goes out: the door is about who reaches *this*
+  computer.
+- **The bind.** `network.bind_host`: `0.0.0.0` when the VPN or the Wi-Fi
+  door is open; otherwise `0.0.0.0` only when this door is open **and**
+  somebody is behind it (`network.BIND_WANTED`: a partner, or a live code);
+  otherwise `127.0.0.1`. An open door with nobody paired binds nothing.
 
 ## The pairing code
 
@@ -195,7 +234,7 @@ way.
 
 ```json
 {"port": 7654,
- "vpn": true, "lan": false,
+ "vpn": true, "lan": false, "paired": false,
  "extra": ["10.8.0.0/24", "laptop.example.ts.net"],
  "cert": {"cert": "/etc/ssl/mine.pem", "key": "/etc/ssl/mine.key"},
  "devices": {"<token>": {"name": "Android phone · Chrome",

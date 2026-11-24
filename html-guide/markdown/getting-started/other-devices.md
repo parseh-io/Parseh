@@ -23,8 +23,14 @@ set on one page of Parseh's own: **Settings → Network**, from the hub's
 | **This computer** | the computer Parseh runs on, and only it | always open, and nothing is ever asked of it |
 | **A VPN** | your own devices on Tailscale, and anything else you name | **open** — and no code is asked for |
 | **The Wi-Fi** | every device on the same network as the computer | **shut** |
+| **Paired computers** | only another Parseh paired with this one on **Settings → Devices** — never a browser, and only from the Wi-Fi or a VPN | **shut**; it opens by itself when you show a pairing code or pair a computer |
 
-With the two doors shut Parseh does not listen on the network at all: it is
+The third door is for [several computers](several-computers.md) that keep one
+shelf. Shut it whenever you like: your partners then cannot reach this
+computer, and sync from them waits until you open it again.
+
+With all three doors shut Parseh does not listen on the network at all, even
+with computers paired: it is
 not that it turns devices away, it is that there is nothing there to knock
 at. That is what **this computer only** means here.
 
@@ -290,7 +296,7 @@ a computer serving without it.
 
 ## Keeping it to one computer
 
-Shut both doors on **Settings → Network** and save. Parseh stops listening on
+Shut all three doors on **Settings → Network** and save. Parseh stops listening on
 the network there and then: it binds the computer itself and nothing else, so
 there is no address for a phone to fail at. Open a door again the same way.
 

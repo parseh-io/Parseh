@@ -442,9 +442,17 @@ was chosen over the alternatives for these reasons:
 
 **The doors are for browsers.** `/sync/` on any connection that is not a
 partner's (plain http, or TLS without the partners' name) is refused with a
-403, whatever the Wi-Fi and VPN doors let in. While this install has a
-partner or shows a code, it listens beyond 127.0.0.1 (`network.BIND_WANTED`)
-even with both doors shut. In that case `Server.verify_request` lets an
+403, whatever the Wi-Fi and VPN doors let in. Partners have a door of their
+own, the third on Settings → Network, **Paired computers** (`"paired"` in
+`config/network.json`; [network.md](network.md), "The third door"). It opens
+by itself when a code is shown or a computer is paired, and can be shut at any
+time: shut, a partner's hello is closed on every connection (the partner reads
+silence, `Unreachable`), a live code is thrown away, Settings → Devices says
+sync from partners is paused, and with the browsers' two doors shut too the
+socket is `127.0.0.1` again, partners or not. While that door is open and this
+install has a partner or shows a code, it listens beyond 127.0.0.1
+(`network.BIND_WANTED`) even with the browsers' two doors shut. In that case
+`Server.verify_request` lets an
 address from this computer, a VPN or the local network reach
 `finish_request`, which closes everything that is not a partner's ClientHello.
 Nothing from the internet at large (`network.AWAY`) is let through. A pairing

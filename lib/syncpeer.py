@@ -418,6 +418,7 @@ def offer():
     if not ident.get("key"):
         raise Refused("this computer has no sync key yet (Parseh makes it at start); "
                       "start Parseh again and try once more")
+    open_door()                   # a code nobody can reach is no code: showing one opens the door
     c = code(fresh=True)
     w = _where()
     addrs = [_addr(n, w["port"]) for n in w["names"]]
@@ -585,10 +586,28 @@ def _sni(hs):
     return None
 
 
+def door_open():
+    """Settings -> Network's third door, paired computers (config/network.json
+    "paired").  Shut, no partner reaches this computer: serve.py closes a
+    partner's hello, may_knock says no, and with the browsers' two doors shut
+    too the socket is 127.0.0.1 (network.bind_host)."""
+    return network.paired_open()
+
+
+def open_door():
+    """The door opens by itself when a code is shown or a computer is paired:
+    both are this person asking, on this computer, to be reached by another."""
+    if not network.paired_open():
+        network.save({"paired": True})
+
+
 def may_knock(ip):
-    """May an address the doors do not let in still reach the server, to be
-    told apart by its ClientHello?  Only from this computer, a VPN or the
-    local network, and only while there is a partner or a pairing code."""
+    """May an address the browsers' doors do not let in still reach the
+    server, to be told apart by its ClientHello?  Only while the paired
+    computers' door is open, only from this computer, a VPN or the local
+    network, and only while there is a partner or a pairing code."""
+    if not door_open():
+        return False
     if network.where(ip) not in (network.SELF, network.VPN, network.LAN):
         return False
     return code_live() or has_partners()
@@ -860,6 +879,7 @@ def pair_with(address, given_code, fingerprint=None, timeout=15.0):
            "paired": now, "last_seen": now, "device": _device(out.get("device"))}
     _keep(rec)
     _SEEN[install] = (now, True)
+    open_door()                   # a partner that cannot reach back syncs one way only
     return next(p for p in partners() if p["id"] == install)
 
 
