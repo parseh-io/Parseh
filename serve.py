@@ -1922,6 +1922,8 @@ DEVICES_ROUTES = {
     "/settings/api/devices/rename": "rename",
     "/settings/api/devices/remove": "remove",
     "/settings/api/devices/rules": "rules",     # lane C: lib/syncrules.py json_api {"do": …}
+    "/settings/api/devices/new-identity": "new-identity",     # a copied install: its own id, key, no partners
+    "/settings/api/devices/same-computer": "same-computer",   # not a copy: the machine noted as the identity's
 }
 # SETTINGS -> DEVICES, its page (a0.7.0, lane E: lib/devicespage.py): what the page needs beyond pairing -- the
 # overview, sync now, "make identical", the job switches, what is held, the answers, a version put back, a diff
@@ -8259,7 +8261,12 @@ class Handler(SimpleHTTPRequestHandler):
           pair-start  {code, said, left, addresses, qr, fingerprint, name, protocol}: show this to the other
           pair-stop   the code thrown away
           pair-enter  {"code", "address", "fingerprint"?} -> {"partner"}: typed here, from the other's screen
-          rename      {"name"} -> {"name"}     remove  {"id"} -> {"removed"}
+          rename      {"name"} -> {"name"}
+          remove      {"id"} -> {"removed", "told": True | False | None, "why"}: the partner is told first
+                      (syncpeer.remove_telling, at most TELL_WAIT s); removed here whatever it answered
+          new-identity  -> {"install", "forgot"}: this install is a copy (syncpeer.new_identity)
+          same-computer -> {}: it is not a copy (syncid.same_computer); the notice goes
+        state's "this" also carries "copied" (syncid.copied(): None, or {"made_on", "here"}) and "device".
         A pairing that makes this Parseh listen beyond 127.0.0.1 (lib/network.py BIND_WANTED) moves the
         socket as saving the Network page does; the answer says "moving", and http://localhost keeps answering."""
         if method != "POST":
@@ -8274,7 +8281,8 @@ class Handler(SimpleHTTPRequestHandler):
                 c = syncpeer.code() if syncpeer.code_live() else {"left": 0}
                 out = {"ok": True, "this": {"install": ident["install"], "name": ident["name"],
                                             "protocol": ident["protocol"], "key": bool(ident.get("key")),
-                                            "fingerprint": (ident.get("key") or {}).get("fingerprint")},
+                                            "fingerprint": (ident.get("key") or {}).get("fingerprint"),
+                                            "copied": syncid.copied(), "device": syncid.device()},
                        "partners": syncpeer.partners(), "pairing": c["left"], "ops": syncroutes.ops()}
             elif what == "pair-start":
                 out = dict(syncpeer.offer(), ok=True)
@@ -8288,6 +8296,11 @@ class Handler(SimpleHTTPRequestHandler):
                     body.get("address"), body.get("code"), body.get("fingerprint") or None)}
             elif what == "rename":
                 out = {"ok": True, "name": syncid.set_name(body.get("name"))}
+            elif what == "new-identity":
+                out = dict(syncpeer.new_identity(), ok=True)
+            elif what == "same-computer":
+                syncid.same_computer()
+                out = {"ok": True}
             elif what == "rules":                       # lane C: questions, answers, identical, kept, diffs
                 import syncrules
                 try:
@@ -8295,7 +8308,7 @@ class Handler(SimpleHTTPRequestHandler):
                 except (KeyError, RuntimeError) as e:
                     out = {"ok": False, "error": str(e)}
             else:
-                out = {"ok": True, "removed": syncpeer.remove(body.get("id"))}
+                out = dict(syncpeer.remove_telling(body.get("id")), ok=True)
         except ValueError as e:
             return self.send_json({"ok": False, "error": str(e)}, 400)
         except syncpeer.Unreachable as e:

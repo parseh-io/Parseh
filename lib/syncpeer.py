@@ -14,7 +14,19 @@ PROTOCOL is told so, in words, and nothing is kept.
     config/peers.json   {"format": 1, "partners": {"<install id>": {
                             "id", "name", "cert" (PEM), "fingerprint", "protocol",
                             "addresses": ["host:port", ...], "last_ok": "host:port" | null,
-                            "paired": t, "last_seen": t | null}}}
+                            "paired": t, "last_seen": t | null,
+                            "device": {"send_only": bool, "holds_little": bool},
+                            "removed_you": {"at": t, "by": "name"} (only when it did)}}}
+
+WHAT A DEVICE SAYS OF ITSELF ("For the phones" in the brief): "send only" and
+"holds little" (lib/syncid.py device()) travel in the pairing exchange and in
+every `hello`, both ways; what a partner said is kept in its record.
+
+REMOVING TELLS THE OTHER SIDE.  `remove_telling` first calls the partner's op
+`removed` (best effort, TELL_WAIT seconds), then forgets it here whatever the
+answer.  The partner told so marks it "removed you" (`removed_by`) and keeps
+it: its Devices page shows that, with a button to remove it there too -- never
+removed there silently.
 
 It sits beside prefs.STORE, as config/sync/ does, so a harness that points
 prefs at a temporary tree points this there too.  It is this device's: never
@@ -81,6 +93,7 @@ TRY_EACH = 3.0                  # the most one address may take to answer the ha
 HELLO_WAIT = 3.0                # the most a ClientHello may take to arrive whole
 MAX_BODY = 64 << 20             # one call's body (lane B moves files in chunks below this)
 SEEN_EVERY = 60                 # last_seen is written at most once a minute per partner
+TELL_WAIT = 5.0                 # the most removing a partner waits to tell it so
 QR_SCHEME = "parseh-pair"
 
 WHERE = None     # serve.py: function() -> {"port": int, "names": [host or address, ...]}
@@ -154,8 +167,9 @@ def partner(pid):
 
 def partners():
     """[{"id", "name", "last_seen", "reachable", "fingerprint", "addresses",
-    "last_ok", "paired", "protocol"}] -- reachable: True / False / None (not
-    tried in this run)."""
+    "last_ok", "paired", "protocol", "device", "removed_you"}] -- reachable:
+    True / False / None (not tried in this run); device: what it says of
+    itself; removed_you: {"at", "by"} when it removed this computer, else None."""
     with _LOCK:
         out = []
         for pid, p in sorted(_read()["partners"].items(), key=lambda kv: kv[1].get("name", "")):
@@ -166,7 +180,8 @@ def partners():
                         "fingerprint": p.get("fingerprint"),
                         "addresses": list(p.get("addresses") or []),
                         "last_ok": p.get("last_ok"), "paired": p.get("paired"),
-                        "protocol": p.get("protocol")})
+                        "protocol": p.get("protocol"), "device": _device(p.get("device")),
+                        "removed_you": p.get("removed_you") or None})
         return out
 
 
@@ -190,6 +205,90 @@ def remove(pid):
         _SEEN.pop(pid, None)
         _CTX["key"] = None
         return True
+
+
+def _device(d):
+    """What a partner said of itself, read safely: unsaid is False (a computer)."""
+    d = d if isinstance(d, dict) else {}
+    return {k: d.get(k) is True for k in syncid.DEVICE_FLAGS}
+
+
+def note_device(pid, said):
+    """Keep what partner `pid` says of itself (a hello, either way) when it changed."""
+    if not isinstance(said, dict):
+        return
+    d = _device(said)
+    with _LOCK:
+        doc = _read()
+        p = doc["partners"].get(pid)
+        if not p or _device(p.get("device")) == d and "device" in p:
+            return
+        p["device"] = d
+        _write(doc)
+
+
+def hello(pid, timeout=10.0):
+    """Ask partner `pid` who it is -> its answer; what it says of itself is kept."""
+    out, _ = call(pid, "hello", {"device": syncid.device()}, timeout=timeout)
+    note_device(pid, out.get("device"))
+    return out
+
+
+def removed_by(pid, name=None):
+    """Partner `pid` says it removed this computer: marked, never forgotten
+    here by itself -> True when it is a partner here."""
+    with _LOCK:
+        doc = _read()
+        p = doc["partners"].get(pid)
+        if not p:
+            return False
+        p["removed_you"] = {"at": time.time(),
+                            "by": re.sub(r"\s+", " ", str(name or p.get("name") or ""))[:syncid.MAX_NAME]}
+        _write(doc)
+        return True
+
+
+def remove_telling(pid, timeout=None):
+    """Remove partner `pid`, telling it first -> {"removed", "told", "why"}.
+    told: True (it heard), False (it did not answer, or said no: `why` in
+    words), None (not asked: it had removed this computer already).  The
+    removal happens here whatever the partner answered."""
+    pid = str(pid or "")
+    p = partner(pid)
+    if p is None:
+        return {"removed": False, "told": None, "why": ""}
+    told, why = None, ""
+    if not p.get("removed_you"):
+        try:
+            call(pid, "removed", {"name": syncid.name()},
+                 timeout=TELL_WAIT if timeout is None else timeout)
+            told = True
+        except Unreachable as e:
+            told, why = False, str(e)
+        except Refused as e:
+            told, why = False, e.reason
+    return {"removed": remove(pid), "told": told, "why": why}
+
+
+def new_identity():
+    """This install is a copy of another computer's: a new install id and key
+    pair (syncid.reset), and the partners list emptied -> {"install", "forgot"}.
+
+    The partners are emptied because they are the ORIGINAL computer's: they
+    pinned its certificate, which this copy no longer presents, and they would
+    refuse every call from it.  They are NOT told: they have not been removed --
+    the original still syncs with them under the old id.  A pairing code that
+    was shown is thrown away; the change log's history stays (synclog)."""
+    with _LOCK:
+        ident = syncid.reset()
+        doc = _read()
+        n = len(doc["partners"])
+        doc["partners"] = {}
+        _write(doc)
+        _SEEN.clear()
+        _CTX["key"] = None
+        _CODE.update(code="", made=0.0, wrong=0)
+    return {"install": ident["install"], "forgot": n}
 
 
 def _keep(rec):
@@ -629,7 +728,7 @@ def _me():
     with open(syncid.paths()["cert"], encoding="ascii") as fh:
         pem = fh.read()
     return {"install": ident["install"], "name": ident["name"], "protocol": protocol(),
-            "cert": pem, "port": w["port"], "names": w["names"]}
+            "cert": pem, "port": w["port"], "names": w["names"], "device": syncid.device()}
 
 
 def accept(payload, ip):
@@ -671,7 +770,7 @@ def accept(payload, ip):
     rec = {"id": install, "name": re.sub(r"\s+", " ", str(payload.get("name") or ""))[:syncid.MAX_NAME]
            or install[:8], "cert": ssl.DER_cert_to_PEM_cert(der), "fingerprint": _fp_der(der),
            "protocol": theirs, "addresses": addrs[:24], "last_ok": addrs[0] if addrs else None,
-           "paired": now, "last_seen": now}
+           "paired": now, "last_seen": now, "device": _device(payload.get("device"))}
     _keep(rec)
     _SEEN[install] = (now, True)
     me = _me()
@@ -725,7 +824,7 @@ def pair_with(address, given_code, fingerprint=None, timeout=15.0):
     rec = {"id": install, "name": str(out.get("name") or install[:8])[:syncid.MAX_NAME],
            "cert": ssl.DER_cert_to_PEM_cert(pder), "fingerprint": _fp_der(pder),
            "protocol": out.get("protocol"), "addresses": addrs[:24], "last_ok": addrs[0],
-           "paired": now, "last_seen": now}
+           "paired": now, "last_seen": now, "device": _device(out.get("device"))}
     _keep(rec)
     _SEEN[install] = (now, True)
     return next(p for p in partners() if p["id"] == install)

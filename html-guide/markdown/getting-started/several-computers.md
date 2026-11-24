@@ -29,7 +29,23 @@ computer**, and press **Pair**.
 - **A name.** Each computer has one, which its partners show; change it
   under **This computer**.
 - **Remove.** It forgets a partner: from that moment the partner is
-  refused, until you pair the two again.
+  refused, until you pair the two again. The partner is told, if it
+  answers within a few seconds: its own page then says this computer
+  removed it, with a button to remove it there too. If it does not
+  answer, it is removed here all the same, and the page says it was not
+  told.
+
+**A copied Parseh folder is not a new computer.** A copy carries the
+identity of the computer it came from, so its partners cannot tell the
+two apart, and pairing the copy with the original is refused. On the
+copy, open **Settings → Devices** and press **This is a copy of another
+computer: give it its own identity** under **This computer**. It gets a
+new identity and keeps its name. Its list of partners is emptied, because
+those partners belong to the original; pair the copy with them again. The
+original is not changed. When Parseh sees that its identity was made on
+another machine, the page says so and offers the same button, or **It is
+the same computer** if you only moved your system to a new disk. It never
+changes the identity on its own.
 
 Both computers must reach each other — the same Wi-Fi, or a VPN. The
 browser on a phone still opens a computer's pages as before

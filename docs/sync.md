@@ -279,6 +279,10 @@ ensure()                   # at start: the key pair made if missing (cryptograph
 paths() -> {"identity", "key", "cert"}
 fingerprint(cert_path)     # sha256 of the certificate's DER, in hex
 reset()                    # a new id and key pair (an install copied to another computer), the name kept
+machine() -> (fingerprint, host)   # this computer: its machine id, else its hardware address, else its name
+copied() -> None | {"made_on", "here"}   # the identity was made on another machine than this one
+same_computer()            # "it is not a copy": this machine noted as the identity's own
+device() -> {"send_only", "holds_little"}; set_device(send_only=…, holds_little=…)
 PROTOCOL                   # the version of the sync protocol; lane A says it at pairing
 MINTER                     # function(key_path, cert_path, common_name), for a platform with neither way
 ```
@@ -286,6 +290,24 @@ MINTER                     # function(key_path, cert_path, common_name), for a p
 The key is EC P-256 with a self-signed certificate, `CN=Parseh <install id>`,
 `CA:TRUE, pathlen:0`. Lane A can use it as this install's pinned authority and sign
 its TLS certificates for partners with it.
+
+**A copied install.** `identity.json` notes the machine the identity was made on
+(`machine`: a sha256 of `/etc/machine-id`, the Windows MachineGuid, the Mac's
+IOPlatformUUID or the hardware address, else the host name; and the host name, to
+say it in words). An identity from before has the machine it runs on noted at the
+next start. When the two differ, `copied()` says so and Settings → Devices shows a
+notice offering a new identity, or "it is the same computer" (a system moved to a
+new disk changes the machine too). **Nothing is reset by itself.** The control is
+also there without a notice: "This is a copy of another computer: give it its own
+identity". It calls `syncpeer.new_identity()`: `reset()`, and the partners list
+**emptied**, because those partners were paired with the original. They pinned its
+certificate, which the copy no longer shows, and would refuse every call. They are
+**not told**: they were not removed, since the original still syncs with them under
+the old id. The change log's history stays.
+
+**What a device says of itself** (`identity.json` `device`): "send only" and
+"holds little", both false on a computer; a phone's build sets them. Lane A carries
+them at pairing and in `hello` (see "For the phones").
 
 ### `lib/synclock.py`: one lock per unit
 
@@ -368,8 +390,18 @@ is, so a harness that points prefs at a temporary tree points this there too:
 
 ```
 {"format": 1, "partners": {"<install id>": {"id", "name", "cert", "fingerprint",
-  "protocol", "addresses": ["host:port", …], "last_ok", "paired", "last_seen"}}}
+  "protocol", "addresses": ["host:port", …], "last_ok", "paired", "last_seen",
+  "device": {"send_only", "holds_little"}, "removed_you": {"at", "by"} (only when it did)}}}
 ```
+
+**Removing a partner tells it.** `remove_telling(id)` first calls the partner's op
+`removed` (`{"name": <this install's name>}`), waiting at most `TELL_WAIT` (5 s),
+then forgets the partner here whatever the answer: `{"removed", "told", "why"}`, where
+`told` is True (it heard), False (silence or a no, with `why` in words, and the page
+says so), or None (not asked, because it had removed this computer already). The
+partner told so marks the remover `removed_you` and **keeps it**: its Devices row says
+"<name> removed this computer on <date>" and offers "Remove it here too". Nothing is
+removed there silently. Pairing the two again writes a fresh record, without the mark.
 
 ### Mutual TLS with pinned certificates
 
@@ -445,8 +477,12 @@ answers the handshake. It is reported unreachable after `timeout`, and
 call(partner_id, op, payload: dict, *, body: bytes | None = None, timeout: float)
     -> (dict, bytes | None)          # Unreachable (silence), Refused(reason) (said no)
 partners() -> [{"id", "name", "last_seen", "reachable", "fingerprint", "addresses",
-                "last_ok", "paired", "protocol"}]    # reachable: True / False / None (not tried this run)
+                "last_ok", "paired", "protocol", "device", "removed_you"}]
+                                     # reachable: True / False / None (not tried this run)
 partner(id) -> dict | None, remove(id) -> bool, has_partners()
+remove_telling(id) -> {"removed", "told", "why"}   # the page's "Remove": the partner told first
+hello(id, timeout) -> its answer     # what it says of itself is kept (note_device)
+new_identity() -> {"install", "forgot"}            # a copied install: syncid.reset(), partners emptied
 MAX_BODY = 64 MiB                    # one call's body: move files in chunks below it
 # lib/syncroutes.py
 register(op, handler)                # op: [a-z][a-z0-9_.-]{0,63}
@@ -456,9 +492,10 @@ raise syncroutes.Refuse("words")     # -> the caller's Refused("words"); any oth
 
 The server dispatches `POST /sync/api/<op>` to the handler only after the
 partner check, on the handler's own thread. A handler that needs a unit takes
-`synclock.sync_write` itself. The ops `hello` (name, protocol, time) and `echo`
-(the payload and the body back, which is what the transport's own test uses)
-are built in. An op the other side does not know is refused in words ("…does
+`synclock.sync_write` itself. The ops `hello` (name, protocol, time, `device`; the
+caller's own `device`, when it sends it, is kept), `echo` (the payload and the body
+back, which is what the transport's own test uses) and `removed` (the caller removed
+this computer: marked, not forgotten) are built in. An op the other side does not know is refused in words ("…does
 not know the sync step…: is it an older Parseh?").
 
 **The wire:** POST, with a body made of the JSON and then the raw bytes.
@@ -472,12 +509,14 @@ Every route is a POST. All of them belong to this computer alone
 
 | route | body | answer |
 |---|---|---|
-| `/settings/api/devices/state` | — | `this` {install, name, protocol, key, fingerprint}, `partners`, `pairing` (seconds the code has left, 0 when none), `ops` |
+| `/settings/api/devices/state` | — | `this` {install, name, protocol, key, fingerprint, copied, device}, `partners`, `pairing` (seconds the code has left, 0 when none), `ops` |
 | `/settings/api/devices/pair-start` | — | `code`, `said` (KP4-R7M), `left`, `addresses`, `qr`, `fingerprint`, `name`, `protocol` |
 | `/settings/api/devices/pair-stop` | — | the code thrown away |
 | `/settings/api/devices/pair-enter` | `code`, `address`, `fingerprint`? | `partner`; 409 with `error` in words, 504 with `unreachable` |
 | `/settings/api/devices/rename` | `name` | `name` |
-| `/settings/api/devices/remove` | `id` | `removed` |
+| `/settings/api/devices/remove` | `id` | `removed`, `told` (True / False / None), `why` |
+| `/settings/api/devices/new-identity` | — | `install`, `forgot` (how many partners left the list) |
+| `/settings/api/devices/same-computer` | — | the machine noted as the identity's own (the copy notice goes) |
 
 Every answer carries `moving` (see "The doors are for browsers").
 
@@ -486,8 +525,14 @@ Every answer carries `moving` (see "The doors are for browsers").
 `syncpeer` and `syncroutes` use the standard library only (`ssl`,
 `http.client`). A phone calls computers and never listens. The QR payload
 carries everything a phone needs to pin a computer before it sends anything.
-"Send only" and "holds little" are lane D's and lane B's to publish, through an
-op such as `hello`. Nothing here assumes the partner can run a subprocess.
+A device says of itself **"send only"** (never accepts jobs) and **"holds little"**
+(leaves things out by default): `syncid.device()`, false on a computer. Both travel in
+the pairing exchange, both ways, and in every `hello`, both ways (the caller sends its
+own as `device`); each side keeps what the other said in `peers.json` (`device`), and
+Settings → Devices shows it on the partner's row. What they change is lane D's and
+lane B's: `syncjobs.capabilities()["send_only"]` should come from `syncid.device()`
+(it is a constant False today), and a partner that holds little should be offered
+less. Nothing here assumes the partner can run a subprocess.
 
 <!-- end of lane A -->
 

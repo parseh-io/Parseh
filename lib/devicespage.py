@@ -400,6 +400,20 @@ this computer holds are set on the computer %(name)s runs on.</span></p>
 <p class="why">The name partners see. <span data-this-fp class="addr"></span></p>
 <div class="actions"><input type="text" data-name maxlength="60" aria-label="this computer's name">
 <button type="button" class="plain" data-rename>Rename</button></div>
+<div data-copied class="dv-sum" role="alert" hidden></div>
+<div class="actions"><button type="button" class="plain" data-new-identity>This is a copy of another computer: give it
+its own identity</button></div>
+<div data-new-identity-confirm class="dv-sum" hidden>
+<p><b>Give this computer its own identity?</b></p>
+<p>A Parseh folder copied from another computer carries that computer&rsquo;s identity, so partners cannot tell the
+two apart. This makes a new identity here: a new install id and a new key. The name stays.</p>
+<p>The list of partners is emptied: those partners were paired with the computer this was copied from. They know its
+key, not the new one, and would refuse this computer. They are not told anything, because the original computer
+still syncs with them. Pair this computer with each of them again.</p>
+<p>The history of changes stays. The computer this was copied from is not changed.</p>
+<div class="actions"><button type="button" class="danger" data-new-identity-go>Give it its own identity</button>
+<button type="button" class="plain" data-new-identity-cancel>Cancel</button></div>
+</div>
 </section>
 
 <section id="partners"><h2>Partners</h2>
@@ -540,6 +554,8 @@ STYLE = r"""
 .dv-q .units{margin:.3rem 0 .8rem;padding-inline-start:1.2rem}
 .dv-q .done{border:1px solid var(--accent);border-radius:10px;padding:.8rem .9rem;margin:1rem 0}
 .dv-page .foot a{color:var(--accent,#be3455);text-decoration:underline}
+.dv-page [data-new-identity]{white-space:normal;text-align:start}
+.dv-page .dv-list>li[data-removed-you] .what{color:var(--danger,#b3261e)}
 @media (max-width:40rem){.dv-q .sides{grid-template-columns:1fr}.dv-page .dv-list>li .acts{width:100%}
 .dv-page .dv-list>li .acts>*{flex:1 1 auto}.dv-page .dv-offer .qr svg{width:160px;height:160px}}
 """
@@ -698,6 +714,22 @@ SCRIPT = r"""
     var n = $('[data-name]'); if (document.activeElement !== n) n.value = me.name || '';
     n.disabled = !may; $('[data-rename]').disabled = !may;
     $('[data-this-fp]').textContent = me.fingerprint ? 'Its fingerprint: ' + me.fingerprint : '';
+    $('[data-new-identity]').disabled = !may;
+    var cp = $('[data-copied]'); cp.innerHTML = ''; cp.hidden = !me.copied;
+    if (me.copied) {
+      cp.appendChild(el('p', '', 'This computer’s identity was made on ' + me.copied.made_on + ', and it now runs on ' +
+        me.copied.here + ': it looks like a copy of another computer’s Parseh. Two copies with one identity cannot both ' +
+        'sync. If it is a copy, give it its own identity; if it is the same computer (its system moved to a new disk, ' +
+        'say), keep it.'));
+      var row = el('div', 'actions');
+      row.appendChild(btn('Give it its own identity…', 'go', askNewIdentity, ['data-copied-new', '']));
+      row.appendChild(btn('It is the same computer', 'plain', function (b) {
+        b.disabled = true;
+        post('same-computer').then(function () { say('Kept: this is the same computer.'); load(); })
+          .catch(function (e) { say(e.message, true); b.disabled = !may; });
+      }, ['data-same-computer', '']));
+      cp.appendChild(row);
+    }
     names = {};
     (st.partners || []).forEach(function (p) { names[p.id] = p.name; });
     $('[data-pair-stop]').hidden = !st.pairing;
@@ -715,16 +747,39 @@ SCRIPT = r"""
       if (s.state === 'running') bits.push('syncing now');
       if (held[p.id]) bits.push('holds ' + held[p.id] + ' thing' + (held[p.id] === 1 ? '' : 's') + ' this computer leaves out');
       if (s.last_error) bits.push('last error: ' + s.last_error);
+      var dv = p.device || {};
+      if (dv.send_only) bits.push('send only: it never takes jobs');
+      if (dv.holds_little) bits.push('holds little: it leaves things out unless asked');
+      if (p.removed_you) {
+        li.setAttribute('data-removed-you', '');
+        bits.unshift((p.removed_you.by || p.name) + ' removed this computer on ' + when(p.removed_you.at) +
+                     ': it no longer syncs with it');
+      }
       what(li, p.name, bits.join(' · '));
       var a = acts(li);
+      if (p.removed_you) {
+        a.appendChild(btn('Remove it here too', 'danger', function (b) {
+          b.disabled = true;
+          post('remove', {id: p.id}).then(function () { say(p.name + ' was removed here too.'); load(); })
+            .catch(function (e) { say(e.message, true); b.disabled = !may; });
+        }, ['data-remove-too', p.id]));
+        return;
+      }
       a.appendChild(btn('Sync now', 'plain', function (b) {
         b.disabled = true; post('sync-now', {partner: p.id}).then(function () { say('Syncing with ' + p.name + '…'); setTimeout(load, 1500); })
           .catch(function (e) { say(e.message, true); }).then(function () { b.disabled = !may; });
       }, ['data-sync', p.id]));
       a.appendChild(btn('Make this computer identical to ' + p.name + '…', 'plain', function () { identical(p); }, ['data-identical-ask', p.id]));
       a.appendChild(btn('Remove', 'danger', function () {
-        if (!confirm('Remove ' + p.name + '? It can no longer sync with this computer until you pair them again.')) return;
-        post('remove', {id: p.id}).then(function () { say(p.name + ' was removed.'); load(); }).catch(function (e) { say(e.message, true); });
+        if (!confirm('Remove ' + p.name + '? It can no longer sync with this computer until you pair them again. ' +
+                     p.name + ' is told, if it answers.')) return;
+        say('Removing ' + p.name + '…');
+        post('remove', {id: p.id}).then(function (j) {
+          say(j.told === false ? p.name + ' was removed here, but it could not be told (' + (j.why || 'no answer') +
+                                 '): it is refused from now on, and it can be removed there too.'
+              : j.told ? p.name + ' was removed, and told so.' : p.name + ' was removed.', j.told === false);
+          load();
+        }).catch(function (e) { say(e.message, true); });
       }, ['data-remove', p.id]));
     });
     var first = $('[data-first]');
@@ -885,6 +940,23 @@ SCRIPT = r"""
     }).catch(function (e) { say(e.message, true); });
   }
   window.PARSEH_DEVICES_RELOAD = load;
+  function askNewIdentity() {
+    var c = $('[data-new-identity-confirm]'); c.hidden = false;
+    c.scrollIntoView({block: 'nearest'});
+    $('[data-new-identity-go]').disabled = !may;
+  }
+  $('[data-new-identity]').disabled = !may;
+  $('[data-new-identity]').addEventListener('click', askNewIdentity);
+  $('[data-new-identity-cancel]').addEventListener('click', function () { $('[data-new-identity-confirm]').hidden = true; });
+  $('[data-new-identity-go]').addEventListener('click', function () {
+    var b = $('[data-new-identity-go]'); b.disabled = true;
+    post('new-identity').then(function (j) {
+      $('[data-new-identity-confirm]').hidden = true;
+      say('This computer has its own identity now' + (j.forgot ? '; the ' + j.forgot + ' partner' +
+          (j.forgot === 1 ? ' was' : 's were') + ' taken off the list: pair them again.' : '.'));
+      load();
+    }).catch(function (e) { say(e.message, true); }).then(function () { b.disabled = !may; });
+  });
   $('[data-rename]').addEventListener('click', function () {
     post('rename', {name: $('[data-name]').value}).then(function (j) { say('This computer is called ' + j.name + '.'); load(); })
       .catch(function (e) { say(e.message, true); });

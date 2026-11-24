@@ -11,6 +11,10 @@ prefs.STORE, are the tree's own, never the checkout's.
 SYNC_CODE_LIFE=<seconds> in the environment shortens the pairing code's
 fifteen minutes, so that a test can watch one run out.
 
+SYNC_MACHINE=<fingerprint>:<host> stands for the computer it runs on (a copied
+install is told by it); SYNC_DEVICE=<json> is what the install says of itself,
+e.g. {"holds_little": true} (lib/syncid.py set_device).
+
 SYNC_JOBS_FAKE=<json> (lane D, tests/test_sync_jobs_end_to_end.py) sets this
 install's capabilities ("caps", over what it really has), the jobs' deadline
 and how long a partner's capabilities are trusted ("deadline", "caps_ttl"),
@@ -49,7 +53,16 @@ def serve_tree(tmp, port):
     if fake is not None:
         fake_jobs(serve, fake)
 
+    import syncid
+    if os.environ.get("SYNC_MACHINE"):
+        # the computer this install runs on, as "<fingerprint>:<host>" (tests/test_sync_identity.py: a copy)
+        fp, _, host = os.environ["SYNC_MACHINE"].partition(":")
+        syncid.MACHINE = lambda: (fp, host or "elsewhere")
+    device = json.loads(os.environ.get("SYNC_DEVICE") or "null")
+
     def main():
+        if device:
+            syncid.set_device(**device)      # what this install says of itself ("send only", "holds little")
         # serve_it asks for --http; this install speaks TLS, as one a partner calls does
         sys.argv = ["serve.py", "--local", str(port)]
         real_main()

@@ -57,10 +57,21 @@ def ops():
 
 
 def _hello(partner_id, payload, body):
-    """Who is there: reachability, the name and the protocol."""
+    """Who is there: reachability, the name, the protocol and what this device
+    says of itself ("send only", "holds little"); what the caller says of
+    itself, when it says it, is kept in its record."""
+    syncpeer.note_device(partner_id, payload.get("device"))
     ident = syncid.identity()
     return {"ok": True, "install": ident["install"], "name": ident["name"],
-            "protocol": syncpeer.protocol(), "time": time.time()}, None
+            "protocol": syncpeer.protocol(), "time": time.time(),
+            "device": syncid.device()}, None
+
+
+def _removed(partner_id, payload, body):
+    """The partner removed this computer: marked "removed you" here, never
+    forgotten by itself (Settings → Devices offers to remove it too)."""
+    syncpeer.removed_by(partner_id, payload.get("name"))
+    return {"ok": True}, None
 
 
 def _echo(partner_id, payload, body):
@@ -71,6 +82,7 @@ def _echo(partner_id, payload, body):
 
 register("hello", _hello)
 register("echo", _echo)
+register("removed", _removed)
 
 
 def _send(h, status, doc, body=None):

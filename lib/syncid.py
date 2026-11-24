@@ -10,19 +10,29 @@ At its first start every install gets:
     carrying the install id -- which pairing (lane A) shows to the partner as
     a fingerprint, and which mutual TLS between partners pins;
   * a NAME the person chooses on Settings → Devices, which starts as this
-    computer's own name (the host name, without a ".local" or a domain).
+    computer's own name (the host name, without a ".local" or a domain);
+  * the MACHINE it was made on: a fingerprint of this computer (its machine id,
+    or its hardware address, or its name) and the host name, so that a copy of
+    the install found on another computer can be told (`copied()`); and
+  * what this DEVICE says of itself to its partners: "send only" (never
+    accepts jobs) and "holds little" (leaves things out by default), both
+    false on a computer; a phone's build sets them (`device`, `set_device`).
 
     config/sync/identity.json   {"format": 1, "install": "9f…", "name": "desk",
                                  "created": 1763900000.0,
                                  "key": {"fingerprint": "sha256 hex of the DER",
-                                         "made": 1763900000.0} | null}
+                                         "made": 1763900000.0} | null,
+                                 "machine": {"id": "sha256 hex", "host": "desk"},
+                                 "device": {"send_only": false, "holds_little": false}}
     config/sync/identity.key    the private key, readable by this user only
     config/sync/identity.crt    the certificate
 
 All three are this device's: never synced, never in a settings backup (they
 are not among lib/configbackup.py's STORES), and an install copied whole to
 another computer must be paired again -- the copy's id would be the same, so
-`reset()` makes a new one (lane E's page offers it).
+`reset()` makes a new one (Settings → Devices offers it, and says so on its
+own when `copied()` finds the identity was made on another machine; it never
+resets by itself: a new disk or a reinstalled system changes the machine too).
 
 THE KEY IS MADE WITHOUT ASSUMING A SUBPROCESS.  The `cryptography` package
 when this Python has it (the phones' builds will), else `openssl`, the way
@@ -39,6 +49,7 @@ import re
 import secrets
 import socket
 import subprocess
+import uuid
 import sys
 import threading
 import time
@@ -53,6 +64,9 @@ PROTOCOL = 1          # the version of the sync protocol this Parseh speaks (lan
 MAX_NAME = 60
 _LOCK = threading.RLock()
 MINTER = None
+MACHINE = None        # tests: function() -> (fingerprint, host) in place of this computer's
+DEVICE_FLAGS = ("send_only", "holds_little")
+_MACHINE = {}
 
 
 def _home():
@@ -74,6 +88,99 @@ def default_name():
         n = ""
     n = n.split(".")[0].strip()
     return n[:MAX_NAME] or "Parseh"
+
+
+def _machine_raw():
+    """Something this computer keeps whoever runs Parseh on it, or ""."""
+    for p in ("/etc/machine-id", "/var/lib/dbus/machine-id"):
+        try:
+            with open(p, encoding="ascii") as fh:
+                raw = fh.read().strip()
+            if raw:
+                return "machine-id:" + raw
+        except (OSError, ValueError):
+            pass
+    if sys.platform == "win32":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Cryptography") as k:
+                return "guid:" + str(winreg.QueryValueEx(k, "MachineGuid")[0])
+        except OSError:
+            pass
+    if sys.platform == "darwin":
+        try:
+            r = subprocess.run(["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"],
+                               capture_output=True, text=True, timeout=5)
+            m = re.search(r'"IOPlatformUUID" = "([^"]+)"', r.stdout or "")
+            if m:
+                return "platform:" + m.group(1)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    node = uuid.getnode()
+    if not (node >> 40) & 1:          # a real hardware address (a made-up one has the multicast bit)
+        return "node:%012x" % node
+    return ""
+
+
+def machine():
+    """(fingerprint, host) of the computer this runs on; worked out once a run."""
+    if MACHINE is not None:
+        return MACHINE()
+    if not _MACHINE:
+        host = default_name()
+        raw = _machine_raw() or "host:" + host
+        _MACHINE["v"] = (hashlib.sha256(("parseh-machine:" + raw).encode("utf-8")).hexdigest(), host)
+    return _MACHINE["v"]
+
+
+def _machine_doc():
+    fp, host = machine()
+    return {"id": fp, "host": host}
+
+
+def copied():
+    """None, or {"made_on": host, "here": host} when this identity was made on
+    another machine than the one it runs on: a copied install (or a computer
+    whose system was put back on another disk).  Never acted on by itself."""
+    doc = identity(make=False)
+    m = (doc or {}).get("machine")
+    if not isinstance(m, dict) or not m.get("id"):
+        return None
+    fp, host = machine()
+    if m["id"] == fp:
+        return None
+    return {"made_on": str(m.get("host") or "another computer"), "here": host}
+
+
+def same_computer():
+    """The person says this is the same computer, not a copy: the machine it
+    runs on is written down as the identity's own, and copied() is None again."""
+    with _LOCK:
+        doc = identity()
+        doc.pop("protocol", None)
+        doc["machine"] = _machine_doc()
+        _write(doc)
+
+
+def device():
+    """{"send_only": bool, "holds_little": bool}: what this device says of itself."""
+    d = (identity(make=False) or {}).get("device") or {}
+    return {k: bool(d.get(k)) for k in DEVICE_FLAGS}
+
+
+def set_device(**flags):
+    """set_device(send_only=…, holds_little=…) -> device().  A phone's build calls it."""
+    for k in flags:
+        if k not in DEVICE_FLAGS:
+            raise ValueError("a device says send_only or holds_little")
+    with _LOCK:
+        doc = identity()
+        doc.pop("protocol", None)
+        d = {k: bool((doc.get("device") or {}).get(k)) for k in DEVICE_FLAGS}
+        d.update({k: bool(v) for k, v in flags.items() if v is not None})
+        doc["device"] = d
+        _write(doc)
+    return device()
 
 
 def _ok(doc):
@@ -103,7 +210,7 @@ def identity(make=True):
             if not make:
                 return None
             doc = {"format": FORMAT, "install": secrets.token_hex(16), "name": default_name(),
-                   "created": time.time(), "key": None}
+                   "created": time.time(), "key": None, "machine": _machine_doc()}
             _write(doc)
         out = dict(doc)
         out["protocol"] = PROTOCOL
@@ -206,6 +313,12 @@ def ensure():
     Called at the server's start (lib/synclog.start); quick after the first."""
     with _LOCK:
         doc = identity()
+        if not isinstance(doc.get("machine"), dict):
+            # an identity made before the machine was written down: taken as this computer's own
+            doc.pop("protocol", None)
+            doc["machine"] = _machine_doc()
+            _write(doc)
+            doc["protocol"] = PROTOCOL
         p = paths()
         if doc.get("key") and os.path.isfile(p["key"]) and os.path.isfile(p["cert"]):
             return doc
@@ -229,8 +342,11 @@ def ensure():
 
 def reset():
     """A new install id and a new key pair (an install copied to another
-    computer is not that computer).  The name stays.  The change log's vectors
-    keep the old id's counters, which is right: they are history."""
+    computer is not that computer).  The name and what the device says of
+    itself stay; the machine becomes this one.  The change log's vectors keep
+    the old id's counters, which is right: they are history.  The partners
+    (config/peers.json) are lib/syncpeer.py's: its new_identity() calls this
+    and empties them."""
     with _LOCK:
         old = _read() or {}
         p = paths()
@@ -240,6 +356,9 @@ def reset():
             except OSError:
                 pass
         doc = {"format": FORMAT, "install": secrets.token_hex(16),
-               "name": old.get("name") or default_name(), "created": time.time(), "key": None}
+               "name": old.get("name") or default_name(), "created": time.time(), "key": None,
+               "machine": _machine_doc()}
+        if isinstance(old.get("device"), dict):
+            doc["device"] = old["device"]
         _write(doc)
     return ensure()

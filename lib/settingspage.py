@@ -251,6 +251,8 @@ ROUTES = {
     "/settings/api/devices/rename": ("sync.devices",),
     "/settings/api/devices/remove": ("sync.devices",),
     "/settings/api/devices/rules": ("sync.devices",),       # lane C: lib/syncrules.py json_api
+    "/settings/api/devices/new-identity": ("sync.devices",),   # a copied install gets its own identity
+    "/settings/api/devices/same-computer": ("sync.devices",),  # ... or says it is not a copy
     # Settings -> Devices, its page (a0.7.0, lane E: lib/devicespage.py): sync now, "make identical", the job
     # switches, what is held, the answers, a version put back, a diff deleted, a job cancelled -- the computer's
     "/settings/api/devices/overview": ("sync.devices",),

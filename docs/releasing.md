@@ -284,6 +284,16 @@ once in one checkout break each other — and compare with the baseline.
    ```
 
    They fail by themselves if they changed anything in `config/`.
+
+   Sync between computers (a0.7.0) is tried among them, each against
+   installs of its own in temporary folders: `tests/test_sync_*.py` (with
+   `tests/test_sync_end_to_end.py`, `tests/test_sync_jobs_end_to_end.py`
+   and `tests/test_sync_identity.py`, which start two or three whole
+   installs and pair them), `tests/test_devices_page.py` (also once more
+   as `DEVICES_REAL=1 python3 -m unittest tests/test_devices_page.py`,
+   with the real lanes in place of the fakes) and `tests/test_localhttp.py`.
+   Their browser suites, `tests/devices_page.mjs`, `tests/sync_jobs_page.mjs`
+   and `tests/localhost_move.mjs`, run in 3.
 2. The smoke test:
 
    ```bash
@@ -544,6 +554,38 @@ through, and to prove that what is theirs survives it.
    fingerprint; then choose it once more: the page says **= the same
    version** and **Install <version>-rc1 again**, which is accepted, not
    refused as up to date. Install it, and compare a last time.
+
+8. **Sync, with a second install.** Sync needs two installs, and Parseh-test
+   is paired with a **temporary** one, never with Parseh-mine on 7654 unless
+   you choose to. Unzip `dist/parseh-<version>-rc1.zip` into a new folder
+   beside it, `../parseh-sync-try` (a fresh folder: a copy of Parseh-test's
+   would carry its identity, and pairing the two is refused), and start it
+   there with `./serve.sh 7656`. Then, in the browser:
+
+   - **Pair.** On Parseh-test, **Settings → Devices → Show a code**; at
+     `http://localhost:7656/settings/devices/`, type the code and the
+     address `127.0.0.1:7655`, and **Pair**. Each lists the other under
+     **Partners**, by its name, as *answers now*.
+   - **A document changed on one arrives on the other.** Write a short
+     document in the studio on 7656, press **Sync now**, and open it on
+     Parseh-test. Change a line there, sync, and see the line on 7656.
+   - **A choice.** Change the same line differently on both, then sync.
+     **Questions waiting** shows it on both; answer on one (**Keep this
+     computer's**): the other is answered too, the version thrown away is
+     under **Diff files**, and the document reads the same on both.
+   - **A deletion asked.** Delete the document on 7656 and sync. Parseh-test
+     asks before deleting it; delete it there too.
+   - **A job**, if this version lends jobs: turn on **Accept jobs from paired
+     devices** on 7656 and **Send heavy jobs to paired computers** on
+     Parseh-test, start a job Parseh-test offers to lend, and see it listed
+     under **Jobs** with who took it, and its result arrive through sync.
+     Turn both switches off again.
+   - **Remove.** On Parseh-test, **Remove** the temporary install: the page
+     says it was told. On 7656 its row says Parseh-test removed this
+     computer; press **Remove it here too**.
+
+   Stop the temporary install (Ctrl+C) and delete `../parseh-sync-try`.
+   Anything else than the above is a fault, as in 5.5.
 
 Parseh-test is left on `<version>-rc1`: the release itself will be ↑ newer
 to it.
