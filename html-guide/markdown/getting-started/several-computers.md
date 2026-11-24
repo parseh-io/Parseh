@@ -73,7 +73,17 @@ Caches, downloaded models and dictionaries never sync either: each computer
 fetches its own.
 
 **Pictures, recordings and built pages** are copied whole; they never
-change once written, so they cannot disagree. **Additions to a list** — a
+change once written, so they cannot disagree.
+
+**Builds travel with their source.** A book's reader and its PDF, a studio
+document's PDF and the drawings of its LaTeX blocks go to the other
+computer with the source they were built from. A computer **without
+LaTeX** — and, later, a phone — can therefore read a book, open a
+document's PDF and see its drawings built elsewhere. A build is taken only
+when it was made from the very source that computer has; nothing is asked.
+A book this computer leaves out never brings its build either.
+
+**Additions to a list** — a
 clip added to the tray, a chunk flagged to review later, a card in the Anki
 store — combine: each computer gets the other's.
 
@@ -161,9 +171,12 @@ opens by itself a moment later.
 
 ## Out of date
 
-A book's reader or a studio PDF is built from its source. When the source
-changes through sync, the build is marked **Out of date** on its page, with
-a button to build it again. Nothing rebuilds by itself.
+A book's reader or a studio PDF records the source it was built from. When
+the source has changed since — through sync or here — and no paired computer
+has a build of the new source, the build is marked **Out of date** on its
+page, with a button to build it again. Nothing rebuilds by itself: when the
+other computer rebuilds, its build arrives at the next sync and the mark goes
+by itself.
 
 ## Jobs
 
@@ -195,8 +208,16 @@ for that.
   then, or sends the build to a partner.
 - **Estimating by the sound.** The page follows the job for as long as it
   waits, past its usual two minutes.
-- **Cloud-LaTeX drawings.** Those of studio documents are not lent: their
-  cache stays on the computer that drew them.
+- **Exact word times.** Transcribing with **Exact word times** on a computer
+  that has Whisper but no aligner for the language offers **Send to
+  <partner>** when a partner has one: the transcription runs here, the
+  alignment there, and the review says where the times were made. **Not
+  now** keeps Whisper's own times.
+- **The graphics card or the CPU.** A transcription sent to a partner runs on
+  what you chose here; a partner without a graphics card ready uses its
+  CPU, and the review says so.
+- **LaTeX drawings** are not a job: they travel as builds (above). A block
+  no computer with LaTeX has drawn yet waits until one opens that document.
 
 ## What this computer holds
 

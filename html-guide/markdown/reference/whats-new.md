@@ -39,7 +39,9 @@ The question waits in Settings → Devices and as a banner on the thing's own pa
 as one question with the list. Anything a sync replaced is kept for a day and can be put back, and a computer left
 unopened for a while can be made identical to a partner after one summary of what it will lose. An editor that is open
 holds its document, video or deck against sync until it closes. Heavy jobs can be lent between computers, behind two
-switches that start off. Sync is not a backup: a deletion, once answered, travels.
+switches that start off. A book's reader and PDF, a document's PDF and its LaTeX drawings travel with the source they
+were built from, so a computer without LaTeX reads what another built. Sync is not a backup: a deletion, once answered,
+travels.
 [Several computers, one shelf](../getting-started/several-computers.md).
 
 ## a0.6.3 — 23 November 2026
