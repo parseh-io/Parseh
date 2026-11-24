@@ -388,10 +388,8 @@ def _need_words(caps, args):
 
 
 def _here_words(args):
-    with contextlib.suppress(Exception):
-        import getstt
-        if getstt.aligner_ready(args.get("lang")):
-            return True, ""
+    if _need_words(capabilities(), args):
+        return True, ""
     return False, "this computer has no aligner for exact word times in %s" % (args.get("lang") or "that language")
 
 

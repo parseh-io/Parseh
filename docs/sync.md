@@ -23,6 +23,7 @@ always leaves a way back to what a choice threw away.
 | **latest** | a reading place | Never asked. The place set last wins. The reader already asks whether to jump to another device's place. |
 | **additions** | an entry of a list | Each side gets the other's: a clip, a Review-later flag, an Anki card, the notes the Anki store has seen. |
 | **immutable** | media nobody edits | Named by the hash of its content and copied whole. It cannot conflict. |
+| **build** | a book's reader and PDF, a document's or a note's PDF, the drawings of LaTeX blocks | Never asked. Each build records the source it was made from, and travels with that source: a partner's build is taken when it was made from the source this computer has now and this computer's own is missing or was made from another. |
 
 The same three rules apply to every unit, whatever its rule above:
 
@@ -33,9 +34,10 @@ The same three rules apply to every unit, whatever its rule above:
 - **A unit open in an editor is never written by sync,** and a unit that sync is
   writing cannot be opened in an editor.
 
-**Never synced:** caches, `.tmp`, built pages and PDFs, runtimes, models,
-dictionaries, anything a device can fetch or build again, and this device's own
-settings.
+**Never synced:** caches, `.tmp`, runtimes, models, dictionaries, the working
+files of a build (LaTeX's `.aux`, `.log`, a document's staged fonts and pictures),
+and this device's own settings. **Builds travel** (lane G, below): a computer
+without LaTeX, and a phone, read what another computer built.
 
 ## The inventory
 
@@ -51,7 +53,8 @@ a path on one disk, so two installs call the same thing by the same name.
 |---|---|---|---|
 | the source: `main.tex`, the chapters' `.tex`, `book.json`, `reading.json`, `timings.json`, `review-corrections.json`, `making.json`, `ASKS.md` / `NOTES.md` / `AGENTS.md` / `CLAUDE.md`, `original/`, `annot/`, `source/`, the recording and transcripts in `audio/` | `lib/texwrite.py` `_write`, `lib/structure.py`, `lib/bookmeta.py`, `lib/draft.py`, `lib/reading.py` `save`, `lib/making.py`, `lib/timestamp.py` (a subprocess), and `serve.py` (`set_book_meta`, `set_variety`, `_subtimes`, `_save`, the narration routes) | **the book's source, together** · `book:<folder>/<slug>` | choice |
 | a note: `markdown/<language>/<id>/` (`source.md`, `meta.json`, `images/`, `audio/`) | the studio store, through `markdown/app/notes.py` | `note:book/<folder>/<slug>/<language>/<id>` | choice |
-| built: `reader/`, `main.pdf` and LaTeX's other output files at the top, `review.json`, `review.html`, a note's `build/` | tex2html, `lib/bookbuild.py`, `lib/timestamp.py` | — | never (it is rebuilt) |
+| built: `reader/` and the `*.pdf` at the top, with `.built-from.json` (the source each was built from); a note's `build/*.pdf\|.tex\|.html` | tex2html, `lib/bookbuild.py`, a lent build (`lib/syncjobs.py`) | the book's (or the note's) build, beside its source | build |
+| built, not carried: LaTeX's other output files at the top (`.aux`, `.log`, …), `review.json`, `review.html` | `build.sh`, `lib/timestamp.py` | — | never (working files of a build) |
 | hidden: `.reader-key`, `.build-key`, `.claude/`, `.agents/`, the `*.tmp` and `*.part` files | the builds, `lib/making.py` (an agent's skills) | — | never |
 | `books/.trash/` | `lib/books.py` `trash` | — | never (a deletion travels as a tombstone) |
 
@@ -69,9 +72,11 @@ a path on one disk, so two installs call the same thing by the same name.
 | store | written by | unit | rule |
 |---|---|---|---|
 | **a studio document:** `source.md`, `meta.json`, `images/`, `audio/` (and the older `_prompt.md`) | `markdown/app/store.py`: `_create`, `_save_text`, `_write_source`, `_write_meta`, `save_image`, `save_audio`, `delete_audio`, `_copy_in`, `import_library`, `delete` | `doc:<folder>/<id>` (`doc:<id>` for a document from before languages, sitting directly in `library/`) | choice |
-| `build/`, `.seeded-*` | `markdown/app/server.py` `build_pdf`, `seed_example` | — | never |
+| `build/main.pdf`, `build/main.tex` (and any `build/*.html`), with `.built-from.json` | `markdown/app/server.py` `build_pdf` | the document's build | build |
+| the rest of `build/` (staged fonts, pictures, drawings, LaTeX's working files), `.seeded-*` | `build_pdf`, `seed_example` | — | never |
 | `markdown/open/<session>/` (a file opened from the computer) | `markdown/app/openfile.py` | — | never (a working copy of this device) |
-| `markdown/latex/` (the drawings of the LaTeX blocks) | `lib/latexdraw.py`, `lib/latexbatch.py` | — | never (rebuilt from the blocks) |
+| `markdown/latex/` (the drawings of the LaTeX blocks): `<key>.svg\|.pdf\|.json\|.tex\|.log`, filed by content in `.content/` | `lib/latexdraw.py`, `lib/latexbatch.py` | a drawing, by its content key | build (taken only by a computer that cannot compile it) |
+| `markdown/latex/owners.json`, `.preview/`, `.batch/`, `*.fail.json` | `lib/latexdraw.py` | — | never (this computer's bookkeeping) |
 
 ### The decks: `exercises/<language folder>/<deck>/`
 
@@ -773,14 +778,17 @@ They stay in `config/sync/diffs/` until the person deletes them.
 
 ### Out of date
 
-When a partner's version of a book, a studio document or a note is written here
-(`ON_TAKEN`) and that unit has a build (a book's `main.pdf` and
-`reader/index.html`; a document's or a note's `build/*.pdf|.tex|.html`), the
-unit is marked with the time and the new source hash. A build whose file is
-newer than the mark clears it. Nothing rebuilds on its own. (The builds
-themselves were not changed to record their source hash: a build made after the
-change is by definition from the new source, and `build.sh`'s own
-`.build-key` / `.reader-key` already skip a rebuild that would change nothing.)
+Read from the builds' own records (lane G, `lib/syncbuilds.py`, below):
+`is_out_of_date(uid)` is true when this computer's build of the unit was made
+from a source hash other than the current source's, and no partner has said
+(in its last `sync.have`) that it holds a build of the current source. A
+partner that rebuilds after a change sends its build at the next sync, and its
+arrival clears the mark by itself; a rebuild here clears it as well. Nothing
+rebuilds on its own. `out_of_date()` names the parts: "the reader", "the PDF".
+A build from before the records (no `.built-from.json`) is marked as made
+from another source when a partner's version of its source is written here
+(`ON_TAKEN` -> `syncbuilds.note_taken`), so it shows out of date and a
+partner's recorded build replaces it.
 
 Tests: `tests/test_sync_rules.py` (every rule through `tests/syncfake.py`), and
 `tests/test_sync_end_to_end.py` tests 3–5 (two real installs, kept apart by
@@ -873,7 +881,8 @@ answer (an estimate's times) comes back in `result`.
 | `book-build` | `what`: pdf / html | `reader` (+ `latex` for the PDF) | `bookbuild.start`, polled; the PDF and the reader come back as files |
 | `estimate` | `kind`, `start`, `end`, `texts`, `values`+`times` (read here), or `inner` (the recording in the unit) and `rate` | `estimate` (NumPy) (+ `ffmpeg` without values) | `wavealign.estimate_pieces`; `FINISH["estimate"]` (serve.py) makes the door's answer |
 | `narration-align` | `narration`, `force` | always | `lib/timestamp.py`, then the reader: the `.tex` comes back through sync, the reader as files |
-| `transcribe` | `lang`, `model`, `exact`, `duration`, `marks`, `source`, `second_pass`; the recording as an input | `whisper` holds the model | `sttjobs.run_lent`; the finished job comes back as `transcript.json` (lane D2) |
+| `transcribe` | `lang`, `model`, `exact`, `duration`, `marks`, `source`, `second_pass`, `mode` (the CPU or the graphics card chosen here; the partner falls back to its CPU when it has no card ready, and the review's notes say so); the recording as an input | `whisper` holds the model | `sttjobs.run_lent`; the finished job comes back as `transcript.json` (lane D2) |
+| `word-align` | `lang`, `audio` (the input's name); the recording (`audio.pcm`, or the film) and Whisper's `segments.json` as inputs | `aligners` holds the language | `lib/ctcalign.py` in the speech runtime, as the worker runs it; the aligned segments come back as `segments.json` (lane G) |
 
 ### The ops (registered through `syncroutes.register`)
 
@@ -968,18 +977,115 @@ the real pipeline on the partner with the faster-whisper stand-in),
 `tests/sync_jobs_stt_page.mjs` (the add page in Chromium, the tab capture
 stood in for).
 
-**Not lent.** The cloud-LaTeX drawings of studio documents (`lib/latexbatch.py`,
-`lib/latexdraw.py`) write into this computer's drawing cache, which does not
-sync. A lent BOOK build has none to bring back: a book's PDF draws its TikZ
-inside lualatex and its reader uses no drawing cache. Lending the studio's
-drawings would be a job kind of its own -- the document's unit held on the
-partner, its drawings made there, and every `markdown/latex/` entry plus the
-owners' record brought back -- and a drawing's key holds the drawing
-computer's TeX installation, so a computer without TeX would never find
-those drawings by its own key; the cache's lookup would have to learn to
-accept them. Open for a0.7.x.
+**Exact word times on a paired computer (lane G).** The optional ONNX aligner
+(`lib/ctcalign.py`, `getstt.ALIGNERS` / `aligner_ready`) runs inside a
+transcription, after Whisper. A transcription made HERE with "exact word times"
+asked, no aligner here for the language, "send" on and a partner whose
+capabilities list that language answers **409** `aligner-elsewhere` with
+`jobs: {"kind": "word-align", "send": who_can(…)}`. "Send to <partner>" posts the
+same request with `send_to` while Whisper is here: the transcription runs here
+(`sttjobs.start(…, align_on=)`), and when Whisper is done its segments and the
+recording go to the partner as a `word-align` job; the aligned words come back,
+replace Whisper's, and the review says "Exact word times made on <partner>." --
+the video's `wordtimes.json`, written when the video is added, then travels
+with the video like any edit. "Not now" starts the same transcription with
+Whisper's own times (`align_here`). A partner that fails or stays away
+`ALIGN_WAIT` leaves Whisper's times, with a note. Only one Activity entry
+shows for a lent transcription or alignment: the add page's own.
+
+**The drawings of LaTeX blocks are not a job.** They travel as builds (lane G,
+below), found by their content, so a computer without TeX shows the drawings
+another computer made. What remains of the old open point is narrow: a block
+NO paired computer has drawn yet cannot be drawn by a computer without TeX until
+one with TeX opens (or builds) that document; asking a partner to draw it now
+would be a job kind of its own, not built.
+
+**Leftovers settled by lane G.** A device that says it only sends
+(`syncid.device()["send_only"]`, a phone) shows it in `capabilities()` and
+refuses every offer; a partner marked "removed you" (lane H) is never called by
+the exchange (no pull, no nudge) until it is paired again; a runner that
+answers `True` instead of a dict ends its job done.
 
 The test seams: `CAPS_FORCE`, `RUNNERS`, `INLINE` (tests/test_sync_jobs.py) and
 `SYNC_JOBS_FAKE` in tests/sync_harness.py (tests/test_sync_jobs_end_to_end.py,
 tests/sync_jobs_page.mjs, which drives a card's build in Chromium).
 <!-- end lane D -->
+
+<!-- lane G -->
+## Builds travel with their source: `lib/syncbuilds.py` (lane G)
+
+A second computer that received a book's source and not its reader could never
+read it without LaTeX, and a phone never has LaTeX. So builds travel, as files
+that never change once written, named by their sha256 like every file in
+transit.
+
+**What a build is, and its record.** Per source unit, the parts:
+
+| source | part | files (inner names, relative to the unit's folder) |
+|---|---|---|
+| a book | `reader` | `reader/**` |
+| a book | `pdf` | the `*.pdf` at the book's top (`main.pdf`) |
+| a document, a note | `pdf` | `build/*.pdf`, `build/*.tex`, `build/*.html` |
+
+At a build's end the builder calls `syncbuilds.record(folder, parts)`:
+`lib/bookbuild.py` (when a build job ends well: `pdf` -> reader and PDF,
+`html` -> the reader), `lib/tex2html.py` (the reader, also from `./build.sh`
+in a terminal), `markdown/app/server.py` `build_pdf` (after `store.set_build`,
+so the record names the source with its `meta.json` saying it was built), and
+a lent build written here (`lib/syncjobs.py`). The record is
+`<unit folder>/.built-from.json`: `{"parts": {part: {"source": the unit's
+hash (syncunits.snapshot), "at", "from"?}}}` -- a hidden name, so never part of
+the source unit itself.
+
+**Builds are not units of their own.** They are files attached to their
+source's unit, carried beside the change log rather than in it: a build has no
+history to compare and nothing to ask, so it needs no version vector,
+tombstone, question or day of keeping, and its id is its source's. The
+partner's builds ride `sync.have`'s answer (`"builds": {uid: {part: {"source",
+"files": {inner: sha}}}}`), their files come through `sync.blob` (which serves
+a build's file by its sha too), and the receiving side writes them after the
+units (`syncexchange.Pull.run`'s last step, `syncbuilds.after_pull`).
+
+**The matching rule.** A partner's part is **taken** when the source it was
+built from is the source this computer has NOW (the same unit hash), and this
+computer's own part is missing, unrecorded, or recorded from another source.
+Never asked, never a conflict: two builds of one source are the same reading.
+A reader is put in place in one rename. A unit left out (`holding`) never has
+its build fetched; a book being built here at that moment is left for the next
+sync. A book whose build arrived has its library page written again
+(`syncbuilds.ON_ARRIVED`, serve.py); the phone's shelf (`/m/books/`) and the
+studio's library read the folders as they are. A build made here asks for a
+sync with every partner (`syncexchange.request`), so a rebuild travels without
+waiting for an edit.
+
+**Drawings of LaTeX blocks, found by their content.** A drawing's KEY holds
+the drawing computer's TeX installation, so a computer without TeX would never
+find a drawing made elsewhere by its own key. Every kept drawing is therefore
+also filed by its CONTENT KEY -- the same hash without the installation: the
+block, the resolved theme's preamble, the compiler's name, the shape --
+in `markdown/latex/.content/<ck[:2]>/<ck>.key` (`{"key", "compiler"}`;
+`latexdraw.content_key`, `by_content`, `aliases`). `latexdraw.plan` falls back
+to it only when this computer CANNOT compile the block (no such compiler, or a
+theme's package missing): a computer with TeX keeps its own key and its own
+cache exactly as before. Drawings ride `sync.have` as `"drawings": {ck: {"key",
+"compiler", "files": {svg|pdf|json|tex|log: sha}}}`, and a computer takes one
+only when it lacks the drawing's compiler, has no drawing of that content, and
+a document, note or exercise it holds names it (`latexdraw.content_keys` over
+the held sources). A drawing that arrives is filed by its content and enters
+the owners' record as a new drawing does (`latexdraw.arrived`); the next
+repair of `owners.json` finds it owned, since `plan` answers its key.
+
+**Out of date** (lane C's API, rebuilt on these records) is above, in the
+rules.
+
+Tests: `tests/test_sync_builds.py` (two installs through `tests/syncfake.py`:
+a book's reader and PDF, out of date and its clearing, holding, a document's
+PDF, a build from before the records, a drawing on a computer without TeX, a
+partner that removed this computer), `tests/test_sync_builds_end_to_end.py`
+(two real installs over TLS; `SYNC_BUILDS_FAKE` in tests/sync_harness.py fakes
+A's book build through bookbuild's `runner` seam and makes B a computer
+without TeX; A's drawing is compiled by A's real lualatex, A's XeLaTeX is a
+script writing a real PDF), `tests/test_sync_jobs.py` `LaneG` (the aligner
+lent, a send-only device, a runner's `True`), `tests/test_sync_jobs_stt.py`
+(the graphics card's choice passed on, and the partner's fallback).
+<!-- end lane G -->

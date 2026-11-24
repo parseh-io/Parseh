@@ -84,9 +84,9 @@ class Lent(Jobs):
             table.clear()
 
     # ----- B records, as the add page does
-    def record(self, seconds=5, marks=None):
+    def record(self, seconds=5, marks=None, processing="auto"):
         with self.on(self.B):
-            got = sttjobs.start({"kind": "youtube", "id": YT}, "fa", TURBO, "auto", lend_to=self.A.id)
+            got = sttjobs.start({"kind": "youtube", "id": YT}, "fa", TURBO, processing, lend_to=self.A.id)
             self.assertEqual(got["lent"], {"to": self.A.id})
             tok = got["job"]
             if marks:
@@ -154,6 +154,21 @@ class LentTranscription(Lent):
                              and os.listdir(os.path.join(ytpages.VIDEOS, ".pending-transcriptions")))
             self.assertFalse(os.path.isdir(J._files_dir(job["lend"]["job"])))
             self.assertEqual(J.jobs(), [])
+
+    def test_the_graphics_card_chosen_here_goes_with_the_job_and_A_falls_back_saying_so(self):
+        # a0.7.0 lane G: the CPU / GPU choice made on the asking computer is passed on
+        tok, job = self.record(processing="cuda")
+        with self.on(self.B):
+            self.assertEqual(J.view(job["lend"]["job"])["kind"], "transcribe")
+            self.assertEqual(J._doc()["asked"][job["lend"]["job"]]["args"]["mode"], "cuda")
+        self.step(self.B)
+        self.step(self.B)
+        self.assertTrue(self.look(job))
+        with self.on(self.B):
+            res = sttjobs.result(tok)
+        self.assertIn("A has no graphics card ready for speech to text, so it transcribed on its CPU.",
+                      res["notes"])
+        self.assertIn("Transcribed on A.", res["notes"])
 
     def test_it_waits_while_nobody_is_reachable_and_never_fails_for_it(self):
         tok, job = self.record()

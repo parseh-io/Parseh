@@ -130,7 +130,7 @@ def distribution():
         m = re.search(r"TeX Live (\d{4})", out)
         tlmgr = shutil.which("tlmgr")
         return {"kind": "texlive", "year": int(m.group(1)) if m else None, "tool": tlmgr,
-                "said": ("TeX Live %s" % m.group(1)) if m else out.splitlines()[0].strip()}
+                "said": ("TeX Live %s" % m.group(1)) if m else (out.splitlines() or [c])[0].strip()}
     return {"kind": None, "year": None, "tool": None, "said": "no TeX on this computer"}
 
 

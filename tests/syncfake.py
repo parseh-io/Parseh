@@ -35,6 +35,7 @@ import clips            # noqa: E402
 import decks            # noqa: E402
 import langprompts      # noqa: E402
 import languages        # noqa: E402
+import latexdraw        # noqa: E402
 import latexthemes      # noqa: E402
 import prefs            # noqa: E402
 import prompts          # noqa: E402
@@ -53,7 +54,8 @@ _FILES = ((prefs, "STORE", "config/prefs.json"), (prompts, "STORE", "config/prom
           (langprompts, "LANG_FILES", "lib/lang"), (langprompts, "LANG_DOCS", "docs/lang"),
           (langprompts, "STARTERS", "markdown/exlex/starters"),
           (clips, "DIR", "clips"), (store, "LIB", "markdown/library"), (decks, "DIR", "exercises"),
-          (decks, "CLIPS_DIR", "clips"), (store, "CLIPS_DIR", "clips"))
+          (decks, "CLIPS_DIR", "clips"), (store, "CLIPS_DIR", "clips"),
+          (latexdraw, "DRAWN", "markdown/latex"))
 _SHELVES = (("books", "books"), ("videos", "youtube/videos"), ("anki", "youtube/anki"),
             ("library", "markdown/library"), ("exercises", "exercises"), ("clips", "clips"))
 

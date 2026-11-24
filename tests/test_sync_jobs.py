@@ -283,5 +283,76 @@ class OneTakes(Jobs):
         self.assertEqual(len(took), 1, took)
 
 
+def fake_words(rec, say):
+    """The partner's aligner stood in: each segment's words, spread evenly."""
+    import json as _json
+    files = J._pull_inputs(rec, say)
+    assert rec["args"]["audio"] in files, files
+    with open(files["segments.json"], encoding="utf-8") as fh:
+        segs = _json.load(fh)
+    for s in segs:
+        ws = s["text"].split()
+        step = (s["end"] - s["start"]) / max(1, len(ws))
+        s["words"] = [{"text": t, "start": round(s["start"] + i * step, 3),
+                       "end": round(s["start"] + (i + 1) * step, 3), "score": 0.9} for i, t in enumerate(ws)]
+    out = os.path.join(J._files_dir(rec["id"]), "segments.json")
+    with open(out, "w", encoding="utf-8") as fh:
+        _json.dump(segs, fh)
+    return {"result": {"made": sum(len(s["words"]) for s in segs)}, "outputs": {"segments.json": out}}
+
+
+class LaneG(Jobs):
+    """a0.7.0 lane G: the word aligner lent, a send-only device, a runner's True."""
+
+    def setUp(self):
+        super().setUp()
+        self.switch(self.B, send=True)
+        self.switch(self.A, accept=True)
+        J.RUNNERS["word-align"] = fake_words
+        J.CAPS_FORCE[self.A.id]["aligners"] = ["it"]
+
+    def test_exact_word_times_are_made_on_the_partner_that_has_the_aligner(self):
+        import json as _json
+        audio = self.B.w("tmp/audio.pcm", b"\0\1" * 16000)
+        segs = self.B.w("tmp/segs.json", _json.dumps([{"start": 0.0, "end": 1.5, "text": " uno due tre"}]))
+        deliver = self.B.p("tmp/out")
+        with self.on(self.B):
+            self.assertEqual(J.can_here("word-align", {"lang": "it"})[0], False)
+            who = J.who_can("word-align", {"lang": "it"})
+            self.assertEqual([(p["id"], p["can"]) for p in who], [(self.A.id, True)])
+            self.assertEqual([p["can"] for p in J.who_can("word-align", {"lang": "fa"})], [False])
+            jid = J.ask("word-align", {"lang": "it", "audio": "audio.pcm"}, "Exact word times",
+                        prefer=self.A.id, inputs={"audio.pcm": audio, "segments.json": segs}, deliver=deliver)["id"]
+        self.step(self.B, 4)
+        st = self.state(self.B, jid)
+        self.assertEqual(st["state"], "done", st)
+        with open(os.path.join(deliver, "segments.json"), encoding="utf-8") as fh:
+            got = _json.load(fh)
+        self.assertEqual([w["text"] for w in got[0]["words"]], ["uno", "due", "tre"])
+        with self.on(self.B):
+            # (d) one Activity entry for a lent transcription or alignment: the add page's own
+            entries = J.activity_entries(lambda *a, **k: a[0], 3600)
+            self.assertNotIn("job-" + jid, entries)
+
+    def test_a_send_only_device_refuses_jobs_and_says_so_in_its_capabilities(self):
+        with self.on(self.A):
+            J.syncid.set_device(send_only=True)
+            J.forget()
+            self.assertTrue(J.capabilities()["send_only"])
+            ans, _ = J.op_offer(self.B.id, {"job": {"id": "abc123", "kind": "book-build", "args": {}}}, None)
+            self.assertEqual(ans["taken"], False)
+            self.assertIn("only sends", ans["why"])
+            J.syncid.set_device(send_only=False)
+            J.forget()
+            self.assertFalse(J.capabilities()["send_only"])
+
+    def test_a_runner_that_answers_True_ends_the_job_done(self):
+        book(self.B)
+        J.RUNNERS["book-build"] = lambda rec, say: True
+        jid = self.ask_build()
+        self.step(self.B, 4)
+        self.assertEqual(self.state(self.B, jid)["state"], "done")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

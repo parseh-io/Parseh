@@ -65,6 +65,14 @@ def serve_tree(tmp, port):
     if fake is not None:
         fake_jobs(serve, fake)
 
+    builds = json.loads(os.environ.get("SYNC_BUILDS_FAKE") or "null")
+    if builds is not None:
+        fake_builds(builds)
+        # the library page is the checkout's own file (make_index.py): never written from a
+        # test -- each time it would be, a line in the tree says so instead
+        serve.lent_applied = lambda job: open(tmp / "library-rewritten", "a").write(
+            "%s\n" % (job or {}).get("kind"))
+
     import syncid
     if os.environ.get("SYNC_MACHINE"):
         # the computer this install runs on, as "<fingerprint>:<host>" (tests/test_sync_identity.py: a copy)
@@ -81,6 +89,38 @@ def serve_tree(tmp, port):
     serve.main = main
     import cardkit_harness
     cardkit_harness.serve_it(tmp, port, True, "tray")
+
+
+def fake_builds(fake):
+    """SYNC_BUILDS_FAKE (lane G, tests/test_sync_builds_end_to_end.py):
+    "book_build" makes a book's build (the card's and the reader's button,
+    <book>/__build) a stand-in for ./build.sh run through bookbuild's own
+    `runner` seam -- it writes a reader that quotes main.tex and a PDF, and
+    bookbuild records the source as after a real build; "no_tex" makes this
+    computer one without TeX (latexdraw finds no compiler)."""
+    if fake.get("book_build"):
+        import bookbuild
+        real_start = bookbuild.start
+
+        def runner_for(book_dir):
+            def run(cmd, say):
+                with open(os.path.join(book_dir, "main.tex"), encoding="utf-8") as fh:
+                    src = fh.read()
+                os.makedirs(os.path.join(book_dir, "reader"), exist_ok=True)
+                with open(os.path.join(book_dir, "reader", "index.html"), "w", encoding="utf-8") as fh:
+                    fh.write("<!doctype html><title>reader</title><p>built from: %s</p>" % src.strip())
+                with open(os.path.join(book_dir, "main.pdf"), "wb") as fh:
+                    fh.write(b"%PDF-1.5 a stand-in for lualatex\n")
+                say("built (a stand-in for ./build.sh)")
+                return 0
+            return run
+
+        def start(book_dir, what="pdf", runner=None, chapters=()):
+            return real_start(book_dir, what, runner or runner_for(book_dir), chapters)
+        bookbuild.start = start
+    if fake.get("no_tex"):
+        import latexdraw
+        latexdraw.compiler = lambda name, fresh=False: None
 
 
 def fake_jobs(serve, fake):
@@ -107,6 +147,28 @@ def fake_jobs(serve, fake):
             fh.write("<p>the reader, built by %s</p>" % syncjobs.syncid.install_id())
         return {"result": {"what": "pdf"}, "outputs": syncjobs._built_files(d, "pdf")}
     syncjobs.RUNNERS["book-build"] = build
+
+    if fake.get("words"):
+        # THE PARTNER'S ALIGNER (lane G's "word-align"), stood in: the inputs fetched from the
+        # asker as the real runner fetches them, each segment's words spread evenly
+        def words(rec, say):
+            files = syncjobs._pull_inputs(rec, say)
+            if rec["args"].get("audio") not in files:
+                raise syncjobs.JobFailed("the recording did not arrive")
+            with open(files["segments.json"], encoding="utf-8") as fh:
+                segs = json.load(fh)
+            for s in segs:
+                ws = str(s.get("text") or "").split()
+                step = (s["end"] - s["start"]) / max(1, len(ws))
+                s["words"] = [{"text": t, "start": round(s["start"] + i * step, 3),
+                               "end": round(s["start"] + (i + 1) * step, 3), "score": 0.9}
+                              for i, t in enumerate(ws)]
+            out = os.path.join(syncjobs._files_dir(rec["id"]), "aligned.json")
+            with open(out, "w", encoding="utf-8") as fh:
+                json.dump(segs, fh)
+            say("aligned (a stand-in for lib/ctcalign.py)")
+            return {"result": {"made": sum(len(s["words"]) for s in segs)}, "outputs": {"segments.json": out}}
+        syncjobs.RUNNERS["word-align"] = words
 
 
 if __name__ == "__main__":

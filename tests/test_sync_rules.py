@@ -36,6 +36,7 @@ import syncexchange as X        # noqa: E402
 import synckeep                 # noqa: E402
 import synclog                  # noqa: E402
 import syncrules as R           # noqa: E402
+import syncbuilds               # noqa: E402
 
 FLASH = ":::exercise flashcard\nfront: [گربه]{tl}\nback: cat\n:::"
 DOC = "---\nlang: fa\ntitle: Doc\n---\n# Doc\n\nline one\nline two\n"
@@ -371,8 +372,11 @@ class Rules(unittest.TestCase):
             self.assertTrue(R.is_out_of_date(uid))
             self.assertEqual([(o["unit"], o["title"], o["what"]) for o in R.out_of_date()],
                              [(uid, "Three", ["the PDF"])])
-        A.w("books/english/three/main.pdf", b"%PDF rebuilt")      # a newer build clears it
+        # (a build from before the records: marked as made from another source when B's came)
+        A.w("books/english/three/main.pdf", b"%PDF rebuilt")      # a rebuild, recorded, clears it
         with w.on(A):
+            self.assertTrue(R.is_out_of_date(uid))                 # a file newer is not a record
+            syncbuilds.record(A.p("books/english/three"), ["pdf"])
             self.assertFalse(R.is_out_of_date(uid))
             self.assertEqual(R.out_of_date(), [])
             # the old main.tex was kept for a day: put it back

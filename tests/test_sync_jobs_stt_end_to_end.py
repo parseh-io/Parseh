@@ -178,5 +178,77 @@ class SttEndToEnd(unittest.TestCase):
         self.assertIn("uno due tre", res["text"])
 
 
+class AlignerEndToEnd(unittest.TestCase):
+    """a0.7.0 lane G: A transcribes with its own Whisper but has no aligner for
+    Italian; B has one ("aligners" in its capabilities, its runner a stand-in
+    for lib/ctcalign.py).  The add page's door offers "Send to B" for the exact
+    word times; the transcription runs on A, the alignment on B."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.base = tempfile.mkdtemp(prefix="sync-align-e2e-", dir=os.environ.get("TMPDIR"))
+        whisper = dict(FAKE, stt={"runtime": True, "models": [TURBO], "segments": SEGMENTS})
+        aligner = dict(FAKE, caps={"aligners": ["it"]}, words=True, stt={"runtime": False, "models": []})
+        cls.A = Install(cls.base, "A", env={"SYNC_JOBS_FAKE": json.dumps(whisper)})
+        cls.B = Install(cls.base, "B", env={"SYNC_JOBS_FAKE": json.dumps(aligner)})
+        try:
+            cls.A.wait()
+            cls.B.wait()
+            st, offer = cls.B.dev("pair-start")
+            assert st == 200, offer
+            st, out = cls.A.dev("pair-enter", {"code": offer["said"], "address": "127.0.0.1:%d" % cls.B.port,
+                                               "fingerprint": offer["fingerprint"]})
+            assert st == 200, out
+            cls.B_id = out["partner"]["id"]
+            cls.B_name = out["partner"].get("name") or cls.B_id
+        except Exception:
+            cls.tearDownClass()
+            raise
+        switches(cls.A, send=True)
+        switches(cls.B, send=False, accept=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        for i in (getattr(cls, "A", None), getattr(cls, "B", None)):
+            if i:
+                i.stop()
+        if os.environ.get("KEEP_SYNC_E2E"):
+            print("trees kept in", cls.base)
+        else:
+            shutil.rmtree(cls.base, ignore_errors=True)
+
+    def test_exact_word_times_are_made_on_B_and_come_back_into_As_review(self):
+        body = {"source": "youtube", "url": URL, "lang": "it", "model": TURBO, "processing": "auto",
+                "exact": True}
+        st, out = ask(self.A, "POST", "/youtube/api/transcribe/start", body)
+        self.assertEqual(st, 409, out)
+        self.assertEqual(out["code"], "aligner-elsewhere")
+        self.assertEqual(out["jobs"]["kind"], "word-align")
+        self.assertEqual([(p["id"], p["can"]) for p in out["jobs"]["send"]], [(self.B_id, True)])
+        st, out = ask(self.A, "POST", "/youtube/api/transcribe/start", dict(body, send_to=self.B_id))
+        self.assertEqual(st, 200, out)                      # the transcription itself runs here
+        job = out["job"]
+        pcm_in(self.A, job, stt_fakes.pcm(4))
+        said = set()
+
+        def done():
+            st, s = ask(self.A, "POST", "/youtube/api/transcribe/status", {"job": job})
+            said.add(s.get("say", "").split(":")[0])
+            self.assertNotEqual(s["state"], "failed", s)
+            return s["state"] == "done"
+        until("the transcript with B's word times", done, wait=120)
+        self.assertIn("Making exact word times", said)
+        st, res = ask(self.A, "POST", "/youtube/api/transcribe/result", {"job": job})
+        self.assertEqual(st, 200, res)
+        self.assertIn("uno due tre", res["text"])
+        self.assertIn("Exact word times made on %s." % self.B_name, res["notes"])
+        self.assertEqual(res["words"].get("source"), "aligner", res["words"])
+        self.assertTrue(res["words"]["held"])
+        # "Not now": the same transcription with Whisper's own times, no question
+        st, out = ask(self.A, "POST", "/youtube/api/transcribe/start", dict(body, align_here=True))
+        self.assertEqual(st, 200, out)
+        ask(self.A, "POST", "/youtube/api/transcribe/cancel", {"job": out["job"]})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
