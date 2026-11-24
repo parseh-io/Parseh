@@ -778,3 +778,113 @@ phrase editor, an exercise's form on a deck (`item:<deck>/<id>`) and a deck's
 options (`deck:<folder>/<slug>`); renewed every minute, given back on close and
 on `pagehide`.
 <!-- end lane E -->
+
+<!-- lane D -->
+## Jobs: `lib/syncjobs.py` (lane D)
+
+A computer that cannot do a heavy piece of work may send it to a paired one
+that can; the result comes back. Two switches, **both off on a fresh install**,
+kept in `config/sync/jobs-switches.json` (this device's, never synced):
+"send heavy jobs to paired computers" and "accept jobs from paired devices".
+
+### The record, and why it is not a synced unit
+
+A job is a record in the **asking** computer's `config/sync/jobs.json`: `kind`
+and `args` (what to do), `unit` and `unit_hash` (on what, at which version, or
+the values themselves in `args`), who asked, who took it, its state, the
+reason. The asker alone decides who has it, so taking is an exchange and not a
+race: it offers the job to **one** partner at a time (`jobs.offer`), and only
+the answer "taken" makes that partner the holder. An offer that got no answer
+is asked about (`jobs.state`) before anyone else is offered the job. A synced
+record would have made two partners that took one job a conflict for the
+rules to settle afterwards.
+
+| state | the page says | |
+|---|---|---|
+| `waiting` | "waiting for a computer" | nobody has it; it waits whatever the silence, never failing for it |
+| `taken` | "on <partner>" | the holder answers `jobs.state`; silent for more than `DEADLINE` (120 s), the job is given back (`waiting`) and the partner told so (`jobs.drop`) when it is reached again |
+| `done` | "done" | the result is here |
+| `failed` | the reason in words | the partner said why |
+| `cancelled` | | taken back here; the holder is told |
+
+**The result comes back as ordinary changes.** Before it works on a unit, the
+partner **holds** it at the asker's version: a different hash makes it answer
+"retry" and pull the owner from the asker (`syncexchange.fetch`, which also
+takes in a book it had left out). What the pipeline writes into the unit reaches
+the asker through the exchange (`sync_from(taker, only=owner)` as soon as the
+job is done, and the scheduler anyway). What sync never carries -- a built PDF,
+a reader -- comes back as the job's **output files** (`jobs.blob`, by sha256, in
+chunks), written into the asker's copy under the book's `pathlock`. A small
+answer (an estimate's times) comes back in `result`.
+
+### The kinds, each an existing pipeline called as it is
+
+| kind | args | a computer can when | runs |
+|---|---|---|---|
+| `book-build` | `what`: pdf / html | `reader` (+ `latex` for the PDF) | `bookbuild.start`, polled; the PDF and the reader come back as files |
+| `estimate` | `kind`, `start`, `end`, `texts`, `values`+`times` (read here), or `inner` (the recording in the unit) and `rate` | `estimate` (NumPy) (+ `ffmpeg` without values) | `wavealign.estimate_pieces`; `FINISH["estimate"]` (serve.py) makes the door's answer |
+| `narration-align` | `narration`, `force` | always | `lib/timestamp.py`, then the reader: the `.tex` comes back through sync, the reader as files |
+
+### The ops (registered through `syncroutes.register`)
+
+```
+jobs.caps   {}                              -> {"ok", "caps", "name", "install"}
+jobs.offer  {"job": {id, kind, title, args, unit, unit_hash, asked_by_name}}
+                                            -> {"ok", "taken", "name"?, "why"?, "retry"?}
+jobs.state  {"id"}                          -> {"ok", "state": running|done|failed|cancelled|unknown,
+                                                "say", "reason", "result"?, "outputs"? [{inner, sha, size}]}
+jobs.blob   {"id", "inner", "offset", "length"} -> {"ok", "size", "chunk"}, the bytes
+jobs.drop   {"id"}                          -> {"ok"}   (the asker has the result, cancelled, or gave it back)
+```
+
+Only the computer that asked a job may ask about it, fetch its files or drop it.
+A computer works on `MAX_DOING` (1) job for others at a time; a busy one says
+so and the job waits for it or goes to another.
+
+### The Python API (lane E's pages call these)
+
+```python
+switches() -> {"send": bool, "accept": bool}
+set_switches(send=None, accept=None) -> switches()
+capabilities(partner_id=None) -> {"whisper": [models], "latex": bool, "aligners": [langs],
+        "analyzers": [langs], "gpu": bool, "accepts": bool,
+        "reader", "estimate", "ffmpeg", "narration", "send_only": bool, "known": bool}
+        # None = this computer, worked out from what Settings has installed; a partner's = what it last said
+jobs() -> [{"id", "kind", "title", "state", "asked_by", "asked_by_name", "taken_by",
+            "taken_by_name", "reason", "at", "unit", "say", "mine"}]   # newest first; mine=False: done here for another
+cancel(job_id) -> {"ok"}
+waiting_here() -> [the jobs asked here that are waiting or on a partner]   # lane C's "make identical"
+# and for the pages that start jobs:
+can_here(kind, args) -> (bool, why);  who_can(kind, args) -> [{"id", "name", "reachable", "can"}]
+ask(kind, args, title, unit=None, prefer=None) -> job;  view(job_id);  latest_for(kind, unit)
+start(), stop(), step(), register()        # serve.py starts the asker's loop after the exchange
+activity_entries(entry, keep, now)         # kind "job" on the activity list
+```
+
+### The doors the pages use
+
+A door whose work this computer cannot do answers, when "send" is on, **409**
+with `error` (why, in words) and `jobs: {"kind", "send": who_can(...)}`; the
+same request with `send_to: <partner id>` answers **202** with the job.
+`lib/jobs.js` (loaded by `parseh.js`) wraps `fetch` for such a door: it draws
+"Send to <partner>", then follows the job at `GET /__jobs/state?id=` ("waiting
+for a computer", "on <partner>", "done", with Cancel: `POST /__jobs/cancel`),
+and hands the page the result as if the work had been done here. With "send"
+off nothing changes: the action runs here or says it cannot, as before.
+
+- a book's build (`<book>/__build`, the library's card and the reader):
+  `__build/status` follows a lent build in its own shape;
+- estimate by the sound (`/youtube/api/estimate`, `<reader>/__clip/estimate`).
+
+**Not lent yet.** Transcription: for a YouTube video the partner cannot fetch the
+sound itself (Parseh has no downloader: the sound is a browser tab's capture,
+real time, on the device that plays it), and the add page's review lives in
+`lib/sttjobs.py`'s in-memory job; lending it means sending the capture and
+handing the finished transcript back into that review. The cloud-LaTeX drawings
+(`lib/latexbatch.py`) write into this computer's drawing cache, which does not
+sync either. Both are open for a0.7.x.
+
+The test seams: `CAPS_FORCE`, `RUNNERS`, `INLINE` (tests/test_sync_jobs.py) and
+`SYNC_JOBS_FAKE` in tests/sync_harness.py (tests/test_sync_jobs_end_to_end.py,
+tests/sync_jobs_page.mjs, which drives a card's build in Chromium).
+<!-- end lane D -->

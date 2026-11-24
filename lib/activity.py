@@ -28,7 +28,8 @@ moment of asking, in the shape entry() makes, so nothing is kept twice.
 
     id        this entry's name, unique while the server runs
     kind      build, upload, download, backup, restore, narration, install,
-              compile, lookup -- what the page may draw beside it
+              compile, lookup, job (lent to a paired computer: lib/syncjobs.py) --
+              what the page may draw beside it
     unit      only where `done` and `total` do not count bytes: "items" (a share
               of work, in drawings made; lib/latexbatch.py)
     label     what is happening, in words: "Building the PDF of ..."
