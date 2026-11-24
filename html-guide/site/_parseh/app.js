@@ -5212,6 +5212,28 @@ function initDoc() {
     frame.src = `${BASE}/pdf/${DOC_ID}?t=` + Date.now();
   }
 
+  /* THE BUILD, OR ITS JOB ON A PAIRED COMPUTER (a0.7.0 lane J).  With no
+     XeLaTeX here and "send heavy jobs to paired computers" on, the door
+     answers with the partners that can build it; lib/jobs.js offers "Send to
+     <partner>", follows the job ("waiting for a computer", "on <partner>")
+     and hands back the build's answer as if it had been made here -- the PDF
+     itself written into this computer's copy of the document by then.
+     Without lib/jobs.js (the studio run alone) it is the ordinary request. */
+  async function buildRequest(path, opts) {
+    if (!window.ParsehJobs || pageIsAway()) return api(path, opts);
+    const r = await window.ParsehJobs.fetch(BASE + path, {method: "POST",
+      headers: {"Content-Type": "application/json"}, body: JSON.stringify(opts.json)});
+    let data = {};
+    try { data = await r.json(); } catch (e) { /* non-JSON error page */ }
+    if (!r.ok) {
+      const err = new Error(serverSaid(data, r));
+      err.status = r.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
   btnBuild.addEventListener("click", async () => {
     const old = btnBuild.innerHTML;
     btnBuild.disabled = true;
@@ -5219,9 +5241,9 @@ function initDoc() {
     try {
       const t = getTypo();
       const data = await working(`Building the PDF of ${meta.title || DOC_ID}`,
-        act => api(act.url(`/api/docs/${DOC_ID}/build`),
-                   {method: "POST", json: {scale: t.fa, size: pdfOpts.size,
-                                           mono: pdfOpts.mono}}));
+        act => buildRequest(act.url(`/api/docs/${DOC_ID}/build`),
+                            {method: "POST", json: {scale: t.fa, size: pdfOpts.size,
+                                                    mono: pdfOpts.mono}}));
       meta.build = data.build;
       buildError = null; buildLog = "";
       renderBuildInfo();

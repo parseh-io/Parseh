@@ -5,11 +5,14 @@
 - Settings → Devices: pair computers, sync now, make this computer identical to another, what each holds
 - A thing changed on both computers asks which to keep, and gives back what it threw away as a diff file
 - Deletions are always asked, many at once as one question; what a sync replaced is kept for a day
+- Heavy jobs — transcribing, building a book, estimating and aligning times — can be lent to a paired computer, behind two switches that start off
 - A computer without speech to text records a video's sound and sends it to a paired computer to transcribe
 - A book's reader and PDF, a document's PDF and its LaTeX drawings travel with their source: a computer without LaTeX reads them
 - A computer without LaTeX sends a document's PDF, and drawings nobody made yet, to a paired computer to make
 - Settings → Network: a third door, Paired computers, that lets in only paired computers and can be shut
 - A guide page: Several computers, one shelf
+### Fixed
+- A book keeps the person's reading speed when it arrives before the page has finished loading
 
 ## [a0.6.3] - 2026-11-23
 ### Added
