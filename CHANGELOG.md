@@ -1,4 +1,4 @@
-## [a0.6.4] - unreleased
+## [a0.7.0] - unreleased
 ### Added
 
 ## [a0.6.3] - 2026-11-23
