@@ -507,7 +507,7 @@ class Pull:
         self.staged = {}
         self.out = {"partner": partner, "taken": [], "adopted": [], "held": [], "waiting": [],
                     "elsewhere": [], "failed": {}, "complete": False, "error": None,
-                    "blobs": {"chunks": 0, "bytes": 0, "local": 0, "present": 0}}
+                    "blobs": {"chunks": 0, "bytes": 0, "local": 0}}
 
     # -- the partner's version of a unit
     def info(self, uid):
@@ -878,7 +878,7 @@ def _note(partner, **kw):
 def sync_from(partner, only=None, why="", wait=True):
     """Pull from one partner -> {"partner", "taken", "adopted", "held",
     "waiting", "elsewhere", "failed" {uid: reason}, "complete", "error",
-    "blobs" {"chunks", "bytes", "local", "present"}}.  {"busy": True} when a
+    "blobs" {"chunks", "bytes", "local"}}.  {"busy": True} when a
     sync with that partner is already running (and wait is False)."""
     lock = _plock(partner)
     if not lock.acquire(blocking=wait):
