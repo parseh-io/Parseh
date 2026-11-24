@@ -67,7 +67,7 @@ class JobsEndToEnd(unittest.TestCase):
     def setUpClass(cls):
         cls.base = tempfile.mkdtemp(prefix="sync-jobs-e2e-")
         can = dict(FAKE, caps={"latex": True, "reader": True})
-        cannot = dict(FAKE, caps={"latex": False, "reader": False})
+        cannot = dict(FAKE, caps={"latex": False, "reader": True, "estimate": False}, no_numpy=True)
         cls.A = Install(cls.base, "A", env={"SYNC_JOBS_FAKE": json.dumps(can)})
         cls.B = Install(cls.base, "B", env={"SYNC_JOBS_FAKE": json.dumps(cannot)})
         try:
@@ -159,6 +159,27 @@ class JobsEndToEnd(unittest.TestCase):
         finally:
             os.kill(self.A.proc.pid, signal.SIGCONT)
         until("done once A runs again", lambda: self.job(jid)["state"] == "done", wait=120)
+
+
+    def test_4_an_estimate_by_the_sound_made_on_A(self):
+        d = os.path.join(self.B.tree, "root", "youtube", "videos", "italian", "abcdefghijk")
+        os.makedirs(d)
+        with open(os.path.join(d, "video.json"), "w") as fh:
+            json.dump({"id": "abcdefghijk", "title": "V", "language": "it"}, fh)
+        peaks = ([0.0] * 50 + [0.9] * 70 + [0.0] * 40 + [0.9] * 70 + [0.0] * 20)
+        body = {"video": "abcdefghijk", "start": 0, "end": 2.5, "kind": "point",
+                "texts": ["uno due tre", "quattro cinque"], "wave": {"rate": 100, "start": 0, "peaks": peaks}}
+        st, out = ask(self.B, "POST", "/youtube/api/estimate", body)
+        self.assertEqual(st, 409, out)
+        self.assertIn("numpy", out["error"])
+        st, out = ask(self.B, "POST", "/youtube/api/estimate", dict(body, send_to=self.A_id))
+        self.assertEqual(st, 202, out)
+        jid = out["job"]["id"]
+        until("the estimate done", lambda: self.job(jid)["state"] == "done", wait=60)
+        res = self.job(jid)["result"]
+        self.assertTrue(res.get("ok"), res)
+        self.assertEqual(len(res["pieces"]), 2)
+        self.assertEqual((res["pieces"][0]["t0"], res["pieces"][1]["t1"]), (0, 2.5))
 
 
 if __name__ == "__main__":

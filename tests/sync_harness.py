@@ -15,7 +15,8 @@ SYNC_JOBS_FAKE=<json> (lane D, tests/test_sync_jobs_end_to_end.py) sets this
 install's capabilities ("caps", over what it really has), the jobs' deadline
 and how long a partner's capabilities are trusted ("deadline", "caps_ttl"),
 and FAKES THE BOOK BUILD: a runner that waits "run_seconds", then writes a PDF
-and a reader into the book, as ./build.sh would.
+and a reader into the book, as ./build.sh would; "no_numpy" makes estimating
+by the sound impossible here, as a Python without NumPy does.
 
 The books' shelf is the tree's own (root/books), as the server's pages see it.
 """
@@ -65,6 +66,10 @@ def fake_jobs(serve, fake):
     syncjobs.CAPS_TTL = float(fake.get("caps_ttl", syncjobs.CAPS_TTL))
     syncjobs.TIMEOUT = float(fake.get("timeout", syncjobs.TIMEOUT))
     serve.lent_applied = lambda job: None          # never the checkout's library page
+    if fake.get("no_numpy"):
+        # this install's Python "lacks" NumPy: estimating by the sound cannot run here
+        serve.load_wavealign = lambda: (None, "estimating by the sound needs numpy, which the Python "
+                                              "running Parseh does not have")
 
     def build(rec, say):
         d = syncunits.locate(rec["unit"]).where
