@@ -419,7 +419,9 @@ try {
   // the editor opens once its sync lease is held (a0.7.0, lib/syncpage.js), a moment after the press: wait for it
   // OPEN, as a person does, not for a button the cloud kept from the last time it was open
   await player.waitForSelector('#cloud.editing .esrc');
-  await player.click('#cloud .esrc');
+  // the sources column is remembered open or closed (yt_side): open it only if it is not open already,
+  // since a press on an open one closes it and leaves its lookup for nobody
+  if (!(await player.evaluate(() => document.querySelector('#cloud .esrc').classList.contains('on')))) await player.click('#cloud .esrc');
   const pside = await until(() => player.evaluate(() => {
     const f = [...document.querySelectorAll('#cloud .esrcbody .spfrom')].map(x => x.textContent);
     return f.length >= 2 ? f : null;
@@ -448,7 +450,9 @@ try {
   // the editor opens once its sync lease is held (a0.7.0, lib/syncpage.js), a moment after the press: wait for it
   // OPEN, as a person does, not for a button the cloud kept from the last time it was open
   await player.waitForSelector('#cloud.editing .esrc');
-  await player.click('#cloud .esrc');
+  // the sources column is remembered open or closed (yt_side): open it only if it is not open already,
+  // since a press on an open one closes it and leaves its lookup for nobody
+  if (!(await player.evaluate(() => document.querySelector('#cloud .esrc').classList.contains('on')))) await player.click('#cloud .esrc');
   const gnote = await until(() => player.evaluate(() => (document.querySelector('#cloud .esrcbody .spvar') || {}).textContent),
                             'the plain line in the sources column');
   assert(/^no translated sentences for Gulf Arabic yet/.test(gnote), 'and the sources column says it too: ' + gnote);
