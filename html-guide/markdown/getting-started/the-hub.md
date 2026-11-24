@@ -4,7 +4,7 @@ weight: 5
 description: Parseh's first page — its top bar, the language chips, the doors (Review later among them) and what their counts say, and the three themes of the ◐ button.
 ---
 
-The hub is the page at the root of Parseh's address, `https://localhost:7654/`,
+The hub is the page at the root of Parseh's address, `http://localhost:7654/`,
 and the one the home link in the top-left corner of Parseh's pages leads
 back to — a **پ**, the first letter of the toolbox's Persian name, on most
 of them. It shows what there is and lets you pick where to go.
@@ -92,8 +92,9 @@ At the bottom of the hub:
 - **Reachable at**, and every address the server can be reached at — the
   ones to type on a phone — followed by who may reach it and a link that
   changes that ([From a phone or another computer](other-devices.md));
-- a reminder that every browser warns once about the certificate, which is
-  Parseh's own;
+- the address this computer opens Parseh at, `http://localhost:7654/`, with
+  no warning, and a reminder that another device's browser warns once about
+  the certificate, which is Parseh's own;
 - that the **⏻ stop** button stops the server, that a book is built from
   its card on the books' library page and a video added from the video
   index — and that **the guide** has the rest;

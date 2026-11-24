@@ -35,4 +35,4 @@ except Exception:
     p = 0
 print(p if 1024 <= p <= 65535 else 7654)' 2>/dev/null) || PORT=7654
 [ -n "$PORT" ] || PORT=7654
-open "https://localhost:$PORT/"
+open "http://localhost:$PORT/"

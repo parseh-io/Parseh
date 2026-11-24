@@ -28,7 +28,7 @@ restarted.
 ## Where it is
 
 Open the hub and press **Videos**, or go straight to
-`https://localhost:7654/youtube/`. The hub's door counts the videos and
+`http://localhost:7654/youtube/`. The hub's door counts the videos and
 the channels, and the language chips at the top of the hub narrow the
 count to one language. In **Mobile** mode the door opens the same pages:
 the videos have no mobile version of their own yet.

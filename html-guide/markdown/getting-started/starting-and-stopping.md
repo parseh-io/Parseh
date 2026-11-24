@@ -5,7 +5,8 @@ description: Starting the server on Linux, macOS and Windows, what it prints, th
 ---
 
 Parseh is one small web server — `serve.py` — that serves every page of the
-toolbox at one address, `https://localhost:7654/`. While it runs, every
+toolbox at one port: `http://localhost:7654/` on this computer, and the
+`https://` addresses it prints on every other device. While it runs, every
 device you have let in can use Parseh; when it stops, the pages stop
 answering until you start it again. Which devices those are — and which port
 — is [**Settings → Network**](other-devices.md), and a change there takes
@@ -19,10 +20,12 @@ effect without a restart.
 | macOS | double-click **Parseh.command** (or `./serve.sh` in Terminal) |
 | Windows | double-click **serve.bat** |
 
-Then open `https://localhost:7654/` in a browser. The Mac's
-**Parseh.command** and Windows' **serve.bat** open it for you. The first
-time, the browser warns about the certificate: Parseh made it for itself,
-so accept it — [From a phone or another computer](other-devices.md) says
+Then open `http://localhost:7654/` in a browser. The Mac's
+**Parseh.command** and Windows' **serve.bat** open it for you. The browser
+does not warn about anything: `http://localhost` needs no certificate, and
+browsers count it as secure. A phone or another computer reaches Parseh over
+`https://`, with a certificate Parseh made for itself, and its browser warns
+about that once — [From a phone or another computer](other-devices.md) says
 why there is one at all.
 
 **On Linux and macOS** `./serve.sh` starts the server *in the background*:
@@ -39,14 +42,15 @@ Parseh: serving /home/me/Parseh on 0.0.0.0:7654 (https)
 
   https://100.101.102.103:7654/              (tailscale)
   https://192.168.1.20:7654/                 (local network)
-  https://localhost:7654/                    (this machine)
+  http://localhost:7654/                     (this machine)
 
   /books/  /youtube/  /studio/  /exercises/  /anki/sync/  /settings/
 
 reachable from: this computer and a VPN
 
-the certificate is Parseh's own: each browser warns once -- accept it,
-or tell a phone to trust the authority once, from /m/install/.
+this computer opens Parseh at http://localhost:7654/ with no warning; another device is
+served the certificate, which its browser warns about once -- or tell
+a phone to trust the authority once, from /m/install/.
 Ctrl-C, or any of the page's stop buttons, to stop.
 
 running in the background: pid 4821,  log /home/me/Parseh/serve.log
@@ -88,6 +92,22 @@ but Python — and says so as it starts:
 Everything that rebuilds something then
 says, on its own page, what it needs; [Installing Parseh](installing.md)
 puts it all in place.
+
+## Moving to localhost
+
+Before a0.7.0 the computer opened Parseh at `https://localhost:7654/`, and its
+browser warned about the certificate once. Now it opens `http://localhost:7654/`.
+To a browser those are two different sites, and what it kept for the old one —
+the settings a page keeps on this device, a reader's timing edits not yet
+saved, the place in a book — the new one would not see. So the first time the
+old address is opened, a short page there hands all of it to the new address,
+and the browser goes on to the page that was asked for. From then on the old
+address — a bookmark, a tab left open — simply sends the browser on.
+
+Nothing has to be done, with one exception, which that page says when it
+applies: **an app installed from the old address** keeps opening the old
+address. Install Parseh again from `http://localhost:7654/` (the install
+button in the browser's address bar, or its menu), and remove the old app.
 
 ## Stopping it
 

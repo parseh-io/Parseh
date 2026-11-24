@@ -422,7 +422,7 @@ damage the Parseh-mine installation: Parseh-mine answers on 7654, and the
 browsers you use have accepted ITS certificate (from its own `.tls/`) for
 that address; another install there would present them another one.
 
-Your own steps, by hand, in the browser, at `https://localhost:7655/` —
+Your own steps, by hand, in the browser, at `http://localhost:7655/` —
 never scripted. The point is to go through what somebody updating will go
 through, and to prove that what is theirs survives it.
 
@@ -750,7 +750,7 @@ Parseh-mine updates the way everybody's does — from GitHub, through the
 updater's public road, never from a zip you downloaded or built — and it is
 the first to take it.
 
-1. On Parseh-mine (`https://localhost:7654/`), **Settings → Updating Parseh
+1. On Parseh-mine (`http://localhost:7654/`), **Settings → Updating Parseh
    → Check now**: it names `<version>` as the newest release. (A Parseh
    built before the move to `parseh-io` — a0.4.3 and before — asks the old
    address of the repository, which GitHub redirects to the new one for as

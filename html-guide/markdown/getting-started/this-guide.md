@@ -10,7 +10,7 @@ put on any website.
 
 ## Opening it
 
-**From Parseh**, at `https://localhost:7654/guide/`:
+**From Parseh**, at `http://localhost:7654/guide/`:
 
 - the **guide** button in the hub's top bar;
 - **Guide**, *How the toolbox works*, the last door of the hub's

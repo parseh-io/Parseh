@@ -72,12 +72,14 @@ its narration and its alignment; then it builds every reader and the
 library page, and compiles this guide — every time, whatever step 2
 installed, unless the guide is already compiled from the same pages.
 
-**4. The certificate.** Parseh serves HTTPS with a certificate it makes for
-itself, in `.tls\`, for every name and address the computer has. Two things
-happen once, and the wizard says so: every browser warns about that
-certificate — it is yours, accept it (in Chrome: **Advanced**, then
-**Proceed**) — and Windows Firewall asks whether Python may accept
-connections. Allow it, or only this computer can reach Parseh.
+**4. The certificate.** Parseh serves HTTPS to other devices with a
+certificate it makes for itself, in `.tls\`, for every name and address the
+computer has; this computer opens `http://localhost:7654/` and never sees it.
+Two things happen once, and the wizard says so: the browser of a phone or
+another computer warns about that certificate — it is yours, accept it (in
+Chrome: **Advanced**, then **Proceed**) — and Windows Firewall asks whether
+Python may accept connections. Allow it, or only this computer can reach
+Parseh.
 
 **5. Done.** How many checks passed and how many are missing, what to do
 from now on, and **Start Parseh now?**
@@ -85,10 +87,10 @@ from now on, and **Start Parseh now?**
 ## Every time after that
 
 A double-click on serve.bat starts the server in its own window and opens
-the browser on `https://localhost:7654/`:
+the browser on `http://localhost:7654/`:
 
 ```text
-Parseh is up at https://localhost:7654/ -- this window is its log.  Close it, press Ctrl-C,
+Parseh is up at http://localhost:7654/ -- this window is its log.  Close it, press Ctrl-C,
 or use the stop button on any page to stop the server.
 ```
 

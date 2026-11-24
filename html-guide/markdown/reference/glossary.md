@@ -327,7 +327,7 @@ Environment
   installer made it, or wherever your conda keeps it.
 
 Hub
-: The first page, `https://localhost:7654/`: the doors, the language
+: The first page, `http://localhost:7654/`: the doors, the language
   chips, the **guide** button.
 
 Going back

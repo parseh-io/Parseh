@@ -835,7 +835,7 @@ await section('e', 'a browser that cannot record a tab: the YouTube way says so,
     firefox: [() => Object.defineProperty(navigator, 'userAgentData', {get: () => undefined}),
               'only Chrome and Edge, on a computer, can record the sound of a tab', 1280],
     http: [() => Object.defineProperty(window, 'isSecureContext', {get: () => false}),
-           'recording this tab needs the page opened at the toolbox’s https address, in Chrome or Edge', 1280],
+           'recording this tab needs the page opened at this computer’s address, or at the https address from another device, in Chrome or Edge', 1280],
     phone: [() => Object.defineProperty(navigator, 'userAgentData', {get: () => ({brands: [{brand: 'Chromium', version: '1'}], mobile: true})}),
             'only Chrome and Edge, on a computer, can record the sound of a tab', 390],
   };

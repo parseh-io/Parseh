@@ -25,7 +25,7 @@ it has and what it could have.
 | The address bar | `/settings/reading-help/` on the server |
 
 On a Parseh started on this machine with its defaults, the whole address is
-`https://localhost:7654/settings/reading-help/`.
+`http://localhost:7654/settings/reading-help/`.
 
 **The old address still works.** The page used to live at `/lookup/`,
 and every reader built before then carries that address in its **reading

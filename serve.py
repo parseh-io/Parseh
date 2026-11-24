@@ -51,20 +51,25 @@ question is asked of the connection, before a byte of HTTP (Server.
 verify_request); the "let in" question is asked of the request, because the
 answer is a cookie (Handler._gate).
 
-HTTPS, with a certificate this program makes itself.  Browsers hand out
-screen capture (the frame button on a card) and the clipboard only on
-secure origins, and localhost is the only plain-http origin they trust --
-so a phone or a laptop reaching this over Tailscale needs TLS.  Nobody but
-us ever connects, so a certificate nobody else vouches for is exactly
-right: each browser warns ONCE about it, you accept, and that is the end of
+THIS COMPUTER ON PLAIN HTTP, EVERY OTHER DEVICE ON HTTPS (a0.7.0,
+lib/localhttp.py).  Browsers hand out screen capture (the frame button on a
+card) and the clipboard only on secure origins, and localhost is the only
+plain-http origin they trust -- so this computer is served at
+http://localhost:<port>/ with no certificate and no warning, and a phone or
+a laptop reaching this over Tailscale needs TLS, on the same port: the first
+byte of each connection says which (Server.finish_request).  Nobody but us
+ever connects, so a certificate nobody else vouches for is exactly right:
+each other device's browser warns ONCE about it, and that is the end of
 it.  It lives in .tls/ and is minted on first start with openssl (every
 address the machine has in its SAN), signed by an authority of the
 machine's own that a phone can be told to trust -- which is what installing
 the mobile interface as an app needs (make_cert); `--cert` mints a fresh
 server certificate under the same authority.
 
-A plain-http request that lands on the https port (an old bookmark) is
-answered with a redirect to the https address, not a handshake error.
+A plain-http request from another device (an old bookmark) is answered
+with a redirect to the https address, not a handshake error, and nothing
+else; an https request from this computer (an old bookmark, an app
+installed from the old address) is handed over to http://localhost.
 
 The request body is read once, up front, and every handler sees it
 through rfile -- so a POST can never be left half-read on a keep-alive
@@ -119,6 +124,7 @@ for _p in (LIB, YT_LIB):
 # the power cut, the laptop closed -- and the files below may be half one
 # version and half another.  The helper copy the update left carries it on,
 # or undoes it from its backup; lib/updater.py imports nothing of Parseh's.
+import localhttp            # noqa: E402  this computer on plain http://localhost (a0.7.0)
 import updater              # noqa: E402  updating in place, from Settings (§13.16)
 if __name__ == "__main__":
     updater.finish_first(ROOT, os.path.realpath(__file__))
@@ -1422,7 +1428,8 @@ def hub_page():
   <div class="foot">
     Reachable at <span class="addr">%(addrs)s</span>
     &mdash; from %(reach)s (<a href="/settings/network/">change who</a>).
-    Every browser warns once about the certificate: it is ours, accept it.<br>
+    This computer opens %(name)s at <code>%(home)s</code>, with no warning; another
+    device&rsquo;s browser warns once about the certificate: it is ours, accept it.<br>
     The &#9211; stop button at the top of a page stops the server. A book is built
     from its card on the library page, and a video added from the video index;
     <a href="/guide/">the guide</a> has the rest.<br>
@@ -1538,6 +1545,7 @@ def hub_page():
        # the card store underneath is one store, not one per language
        "ncards": n(int(yt.get("cards") or 0), "card"),
        "ndecks": n(int(yt.get("decks") or 0), "deck"), "addrs": addrs,
+       "home": esc(localhttp.home(RUN["port"] or network.settings()["port"])),
        # who may reach this Parseh, in the words the Settings page uses: the
        # hub is where somebody looks before they wonder why their phone
        # cannot open it (lib/settingspage.py)
@@ -3229,6 +3237,70 @@ class Handler(SimpleHTTPRequestHandler):
             network.WHERE_SAID[network.LAN]), 403)
         return False
 
+    def _this_computer(self, method, path):
+        """THIS COMPUTER ON PLAIN HTTP, AND THE MOVE FROM HTTPS (lib/localhttp.py).
+        -> True when the request was answered here.
+
+        Over plain http from loopback the Host must name this computer: a
+        page on another site whose name was pointed at 127.0.0.1 (DNS
+        rebinding) is refused, as TLS used to refuse it.  Over TLS from this
+        computer at `localhost`/`127.x`, a navigation is the old address:
+        its first visit hands what the browser kept to http://localhost, and
+        every later one is redirected there."""
+        if not localhttp.is_loopback((self.client_address or ("",))[0]):
+            return False
+        host = self.headers.get("Host") or ""
+        port = self.server.server_address[1]
+        if not isinstance(self.connection, ssl.SSLSocket):
+            if not localhttp.host_is_loopback(host):
+                self.close_connection = True
+                self.send_json({"ok": False, "error": "%s on this computer answers plain http "
+                                "only at localhost or 127.0.0.1, not at %s"
+                                % (NAME, localhttp.host_name(host)[:80] or "a missing name")}, 421)
+                return True
+            if method in ("GET", "HEAD") and path == localhttp.MOVE:
+                self.send_bytes(localhttp.arrive_page(port).encode("utf-8"),
+                                "text/html; charset=utf-8", 200, {"Cache-Control": "no-store"})
+                return True
+            if method == "GET" and path == localhttp.MOVE_TAKE:
+                rec = localhttp.take((self.query.get("t") or [""])[0])
+                self.send_bytes(json.dumps(rec or {}, ensure_ascii=False).encode("utf-8"),
+                                "application/json; charset=utf-8", 200, {"Cache-Control": "no-store"})
+                return True
+            return False
+        if not localhttp.host_is_loopback(host):
+            return False
+        if method == "POST" and path == localhttp.MOVE:
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                n = -1
+            if n < 0 or n > MAX_BODY:
+                self.close_connection = True
+                self.send_json({"ok": False, "error": "nothing to carry"}, 413)
+                return True
+            try:
+                rec = localhttp.clean_record(json.loads(self.rfile.read(n) or b"{}"))
+            except (ValueError, UnicodeDecodeError):
+                rec = None
+            if rec is None:
+                self.send_json({"ok": False, "error": "nothing to carry"}, 400)
+                return True
+            token = localhttp.put(rec)
+            self.send_bytes(json.dumps({"ok": True, "token": token}).encode("utf-8"),
+                            "application/json; charset=utf-8", 200,
+                            {"Cache-Control": "no-store",
+                             "Set-Cookie": localhttp.moved_cookie(port)})
+            return True
+        if not self._is_navigation():
+            return False                # an old tab's scripts, its worker: answered as before
+        if self._cookie(localhttp.MOVED_COOKIE % port) == "1":
+            self._redirect(localhttp.home(port).rstrip("/") + localhttp.safe_next(self.path))
+            return True
+        self.send_bytes(localhttp.handover_page(port, self.path).encode("utf-8"),
+                        "text/html; charset=utf-8", 200, {"Cache-Control": "no-store"})
+        return True
+
     def _redirect(self, where, code=302):
         self.send_response(code)
         self.send_header("Location", where)
@@ -3337,6 +3409,8 @@ class Handler(SimpleHTTPRequestHandler):
         parsed = urllib.parse.urlsplit(self.path)
         path = parsed.path
         self.query = urllib.parse.parse_qs(parsed.query)
+        if self._this_computer(method, path):
+            return
         if not self._gate(method, path):
             return
         if method in BODY_METHODS:
@@ -8196,8 +8270,12 @@ class Server(socketserver.ThreadingTCPServer):
         Wrapping the listening socket instead would run every handshake in
         the accept loop, where one slow or abandoned client stalls all the
         others.  Before the handshake, one peek at the first byte tells a
-        TLS ClientHello (0x16) from a plain-http request line, which gets a
-        redirect to the https address rather than a cryptic failure.
+        TLS ClientHello (0x16) from a plain-http request line.  Plain http
+        from this computer is SERVED (a0.7.0: http://localhost is a secure
+        context, so the computer needs no certificate and sees no warning);
+        from anywhere else it gets a redirect to the https address rather
+        than a cryptic failure, and nothing else.  One port, sniffed, rather
+        than a second listener on 127.0.0.1: lib/localhttp.py says why.
         """
         if self.ssl_ctx is None:
             return super().finish_request(request, client_address)
@@ -8209,6 +8287,18 @@ class Server(socketserver.ThreadingTCPServer):
         if not head:
             return _close(request)
         if head[:1] != b"\x16":
+            if localhttp.is_loopback((client_address or ("",))[0]):
+                # THIS COMPUTER, ON PLAIN HTTP (lib/localhttp.py): a browser
+                # counts http://localhost as a secure context, so the
+                # computer is served without TLS and without a warning.  The
+                # Host is checked per request (Handler._this_computer).
+                try:
+                    self.RequestHandlerClass(request, client_address, self)
+                finally:
+                    _close(request)
+                return
+            # anything else on plain http gets a redirect to the https
+            # address and nothing more: no page, no data, no route
             return self._plain_http(request, head)
         tls = None
         try:
@@ -8570,10 +8660,10 @@ def _where_to_go(doc):
     the one that cannot fail; the others are there for the tab somebody has
     open on the second screen."""
     port = doc["port"]
-    out = ["%s://localhost:%d/" % (RUN["scheme"], port)]
+    out = [localhttp.home(port)]                # this computer: plain http, no warning
     if network.bind_host(doc) == "0.0.0.0":
         for ip, _ in addresses():
-            url = "%s://%s:%d/" % (RUN["scheme"], ip, port)
+            url = localhttp.address_for(RUN["scheme"], ip, port)
             if url not in out:
                 out.append(url)
     return out
@@ -8602,10 +8692,10 @@ def _announce(ctx, first):
     host, port, scheme = RUN["host"], RUN["port"], RUN["scheme"]
     if host == "0.0.0.0":
         found = addresses()
-        ADDRESSES[:] = ["%s://%s:%d/" % (scheme, ip, port) for ip, _ in found]
+        ADDRESSES[:] = [localhttp.address_for(scheme, ip, port) for ip, _ in found]
     else:
         found = [(host, "this machine" if host.startswith("127.") else "as asked for")]
-        ADDRESSES[:] = ["%s://%s:%d/" % (scheme, host, port)]
+        ADDRESSES[:] = [localhttp.address_for(scheme, host, port)]
     doc = network.settings()
     # the version first, where a log pasted into a bug report is read from
     print("%s %s: serving %s on %s:%d (%s)\n" % (NAME, version.VERSION, ROOT, host, port, scheme))
@@ -8625,8 +8715,9 @@ def _announce(ctx, first):
         if network.own_cert():
             print("\nusing the certificate you pointed Parseh at; Parseh never writes to it.")
         else:
-            print("\nthe certificate is Parseh's own: each browser warns once -- accept it,"
-                  "\nor tell a phone to trust the authority once, from /m/install/.")
+            print("\nthis computer opens %s at %s with no warning; another device is"
+                  "\nserved the certificate, which its browser warns about once -- or tell"
+                  "\na phone to trust the authority once, from /m/install/." % (NAME, localhttp.home(port)))
     print("Ctrl-C, or any of the page's stop buttons, to stop.")
 
 

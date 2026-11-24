@@ -67,6 +67,7 @@ from books import all_books          # noqa: E402  where the books are (two leve
 import faultlog                      # noqa: E402  the log file, the run before kept (TO-DO 5.31)
 import guidebuild                    # noqa: E402  the HTML guide: whether its pages are compiled, and from what
 import languages                     # noqa: E402  the registry: which web fonts travel, which language needs a system font
+import localhttp                     # noqa: E402  this computer's address: http://localhost (a0.7.0)
 import network                       # noqa: E402  the port Parseh keeps, and who may reach it
 import runtime                       # noqa: E402  what the environment is, where it is, how it is made
 
@@ -284,9 +285,11 @@ def winget_install(pkg_id):
 
 # ------------------------------------------------------------------ the server
 def server_url(port):
-    """The address a server on this port answers at (https, or http when it
-    was started with --http), or None when nothing answers."""
-    for scheme in ("https", "http"):
+    """The address this computer opens Parseh at -- http://localhost:<port>/,
+    with no certificate and no warning (lib/localhttp.py) -- or None when
+    nothing answers on the port.  Asked over plain http first, as the
+    browser will ask; an older Parseh that answers only TLS is still found."""
+    for scheme in ("http", "https"):
         try:
             if scheme == "https":
                 c = http.client.HTTPSConnection("127.0.0.1", port, timeout=2,
@@ -296,7 +299,7 @@ def server_url(port):
             c.request("GET", "/")
             c.getresponse().read()
             c.close()
-            return "%s://localhost:%d/" % (scheme, port)
+            return localhttp.home(port) if scheme == "http" else "https://localhost:%d/" % port
         except Exception:
             continue
     return None
@@ -466,8 +469,9 @@ def start(port, open_browser=True, updated="", append=False):
     cmd = [sys.executable, "-u", "serve.py", str(port)]
     if not have_cert() and not find_openssl():
         say("no openssl on this computer, so no certificate yet: serving plain http.")
-        say("(The clipboard and screen capture then work on localhost only.  Install")
-        say(" OpenSSL or Git for Windows -- `serve.bat setup` offers to -- and restart.)")
+        say("(This computer is served plain http anyway; another device then is too, and")
+        say(" its browser gives it no clipboard or screen capture.  Install OpenSSL or Git")
+        say(" for Windows -- `serve.bat setup` offers to -- and restart.)")
         say("")
         cmd.append("--http")
     say("starting:  " + " ".join(cmd))
@@ -539,9 +543,9 @@ def wizard():
 
     banner(1, total, "welcome")
     say("  %s serves the books, the videos, the studio, the exercise decks and" % NAME)
-    say("  the Anki store from one https address on this computer,")
-    say("  https://localhost:%d/, and from the same address on a phone or a" % DEFAULT_PORT)
-    say("  laptop over Tailscale.")
+    say("  the Anki store from one address on this computer,")
+    say("  http://localhost:%d/ (no certificate, so no warning), and over https" % DEFAULT_PORT)
+    say("  on the same port from a phone or another computer over Tailscale.")
     say("")
     say("  A fresh %s answers this computer and a VPN, and nothing else: the" % NAME)
     say("  Wi-Fi door is shut until you open it on its Settings > Network page,")
@@ -603,9 +607,9 @@ def wizard():
                 else:
                     bad("openssl still not found -- install Git for Windows or OpenSSL, then `serve.bat setup`")
         if not exe:
-            say("        Without it %s serves plain http.  Everything works, but the clipboard" % NAME)
-            say("        and screen capture then work on localhost only.  Git for Windows brings")
-            say("        an openssl too, and this finds it there.")
+            say("        Without it %s serves plain http to every device.  This computer" % NAME)
+            say("        is served so anyway, but another device then has no clipboard or")
+            say("        screen capture.  Git for Windows brings an openssl too, and this finds it there.")
 
     say("")
     say("  The environment -- rebuilding books, dividing Japanese and Chinese into")
@@ -707,8 +711,9 @@ def wizard():
     else:
         bad("no openssl, so no certificate yet -- %s serves plain http for now" % NAME)
     say("")
-    say("  Every browser warns once about the certificate: it is ours, accept it")
-    say("  (Chrome: Advanced, then Proceed).  And Windows Firewall will ask once whether")
+    say("  This computer opens %s at http://localhost:%d/, with no warning.  A phone" % (NAME, DEFAULT_PORT))
+    say("  or another computer gets the certificate, and its browser warns once: it is")
+    say("  ours, accept it (Chrome: Advanced, then Proceed).  And Windows Firewall will ask once whether")
     say("  Python may accept connections: allow it, or only this computer can reach %s." % NAME)
     pause()
 

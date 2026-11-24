@@ -9,7 +9,7 @@
 THE HOLE THIS CLOSES.  Parseh answers on this computer's own address, and
 the browser that shows its pages shows everybody else's too.  A page on any
 site, open in another tab, can make that browser send a request to
-https://localhost:7654/ -- a form, or a fetch() of the kind a browser sends
+http://localhost:7654/ -- a form, or a fetch() of the kind a browser sends
 without asking first (text/plain, a form's body) -- and the browser attaches
 nothing that would tell a server which has no login it was not Parseh's
 own page.  Every route that writes was open to that: stopping the server,

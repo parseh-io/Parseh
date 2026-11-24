@@ -21,7 +21,7 @@ says why:
 | Under the button | Why, and what to do |
 |---|---|
 | … only Chrome and Edge, on a computer, can record the sound of a tab | Firefox, Safari, a phone or a tablet: open the video in Chrome or Edge on a computer |
-| … recording this tab needs the page opened at the toolbox’s https address, in Chrome or Edge | the page was opened over plain `http://` (a `localhost` address apart): use the toolbox's `https://` address |
+| … recording this tab needs the page opened at this computer’s address, or at the https address from another device, in Chrome or Edge | the page was opened over plain `http://` (a `localhost` address apart): use the toolbox's `https://` address |
 | … this browser cannot read the sound of a shared tab | a Chromium browser too old for it |
 | the YouTube player has not loaded, so there is no sound to record | wait: the button turns on by itself when the player is there |
 

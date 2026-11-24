@@ -1733,7 +1733,11 @@ phone trusts. Here:
   `.tls/` by hand** — Tailscale's (`tailscale cert`), Let's Encrypt's — is used
   as it is and never touched, and the install page then has no authority to
   hand over (a phone trusts those already). Over plain http there is no app,
-  except from the computer itself at `localhost`.
+  except from the computer itself at `localhost` -- which is where the
+  computer is served since a0.7.0 (`docs/network.md`, "This computer on plain
+  `http://localhost`"); an app installed there from
+  the old `https://localhost` address has to be installed again, and the hand-over
+  page says so once.
 
 `tests/test_mobile_pages.py` holds the manifest, the icons' sizes, the tags on
 every page, the worker's rules, the install page and the certificate — the

@@ -13,9 +13,10 @@ the map.
 
 1. Start Parseh: `./serve.sh` on Linux, a double-click on
    **Parseh.command** on a Mac, on **serve.bat** on Windows.
-2. Open `https://localhost:7654/` — or, from a phone or another computer
+2. Open `http://localhost:7654/` — or, from a phone or another computer
    on your network, the address Parseh printed when it started. The first
-   time, each browser warns about the certificate: accept it once.
+   time, the browser of each other device warns about the certificate:
+   accept it once.
 3. On the hub, pick your language's chip: every door then opens on that
    language, and counts what it holds in it.
 4. When you are done, **⏻ stop**. If something is still running, it tells

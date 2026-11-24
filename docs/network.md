@@ -124,6 +124,43 @@ own. It is tried before it is saved, and Parseh **never writes to either
 file**: renewing it is yours to do. Leave both empty to go back to Parseh's
 own.
 
+## This computer on plain `http://localhost` (a0.7.0)
+
+The certificate is for **other devices** only. A browser counts
+`http://localhost` and `http://127.0.0.1` as secure contexts — clipboard, tab
+and screen capture, a service worker, an installed app all work there — so the
+computer itself is served plain HTTP, with no certificate and no warning, at
+`http://localhost:<port>/`. Every address Parseh writes for itself on this
+computer (the launcher, `serve.sh`, `serve.bat`, `Parseh.command`, the printed
+lines, the hub, the guide) is that one. The design is in `lib/localhttp.py`:
+
+- **One port, sniffed.** `Server.finish_request` peeks at each connection's
+  first byte: `0x16` starts a TLS handshake; anything else is plain HTTP, which
+  is **served only to loopback**; from any other address it gets a redirect to
+  the `https://` address and nothing else. A second plain listener on
+  `127.0.0.1` was not chosen: it needs a second port (`127.0.0.1:7654` cannot be
+  bound beside `0.0.0.0:7654` on Linux), a second socket for every re-bind, and
+  a second one for the updater's progress page, which sniffs the same way.
+- **Host is checked on plain HTTP.** TLS used to stop DNS rebinding (a site
+  whose name points at 127.0.0.1): no certificate matches such a name. Over
+  plain HTTP a request from loopback must say `Host: localhost`, `127.x.y.z` or
+  `[::1]`, or it is refused (421).
+- **The move of origin.** `https://localhost:7654` and `http://localhost:7654`
+  are two origins. Measured: the pages keep their device's settings, reading
+  places, unsaved timing edits and studio choices in **localStorage** (the
+  ones that follow a person are on the server already, `lib/prefs.py`); no page
+  opens **IndexedDB**; the service worker's **caches** hold only copies of the
+  server's files; **an installed app** opens the old address. A navigation over
+  TLS from this computer to `localhost`/`127.x` is answered, once, by a page on
+  the old origin that posts its whole localStorage to `/__move`, empties the
+  old worker and caches, and goes to `http://localhost:<port>/__move?t=…`,
+  where the new origin writes every key it does not have yet and goes on. A
+  cookie (`parseh_moved_<port>`, `Secure`) then sends every later navigation
+  on with a 302. Only when an app was in use (standalone display) or a worker
+  existed is the person told, once, to install the app again.
+- `Secure` stays on the `parseh_device` cookie: a device let in by code never
+  uses loopback.
+
 ## A VPN other than Tailscale
 
 Tailscale needs nothing: its ranges are built in. Another VPN — WireGuard,
@@ -175,7 +212,7 @@ lives in the running process and for fifteen minutes.
 
 The doors above ask *which device* is knocking. They cannot see a web page on
 another site, open in a tab of this computer's own browser, making that
-browser post to `https://localhost:7654/` — the request comes from this
+browser post to `http://localhost:7654/` — the request comes from this
 computer, where the door is always open. So every request that is not a read
 (anything but `GET` and `HEAD`, on every route) is asked where it came from,
 once, before its body is read (`lib/crosssite.py`, TO-DO §3.1; decided with

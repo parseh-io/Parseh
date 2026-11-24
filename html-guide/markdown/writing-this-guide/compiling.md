@@ -89,7 +89,7 @@ The same compiled pages work three ways, which is why every address in
 them is relative:
 
 1. **In Parseh**, from the hub's **guide** button, at
-   `https://localhost:7654/guide/`.
+   `http://localhost:7654/guide/`.
 2. **From the disk**: open `html-guide/index.html` in a browser. Nothing
    needs a server — not the list of pages, the search, the exercises or
    the formulas.

@@ -142,10 +142,10 @@
   // The first three are lib/cardkit.js tabProblem's, word for word: the player's
   // sheets read that one, this page cannot load the card kit (the add page never
   // does), and tests/youtube_capture.mjs holds the two to each other.
-  var SAY_SECURE = 'recording this tab needs the page opened at the toolbox’s https address, in Chrome or Edge';
+  var SAY_SECURE = 'recording this tab needs the page opened at this computer’s address, or at the https address from another device, in Chrome or Edge';
   var SAY_BROWSER = 'only Chrome and Edge, on a computer, can record the sound of a tab';
   var SAY_READER = 'this browser cannot read the sound of a shared tab';
-  var SAY_NO_SHARE = 'capture needs a secure page — open the toolbox over its https address';
+  var SAY_NO_SHARE = 'capture needs a secure page — open the toolbox at this computer’s address, or at the https address from another device';
   var SAY_NO_SOUND = 'the share came without its sound — share this tab again and ' +
                      'leave “Also allow tab audio” turned on';
   var SAY_NO_SOUND_PCM = 'the share came without its sound — share this tab again and ' +

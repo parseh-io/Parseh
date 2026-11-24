@@ -199,7 +199,8 @@ itself ([A film on this machine](a-film-on-this-machine.md)).
 plays in, so it has to be **played, and recorded, in real time**: a 47-minute
 video takes 47 minutes. That needs **Chrome or Edge on a computer** (the tab's
 sound can be recorded there); in any other browser, on a phone, or on a page
-not opened at the server's https address, the block says which of these is
+opened neither at this computer's address nor at the https address from
+another device, the block says which of these is
 missing, in one sentence, and the rest of the page works.
 
 1. Press **Transcribe**. The page loads the video in a frame on the page.
