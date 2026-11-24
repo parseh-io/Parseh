@@ -9122,6 +9122,10 @@ def main():
         syncjobs.FINISH["estimate"] = lent_estimate_answer
         syncjobs.ON_APPLIED.append(lent_applied)
         syncjobs.start()
+        # "make this computer identical to <partner>" lists, then cancels, the jobs THIS computer asked
+        # and that are still open (lib/syncrules.py JOBS / CANCEL_JOBS; integration of lanes C and D)
+        syncrules.JOBS.append(lambda _partner: syncjobs.waiting_here())
+        syncrules.CANCEL_JOBS.append(lambda _partner, jobs: [syncjobs.cancel(j["id"]) for j in jobs])
         # --- end lane D
     except Exception as e:                      # noqa: BLE001 -- sync never stops Parseh from starting
         print("!! sync: the change log could not start: %s" % e)
