@@ -108,7 +108,7 @@ class Basics(Jobs):
         with self.on(self.A):
             self.assertEqual(J.switches(), {"send": False, "accept": False})
             self.assertEqual(J.set_switches(send=True), {"send": True, "accept": False})
-            self.assertTrue(os.path.isfile(os.path.join(synclog.home(), "jobs.json")))
+            self.assertTrue(os.path.isfile(os.path.join(synclog.home(), "jobs-switches.json")))
             synclog.scan()
             self.assertFalse([r for r in synclog.rows() if "job" in r["unit"]], "never a synced unit")
         with self.on(self.B):

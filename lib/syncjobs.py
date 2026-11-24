@@ -110,9 +110,7 @@ def _doc():
         except (OSError, ValueError):
             doc = {}
         doc = doc if isinstance(doc, dict) else {}
-        sw = doc.get("switches") if isinstance(doc.get("switches"), dict) else {}
-        doc = {"switches": {"send": sw.get("send") is True, "accept": sw.get("accept") is True},
-               "asked": doc.get("asked") if isinstance(doc.get("asked"), dict) else {},
+        doc = {"asked": doc.get("asked") if isinstance(doc.get("asked"), dict) else {},
                "doing": doc.get("doing") if isinstance(doc.get("doing"), dict) else {}}
         # a job this computer was working on for another did not survive a
         # restart: forgotten, so the asker hears "unknown" and gives it back at once
@@ -136,20 +134,36 @@ def _files_dir(jid):
 
 
 # ------------------------------------------------------------------ the switches
+# config/sync/jobs-switches.json, read at every ask: a small file of its own,
+# so that what is written there holds at once (a test, or a page of lane E's)
+def _switches_path():
+    return os.path.join(synclog.home(), "jobs-switches.json")
+
+
 def switches():
-    with _LOCK:
-        return dict(_doc()["switches"])
+    """{"send": "send heavy jobs to paired computers", "accept": "accept jobs
+    from paired devices"}: both False on a fresh install; this device's."""
+    try:
+        with open(_switches_path(), encoding="utf-8") as fh:
+            sw = json.load(fh)
+    except (OSError, ValueError):
+        sw = {}
+    sw = sw if isinstance(sw, dict) else {}
+    return {"send": sw.get("send") is True, "accept": sw.get("accept") is True}
 
 
 def set_switches(send=None, accept=None):
     with _LOCK:
-        sw = _doc()["switches"]
+        sw = switches()
         if send is not None:
             sw["send"] = bool(send)
         if accept is not None:
             sw["accept"] = bool(accept)
-        _save()
-        _HERE.pop(_path(), None)
+        p = _switches_path()
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p + ".tmp", "w", encoding="utf-8") as fh:
+            json.dump(sw, fh)
+        os.replace(p + ".tmp", p)
     wake()
     return switches()
 
@@ -199,7 +213,7 @@ def capabilities(partner_id=None):
             got = _HERE.get(_path())
             if got is None or time.time() - got["at"] > CAPS_TTL:
                 got = _HERE[_path()] = {"caps": _caps_here(), "at": time.time()}
-            return dict(got["caps"], known=True)
+            return dict(got["caps"], known=True, accepts=switches()["accept"])
     got = _CAPS.get(partner_id)
     if got is None or time.time() - got["at"] > CAPS_TTL:
         with contextlib.suppress(Exception):
@@ -546,7 +560,7 @@ def op_offer(partner, payload, body):
         mine = d["doing"].get(jid)
         if mine is not None and mine.get("asked_by") == partner and mine["state"] != "cancelled":
             return {"ok": True, "taken": True, "name": syncid.name()}, None
-        if not d["switches"]["accept"]:
+        if not switches()["accept"]:
             return {"ok": True, "taken": False, "why": "%s does not accept jobs" % syncid.name()}, None
         if kind not in KINDS:
             return {"ok": True, "taken": False, "why": "%s does not know this job" % syncid.name()}, None

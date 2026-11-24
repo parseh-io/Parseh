@@ -6305,7 +6305,8 @@
         : 'the server did not answer (' + ((e && e.message) || e) +
           ') — nothing was estimated');
     }
-    return fetch('/youtube/api/estimate', {
+    // may be sent to a paired computer that can estimate (lib/jobs.js, a0.7.0)
+    return (window.ParsehJobs ? window.ParsehJobs.fetch : fetch)('/youtube/api/estimate', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body), signal: ctl.signal
     }).then(function (r) {

@@ -7440,7 +7440,7 @@ async function narrByEar(n, where) {
             : 'the server did not answer (' + ((e && e.message) || e)
               + ') — nothing was estimated');
         };
-        return fetch('__clip/estimate', {
+        return (window.ParsehJobs ? window.ParsehJobs.fetch : fetch)('__clip/estimate', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({narration: n.id, ...req}), signal: ctl.signal})
           .then(r => r.json().catch(() => null).then(j => {

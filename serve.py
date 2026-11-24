@@ -174,6 +174,7 @@ import network              # noqa: E402  who may reach this Parseh, and on whic
 import crosssite            # noqa: E402  and that only its own pages may write to it (§3.1)
 import syncpeer             # noqa: E402  sync between computers: the partners, pairing, pinned TLS (a0.7.0, lane A)
 import syncroutes           # noqa: E402  /sync/api/<op>, answered to a paired partner only (a0.7.0, lane A)
+import syncjobs             # noqa: E402  jobs lent between paired computers (a0.7.0, lane D)
 import settingspage         # noqa: E402  the Settings section, and the page a device not let in sees
 import updatepage           # noqa: E402  Settings > Updating Parseh, the page (§13.16)
 import offline              # noqa: E402  what a thing is made of, for a phone to keep (§19.3)
@@ -502,6 +503,8 @@ STATIC_FILES = {"/lib/lmlikelihoodsettings.js", "/youtube/lib/asrreview.js", "/y
                 # what the server is working on, drawn on every page (loaded
                 # by parseh.js, and by its own tag on the studio's pages)
                 "/lib/activity.js",
+                # a heavy action lent to a paired computer (a0.7.0, lane D; loaded by parseh.js)
+                "/lib/jobs.js",
                 # the mobile interface's sheet (docs/mobile.md), and the layer
                 # parseh.js loads into every book's reader for it
                 "/lib/mobile.css", "/lib/mobilereader.js",
@@ -2802,6 +2805,34 @@ def on_shelf(book):
     return os.path.relpath(os.path.realpath(book), shelf).replace(os.sep, "/")
 
 
+def lent_build_status(book, st):
+    """A book's build status, or -- when the newest build of it was lent to a
+    paired computer (lib/syncjobs.py) -- that job's, in the same shape, so the
+    page that polls __build/status follows it unchanged."""
+    if st.get("state") == "running":
+        return st
+    lent = syncjobs.latest_for("book-build", syncjobs.book_unit(book))
+    if not lent or (st.get("started") and lent["at"] < st["started"]):
+        return st
+    state = {"done": "done", "failed": "failed", "cancelled": "failed"}.get(lent["state"], "running")
+    line = lent["say"] if state != "failed" else (lent["reason"] or "the build failed")
+    return dict(st, state=state, log=[line], lent=lent)
+
+
+def lent_estimate_answer(args, res):
+    """A lent estimate's result (wavealign's own answer), made the door's."""
+    if len((res or {}).get("pieces") or []) != len(args["texts"]):
+        return {"ok": False, "error": "the estimate did not come back with one time for each piece"}
+    return estimate_answer(res, args["start"], args["end"], args["kind"])
+
+
+def lent_applied(job):
+    """A lent book build's PDF and reader written here: the library page too."""
+    if job.get("kind") in ("book-build", "narration-align"):
+        subprocess.run([sys.executable, os.path.join(LIB, "make_index.py")], cwd=ROOT,
+                       capture_output=True, timeout=600)
+
+
 def activity_now():
     """What /__activity answers: every long request (lib/activity.py) and,
     merged in at the moment of asking, every book being built, the HTML
@@ -2900,6 +2931,8 @@ def activity_now():
     extra.extend(getarasaac.activity_entries(activity.entry, activity.KEEP, now))
     # THE LATEX DRAWINGS OF MANY DOCUMENTS (lib/latexbatch.py), counted in drawings: kind `compile`, unit `items`
     extra.extend(latexbatch.activity_entries(activity.entry, activity.KEEP, now))
+    # THE JOBS LENT BETWEEN PAIRED COMPUTERS (lib/syncjobs.py, a0.7.0 lane D): asked here, or done here for another
+    extra.extend(syncjobs.activity_entries(activity.entry, activity.KEEP, now))
     return dict(activity.snapshot(extra), ok=True)
 
 
@@ -3697,6 +3730,10 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_html(laterpage.page())
         if path == "/settings" or path.startswith("/settings/"):
             return self._settings(method, path)
+        if path in ("/__jobs/state", "/__jobs/cancel"):
+            # A JOB LENT TO A PAIRED COMPUTER (lib/syncjobs.py, a0.7.0 lane D), followed by
+            # the page that asked (lib/jobs.js): "waiting for a computer", "on <partner>", "done"
+            return self._jobs_page(method, path)
         if path == "/__activity":
             # what the server is busy with, polled by lib/activity.js on
             # every page: cheap, never on the list itself, never cached
@@ -3988,7 +4025,7 @@ class Handler(SimpleHTTPRequestHandler):
             if m.group(2):
                 if method != "GET":
                     return self._method_not_allowed()
-                return self.send_json(dict(bookbuild.status(book), ok=True))
+                return self.send_json(dict(lent_build_status(book, bookbuild.status(book)), ok=True))
             if method != "POST":
                 return self._method_not_allowed()
             return self._book_build(book)
@@ -4237,6 +4274,18 @@ class Handler(SimpleHTTPRequestHandler):
         if what not in bookbuild.WAYS:
             return self.send_json({"ok": False, "error": "no such build: %r (%s)"
                                    % (what, ", ".join(bookbuild.WAYS))}, 400)
+        # --- lane D: a build this computer cannot run, sent to a paired one when "send" is on
+        if what in ("pdf", "html") and syncjobs.switches()["send"]:
+            can, why = syncjobs.can_here("book-build", {"what": what})
+            if not can:
+                try:
+                    b = booklib.Book(book)
+                    title = b.title_latin or b.title or os.path.basename(book)
+                except Exception:
+                    title = os.path.basename(book)
+                return self._lend("book-build", {"what": what}, why,
+                                  "Build %s" % named(title), syncjobs.book_unit(book), body)
+        # --- end lane D
         try:
             job, started = (bookbuild.start(book, what, chapters=making.chapter_inputs(book))
                             if what == "draft" else bookbuild.start(book, what))
@@ -5454,6 +5503,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json({"ok": False, "error": why}, 400)
         engine, missing = load_wavealign()
         if engine is None:
+            if syncjobs.switches()["send"]:                       # lane D
+                return self._lend_estimate(body, ask, missing, src, shelf)
             return self.send_json({"ok": False, "error": missing}, 409)
         start, end = ask["start"], ask["end"]
         if not ESTIMATE_SLOTS.acquire(blocking=False):
@@ -5461,6 +5512,9 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             times = None
             if src:
+                if not audiofile.have_ffmpeg() and syncjobs.switches()["send"]:     # lane D
+                    return self._lend_estimate(body, ask, "this computer cannot read the recording: "
+                                               "ffmpeg is not installed", src, shelf)
                 if not audiofile.have_ffmpeg():
                     return self.send_json({"ok": False, "error":
                                            "there is no picture of the sound to estimate from: "
@@ -5505,6 +5559,68 @@ class Handler(SimpleHTTPRequestHandler):
                                    "the estimate did not come back with one time for each "
                                    "piece"}, 500)
         return self.send_json(estimate_answer(res, start, end, ask["kind"]))
+
+    def _lend_estimate(self, body, ask, why, src, shelf):
+        """An estimate this computer cannot make, with "send" on (lane D): the
+        picture of the sound read here when it can be (a recorded waveform, or
+        the recording through ffmpeg), else the recording named by its place
+        in the book or video, which the partner reads from its own copy."""
+        start, end = ask["start"], ask["end"]
+        args = {"kind": ask["kind"], "start": start, "end": end, "texts": ask["texts"],
+                "values": None, "times": None, "rate": ESTIMATE_RATE}
+        unit = None
+        if src:
+            if audiofile.have_ffmpeg():
+                try:
+                    args["values"] = audiofile.envelope(src, start, end, ESTIMATE_RATE)
+                except audiofile.AudioError as e:
+                    return self.send_json({"ok": False, "error": str(e)}, 400)
+            else:
+                d = self._book_dir() if ask["kind"] == "span" else os.path.dirname(src)
+                unit = syncjobs.book_unit(d) if ask["kind"] == "span" else syncjobs.video_unit(d)
+                if not unit:
+                    return self.send_json({"ok": False, "error": why}, 409)
+                args["inner"] = os.path.relpath(src, d).replace(os.sep, "/")
+        else:
+            wave = ask["wave"] or self._shelf_wave(shelf)
+            if not wave:
+                return self.send_json({"ok": False, "error": why}, 409)
+            args["values"], args["times"] = wave_slice(wave, start, end)
+            if not args["values"]:
+                return self.send_json({"ok": False, "error": NO_WAVE_HERE}, 409)
+        return self._lend("estimate", args, why, "Estimate by the sound", unit, body)
+
+    def _lend(self, kind, args, why, title, unit, body):
+        """A heavy action this computer cannot do, with "send heavy jobs to
+        paired computers" on (lib/syncjobs.py, a0.7.0 lane D).  Asked with
+        `send_to` (the page's "send to <partner>"), it becomes a job: 202 with
+        the job, which the page follows at /__jobs/state.  Asked without, 409
+        with the reason and `jobs.send`: the paired computers, and whether each
+        can do it from what it last said (lib/jobs.js draws the buttons)."""
+        to = body.get("send_to") if isinstance(body, dict) else None
+        if isinstance(to, str) and to:
+            rec = syncjobs.ask(kind, args, title, unit=unit, prefer=to)
+            return self.send_json({"ok": True, "lent": True, "job": syncjobs.view(rec["id"])}, 202)
+        return self.send_json({"ok": False, "error": why,
+                               "jobs": {"kind": kind, "send": syncjobs.who_can(kind, args)}}, 409)
+
+    def _jobs_page(self, method, path):
+        """GET /__jobs/state?id= -> the job as its page follows it; POST
+        /__jobs/cancel {id} takes it back.  Only a job asked here is named."""
+        if path == "/__jobs/state":
+            if method != "GET":
+                return self._method_not_allowed()
+            got = syncjobs.view((self.query.get("id") or [""])[0])
+            if got is None:
+                return self.send_json({"ok": False, "error": "no such job here"}, 404)
+            return self.send_json(dict(got, ok=True))
+        if method != "POST":
+            return self._method_not_allowed()
+        body = self._json_body()
+        jid = body.get("id") if isinstance(body, dict) else None
+        if not isinstance(jid, str) or syncjobs.view(jid) is None:
+            return self.send_json({"ok": False, "error": "no such job here"}, 404)
+        return self.send_json(syncjobs.cancel(jid))
 
     def _shelf_wave(self, d):
         """The waveform a tab recorded for a YouTube video, kept beside it
@@ -8928,6 +9044,11 @@ def main():
         # --- end lane B
         synclog.start(sync_shelves)
         syncexchange.start()                    # lane B
+        # --- lane D: jobs lent between paired computers (lib/syncjobs.py)
+        syncjobs.FINISH["estimate"] = lent_estimate_answer
+        syncjobs.ON_APPLIED.append(lent_applied)
+        syncjobs.start()
+        # --- end lane D
     except Exception as e:                      # noqa: BLE001 -- sync never stops Parseh from starting
         print("!! sync: the change log could not start: %s" % e)
     # the daily look for a new version, which does nothing until somebody
