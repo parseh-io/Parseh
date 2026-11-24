@@ -195,11 +195,18 @@ try {
   const doc = {unit: seeded.doc_uid};
   eq((await api('unit', doc)).editing, 0, 'nobody edits the document');
   const ed = await ctx.newPage();
-  if (Deno.env.get('DEBUG')) ed.on('request', r => { if (r.url().includes('lease')) console.log('   req', r.method(), r.url()); });
+  if (Deno.env.get('DEBUG')) {
+    ed.on('request', r => { if (r.url().includes('lease')) console.log('   req', r.method(), r.url()); });
+    ed.on('dialog', d => console.log('   dialog', d.type()));
+    ed.on('console', m => console.log('   console', m.text()));
+  }
   await ed.goto(base + `/studio/doc/${seeded.doc}/edit`);
   await until(async () => (await api('unit', doc)).editing === 1, 'the editor took its lease');
   assert(true, 'the studio editor holds its document while open');
+  await until(() => ed.evaluate(() => !document.getElementById('src').readOnly), 'the editor is open to typing', 10000);
+  assert(true, 'and is open to typing once it holds it');
   await ed.goto(base + '/settings/');
+  if (Deno.env.get('DEBUG')) console.log('   ed now at', ed.url(), await ed.evaluate(() => typeof window.ParsehLease));
   await until(async () => (await api('unit', doc)).editing === 0, 'the editor let go');
   assert(true, 'and lets go when it is left');
   await ed.close();
@@ -222,7 +229,10 @@ try {
   await p.click('#btn-options');
   await until(async () => (await api('unit', deckUnit)).editing === 1, 'the deck options hold the deck');
   assert(true, 'a deck’s options hold the deck while open');
+  await p.waitForSelector('.dk-options-modal');
+  assert(true, 'the options open once the deck is held');
   await p.keyboard.press('Escape');
+  await until(async () => await p.locator('.dk-options-modal').count() === 0, 'the options closed');
   await until(async () => (await api('unit', deckUnit)).editing === 0, 'and let go when closed');
   assert(true, 'and let go when closed');
 
