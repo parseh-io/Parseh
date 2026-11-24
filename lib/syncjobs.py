@@ -465,7 +465,9 @@ def _names():
 def _partners():
     try:
         import syncpeer
-        return [p for p in syncpeer.partners() if isinstance(p, dict) and p.get("id")]
+        # never a partner that removed this computer (lane H): no offer, no question, until paired again
+        return [p for p in syncpeer.partners() if isinstance(p, dict) and p.get("id")
+                and not p.get("removed_you")]
     except Exception:                                 # noqa: BLE001
         return []
 

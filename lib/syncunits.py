@@ -31,8 +31,11 @@ THE KINDS AND THEIR RULES (docs/sync.md says each in words):
   rule "immutable"  a file that never changes once written (media nobody
                     edits): named by its hash, copied whole, cannot conflict
 
-Everything not listed here is NEVER synced: caches, `.tmp`, built pages and
-PDFs, runtimes, models, dictionaries, and this device's own settings.
+Everything not listed here is NEVER synced as a unit: caches, `.tmp`,
+runtimes, models, dictionaries, and this device's own settings.  Built pages
+and PDFs, and the drawings of LaTeX blocks, are no units either: they travel
+BESIDE their source unit, by the hash of the source they were built from
+(lib/syncbuilds.py, a0.7.0 lane G).
 
 Paths come from SHELVES, which `configure()` points at the folders the server
 really uses (serve.py passes its modules' own constants, so a test tree that
