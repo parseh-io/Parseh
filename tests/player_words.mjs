@@ -227,6 +227,12 @@ async function hover(page, s, j) {
 }
 const away = async page => { await page.mouse.move(1, 1); await page.waitForFunction(() => document.querySelector('#cloud').hidden); };
 const click = (page, sel) => page.evaluate(sel => document.querySelector(sel).click(), sel);
+// the phrase editor opens once its sync lease is held (a0.7.0, lib/syncpage.js), a moment after the press:
+// open it and wait until it IS open, as a person does, not for parts the cloud kept from the last time
+async function openEditor(page) {
+  await click(page, '#cloud .mkedit');
+  await page.waitForSelector('#cloud.editing');
+}
 const cloudHTML = page => page.evaluate(() => document.querySelector('#cloud').innerHTML.replace(/<div class="arrow"[^>]*><\/div>/, ''));
 const lines = page => page.evaluate(() => [...document.querySelectorAll('#segs .seg .fa')].map(f => f.innerHTML));
 const drawn = page => page.evaluate(() => [...document.querySelectorAll('#segs .seg')].map(seg => ({
@@ -484,7 +490,7 @@ try {
   const stat = () => page.evaluate(() => { const s = document.querySelector('#cloud .cstat'); return [s.textContent, s.classList.contains('bad')]; });
   const saved = async n => { await click(page, '#cloud .esave'); await until(() => rec.edit.length === n, 'edit ' + n); return rec.edit[n - 1]; };
   await hover(page, 2, 2);
-  await click(page, '#cloud .mkedit');
+  await openEditor(page);
   await page.waitForSelector('#cloud .wordstrip');
   const s0 = await strip();
   eq([s0.value, s0.under], ['', true], 'the words row sits under the text, empty for a chunk without words');
@@ -501,7 +507,8 @@ try {
   await click(page, '#cloud .ecancel');
 
   await hover(page, 2, 2);
-  eq(await page.evaluate(() => { document.querySelector('#cloud .mkedit').click(); return !document.querySelector('#cloud .ws-propose').hidden; }), true,
+  await openEditor(page);
+  eq(await page.evaluate(() => !document.querySelector('#cloud .ws-propose').hidden), true,
      'the next editor offers propose at once');
   eq(rec.words.filter(b => b.text === '').length, 1, 'and the probe was asked once for the page');
   await page.locator('#cloud .ef[data-f="fa"]').fill('いいですねえ');
@@ -522,7 +529,7 @@ try {
   await click(page, '#cloud .ecancel');
 
   await hover(page, 3, 0);
-  await click(page, '#cloud .mkedit');
+  await openEditor(page);
   await page.waitForSelector('#cloud .wordstrip');
   await page.locator('#cloud .ef[data-f="fa"]').fill('私わ');
   eq((await saved(4)).fields, {fa:'私わ'}, 'a chunk without words sends no line with its text');
@@ -542,7 +549,7 @@ try {
   const saved = async n => { await click(page, '#cloud .esave'); await until(() => rec.edit.length === n, 'edit ' + n); return rec.edit[n - 1]; };
   const stat = () => page.evaluate(() => document.querySelector('#cloud .cstat').textContent);
   await hover(page, 3, 0);            // 私は: no word line, so nothing else rides along
-  await click(page, '#cloud .mkedit');
+  await openEditor(page);
   await page.waitForSelector('#cloud .efree');
   const b0 = await box();
   eq([b0.checked, b0.after, b0.note], [false, true, true], 'an unmarked phrase opens with the box clear, last under the fields, its note with it');
@@ -570,7 +577,7 @@ try {
   await page.reload();
   await page.waitForSelector('.seg .fa .w');
   await hover(page, 4, 0);
-  await click(page, '#cloud .mkedit');
+  await openEditor(page);
   await page.waitForSelector('#cloud .efree');
   eq((await box()).checked, true, 'a phrase already marked in the file opens with the box ticked');
   await click(page, '#cloud .ecancel');
@@ -599,7 +606,7 @@ try {
      'a chunk without words is headed as the dictionary answered');
 
   await hover(page, 4, 0);
-  await click(page, '#cloud .mkedit');
+  await openEditor(page);
   await page.waitForSelector('#cloud .wordstrip');
   await until(() => rec.words.length === 1, 'the probe');
   await sleep(200);
@@ -613,7 +620,7 @@ try {
   await hover(page, 4, 0);
   await until(() => asked('駅まで').some(b => b.words === '駅まで(えきまで)'), 'a new line is a new answer');
 
-  await click(page, '#cloud .mkedit');
+  await openEditor(page);
   await page.waitForSelector('#cloud .esrc');
   await click(page, '#cloud .esrc');
   await until(() => rec.lookup.some(b => b.corpus_only && b.corpus_limit === 50 && b.text === '駅まで'), 'the sources and the chatbot\'s corpus pages');
@@ -626,7 +633,7 @@ try {
   // alone and dashed.
   await click(page, '#cloud .ecancel');
   await hover(page, 3, 2);
-  await click(page, '#cloud .mkedit');
+  await openEditor(page);
   await page.waitForSelector('#cloud .esrc');
   await click(page, '#cloud .esrc');
   await until(() => page.locator('#cloud .esrcbody .sput button').count().then(n => n > 0),
@@ -663,7 +670,7 @@ try {
      'and still dashed, half a verb being what it puts');
   await click(page, '#cloud .ecancel');
   await hover(page, 4, 0);
-  await click(page, '#cloud .mkedit');
+  await openEditor(page);
   await page.waitForSelector('#cloud .edv[data-dv="split"]');
 
   await click(page, '#cloud .edv[data-dv="split"]');
@@ -684,7 +691,7 @@ try {
   const was = [await phrase(2, 0), await phrase(3, 0)];
   // the editor first: the mode closes a cloud, never a form being written
   await hover(page, 2, 1);
-  await click(page, '#cloud .mkedit');
+  await openEditor(page);
   await page.waitForSelector('#cloud .wordstrip');
   await click(page, '.cd-toggle');
   await page.waitForFunction(() => document.body.classList.contains('cd-mode') && document.querySelector('#segs .cd-char'));

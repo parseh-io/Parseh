@@ -645,7 +645,7 @@ prompt: |
   const replacements={BASE:'',STUDIO:'',TITLE:'Authoring',DOC_ID:'',TARGET:'ar',MARKDOWN:initial,
     LANG_JSON:JSON.stringify(previewDoc.lang_record),LANGS_JSON:JSON.stringify([previewDoc.lang_record]),
     PROSE_JSON:JSON.stringify({code:'en',name:'English',native:'English',dir:'ltr',babel:'english',taught:true}),
-    DECKS_BASE:'',NOTES_SOURCE:'',NAMES_MARK:'',...audioKeys};
+    DECKS_BASE:'',NOTES_SOURCE:'',NAMES_MARK:'',SYNC_UNIT:'',...audioKeys};
   for(const [key,value] of Object.entries(replacements))editHtml=editHtml.replaceAll(`{{${key}}}`,()=>value);
   // a key the template gained and this page does not fill would be served as
   // literal braces, and a script path with braces in it is a file that is never found
@@ -1278,7 +1278,7 @@ print(json.dumps({'errors':b['errors'],'raw':b['raw_fields'],'card':h[h.index('<
   const docMeta={id:'browser-doc-abc123',uid:'0123456789ab',title:'Browser exercises',tags:[],
     created:'2026-09-01T10:00:00',updated:'2026-09-01T10:00:00',build:{status:'none'}};
   let docHtml=await Deno.readTextFile(root+'/markdown/app/templates/doc.html');
-  const docMap={...pageSnippets,BASE:'',STUDIO:'',DECKS_BASE:'/exercises',NOTES_SOURCE:'',LIVE:'',LIVE_SCRIPT:'',DOC_ID:docMeta.id,TITLE:docMeta.title,TARGET:'ar',TARGET_NAME:'Arabic',
+  const docMap={...pageSnippets,BASE:'',STUDIO:'',DECKS_BASE:'/exercises',NOTES_SOURCE:'',SYNC_UNIT:'',LIVE:'',LIVE_SCRIPT:'',DOC_ID:docMeta.id,TITLE:docMeta.title,TARGET:'ar',TARGET_NAME:'Arabic',
     LANG:'en',ARTICLE:docRender.html,TOC:'',BACKLINKS:'',BACKLINKS_N:'0',META_JSON:JSON.stringify(docMeta),LANG_JSON:JSON.stringify(docRender.lang_record),
     LANGS_JSON:JSON.stringify([docRender.lang_record]),
     GLOSSES_JSON:JSON.stringify([{fa:'كتاب',kana:'',translit:'kitāb',tr:'book',guessed:false,lemma:false}])};

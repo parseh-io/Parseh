@@ -253,7 +253,7 @@ try {
   // timings and the browser's own icon on load and do without them; a studio run on its own has no /lib/activity.js, no /lib/prefs.js (the toolbox's settings door) and no /lib/guidelink.js (the guide link, 15.10)
   const optional = (status, method, path) => status === 404 && method === 'GET' &&
     (/^\/mt\/[^/]+\/meta\.json$/.test(path) || /^\/youtube\/videos\/[^/]+\/[^/]+\/waveform\.json$/.test(path) ||
-     /^\/books\/[^/]+\/[^/]+\/timings\.json$/.test(path) || path === '/favicon.ico' || path === '/lib/activity.js' || path === '/lib/prefs.js' || path === '/lib/guidelink.js');
+     /^\/books\/[^/]+\/[^/]+\/timings\.json$/.test(path) || path === '/favicon.ico' || path === '/lib/activity.js' || path === '/lib/prefs.js' || path === '/lib/guidelink.js' || path === '/lib/syncpage.js');
   async function context({w = 1280, h = 900, scheme = 'light', storage = true} = {}) {
     const ctx = await browser.newContext({viewport: {width: w, height: h}, colorScheme: scheme});
     await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], {origin: B});
@@ -293,7 +293,7 @@ try {
     page.on('requestfailed', r => {
       if (!r.url().startsWith(B) && !r.url().startsWith(SB)) return;
       // the studio on its own has no /lib/activity.js (its page says so), and the page leaving abandons the ask
-      if (['/lib/activity.js', '/lib/prefs.js', '/lib/guidelink.js'].includes(new URL(r.url()).pathname)) return;
+      if (['/lib/activity.js', '/lib/prefs.js', '/lib/guidelink.js', '/lib/syncpage.js'].includes(new URL(r.url()).pathname)) return;
       errors.push(name + ' request failed: ' + r.method() + ' ' + new URL(r.url()).pathname + ' (' + (r.failure() || {}).errorText + ')');
     });
     await page.goto(url);

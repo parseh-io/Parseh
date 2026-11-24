@@ -19,11 +19,11 @@ const page = await browser.newPage();
 const errors=[]; page.on('pageerror', e=>{errors.push(e.message);console.log('PAGE ERROR',e.message);});
 // parseh.js loads its own layers beside itself -- the activity list, the
 // preferences this machine keeps, keeping on this phone, the ? that explains
-// the buttons, the page zoom (a0.5.0).  This page has no server behind it, so each is simply NOT
+// the buttons, the page zoom (a0.5.0), the jobs and sync layers (a0.7.0).  This page has no server behind it, so each is simply NOT
 // FOUND rather than answered with the page, which a browser reads as a
 // script full of syntax errors ("Unexpected token '<'").
 const LAYERS = ['activity.js', 'prefs.js', 'keep.js', 'explain.js', 'pagezoom.js',
-                'narrctl.js', 'wordtouch.js', 'mobileplayer.js', 'guidelink.js'];
+                'narrctl.js', 'wordtouch.js', 'mobileplayer.js', 'guidelink.js', 'jobs.js', 'syncpage.js'];
 const isLayer = p => LAYERS.some(n => p.endsWith('/' + n));
 await page.route(u => u.href.startsWith('http://parseh.test/') && isLayer(u.pathname),
                  route => route.fulfill({status:404, body:''}));
