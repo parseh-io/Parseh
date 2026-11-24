@@ -2,6 +2,10 @@
 ### Added
 - This computer opens Parseh at http://localhost, with no certificate warning; other devices keep https on the same port
 - The old https://localhost address hands what the browser kept to the new one, once, then redirects
+- Settings → Devices: pair computers, sync now, make this computer identical to another, what each holds
+- A thing changed on both computers asks which to keep, and gives back what it threw away as a diff file
+- Deletions are always asked, many at once as one question; what a sync replaced is kept for a day
+- A guide page: Several computers, one shelf
 
 ## [a0.6.3] - 2026-11-23
 ### Added

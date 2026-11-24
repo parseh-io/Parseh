@@ -251,6 +251,26 @@ ROUTES = {
     "/settings/api/devices/rename": ("sync.devices",),
     "/settings/api/devices/remove": ("sync.devices",),
     "/settings/api/devices/rules": ("sync.devices",),       # lane C: lib/syncrules.py json_api
+    # Settings -> Devices, its page (a0.7.0, lane E: lib/devicespage.py): sync now, "make identical", the job
+    # switches, what is held, the answers, a version put back, a diff deleted, a job cancelled -- the computer's
+    "/settings/api/devices/overview": ("sync.devices",),
+    "/settings/api/devices/sync-now": ("sync.devices",),
+    "/settings/api/devices/identical-summary": ("sync.devices",),
+    "/settings/api/devices/make-identical": ("sync.devices",),
+    "/settings/api/devices/switches": ("sync.devices",),
+    "/settings/api/devices/holding": ("sync.devices",),
+    "/settings/api/devices/fetch": ("sync.devices",),
+    "/settings/api/devices/answer": ("sync.devices",),
+    "/settings/api/devices/put-back": ("sync.devices",),
+    "/settings/api/devices/diff-delete": ("sync.devices",),
+    "/settings/api/devices/job-cancel": ("sync.devices",),
+    # ...and NOT settings, so open to every device let in: what a unit's page asks (its question waiting, its build
+    # out of date), and the LEASE an editor holds on its unit while it is open (lib/synclock.py) -- an editor open
+    # on a phone must hold its unit against sync exactly as one open on the computer
+    "/settings/api/devices/unit": READ,
+    "/settings/api/devices/lease-open": READ,
+    "/settings/api/devices/lease-keep": READ,
+    "/settings/api/devices/lease-close": READ,
     # the reading help: what is there, and what it would cost
     "/lookup/api/status": READ,
     "/lookup/api/plan": READ,
@@ -547,9 +567,12 @@ DOORS = (
      ("reading.get", "reading.remove", "reading.stop")),
     ("/settings/network/", "Network",
      "Who may reach %s, the code, the port, the certificate" % NAME,
-     # sync.devices sits here until Settings -> Devices has a page of its own (a0.7.0, lane E moves it there)
      ("network.doors", "network.extra", "network.port", "network.cert", "network.code",
-      "network.forget", "sync.devices")),
+      "network.forget")),
+    # SYNC BETWEEN COMPUTERS (a0.7.0, lib/devicespage.py)
+    ("/settings/devices/", "Devices",
+     "Computers paired to share one shelf: pairing, questions, jobs, what this one holds",
+     ("sync.devices",)),
     ("/settings/update/", "Updating %s" % NAME,
      "Another version in place of this one: newer, older, or the same again",
      ("parseh.update", "parseh.check")),
@@ -957,7 +980,7 @@ def hub(reading_tags="", update_tags="", speech_tags="", arasaac_tags="", analys
     it: the hub's own door says the same; `speech_tags` is what speech to text
     has, `arasaac_tags` what the pictograms have).  And which Parseh this is: the version, from the one file that holds
     it."""
-    net = DOORS[1][3]
+    net = door_keys("/settings/network/")
     main = """<main class="settings">
 <h1 class="idx">settings</h1>
 <p class="ver" data-version>This is %(name)s <b>%(version)s</b>.</p>
@@ -1034,6 +1057,12 @@ def hub(reading_tags="", update_tags="", speech_tags="", arasaac_tags="", analys
     paste a short request in place of the whole prompt &mdash; built when you ask, from the same parts as the prompts.</div>
     <div class="tags">%(skills_gate)s</div>
   </a>
+  <a class="door" href="/settings/devices/">
+    <div class="dname">Devices</div>
+    <div class="dwhat">Several computers, one shelf: pair another computer, answer what changed on both, make this
+    one identical to another, lend heavy jobs, and choose what this computer holds.</div>
+    <div class="tags">%(devices_gate)s</div>
+  </a>
   <a class="door" href="/settings/backups/">
     <div class="dname">Backups</div>
     <div class="dwhat">One backup of everything for moving to a new computer, a backup of your settings &mdash; reading
@@ -1049,11 +1078,12 @@ def hub(reading_tags="", update_tags="", speech_tags="", arasaac_tags="", analys
 </main>""" % {"name": NAME, "version": esc(parseh_version()),
               "skills_gate": gate(door_keys("/settings/skills/")),
               "backups_gate": gate(door_keys("/settings/backups/")),
+              "devices_gate": gate(door_keys("/settings/devices/")),
               "languages_gate": gate(door_keys("/settings/languages/")), "languages_tags": languages_tags,
-              "reading_gate": gate(DOORS[0][3]), "reading_tags": reading_tags,
-              "update_gate": gate(DOORS[2][3]), "update_tags": update_tags,
-              "latex_gate": gate(DOORS[3][3]),
-              "speech_gate": gate(DOORS[4][3]), "speech_tags": speech_tags,
+              "reading_gate": gate(door_keys("/settings/reading-help/")), "reading_tags": reading_tags,
+              "update_gate": gate(door_keys("/settings/update/")), "update_tags": update_tags,
+              "latex_gate": gate(door_keys("/settings/latex/")),
+              "speech_gate": gate(door_keys("/settings/speech/")), "speech_tags": speech_tags,
               "prompts_gate": gate(door_keys("/settings/prompts/")),
               "arasaac_gate": gate(door_keys("/settings/arasaac/")), "arasaac_tags": arasaac_tags,
               "analysis_gate": gate(door_keys("/settings/analysis/")), "analysis_tags": analysis_tags,

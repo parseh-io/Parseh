@@ -688,6 +688,18 @@ function fixSide() {
    saved with errors, say) opens as its markdown instead, so it can still be
    put right from here. */
 function editExercise(deck, item, onSave, after) {
+  // SYNC (a0.7.0, lib/syncpage.js): the form holds its exercise against sync while it is open; while a sync writes
+  // it the form says so and opens a moment later
+  if (window.ParsehLease && deck.path && !item._leased) {
+    window.ParsehLease.hold({unit: `item:${deck.path}/${item.id}`}, "exercise").then(lease => {
+      const root = document.getElementById("modal-root");
+      const before = root ? root.lastElementChild : null;
+      editExercise(deck, Object.assign({}, item, {_leased: true}), onSave, after);
+      const ov = root && root.lastElementChild !== before ? root.lastElementChild : null;
+      if (ov) lease.releaseWhenGone(ov); else lease.release();
+    });
+    return;
+  }
   // a follow-up's form may also take exercises off the deck, or put steps back in it: once the chain is saved
   const saved = async (markdown, extra) => {
     await onSave(markdown);
@@ -2003,6 +2015,9 @@ function initDeck() {
       inputs[spec.key] = textInput(shown, {inputmode: spec.kind === "steps" ? "decimal" : "numeric"});
       grid.appendChild(field(spec.label, inputs[spec.key], spec.help));
     }
+    // SYNC (a0.7.0): the options hold the deck against sync while they are open
+    const lease = window.ParsehLease && deck.path
+      ? await window.ParsehLease.hold({unit: `deck:${deck.path}`}, "deck options") : null;
     const saved = await dialog({
       title: "Deck options", cls: "dk-options-modal", body: grid,
       hint: "How this deck schedules its exercises, as in Anki.",
@@ -2023,6 +2038,7 @@ function initDeck() {
         return (await call(base, {method: "PATCH", json: {settings}})).deck;
       }}],
     });
+    if (lease) lease.release();
     if (!saved || !saved.settings) return;
     deck = saved;
     renderHead();

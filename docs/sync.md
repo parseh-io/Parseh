@@ -737,3 +737,44 @@ Tests: `tests/test_sync_rules.py` (every rule through `tests/syncfake.py`), and
 `tests/test_sync_end_to_end.py` tests 3–5 (two real installs, kept apart by
 freezing one process with SIGSTOP).
 <!-- end lane C -->
+
+<!-- lane E: the pages -->
+## The pages: Settings → Devices, the questions, the banner, the leases (lane E)
+
+`lib/devicespage.py` draws **Settings → Devices** (`/settings/devices/`), one
+question (`/settings/devices/question/<id>`) and a diff file
+(`/settings/devices/diff/<id>`, `?download=1` to save it). `lib/syncpage.js`,
+loaded by `lib/parseh.js` on every page and by the studio's templates, draws
+the **banner** on a unit's own page and the **out-of-date mark**, and holds the
+editors' **leases**. The other lanes' modules are imported lazily, by name:
+until one is there the page says which part is missing.
+
+| route (POST) | who | body | calls |
+|---|---|---|---|
+| `overview` | computer | — | C `questions` `kept` `diffs` `out_of_date`; D `switches` `capabilities` `jobs`; B `holding` `status` `elsewhere` |
+| `sync-now` | computer | `partner`? | B `sync_now` |
+| `identical-summary`, `make-identical` | computer | `partner` | C `identical_summary`, `make_identical` |
+| `switches` | computer | `send`?, `accept`? | D `set_switches` |
+| `holding`, `fetch` | computer | `languages`/`units`; `unit`, `partner` | B `set_holding`, `fetch` |
+| `answer` | computer | `id`, `choice`, `units`? | C `answer(qid, choice)`; with `units`, `answer(qid, choice, units)` |
+| `put-back`, `diff-delete`, `job-cancel` | computer | `id` | C `put_back`, `delete_diff`; D `cancel` |
+| `unit` | any device let in | `unit` or `path` | C `question_for`, `is_out_of_date`; synclock `editing` (a count) |
+| `lease-open`, `lease-keep`, `lease-close` | any device let in | `unit` or `path`, `holder`; `token` | synclock `open_editor` (409 in words when Busy), `keep`, `close_editor` |
+
+All under `/settings/api/devices/`. Two readings of lane C's interface the
+page relies on:
+
+- `discard_preview[choice]` is the diff that `choice` would throw away: under
+  "keep this computer's" the page shows `discard_preview["mine"]`.
+- "Go through them" on a grouped deletion calls `answer(qid, choice, [uid])`,
+  one unit at a time; the question stays asked for the rest.
+
+A page names its unit by `body[data-sync-unit]` (the studio writes it for a
+document or a note) or by its address: `/books/<folder>/<slug>/…`,
+`/youtube/v/<id>/` (found among the language folders), `…/deck/<folder>/<slug>`.
+The leases: the studio editor for as long as its page is open (its text is
+read-only while a sync writes, with a note that says so), the video player's
+phrase editor, an exercise's form on a deck (`item:<deck>/<id>`) and a deck's
+options (`deck:<folder>/<slug>`); renewed every minute, given back on close and
+on `pagehide`.
+<!-- end lane E -->
