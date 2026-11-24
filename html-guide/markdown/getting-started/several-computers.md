@@ -212,6 +212,10 @@ for that.
   review ([Speech to text](../videos/adding-a-video.md#speech-to-text)).
 - **A book out of date.** Its mark's **Rebuild** rebuilds that book there and
   then, or sends the build to a partner.
+- **A studio document's PDF.** On a computer without XeLaTeX, **Build PDF**
+  — and **Build again** on a PDF marked out of date — offers **Send to
+  <partner>**: the partner builds it, and the PDF comes back with the
+  source it was built from, so it is not marked out of date.
 - **Estimating by the sound.** The page follows the job for as long as it
   waits, past its usual two minutes.
 - **Exact word times.** Transcribing with **Exact word times** on a computer
@@ -222,8 +226,11 @@ for that.
 - **The graphics card or the CPU.** A transcription sent to a partner runs on
   what you chose here; a partner without a graphics card ready uses its
   CPU, and the review says so.
-- **LaTeX drawings** are not a job: they travel as builds (above). A block
-  no computer with LaTeX has drawn yet waits until one opens that document.
+- **LaTeX drawings.** A drawing another computer made travels as a build
+  (above). One that no computer has made yet shows a frame saying this
+  computer cannot make it; with **Send** on, the frame has **Have a paired
+  computer draw it**, which sends every such drawing of the page as one
+  job, and the page shows them once they are back.
 
 ## What this computer holds
 

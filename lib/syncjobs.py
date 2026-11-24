@@ -3,7 +3,8 @@
 """Jobs lent between paired computers (a0.7.0, lane D; docs/sync.md "Jobs").
 
 A computer that cannot do a heavy piece of work -- build a book's PDF without
-LaTeX, estimate by the sound without NumPy or ffmpeg, align a narration -- may
+LaTeX, estimate by the sound without NumPy or ffmpeg, align a narration, build a
+studio document's PDF without XeLaTeX, make the LaTeX drawings nobody made -- may
 send it to a paired Parseh that can, and the result comes back.  Two switches,
 both OFF on a fresh install and never synced (config/sync/jobs.json is this
 device's): "send heavy jobs to paired computers" and "accept jobs from paired
@@ -90,6 +91,7 @@ CAPS_FORCE = {}         # a test's seam: install id (or "*") -> keys put over th
 INLINE = False          # a test's seam: a taken job runs in the offer's own call, and a fetch too
 ON_APPLIED = []         # callbacks(job) after a job's output files were written here (serve.py: the library page)
 FINISH = {}             # kind -> fn(args, result) -> what the page that asked is answered (serve.py: the estimate)
+DOC_BUILD = None        # fn(doc folder, args) -> the studio's build answer (serve.py: the studio's build_pdf, lane J)
 
 
 class JobFailed(Exception):
@@ -181,7 +183,7 @@ def set_switches(send=None, accept=None):
 def _caps_here():
     caps = {"whisper": [], "latex": False, "aligners": [], "analyzers": [], "gpu": False,
             "accepts": switches()["accept"], "reader": False, "estimate": False, "ffmpeg": False,
-            "narration": True, "send_only": False}
+            "narration": True, "send_only": False, "compilers": []}
     with contextlib.suppress(Exception):
         caps["send_only"] = bool(syncid.device().get("send_only"))
     with contextlib.suppress(Exception):
@@ -197,6 +199,11 @@ def _caps_here():
         prefix, python = runtime.find_env()
         caps["latex"] = bool(runtime.tool("lualatex", prefix))
         caps["reader"] = bool(python)
+    with contextlib.suppress(Exception):
+        # the TeX compilers this computer has (lib/latexdraw.py): a studio document's PDF needs
+        # XeLaTeX, a LaTeX block's drawing the compiler of its theme (lane J)
+        import latexdraw
+        caps["compilers"] = sorted(c for c, info in latexdraw.compilers().items() if info)
     with contextlib.suppress(Exception):
         import importlib.util
         caps["estimate"] = (importlib.util.find_spec("numpy") is not None
@@ -231,7 +238,7 @@ def capabilities(partner_id=None):
             got = _ask_caps(partner_id)
     if got is None:
         return {"whisper": [], "latex": False, "aligners": [], "analyzers": [], "gpu": False,
-                "accepts": False, "known": False}
+                "accepts": False, "compilers": [], "known": False}
     return dict(got["caps"], known=True)
 
 
@@ -434,6 +441,110 @@ def _run_words(rec, say):
     return {"result": result, "outputs": {"segments.json": out}}
 
 
+def _need_doc(caps, args):
+    return "xelatex" in (caps.get("compilers") or [])
+
+
+def _here_doc(args):
+    if _need_doc(capabilities(), args):
+        return True, ""
+    return False, ("this computer cannot build the PDF: it has no XeLaTeX, which makes a studio "
+                   "document's PDF")
+
+
+def _run_doc(rec, say):
+    """A studio document's PDF, built here by the studio's own build_pdf
+    (serve.py hands it in as DOC_BUILD) on this computer's copy of the
+    document, held at the asker's version.  What the build writes into
+    meta.json goes back through sync; the PDF and its .tex as output files,
+    with the source they were built from recorded on the asker (lane J)."""
+    u = syncunits.locate(rec["unit"])
+    if u.kind != "doc":
+        raise JobFailed("only a studio document is built to a PDF")
+    if DOC_BUILD is None:
+        raise JobFailed("%s cannot build a studio document's PDF" % syncid.name())
+    say("building the PDF…")
+    got = DOC_BUILD(u.where, rec["args"]) or {}
+    if got.get("status") != "ok":
+        raise JobFailed("the build failed on %s: %s" % (syncid.name(), got.get("error") or "no reason given"))
+    import syncbuilds
+    return {"result": {"build": got}, "outputs": syncbuilds.part_files(u, "pdf")}
+
+
+def _draw_compilers(args):
+    return {b.get("compiler") for b in args.get("blocks") or [] if isinstance(b, dict)}
+
+
+def _need_draw(caps, args):
+    return bool(_draw_compilers(args) & set(caps.get("compilers") or []))
+
+
+TEX_NAMES = {"xelatex": "XeLaTeX", "lualatex": "LuaLaTeX", "pdflatex": "pdfLaTeX"}
+
+
+def _here_draw(args):
+    if _need_draw(capabilities(), args):
+        return True, ""
+    need = sorted(TEX_NAMES.get(c, c) for c in _draw_compilers(args) if c)
+    return False, "this computer has no %s" % (" or ".join(need) or "LaTeX")
+
+
+DRAWING_FILES = ("svg", "pdf", "json", "tex", "log")
+
+
+def _run_draw(rec, say):
+    """The LaTeX drawings of a document that no computer of the asker's has
+    made: each block drawn here by lib/latexdraw.py as the page draws it,
+    and sent back filed by its CONTENT KEY, the key the asker found missing.
+    A block this computer resolves to another content (its theme is not the
+    asker's) or cannot draw is said, and the others still go (lane J)."""
+    import latexdraw
+    blocks = [b for b in rec["args"].get("blocks") or [] if isinstance(b, dict)]
+    outputs, drawn, failed = {}, {}, {}
+    for i, b in enumerate(blocks, 1):
+        ck = str(b.get("ck") or "")
+        if not latexdraw.KEY_RE.match(ck):
+            continue
+        say("drawing %d of %d…" % (i, len(blocks)))
+        tex, theme, inline = str(b.get("tex") or ""), b.get("theme") or None, bool(b.get("inline"))
+        p = latexdraw.plan(tex, theme, inline=inline)
+        if not p.get("ok") or p.get("elsewhere"):
+            failed[ck] = p.get("said") or "this drawing cannot be made on %s" % syncid.name()
+            continue
+        if p.get("content") != ck:
+            failed[ck] = ('the theme "%s" is not the same on %s' % (p["resolved"].get("name") or "", syncid.name()))
+            continue
+        r = latexdraw.draw(tex, theme, inline=inline)
+        if not r.get("ok"):
+            failed[ck] = r.get("said") or "this drawing could not be made"
+            continue
+        where = latexdraw.paths(r["key"])
+        for name in DRAWING_FILES:
+            f = where["meta" if name == "json" else name]
+            if os.path.isfile(f):
+                outputs["%s/%s" % (ck, name)] = f
+        drawn[ck] = {"key": r["key"], "compiler": p["resolved"]["compiler"]}
+    if not drawn:
+        why = next(iter(failed.values()), "there was nothing to draw")
+        raise JobFailed("no drawing could be made on %s: %s" % (syncid.name(), why))
+    return {"result": {"drawn": drawn, "failed": failed}, "outputs": outputs}
+
+
+def _apply_draw(rec, staged, result):
+    """The drawings a partner made, written here as lane G writes the ones
+    sync brings (syncbuilds.put_drawing): filed by their content key, so the
+    page finds them although this computer cannot make them."""
+    import syncbuilds
+    for ck, d in ((result or {}).get("drawn") or {}).items():
+        if not isinstance(d, dict):
+            continue
+        files = {n: staged[ck + "/" + n] for n in DRAWING_FILES if (ck + "/" + n) in staged}
+        syncbuilds.put_drawing(ck, d.get("key"), d.get("compiler") or "", files)
+
+
+APPLY = {"latex-draw": _apply_draw}   # kind -> fn(rec, staged files, result): outputs that are not a unit's
+
+
 # kind -> words, what a computer needs (from its capabilities), whether this one can, the runner
 KINDS = {
     "book-build": {"title": "Build a book", "need": _need_book, "here": _here_book, "run": _run_book},
@@ -443,6 +554,8 @@ KINDS = {
                         "here": lambda a: (True, ""), "run": _run_align},
     "transcribe": {"title": "Transcribe a video", "need": _need_stt, "here": _here_stt, "run": _run_stt},
     "word-align": {"title": "Exact word times", "need": _need_words, "here": _here_words, "run": _run_words},
+    "doc-build": {"title": "Build a document's PDF", "need": _need_doc, "here": _here_doc, "run": _run_doc},
+    "latex-draw": {"title": "Make LaTeX drawings", "need": _need_draw, "here": _here_draw, "run": _run_draw},
 }
 RUNNERS = {k: v["run"] for k, v in KINDS.items()}      # a test may put a fake runner here
 
@@ -1053,8 +1166,16 @@ def _collect(rec, pid, ans):
         import syncexchange
         with contextlib.suppress(Exception):
             syncexchange.sync_from(pid, only=syncexchange.owner_of(rec["unit"]), why="a job's result")
-    if staged and rec.get("unit"):
+    if rec["kind"] in APPLY:
+        APPLY[rec["kind"]](rec, staged, ans.get("result"))
+    elif staged and rec.get("unit"):
         _write_outputs(rec, staged)
+        if rec["kind"] == "doc-build":
+            # the PDF records the source it was built from: this computer's, now that the
+            # partner's meta.json (which says it was built) came back through the exchange
+            with contextlib.suppress(Exception):
+                import syncbuilds
+                syncbuilds.record(syncunits.locate(rec["unit"]).where, ["pdf"])
         if rec["kind"] in ("book-build", "narration-align"):
             with contextlib.suppress(Exception):
                 import syncbuilds

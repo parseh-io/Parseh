@@ -40,7 +40,8 @@ as one question with the list. Anything a sync replaced is kept for a day and ca
 unopened for a while can be made identical to a partner after one summary of what it will lose. An editor that is open
 holds its document, video or deck against sync until it closes. Heavy jobs can be lent between computers, behind two
 switches that start off. A book's reader and PDF, a document's PDF and its LaTeX drawings travel with the source they
-were built from, so a computer without LaTeX reads what another built. Sync is not a backup: a deletion, once answered,
+were built from, so a computer without LaTeX reads what another built — and it can ask a partner to build a document's
+PDF, or to make the drawings no computer has made yet, with one button on the page. Sync is not a backup: a deletion, once answered,
 travels.
 [Several computers, one shelf](../getting-started/several-computers.md).
 

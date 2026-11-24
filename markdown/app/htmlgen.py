@@ -977,8 +977,8 @@ def _inline_latex(tex, theme):
         _LATEX_INLINE_RUN["failed"] += 1
         said = r.get("said") or "This drawing could not be made."
         return ('<code class="latex-inline-src latex-inline-fail" title="%s"%s '
-                'data-latex-src="%s" data-latex-theme="%s">%s</code>'
-                % (esc(said), idx, esc(tex), esc(theme or ""), esc(tex)))
+                'data-latex-kind="%s" data-latex-src="%s" data-latex-theme="%s">%s</code>'
+                % (esc(said), idx, esc(r.get("kind") or ""), esc(tex), esc(theme or ""), esc(tex)))
     w_em, h_em, d_em = _inline_latex_sizing(r.get("w"), r.get("h"), r.get("d"))
     return ('<img class="latex-inline" src="%s" alt="A drawing made by LaTeX" '
             'data-latex-key="%s" data-latex-src="%s" data-latex-theme="%s"%s '

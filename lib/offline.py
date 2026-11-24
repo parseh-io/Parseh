@@ -925,7 +925,9 @@ STUDIO_FILES = ("/static/app.css", "/static/langs.css", "/static/mobile.css",
                 "/static/sheet.css",
                 # the drawings a document or a note opened without, made
                 # afterwards (the owner, 2026-09-28): both pages load it
-                "/static/latexwait.js")
+                "/static/latexwait.js",
+                # a0.7.0 lane J: the drawings this computer cannot make, sent to a paired one
+                "/static/latexlend.js")
 
 # The bare note page loads exactly two of the above, and neither of them is
 # the studio's chrome: a note is the sheet and the language tokens, and the

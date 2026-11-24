@@ -588,10 +588,26 @@ def take_drawings(pull, theirs, holds):
         except Exception as e:                          # noqa: BLE001
             pull.out.setdefault("failed", {})["drawing %s" % ck[:12]] = str(e)
             continue
-        for name in sorted(files, key=lambda n: n == "json"):     # the facts last: then it is found
-            _copy(staged[files[name]], _drawing_path(d["key"], name))
-        ld.arrived(ck, d["key"], d.get("compiler") or "")
+        put_drawing(ck, d["key"], d.get("compiler") or "", {n: staged[files[n]] for n in files})
         got.append(ck)
     if got:
         _INVALIDATE()
     return got
+
+
+def put_drawing(ck, key, compiler_name, files):
+    """A drawing another computer made, written here from `files` ({svg|pdf|
+    json|tex|log: a local path}) and filed by its content key -> True.  The
+    facts (json) go last, so a drawing is never found half written.  Also
+    what a lent "latex-draw" job's result is written by (lib/syncjobs.py)."""
+    ld = _latexdraw()
+    if not (ld.KEY_RE.match(ck or "") and ld.KEY_RE.match(key or "")):
+        return False
+    files = {n: p for n, p in (files or {}).items() if n in DRAWING_FILES and p and os.path.isfile(p)}
+    if not all(n in files for n in ("svg", "pdf", "json")):
+        return False
+    for name in sorted(files, key=lambda n: n == "json"):
+        _copy(files[name], _drawing_path(key, name))
+    ld.arrived(ck, key, compiler_name or "")
+    _INVALIDATE()
+    return True

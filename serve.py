@@ -9214,6 +9214,8 @@ def main():
         syncexchange.start()                    # lane B
         # --- lane D: jobs lent between paired computers (lib/syncjobs.py)
         syncjobs.FINISH["estimate"] = lent_estimate_answer
+        # --- lane J: a studio document's PDF built here for a paired computer (the studio's own build_pdf)
+        syncjobs.DOC_BUILD = studio.build_lent
         syncjobs.ON_APPLIED.append(lent_applied)
         # --- lane G: builds travel with their source (lib/syncbuilds.py)
         import syncbuilds

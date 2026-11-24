@@ -182,5 +182,192 @@ class JobsEndToEnd(unittest.TestCase):
         self.assertEqual((res["pieces"][0]["t0"], res["pieces"][1]["t1"]), (0, 2.5))
 
 
+TEX_ENGINES = ("xelatex", "lualatex", "pdflatex", "xetex", "luatex", "pdftex")
+
+
+def path_without_tex(base):
+    """This test's PATH with every TeX engine left out: each folder that holds
+    one is replaced, at its own place, by a folder of links to everything else
+    it holds -- a computer without TeX, for the studio's build as for the
+    drawings (B below)."""
+    out = []
+    for i, d in enumerate(os.environ.get("PATH", "").split(os.pathsep)):
+        if not d or not any(os.path.exists(os.path.join(d, t)) for t in TEX_ENGINES):
+            out.append(d)
+            continue
+        shadow = os.path.join(base, "notex-%d" % i)
+        os.makedirs(shadow)
+        for n in os.listdir(d):
+            if n not in TEX_ENGINES:
+                os.symlink(os.path.join(d, n), os.path.join(shadow, n))
+        out.append(shadow)
+    return os.pathsep.join(out)
+
+
+def find(tree, name):
+    for here, _dirs, files in os.walk(tree):
+        if name in files:
+            return os.path.join(here, name)
+    return None
+
+
+class LatexJobsEndToEnd(unittest.TestCase):
+    """A studio document's PDF and the LaTeX drawings no computer made, lent
+    between two REAL installs (lane J: "doc-build", "latex-draw").  B has NO
+    TeX at all: its PATH holds no TeX engine and latexdraw finds no compiler
+    (SYNC_BUILDS_FAKE "no_tex").  A has its real TeX, except that -- as in
+    tests/test_sync_builds_end_to_end.py -- its XeLaTeX for a document's PDF is
+    a script that writes a real one-page PDF where xelatex would; the studio's
+    build_pdf, its checks and its record are the real ones.  A's DRAWINGS are
+    made by A's real TeX (the default theme's compiler).  Everything else is real: the studio's doors on
+    B (build, drawings, drawings/lend) with and without send_to, the offer,
+    A holding B's document, the files back, meta.json back through sync."""
+
+    @classmethod
+    def setUpClass(cls):
+        from test_sync_builds_end_to_end import FAKE_XELATEX
+        import stat
+        cls.base = tempfile.mkdtemp(prefix="sync-jobs-latex-e2e-", dir=os.environ.get("TMPDIR"))
+        fakebin = os.path.join(cls.base, "fakebin")
+        os.makedirs(fakebin)
+        real = shutil.which("xelatex")
+        with open(os.path.join(fakebin, "xelatex"), "w") as fh:
+            fh.write(FAKE_XELATEX % (sys.executable, real, real))
+        os.chmod(os.path.join(fakebin, "xelatex"), 0o755 | stat.S_IXUSR)
+        fake = json.dumps({"deadline": 60, "caps_ttl": 1, "timeout": 8})
+        cls.A = Install(cls.base, "A", env={"SYNC_JOBS_FAKE": fake, "SYNC_BUILDS_FAKE": json.dumps({}),
+                                            "PATH": fakebin + os.pathsep + os.environ.get("PATH", "")})
+        cls.B = Install(cls.base, "B", env={"SYNC_JOBS_FAKE": fake,
+                                            "SYNC_BUILDS_FAKE": json.dumps({"no_tex": True}),
+                                            "PATH": path_without_tex(cls.base)})
+        try:
+            cls.A.wait()
+            cls.B.wait()
+            st, offer = cls.A.dev("pair-start")
+            assert st == 200, offer
+            st, out = cls.B.dev("pair-enter", {"code": offer["said"], "address": "127.0.0.1:%d" % cls.A.port,
+                                               "fingerprint": offer["fingerprint"]})
+            assert st == 200, out
+            cls.A_id = out["partner"]["id"]
+        except Exception:
+            cls.tearDownClass()
+            raise
+        switches(cls.B, send=False)
+        switches(cls.A, send=False, accept=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        JobsEndToEnd.tearDownClass.__func__(cls)
+
+    def job(self, jid):
+        st, j = ask(self.B, "GET", "/__jobs/state?id=" + jid)
+        self.assertEqual(st, 200, j)
+        return j
+
+    def make(self, title, body):
+        md = "---\ntitle: %s\nlanguage: english\n---\n\n# %s\n\n%s" % (title, title, body)
+        st, out = ask(self.B, "POST", "/studio/api/docs", {"markdown": md})
+        self.assertIn(st, (200, 201), out)
+        doc_id = out.get("id") or (out.get("meta") or {}).get("id")
+        self.assertTrue(doc_id, out)
+        return doc_id
+
+    def test_1_a_documents_pdf_without_XeLaTeX_and_send_off_says_it_cannot(self):
+        doc_id = self.make("Off here", "Nothing to draw.\n")
+        st, out = ask(self.B, "POST", "/studio/api/docs/%s/build" % doc_id, {})
+        self.assertEqual(st, 500, out)
+        self.assertNotIn("jobs", out)
+        self.assertIn("no XeLaTeX", out["build"]["error"])
+
+    def test_2_a_documents_pdf_is_built_on_A_and_arrives_on_B(self):
+        switches(self.B, send=True)
+        doc_id = self.make("Built on A", "Words to print.\n")
+        route = "/studio/api/docs/%s/build" % doc_id
+        st, out = ask(self.B, "POST", route, {"scale": 1.6})
+        self.assertEqual(st, 409, out)
+        self.assertIn("XeLaTeX", out["error"])
+        self.assertEqual([(p["id"], p["can"]) for p in out["jobs"]["send"]], [(self.A_id, True)])
+        st, out = ask(self.B, "POST", route, {"scale": 1.6, "send_to": self.A_id})
+        self.assertEqual(st, 202, out)
+        jid = out["job"]["id"]
+        until("the PDF built on A", lambda: self.job(jid)["state"] in ("done", "failed"), wait=120)
+        j = self.job(jid)
+        self.assertEqual((j["state"], j["taken_by"]), ("done", self.A_id), j)
+        self.assertEqual(j["result"]["build"]["status"], "ok", j)
+        # the PDF on B is the one A's build wrote (its stand-in XeLaTeX: a real page saying so)
+        lib = os.path.join(self.B.tree, "library")
+        folder = next(os.path.join(h, d) for h, ds, _f in os.walk(lib) for d in ds if d == doc_id)
+        pdf = os.path.join(folder, "build", "main.pdf")
+        with open(pdf, "rb") as fh:
+            raw = fh.read()
+        self.assertTrue(raw.startswith(b"%PDF"), raw[:20])
+        import pymupdf
+        with pymupdf.open(pdf) as d:
+            self.assertIn("a document", d[0].get_text())
+        st, served = get_raw(self.B, "/studio/pdf/%s" % doc_id)
+        self.assertEqual((st, served), (200, raw))
+        self.assertTrue(os.path.isfile(os.path.join(folder, "build", "main.tex")))
+        # meta.json, which says it was built, came back through sync; the record names B's source as it is
+        with open(os.path.join(folder, "meta.json")) as fh:
+            self.assertEqual(json.load(fh)["build"]["status"], "ok")
+        with open(os.path.join(folder, ".built-from.json")) as fh:
+            self.assertIn("pdf", json.load(fh)["parts"])
+        st, unit = ask(self.B, "POST", "/settings/api/devices/unit", {"unit": "doc:" + os.path.relpath(folder, lib)})
+        self.assertEqual(st, 200, unit)
+        self.assertFalse(unit.get("out_of_date"), unit)
+
+    def test_3_a_drawing_nobody_made_is_drawn_on_A_and_shown_on_B(self):
+        switches(self.B, send=False)
+        doc_id = self.make("Drawn on A", "::::latex\n\\(x^3 + 7y = \\frac{1}{2}\\)\n::::\n")
+        draws = "/studio/api/docs/%s/drawings" % doc_id
+        st, page = ask(self.B, "POST", draws, {})
+        self.assertEqual(st, 200, page)
+        self.assertIn('data-latex-kind="compiler"', page["html"])
+        self.assertIn("which this computer does not have", page["html"])
+        # "send" off: nothing to offer, and asking says why
+        st, look = ask(self.B, "POST", draws + "/lend", {"look": True})
+        self.assertEqual((st, look["send"], look["missing"]), (200, False, 1), look)
+        st, out = ask(self.B, "POST", draws + "/lend", {})
+        self.assertEqual(st, 409, out)
+        self.assertNotIn("jobs", out)
+        switches(self.B, send=True)
+        st, look = ask(self.B, "POST", draws + "/lend", {"look": True})
+        self.assertEqual((st, look["send"], look["missing"]), (200, True, 1), look)
+        st, out = ask(self.B, "POST", draws + "/lend", {})
+        self.assertEqual(st, 409, out)
+        self.assertIn("cannot be made here", out["error"])
+        self.assertEqual([(p["id"], p["can"]) for p in out["jobs"]["send"]], [(self.A_id, True)])
+        st, out = ask(self.B, "POST", draws + "/lend", {"send_to": self.A_id})
+        self.assertEqual(st, 202, out)
+        jid = out["job"]["id"]
+        until("the drawing made on A", lambda: self.job(jid)["state"] in ("done", "failed"), wait=120)
+        j = self.job(jid)
+        self.assertEqual((j["state"], j["taken_by"]), ("done", self.A_id), j)
+        (ck, made), = j["result"]["drawn"].items()
+        # B's page now shows the drawing A made, found by its content
+        st, page = ask(self.B, "POST", draws, {})
+        self.assertEqual(st, 200, page)
+        self.assertNotIn('data-latex-kind="compiler"', page["html"])
+        self.assertIn("/latex/%s.svg" % made["key"], page["html"])
+        st, svg = get_raw(self.B, "/latex/%s.svg" % made["key"])
+        self.assertEqual(st, 200)
+        self.assertIn(b"<svg", svg)
+        with open(find(self.A.tree, made["key"] + ".svg"), "rb") as fh:
+            self.assertEqual(svg, fh.read(), "the very drawing A's TeX made")
+        st, look = ask(self.B, "POST", draws + "/lend", {"look": True})
+        self.assertEqual(look["missing"], 0, look)
+
+
+def get_raw(inst, route):
+    import http.client
+    c = http.client.HTTPConnection("127.0.0.1", inst.port, timeout=30)
+    try:
+        c.request("GET", route, headers={"Host": "localhost:%d" % inst.port})
+        r = c.getresponse()
+        return r.status, r.read()
+    finally:
+        c.close()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

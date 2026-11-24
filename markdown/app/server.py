@@ -2001,6 +2001,10 @@ def api_build(h, doc_id):
         mono = False
     elif not isinstance(mono, bool):
         return h.send_json({"error": "mono must be true or false"}, 400)
+    # a0.7.0 lane J: no XeLaTeX here and "send heavy jobs to paired computers" on -> a job
+    lent = _lend_build(h, doc_id, {"scale": round(scale, 2), "size": int(size), "mono": mono}, body)
+    if lent:
+        return lent
     lock = _doc_lock(doc_id)
     if not lock.acquire(blocking=False):
         return h.send_json({"error": "build already running"}, 409)
@@ -2009,6 +2013,124 @@ def api_build(h, doc_id):
     finally:
         lock.release()
     h.send_json({"build": result}, 200 if result["status"] == "ok" else 500)
+
+
+# ----------------------------------------------------------------------
+# work lent to a paired computer (a0.7.0 lane J; docs/sync.md "Jobs")
+# ----------------------------------------------------------------------
+def _lending(h):
+    """lib/syncjobs.py when this studio runs inside Parseh with sync (serve.py's
+    handler lends: `_lend`) and "send heavy jobs to paired computers" is on;
+    None otherwise -- the studio run alone, or the switch off, works as before."""
+    if not hasattr(h, "_lend"):
+        return None
+    try:
+        import syncjobs
+        return syncjobs if syncjobs.switches()["send"] else None
+    except Exception:                                   # noqa: BLE001 -- never the build
+        return None
+
+
+def _doc_unit(doc_id):
+    """The sync unit of a document of the studio's own library, or None (a
+    file opened from the computer, a note: never lent)."""
+    try:
+        import syncbuilds
+        u = syncbuilds.unit_of_dir(str(store.doc_dir(doc_id)))
+    except Exception:                                   # noqa: BLE001
+        return None
+    return u.id if u is not None and u.kind == "doc" else None
+
+
+def _lend_build(h, doc_id, args, body):
+    """The PDF this computer cannot build (no XeLaTeX), sent to a paired one:
+    409 with the partners that can, or -- asked with `send_to` -- 202 with the
+    job (serve.py's _lend; lib/jobs.js draws "Send to <partner>").  None: build
+    here, as always."""
+    sj = _lending(h)
+    if sj is None or current_session() is not None:
+        return None
+    can, why = sj.can_here("doc-build", args)
+    unit = None if can else _doc_unit(doc_id)
+    if can or unit is None:
+        return None
+    try:
+        title = store.get(doc_id)[0].get("title") or doc_id
+    except Exception:                                   # noqa: BLE001
+        title = doc_id
+    h._lend("doc-build", args, why, "Build the PDF of “%s”" % title, unit, body)
+    return True
+
+
+def build_lent(folder, args):
+    """A paired computer's document, built here (lib/syncjobs.py DOC_BUILD):
+    build_pdf as the Build PDF button runs it, under the document's lock --
+    waiting for a build of it that is running."""
+    doc_id = os.path.basename(os.path.normpath(folder))
+    if os.path.realpath(str(store.doc_dir(doc_id))) != os.path.realpath(folder):
+        return {"status": "error", "error": "that document is not in this computer's studio"}
+    try:
+        scale = min(max(float(args.get("scale") or 1.52), 0.8), 3.0)
+    except (TypeError, ValueError):
+        scale = 1.52
+    size = args.get("size")
+    if size not in texgen.PRINT_SIZES:
+        size = texgen.DEFAULT_PRINT_SIZE
+    lock = _doc_lock(doc_id)
+    if not lock.acquire(timeout=600):
+        return {"status": "error", "error": "a build of it was already running and did not end"}
+    try:
+        return build_pdf(doc_id, scale, int(size), bool(args.get("mono")))
+    finally:
+        lock.release()
+
+
+def _undrawable(markdown):
+    """The drawings of a page this computer cannot make (it lacks the
+    theme's compiler) and that no computer made yet -> [{"tex", "theme",
+    "inline", "ck", "compiler"}], one per content key."""
+    import latexthemes
+    out = {}
+    for tex, theme, inline in htmlgen.latex_wanted(markdown):
+        p = latexdraw.plan(tex, theme, inline=inline)
+        if p.get("ok") or p.get("kind") != "compiler":
+            continue
+        resolved = latexthemes.resolve(theme)
+        if resolved is None:
+            continue
+        ck = latexdraw.content_key(tex, resolved, inline)
+        out.setdefault(ck, {"tex": tex, "theme": theme or None, "inline": bool(inline), "ck": ck,
+                            "compiler": resolved["compiler"]})
+    return list(out.values())
+
+
+def api_doc_drawings_lend(h, doc_id):
+    """The drawings of this page that this computer cannot make, made on a
+    paired computer that can (a0.7.0 lane J), all of them in one job.
+    {"look": true} -> {"send": whether the page may offer it, "missing": how
+    many}; otherwise 409 with the partners (lib/jobs.js), then with `send_to`
+    202 and the job.  The drawings come back filed by their content, and the
+    page then shows them."""
+    meta, markdown = store.get(doc_id)
+    body = h._json_body() or {}
+    sj = _lending(h)
+    missing = _undrawable(markdown)
+    if body.get("look"):
+        return h.send_json({"ok": True, "send": sj is not None, "missing": len(missing)})
+    if not missing:
+        return h.send_json({"ok": True, "missing": 0})
+    if sj is None:
+        return h.send_json({"ok": False, "error": "These drawings cannot be made on this computer. "
+                            "Sending work to a paired computer is off (Settings → Devices)."}, 409)
+    args = {"blocks": missing}
+    can, why = sj.can_here("latex-draw", args)
+    if can:                       # this computer can after all (TeX installed since): the page draws them
+        return h.send_json({"ok": True, "missing": 0})
+    n = len(missing)
+    why = "%s: %s." % ("This drawing cannot be made here" if n == 1
+                       else "These %d drawings cannot be made here" % n, why)
+    title = "Draw the LaTeX of “%s”" % (meta.get("title") or doc_id)
+    h._lend("latex-draw", args, why, title, None, body)
 
 
 def _preview_assets(doc_id):
@@ -3011,6 +3133,7 @@ ROUTES = [
     ("PATCH",  r"^/api/docs/([a-z0-9\-]+)/meta$",         api_meta),
     ("POST",   r"^/api/docs/([a-z0-9\-]+)/color$",        api_color),
     ("POST",   r"^/api/docs/([a-z0-9\-]+)/drawings$",     api_doc_drawings),
+    ("POST",   r"^/api/docs/([a-z0-9\-]+)/drawings/lend$", api_doc_drawings_lend),
     ("POST",   r"^/api/docs/([a-z0-9\-]+)/translit$",     api_translit),
     ("POST",   r"^/api/docs/([a-z0-9\-]+)/kana$",         api_kana),
     ("POST",   r"^/api/docs/([a-z0-9\-]+)/duplicate$",    api_duplicate),

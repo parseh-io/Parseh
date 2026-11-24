@@ -891,6 +891,8 @@ answer (an estimate's times) comes back in `result`.
 | `narration-align` | `narration`, `force` | always | `lib/timestamp.py`, then the reader: the `.tex` comes back through sync, the reader as files |
 | `transcribe` | `lang`, `model`, `exact`, `duration`, `marks`, `source`, `second_pass`, `mode` (the CPU or the graphics card chosen here; the partner falls back to its CPU when it has no card ready, and the review's notes say so); the recording as an input | `whisper` holds the model | `sttjobs.run_lent`; the finished job comes back as `transcript.json` (lane D2) |
 | `word-align` | `lang`, `audio` (the input's name); the recording (`audio.pcm`, or the film) and Whisper's `segments.json` as inputs | `aligners` holds the language | `lib/ctcalign.py` in the speech runtime, as the worker runs it; the aligned segments come back as `segments.json` (lane G) |
+| `doc-build` | `scale`, `size`, `mono` (the page's PDF options); the unit is the document | `compilers` holds `xelatex` | the studio's `build_pdf` (`studio.build_lent`, handed in as `DOC_BUILD`), under the document's lock; `build/*.pdf|.tex|.html` come back as files, `meta.json` (which says it was built) through sync, and the asker records the PDF's source (lane J) |
+| `latex-draw` | `blocks`: `[{tex, theme, inline, ck, compiler}]`, every drawing of one page this computer cannot make, ONE job | `compilers` holds a block's compiler | `latexdraw.draw` for each block whose content key the partner resolves to the same `ck`; each drawing's svg/pdf/json/tex/log come back as `<ck>/<name>` and are written by `syncbuilds.put_drawing` -- filed by their content key, as lane G files a drawing sync brought (lane J) |
 
 ### The ops (registered through `syncroutes.register`)
 
@@ -917,7 +919,8 @@ switches() -> {"send": bool, "accept": bool}
 set_switches(send=None, accept=None) -> switches()
 capabilities(partner_id=None) -> {"whisper": [models], "latex": bool, "aligners": [langs],
         "analyzers": [langs], "gpu": bool, "accepts": bool,
-        "reader", "estimate", "ffmpeg", "narration", "send_only": bool, "known": bool}
+        "reader", "estimate", "ffmpeg", "narration", "compilers": [the TeX compilers latexdraw finds],
+        "send_only": bool, "known": bool}
         # None = this computer, worked out from what Settings has installed; a partner's = what it last said
 jobs() -> [{"id", "kind", "title", "state", "asked_by", "asked_by_name", "taken_by",
             "taken_by_name", "reason", "at", "unit", "say", "mine"}]   # newest first; mine=False: done here for another
@@ -946,6 +949,26 @@ off nothing changes: the action runs here or says it cannot, as before.
 - estimate by the sound (`/youtube/api/estimate`, `<reader>/__clip/estimate`).
 
 - a transcription (`/youtube/api/transcribe/start`, lane D2, below).
+
+- a studio document's PDF (`/studio/api/docs/<id>/build`, lane J): the Build
+  PDF button, and the out-of-date mark's "Build again", which clicks it.
+  Without XeLaTeX here and with "send" on, the door answers 409 with the
+  partners; `send_to` makes a `doc-build` job; `lib/jobs.js` (loaded by the
+  document page) follows it and hands the page the build's answer
+  (`result.build`), the PDF already written into this computer's copy.
+  With "send" off nothing changes: `build_pdf` says there is no XeLaTeX.
+  Only a document of the studio's own library is lent: a note beside a book
+  or a video is never built, and a file opened from the computer is not a
+  unit.
+- the drawings a page cannot make (`/studio/api/docs/<id>/drawings/lend`,
+  lane J): `{"look": true}` answers `{"send", "missing"}`; the document page
+  (`markdown/app/static/latexlend.js`) then puts "Have a paired computer draw
+  it" in every frame that says "This drawing is made with …, which this
+  computer does not have" (`data-latex-kind="compiler"`, on a block's frame
+  and an inline mark's), only when "send" is on. Pressed, the door makes ONE
+  `latex-draw` job of all the page's missing drawings (409 with the partners,
+  then `send_to`), and the page opens again when it is done. With "send" off
+  the door answers 409 in words and the page offers nothing.
 
 **A transcription lent by its sound (lane D2).** The partner cannot fetch a
 YouTube video's sound (Parseh has no downloader: the sound is a browser tab's
@@ -1001,18 +1024,31 @@ Whisper's own times (`align_here`). A partner that fails or stays away
 `ALIGN_WAIT` leaves Whisper's times, with a note. Only one Activity entry
 shows for a lent transcription or alignment: the add page's own.
 
-**The drawings of LaTeX blocks are not a job.** They travel as builds (lane G,
-below), found by their content, so a computer without TeX shows the drawings
-another computer made. What remains of the old open point is narrow: a block
-NO paired computer has drawn yet cannot be drawn by a computer without TeX until
-one with TeX opens (or builds) that document; asking a partner to draw it now
-would be a job kind of its own, not built.
+**The drawings of LaTeX blocks travel as builds, and the missing ones are a
+job (lane J).** A drawing another computer made travels as a build (lane G,
+below), found by its content, so a computer without TeX shows it. A block NO
+paired computer has drawn yet is the `latex-draw` job above: asked from the
+frame that says it cannot be made here, never by itself and never with "send"
+off; a page's missing drawings go as one job, to a partner that has one of
+their compilers. The partner draws a block only when its own theme resolves
+it to the asker's content key (themes sync, so they normally agree); one that
+does not, or that fails, is named in `result.failed` and the others still come
+back. A job that made none fails in words.
 
 **Leftovers settled by lane G.** A device that says it only sends
 (`syncid.device()["send_only"]`, a phone) shows it in `capabilities()` and
 refuses every offer; a partner marked "removed you" (lane H) is never called by
 the exchange (no pull, no nudge) until it is paired again; a runner that
 answers `True` instead of a dict ends its job done.
+
+Tests of lane J: `tests/test_sync_jobs_latex.py` (two installs through
+`tests/syncfake.py`: the PDF with its record, a failure in words, the drawings
+by the real runner with TeX stood in for, a block whose theme differs, a
+partner without the compiler), `tests/test_sync_jobs_end_to_end.py`
+`LatexJobsEndToEnd` (two real installs; B without any TeX engine on its PATH,
+A's drawings made by its real TeX and its XeLaTeX for a document a script that
+writes a real PDF), `tests/sync_jobs_latex_page.mjs` (the document page in
+Chromium: the frame's button, Build PDF, both through "Send to <partner>").
 
 The test seams: `CAPS_FORCE`, `RUNNERS`, `INLINE` (tests/test_sync_jobs.py) and
 `SYNC_JOBS_FAKE` in tests/sync_harness.py (tests/test_sync_jobs_end_to_end.py,

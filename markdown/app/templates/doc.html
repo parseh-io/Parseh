@@ -226,6 +226,9 @@
 <!-- ?live=1 only: the text of the editor open in another tab, drawn here as it is typed (static/live.js) -->
 {{LIVE_SCRIPT}}
 <script src="{{STUDIO}}/static/latexwait.js" defer></script>
+<!-- a heavy action sent to a paired computer (a0.7.0): the PDF without XeLaTeX here, the drawings without their compiler -->
+<script src="/lib/jobs.js" defer></script>
+<script src="{{STUDIO}}/static/latexlend.js" defer></script>
 <!-- sync between computers (a0.7.0): a question waiting on this page, a build out of date, the editor's lease -->
 <script src="/lib/syncpage.js" defer></script>
 </body>
