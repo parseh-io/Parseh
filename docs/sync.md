@@ -824,6 +824,7 @@ answer (an estimate's times) comes back in `result`.
 | `book-build` | `what`: pdf / html | `reader` (+ `latex` for the PDF) | `bookbuild.start`, polled; the PDF and the reader come back as files |
 | `estimate` | `kind`, `start`, `end`, `texts`, `values`+`times` (read here), or `inner` (the recording in the unit) and `rate` | `estimate` (NumPy) (+ `ffmpeg` without values) | `wavealign.estimate_pieces`; `FINISH["estimate"]` (serve.py) makes the door's answer |
 | `narration-align` | `narration`, `force` | always | `lib/timestamp.py`, then the reader: the `.tex` comes back through sync, the reader as files |
+| `transcribe` | `lang`, `model`, `exact`, `duration`, `marks`, `source`, `second_pass`; the recording as an input | `whisper` holds the model | `sttjobs.run_lent`; the finished job comes back as `transcript.json` (lane D2) |
 
 ### The ops (registered through `syncroutes.register`)
 
@@ -835,6 +836,8 @@ jobs.state  {"id"}                          -> {"ok", "state": running|done|fail
                                                 "say", "reason", "result"?, "outputs"? [{inner, sha, size}]}
 jobs.blob   {"id", "inner", "offset", "length"} -> {"ok", "size", "chunk"}, the bytes
 jobs.drop   {"id"}                          -> {"ok"}   (the asker has the result, cancelled, or gave it back)
+jobs.input  {"id", "inner", "offset", "length"} -> {"ok", "size", "chunk"}, the bytes
+                                            (served BY THE ASKER: a job's input file, lane D2)
 ```
 
 Only the computer that asked a job may ask about it, fetch its files or drop it.
@@ -876,13 +879,56 @@ off nothing changes: the action runs here or says it cannot, as before.
   `__build/status` follows a lent build in its own shape;
 - estimate by the sound (`/youtube/api/estimate`, `<reader>/__clip/estimate`).
 
-**Not lent yet.** Transcription: for a YouTube video the partner cannot fetch the
-sound itself (Parseh has no downloader: the sound is a browser tab's capture,
-real time, on the device that plays it), and the add page's review lives in
-`lib/sttjobs.py`'s in-memory job; lending it means sending the capture and
-handing the finished transcript back into that review. The cloud-LaTeX drawings
-(`lib/latexbatch.py`) write into this computer's drawing cache, which does not
-sync either. Both are open for a0.7.x.
+- a transcription (`/youtube/api/transcribe/start`, lane D2, below).
+
+**A transcription lent by its sound (lane D2).** The partner cannot fetch a
+YouTube video's sound (Parseh has no downloader: the sound is a browser tab's
+capture, real time, on the device that plays it), so the asker records it as
+always and the RECORDING TRAVELS:
+
+- `start` without Whisper here and "send" on answers 409 `not-installed` with
+  `jobs.send` (`/lookup/api/speech` also carries `lend`: the partners and their
+  models, so the add page offers a partner's model); `send_to` answers **202**
+  with the add page's usual token and `lent: {to}`. `lib/jobs.js` with
+  `defer` hands that answer back to the page, which follows its own job.
+- `sttjobs.start(…, lend_to=)` makes a job that asks nothing of speech to text
+  here; its pieces, marks and wave arrive as always. Sealed, `lend_ask` asks a
+  `transcribe` job whose INPUT is the recording (`ask(…, inputs={"audio.pcm":
+  path}, deliver=folder)`; a film is sent whole as `film.<ext>`); `lend_look`
+  follows it and the add page's status says the job's words ("Waiting for a
+  computer…", "On A: …").
+- The partner fetches the input from the asker: **`jobs.input {"id", "inner",
+  "offset", "length"}`** -> `{"ok", "size", "chunk"}` + the bytes, by sha256,
+  in pieces, served only to the partner the job was offered to or that has it.
+  It runs the add page's own pipeline (`sttjobs.run_lent`: `start(lent_for=)`,
+  `audio`, the real worker, word times and dictionary check included; nothing
+  of it is kept there, no pending review, no activity entry) and hands back the
+  finished job, in `asrpending`'s shape, as the output `transcript.json`.
+- The asker takes it in (`_adopt`): the review's fields, the word times held
+  under its own token, the recording kept for the review's listening; then
+  "done", the usual review, a note "Transcribed on <partner>." The Whisper
+  rechecks of the review need Whisper here, and say so.
+- A partner silent past `DEADLINE` gives it back; nobody reachable, it waits.
+  A restart of the asker cancels its open transcriptions (the recording was a
+  temporary file).
+
+Tests: `tests/test_sync_jobs_stt.py` (two installs through `tests/syncfake.py`,
+the real pipeline on the partner with the faster-whisper stand-in),
+`tests/test_sync_jobs_stt_end_to_end.py` (two real installs over TLS;
+`SYNC_JOBS_FAKE` `"stt"` gives each `tests/addstt_fakes.py`'s speech to text),
+`tests/sync_jobs_stt_page.mjs` (the add page in Chromium, the tab capture
+stood in for).
+
+**Not lent.** The cloud-LaTeX drawings of studio documents (`lib/latexbatch.py`,
+`lib/latexdraw.py`) write into this computer's drawing cache, which does not
+sync. A lent BOOK build has none to bring back: a book's PDF draws its TikZ
+inside lualatex and its reader uses no drawing cache. Lending the studio's
+drawings would be a job kind of its own -- the document's unit held on the
+partner, its drawings made there, and every `markdown/latex/` entry plus the
+owners' record brought back -- and a drawing's key holds the drawing
+computer's TeX installation, so a computer without TeX would never find
+those drawings by its own key; the cache's lookup would have to learn to
+accept them. Open for a0.7.x.
 
 The test seams: `CAPS_FORCE`, `RUNNERS`, `INLINE` (tests/test_sync_jobs.py) and
 `SYNC_JOBS_FAKE` in tests/sync_harness.py (tests/test_sync_jobs_end_to_end.py,

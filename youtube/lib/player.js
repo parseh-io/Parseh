@@ -6317,11 +6317,13 @@
         : 'the server did not answer (' + ((e && e.message) || e) +
           ') — nothing was estimated');
     }
-    // may be sent to a paired computer that can estimate (lib/jobs.js, a0.7.0)
+    // may be sent to a paired computer that can estimate (lib/jobs.js, a0.7.0); once it is offered
+    // for sending, the job's own state is followed ("waiting for a computer" waits as long as it
+    // must), never this page's two minutes
     return (window.ParsehJobs ? window.ParsehJobs.fetch : fetch)('/youtube/api/estimate', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body), signal: ctl.signal
-    }).then(function (r) {
+    }, {offered: function () { clearTimeout(timer); }}).then(function (r) {
       return r.json().catch(function () { return null; }).then(function (j) {
         if (ctl.signal.aborted) failed();
         if (!r.ok || !j || !j.ok)

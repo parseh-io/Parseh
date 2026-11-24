@@ -164,6 +164,24 @@ can do it does it, and the result comes back through sync. Two switches in
 syncs. The page lists what this computer can run, and every job sent or
 taken, with its state; a job not finished can be cancelled there.
 
+Where this computer cannot do the work, the button that starts it offers
+**Send to <partner>**, and the page then says **Waiting for a computer**,
+**On <partner>** or **Done**. A partner that goes silent gives the job back
+after two minutes; while nobody is reachable a job waits, and it never fails
+for that.
+
+- **Transcribing a video.** The sound is recorded on this computer as
+  always — a YouTube video's sound is the tab's, which a partner cannot
+  fetch — and the recording travels to the partner's Whisper. The
+  transcript, with its word times, comes back into the add page's usual
+  review ([Speech to text](../videos/adding-a-video.md#speech-to-text)).
+- **A book out of date.** Its mark's **Rebuild** rebuilds that book there and
+  then, or sends the build to a partner.
+- **Estimating by the sound.** The page follows the job for as long as it
+  waits, past its usual two minutes.
+- **Cloud-LaTeX drawings.** Those of studio documents are not lent: their
+  cache stays on the computer that drew them.
+
 ## What this computer holds
 
 A computer holds everything by default. Under **What this computer holds**

@@ -5,6 +5,7 @@
 - Settings → Devices: pair computers, sync now, make this computer identical to another, what each holds
 - A thing changed on both computers asks which to keep, and gives back what it threw away as a diff file
 - Deletions are always asked, many at once as one question; what a sync replaced is kept for a day
+- A computer without speech to text records a video's sound and sends it to a paired computer to transcribe
 - A guide page: Several computers, one shelf
 
 ## [a0.6.3] - 2026-11-23
