@@ -169,3 +169,33 @@ def align_segments(audio, segments, folder, progress=None):
         if progress:
             progress(number + 1, len(segments or []))
     return out, made, missed
+
+
+def main(argv):
+    """python3 lib/ctcalign.py <spec.json>: one alignment for a paired computer
+    (lib/syncjobs.py kind "word-align", a0.7.0 lane G), run in the speech
+    runtime's environment as the worker is.  The spec: {"audio", "audio_kind":
+    "pcm16" | "media", "segments" (a JSON file of {start, end, text}),
+    "aligner" (the network's folder), "out"}; writes the segments with their
+    words to "out" and prints {"made", "missed"}."""
+    import numpy as np
+    import sttworker
+    with open(argv[1], encoding="utf-8") as fh:
+        spec = json.load(fh)
+    if spec["audio_kind"] == "pcm16":
+        audio = sttworker.load_pcm(np, spec["audio"])
+    else:
+        audio = sttworker.load_media(np, {"source_path": spec["audio"], "film": None})
+    with open(spec["segments"], encoding="utf-8") as fh:
+        segments = json.load(fh)
+    out, made, missed = align_segments(audio, segments, spec["aligner"])
+    with open(spec["out"], "w", encoding="utf-8") as fh:
+        json.dump(out, fh, ensure_ascii=False)
+    print(json.dumps({"made": made, "missed": missed}))
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    sys.exit(main(sys.argv))

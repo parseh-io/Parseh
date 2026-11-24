@@ -348,7 +348,13 @@ def op_have(partner, payload, body):
     recover()
     synclog.flush()
     synclog.scan()
-    return {"ok": True, "install": _me(), "rows": [_row_out(r) for r in synclog.rows()]}, None
+    out = {"ok": True, "install": _me(), "rows": [_row_out(r) for r in synclog.rows()]}
+    try:                                       # lane G: the builds and drawings here, by their source
+        import syncbuilds
+        out.update(syncbuilds.rows())
+    except Exception as e:                     # noqa: BLE001 -- the rows travel anyway
+        print("!! sync: the builds could not be listed: %s" % e, flush=True)
+    return out, None
 
 
 def _filehashes(files):
@@ -438,6 +444,12 @@ def op_blob(partner, payload, body):
     except (TypeError, ValueError):
         return {"ok": False, "error": "bad request"}, None
     p = local_file(sha)
+    if p is None:
+        try:                                   # lane G: a build's or a drawing's file
+            import syncbuilds
+            p = syncbuilds.local_file(sha)
+        except Exception:                      # noqa: BLE001
+            p = None
     if p is None:
         return {"ok": False, "error": "no such file"}, None
     with open(p, "rb") as fh:
@@ -695,6 +707,17 @@ class Pull:
                 self.out["waiting"].append(uid)
             elif r == "moved":
                 self.out["failed"][uid] = "it changed here while it came; next time"
+        # lane G: the partner's builds that match the sources now here, and the
+        # drawings this computer cannot make itself (lib/syncbuilds.py)
+        try:
+            import syncbuilds
+            self.out["builds"] = syncbuilds.after_pull(self, got, holds, only)
+        except Failed as e:
+            if e.transport:
+                raise
+            self.out["failed"]["builds"] = str(e)
+        except Exception as e:                      # noqa: BLE001 -- builds never stop sync
+            self.out["failed"]["builds"] = "%s" % e
         if only is None:
             with _LOCK:
                 conn = _db()
@@ -896,6 +919,10 @@ def sync_from(partner, only=None, why="", wait=True):
     "waiting", "elsewhere", "failed" {uid: reason}, "complete", "error",
     "blobs" {"chunks", "bytes", "local"}}.  {"busy": True} when a
     sync with that partner is already running (and wait is False)."""
+    if _removed_us(partner):
+        # lane H: that partner removed this computer -- no call until paired again
+        return {"partner": partner, "complete": False, "removed_you": True,
+                "error": "this partner removed this computer"}
     lock = _plock(partner)
     if not lock.acquire(blocking=wait):
         return {"partner": partner, "busy": True, "complete": False}
@@ -922,7 +949,7 @@ def sync_from(partner, only=None, why="", wait=True):
 def sync_with(partner, why=""):
     """Both directions: pull from the partner, then nudge it to pull from here."""
     got = sync_from(partner, why=why)
-    if got.get("complete"):
+    if got.get("complete") and not got.get("removed_you"):
         try:
             ans, _ = _call(partner, "sync.nudge", {})
             got["nudged"] = ans
@@ -953,11 +980,23 @@ _SCHED = {"thread": None, "stop": None, "wake": threading.Event(), "wanted": {},
 
 
 def _partners():
+    """The partners to sync with: never one that removed this computer (lane
+    H's "removed you"), until it is paired again."""
     try:
         import syncpeer
-        return [p for p in syncpeer.partners() if isinstance(p, dict) and p.get("id")]
+        return [p for p in syncpeer.partners() if isinstance(p, dict) and p.get("id")
+                and not p.get("removed_you")]
     except Exception:                                 # noqa: BLE001 -- no transport yet: no partner
         return []
+
+
+def _removed_us(partner):
+    try:
+        import syncpeer
+        return any(p.get("id") == partner and p.get("removed_you") for p in syncpeer.partners()
+                   if isinstance(p, dict))
+    except Exception:                                 # noqa: BLE001
+        return False
 
 
 def request(partner=None, why=""):

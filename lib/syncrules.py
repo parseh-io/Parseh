@@ -42,6 +42,7 @@ import synclock                                                # noqa: E402
 import synclog                                                 # noqa: E402
 import syncunits                                               # noqa: E402
 import syncexchange                                            # noqa: E402
+import syncbuilds                                              # noqa: E402
 
 CALL_TIMEOUT = 8.0          # seconds for a rules call (an answer waits in the outbox when it is not heard)
 PREVIEW_MAX = 256 * 1024    # characters of a discard preview kept with a question
@@ -682,7 +683,7 @@ def _on_taken(uid, partner):
                     storeguard.write_json(os.path.join(synckeep.kept_dir(), e["id"], "entry.json"), e)
                 break
     _drop_units(partner, [uid])
-    _mark_out_of_date(uid)
+    syncbuilds.note_taken(uid)
 
 
 def install():
@@ -961,67 +962,18 @@ def delete_diff(diff_id):
 
 
 # ------------------------------------------------------------------ out of date
-def _builds(uid):
-    """The built files that depend on a unit -> {what: path}."""
-    try:
-        u = syncunits.locate(uid)
-    except KeyError:
-        return {}
-    if u.key is not None:
-        return {}
-    w = u.where
-    if u.kind == "book":
-        cand = {"the PDF": os.path.join(w, "main.pdf"), "the reader": os.path.join(w, "reader", "index.html")}
-    elif u.kind in ("doc", "note"):
-        b = os.path.join(w, "build")
-        cand = {}
-        try:
-            for n in sorted(os.listdir(b)):
-                if n.endswith((".pdf", ".tex", ".html")):
-                    cand["the %s" % ("PDF" if n.endswith(".pdf") else ".tex" if n.endswith(".tex") else "page")] = \
-                        os.path.join(b, n)
-        except OSError:
-            pass
-    else:
-        return {}
-    return {k: p for k, p in cand.items() if os.path.isfile(p)}
-
-
-def _mark_out_of_date(uid):
-    b = _builds(uid)
-    if not b:
-        return
-    row = synclog.get(uid) or {}
-    with _LOCK:
-        _db().execute("INSERT OR REPLACE INTO outdated VALUES (?,?,?,?)",
-                      (uid, json.dumps(sorted(b)), row.get("hash"), time.time()))
 
 
 def is_out_of_date(uid):
-    """A build of this unit was made before its source last changed through sync
-    (a build newer than that change clears it)."""
-    with _LOCK:
-        r = _db().execute("SELECT at FROM outdated WHERE unit=?", (uid,)).fetchone()
-    if r is None:
-        return False
-    b = _builds(uid)
-    stale = [p for p in b.values() if os.path.getmtime(p) < r[0]]
-    if not stale:
-        with _LOCK:
-            _db().execute("DELETE FROM outdated WHERE unit=?", (uid,))
-        return False
-    return True
+    """OUT OF DATE BY THE RECORDED HASH (lane G, lib/syncbuilds.py): this
+    computer's build of the unit was made from a source other than the one it
+    has now, and no partner holds a build of the current source (one that does
+    sends it at the next sync, and its arrival clears the mark by itself)."""
+    return syncbuilds.is_out_of_date(uid)
 
 
 def out_of_date():
-    with _LOCK:
-        rows = _db().execute("SELECT unit, what, at FROM outdated ORDER BY at").fetchall()
-    out = []
-    for uid, what, at in rows:
-        if is_out_of_date(uid):
-            stale = [w for w, p in _builds(uid).items() if os.path.getmtime(p) < at]
-            out.append({"unit": uid, "title": title(uid), "what": stale})
-    return out
+    return syncbuilds.out_of_date(title)
 
 
 # ------------------------------------------------------------------ one JSON door for the pages and tests

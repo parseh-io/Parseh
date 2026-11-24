@@ -407,7 +407,8 @@ def busy():
 
 
 # ------------------------------------------------------------------------ start
-def start(source, lang, model, processing, duration=None, exact=True, lend_to=None, lent_for=None):
+def start(source, lang, model, processing, duration=None, exact=True, lend_to=None, lent_for=None,
+          align_on=None):
     """A job, for a source the add flow's validators passed -> {"job", "state",
     "need", ...}.  `source` is what source_of() made; everything here is
     checked again, because this is the door tests and other code reach too.
@@ -508,6 +509,8 @@ def start(source, lang, model, processing, duration=None, exact=True, lend_to=No
                 aligner = lang if ready(lang) else ""
             except Exception:  # noqa: BLE001
                 aligner = ""
+        if exact and aligner:
+            align_on = None                 # this computer has its own aligner
     tmp = _tmp()
     if kind == "youtube":
         need = FREE_TO_START + (int(hint * SAMPLE_RATE * 2) if hint else 0)
@@ -529,6 +532,7 @@ def start(source, lang, model, processing, duration=None, exact=True, lend_to=No
                "model_revision": speechmodels.provenance(model),
                "lang": lang, "wlang": wlang, "model": model, "mode": processing,
                "aligner": aligner,
+               "align_on": align_on if (exact and not aligner and lend_to is None) else None,
                "planned": device, "device": None, "device_name": name, "threads": threads,
                "fell_back": False,
                "state": AWAITING if kind == "youtube" else QUEUED,
@@ -728,6 +732,8 @@ def _say(job):
         return "%sTranscribing on %s…%s" % (fell, where, " %d%%" % pct if pct is not None
                                                   else "")
     if s == ALIGNING:
+        if job.get("align_say"):            # lent to a paired computer (a0.7.0 lane G)
+            return "Making exact word times: %s" % job["align_say"]
         pct = _pct(job)
         return "Making exact word times…%s" % (" %d%%" % pct if pct is not None else "")
     if s == REVIEW_CHOICE:
@@ -1790,7 +1796,12 @@ def _run(job):
             _end(job, FAILED, 'film-changed', 'The film changed during transcription. Name it again to transcribe the current file.')
             return
         if got.get("done") is not None:
-            _finish(job, got["done"])
+            done = got["done"]
+            if job.get("align_on") and done.get("word_source") != "aligner":
+                done = _lend_alignment(job, done)
+                if job["cancelled"]:
+                    return
+            _finish(job, done)
         elif got.get('first') is not None:
             # Native crashes during a crop must not discard successful first ASR.
             _second_pass_incomplete(job)
@@ -2179,9 +2190,113 @@ LENT_POLL = 1.0
 LENT_FILE = "transcript.json"
 
 
+# ------------------------------------------------------------- exact word times on a paired computer
+ALIGN_WAIT = 900.0          # seconds a lent alignment may take before Whisper's own times are kept
+
+
+def aligner_elsewhere(lang, exact):
+    """Exact word times asked, and this computer has no aligner for the
+    language -> True (a paired computer that has one may make them; lane G)."""
+    if not exact:
+        return False
+    gs = _getstt()
+    ready = getattr(gs, "aligner_ready", None)
+    try:
+        return not (callable(ready) and ready(lang))
+    except Exception:                                        # noqa: BLE001
+        return True
+
+
+def _lend_alignment(job, msg):
+    """Whisper's segments and the recording sent to the paired computer the
+    person chose, whose aligner makes the exact word times (syncjobs kind
+    "word-align") -> the worker's "done" message with its words replaced, or
+    as it was (a note says why) when the times could not be made there."""
+    import syncjobs
+    to = job["align_on"]
+    if job["kind"] == "youtube":
+        import asrpending
+        audio, inner = str(asrpending.audio_path(job["id"])), "audio.pcm"
+    else:
+        audio = job["source"]["path"]
+        inner = "film" + os.path.splitext(audio)[1].lower()
+    segs = msg.get("segments") if isinstance(msg.get("segments"), list) else []
+    if not segs or not audio or not os.path.isfile(audio):
+        job["notes"].append("Exact word times could not be sent: the recording is not here any more.")
+        return msg
+    folder = _named(job["id"], ".align")
+    os.makedirs(folder, exist_ok=True)
+    seg_path = os.path.join(folder, "whisper-segments.json")
+    with open(seg_path, "w", encoding="utf-8") as fh:
+        json.dump([{"start": s.get("start"), "end": s.get("end"), "text": s.get("text")} for s in segs], fh,
+                  ensure_ascii=False)
+    out_dir = os.path.join(folder, "out")
+    with LOCK:
+        job["state"], job["align_say"] = ALIGNING, "sending the recording…"
+        job["touched"] = _now()
+    try:
+        rec = syncjobs.ask("word-align", {"lang": job["lang"], "audio": inner},
+                           "Exact word times", prefer=to, inputs={inner: audio, "segments.json": seg_path},
+                           deliver=out_dir)
+        end = time.time() + ALIGN_WAIT
+        while True:
+            if job["cancelled"]:
+                syncjobs.cancel(rec["id"])
+                return msg
+            v = syncjobs.view(rec["id"]) or {"state": "failed", "reason": "the job is not known here any more"}
+            with LOCK:
+                job["align_say"] = v.get("say") or v["state"]
+                job["touched"] = _now()
+            if v["state"] == "done":
+                break
+            if v["state"] in ("failed", "cancelled") or time.time() > end:
+                if v["state"] in OPEN_LENT:
+                    syncjobs.cancel(rec["id"])
+                why = v.get("reason") or ("it took too long" if time.time() > end else v["state"])
+                job["notes"].append("Exact word times could not be made on the other computer (%s); "
+                                    "Whisper's own times were kept." % str(why).rstrip("."))
+                return msg
+            time.sleep(LENT_POLL)
+        with open(os.path.join(out_dir, "segments.json"), encoding="utf-8") as fh:
+            aligned = json.load(fh)
+        if not isinstance(aligned, list) or len(aligned) != len(segs):
+            job["notes"].append("Exact word times came back unreadable; Whisper's own times were kept.")
+            return msg
+        rows = []
+        made = 0
+        for s, a in zip(segs, aligned):
+            row = dict(s)
+            words = a.get("words") if isinstance(a, dict) else None
+            if isinstance(words, list) and words:
+                row["words"] = words
+                made += len(words)
+            rows.append(row)
+        if not made:
+            job["notes"].append("Exact word times could not be made; Whisper's own times were kept.")
+            return msg
+        name = v.get("taken_by_name") or "another computer"
+        job["notes"].append("Exact word times made on %s." % name)
+        return dict(msg, segments=rows, word_source="aligner")
+    except Exception as e:                                   # noqa: BLE001 -- never the transcript
+        traceback.print_exc()
+        job["notes"].append("Exact word times could not be made on the other computer (%s); "
+                            "Whisper's own times were kept." % e)
+        return msg
+    finally:
+        with LOCK:
+            job.pop("align_say", None)
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+OPEN_LENT = ("waiting", "taken")
+
+
 def _lend_args(job):
+    # the CPU or the graphics card, as chosen on this computer, goes with the job
+    # (the partner falls back to its CPU when it has no card ready, and says so)
     a = {"lang": job["lang"], "model": job["model"], "exact": bool(job.get("aligner")),
-         "duration": job.get("hint"), "second_pass": bool(job.get("automatic_second_pass", True))}
+         "duration": job.get("hint"), "second_pass": bool(job.get("automatic_second_pass", True)),
+         "mode": job.get("mode") if job.get("mode") in MODES else "auto"}
     if job["kind"] == "youtube":
         a.update(source={"kind": "youtube", "id": job["source"]["id"]}, marks=list(job.get("marks") or []))
         return a, {"audio.pcm": job["pcm"]}
@@ -2344,12 +2459,27 @@ def run_lent(rec, files, out, say, stopped):
         if not film:
             raise syncjobs.JobFailed("the film did not arrive")
         source, pcm = {"kind": "film", "path": film[0]}, None
+    mode = a.get("mode") if a.get("mode") in MODES else "auto"
+    fell = ""
     try:
-        started = start(source, a.get("lang"), a.get("model"), "auto", a.get("duration"),
-                        bool(a.get("exact", True)), lent_for=rec.get("asked_by_name") or "another computer")
+        try:
+            started = start(source, a.get("lang"), a.get("model"), mode, a.get("duration"),
+                            bool(a.get("exact", True)), lent_for=rec.get("asked_by_name") or "another computer")
+        except Refusal as e:
+            if mode != "cuda" or e.code != "gpu-unavailable":
+                raise
+            # the asker chose the graphics card and this computer has none ready: its CPU
+            fell = ("%s has no graphics card ready for speech to text, so it transcribed on its CPU."
+                    % syncid_name())
+            say(fell)
+            started = start(source, a.get("lang"), a.get("model"), "cpu", a.get("duration"),
+                            bool(a.get("exact", True)), lent_for=rec.get("asked_by_name") or "another computer")
     except Refusal as e:
         raise syncjobs.JobFailed(e.say.rstrip("."))
     token = started["job"]
+    if fell:
+        with LOCK:
+            JOBS[token]["notes"].append(fell)
     try:
         with LOCK:
             JOBS[token]["automatic_second_pass"] = bool(a.get("second_pass", True))
@@ -2389,6 +2519,14 @@ def run_lent(rec, files, out, say, stopped):
         raise syncjobs.JobFailed(e.say.rstrip("."))
     finally:
         _forget_lent(token)
+
+
+def syncid_name():
+    try:
+        import syncid
+        return syncid.name()
+    except Exception:                                        # noqa: BLE001
+        return "The other computer"
 
 
 def _forget_lent(token):

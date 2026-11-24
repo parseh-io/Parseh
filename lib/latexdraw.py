@@ -81,6 +81,7 @@ DESIGN_PT = 10.0            # standalone's size: a drawing's natural width is w/
 # own small LRU cache under the derived drawings folder and vanishes when the
 # server next starts.  A saved source promotes its exact key into DRAWN.
 PREVIEW_DIR = ".preview"
+CONTENT_DIR = ".content"    # content key -> the drawing made of it, whatever TeX made it (a0.7.0: drawings made elsewhere)
 BATCH_DIR = ".batch"        # the files of the helper that makes many documents' drawings (lib/latexbatch.py): never a drawing
 # WHETHER A DRAWING MADE IS WRITTEN INTO THE BOOKS OF WHO OWNS WHICH (owners.json).  The helper of lib/latexbatch.py turns it
 # off: the documents it makes drawings for recorded them when they were saved, and a second process rewriting a file
@@ -153,6 +154,119 @@ def key_of(tex, resolved, state, inline=False):
                        "inline": bool(inline)},
                       sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+# ------------------------------------------------------------------ drawings found by their content
+# A KEY holds the drawing computer's TeX installation, so a computer without TeX
+# -- or a phone -- could never find a drawing made elsewhere by its own key.  The
+# CONTENT KEY is the same hash without it: the block, the resolved theme, the
+# compiler's name, the shape.  Every kept drawing is also filed under its content
+# key (markdown/latex/.content/<ck[:2]>/<ck>.key -> {"key", "compiler"}), and a
+# computer that cannot compile the block (no such compiler, or a theme's package
+# missing) finds a drawing by its content instead of failing.  A computer that
+# can compile it keeps using its own key: nothing changes for it (a0.7.0 lane G;
+# sync brings such drawings, lib/syncbuilds.py).
+def content_key(tex, resolved, inline=False):
+    blob = json.dumps({"renderer": RENDERER, "compiler": resolved["compiler"],
+                       "preamble": resolved["preamble"], "tex": tex, "inline": bool(inline)},
+                      sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def _alias_path(ck):
+    return os.path.join(DRAWN, CONTENT_DIR, ck[:2], ck + ".key")
+
+
+def _alias(ck, key, compiler_name):
+    """File a kept drawing under its content key (once)."""
+    if not (ck and KEY_RE.match(ck) and KEY_RE.match(key or "")):
+        return
+    p = _alias_path(ck)
+    want = {"key": key, "compiler": compiler_name or ""}
+    try:
+        with open(p, encoding="utf-8") as fh:
+            if json.load(fh) == want:
+                return
+    except (OSError, ValueError):
+        pass
+    try:
+        _write_atomic(p, json.dumps(want, sort_keys=True).encode("utf-8"))
+    except OSError:
+        pass
+
+
+def _read_alias(ck):
+    try:
+        with open(_alias_path(ck), encoding="utf-8") as fh:
+            a = json.load(fh)
+        return a if isinstance(a, dict) and KEY_RE.match(a.get("key") or "") else None
+    except (OSError, ValueError):
+        return None
+
+
+def by_content(ck):
+    """The key of a kept drawing of this content, made here or elsewhere, or None."""
+    a = _read_alias(ck) if KEY_RE.match(ck or "") else None
+    if a is None:
+        return None
+    p = paths(a["key"])
+    if os.path.isfile(p["meta"]) and os.path.isfile(p["svg"]) and os.path.isfile(p["pdf"]):
+        return a["key"]
+    return None
+
+
+def aliases():
+    """{content key: {"key", "compiler"}} of every drawing filed by its content."""
+    out = {}
+    root = os.path.join(DRAWN, CONTENT_DIR)
+    try:
+        subs = os.listdir(root)
+    except OSError:
+        return out
+    for sub in subs:
+        try:
+            names = os.listdir(os.path.join(root, sub))
+        except OSError:
+            continue
+        for n in names:
+            if n.endswith(".key") and KEY_RE.match(n[:-4]):
+                a = _read_alias(n[:-4])
+                if a:
+                    out[n[:-4]] = a
+    return out
+
+
+def arrived(ck, key, compiler_name):
+    """A drawing another computer made was written here (lib/syncbuilds.py)."""
+    _alias(ck, key, compiler_name)
+    _mark_unowned(key)
+
+
+def content_keys(markdown):
+    """The content keys of every drawing a source names (resolved by this
+    computer's themes, which sync with the person)."""
+    pairs = []
+    for block in latexthemes.blocks_in(markdown or ""):
+        if not block.get("errors") and block.get("closed"):
+            pairs.append((block.get("tex", ""), block.get("theme") or None, False))
+    pairs += [(tex, theme, True) for tex, theme in latexthemes.inline_latex_pairs(markdown or "")]
+    out = set()
+    for tex, theme, inline in pairs:
+        resolved = latexthemes.resolve(theme)
+        if resolved is not None:
+            out.add(content_key(tex, resolved, inline))
+    return out
+
+
+def _elsewhere(tex, resolved, inline, failure):
+    """A drawing this computer cannot compile, found by its content -> plan()'s
+    answer, or `failure` when no computer made it."""
+    ck = content_key(tex, resolved, inline)
+    key = by_content(ck)
+    if key is None:
+        return failure
+    return {"ok": True, "key": key, "resolved": resolved, "compiler": None, "content": ck,
+            "elsewhere": True}
 
 
 # ------------------------------------------------------------------ the cache
@@ -298,6 +412,8 @@ def plan(tex, theme_name, theme=None, inline=False, local=True):
                         % name,
                 "fix": {"kind": "theme-missing", "theme": name}}
     lack = _lacks(resolved) if local else []
+    if lack and by_content(content_key(tex, resolved, inline)):
+        return _elsewhere(tex, resolved, inline, None)
     if lack:
         names = [n for _p, tl in lack for n in tl]
         ids = [p for p, _tl in lack]
@@ -310,13 +426,14 @@ def plan(tex, theme_name, theme=None, inline=False, local=True):
                 "fix": {"kind": "install", "package": ",".join(dict.fromkeys(names))}}
     info = compiler(resolved["compiler"])
     if info is None:
-        return {"ok": False, "kind": "compiler", "theme": resolved["name"],
-                "said": "This drawing is made with %s, which this computer does not have."
-                        % resolved["compiler"],
-                "fix": {"kind": "theme", "theme": resolved["name"]}}
+        return _elsewhere(tex, resolved, inline, {
+            "ok": False, "kind": "compiler", "theme": resolved["name"],
+            "said": "This drawing is made with %s, which this computer does not have."
+                    % resolved["compiler"],
+            "fix": {"kind": "theme", "theme": resolved["name"]}})
     state = tex_state(resolved["compiler"])
     return {"ok": True, "key": key_of(tex, resolved, state, inline), "resolved": resolved,
-            "compiler": info}
+            "compiler": info, "content": content_key(tex, resolved, inline)}
 
 
 def _and(words):
@@ -349,6 +466,8 @@ def peek(tex, theme_name, inline=False):
         _mark_unowned(p["key"])
     meta = cached(p["key"])
     if meta:
+        if not p.get("elsewhere"):
+            _alias(p.get("content"), p["key"], p["resolved"]["compiler"])
         return _ok(p["key"], meta)
     with _LOCK:
         if p["key"] in _FAILED:
@@ -420,7 +539,14 @@ def draw(tex, theme_name, theme=None, limit=None, inline=False, preview=False, l
             _mark_unowned(key)
     meta = cached(key, preview)
     if meta:
+        if not preview and not p.get("elsewhere"):
+            _alias(p.get("content"), key, p["resolved"]["compiler"])
         return _ok(key, meta, preview)
+    if p.get("elsewhere"):                  # filed by its content, gone since: not drawable here
+        return {"ok": False, "kind": "compiler", "theme": p["resolved"]["name"],
+                "said": "This drawing is made with %s, which this computer does not have."
+                        % p["resolved"]["compiler"],
+                "fix": {"kind": "theme", "theme": p["resolved"]["name"]}}
     limit = limit or latexthemes.timeout()
     while True:
         with _LOCK:
@@ -627,6 +753,8 @@ def _compile(tex, resolved, info, key, limit, inline=False, preview=False):
         _write_atomic(p["pdf"], pdf_bytes)
         _write_atomic(p["svg"], svg.encode("utf-8"))
         _write_atomic(p["meta"], json.dumps(meta).encode("utf-8"))
+        if not preview:
+            _alias(content_key(tex, resolved, inline), key, resolved["compiler"])
         if preview:
             prune_previews()
         else:
@@ -881,7 +1009,7 @@ def _persistent_keys():
         return set()
     out = set()
     for here, dirs, files in os.walk(DRAWN):
-        for skip in (PREVIEW_DIR, BATCH_DIR):
+        for skip in (PREVIEW_DIR, BATCH_DIR, CONTENT_DIR):
             if skip in dirs:
                 dirs.remove(skip)
         for name in files:
@@ -1082,7 +1210,7 @@ def prune(days=PRUNE_DAYS):
     cut = time.time() - days * 86400
     gone = 0
     for here, dirs, files in os.walk(DRAWN):
-        for skip in (PREVIEW_DIR, BATCH_DIR):
+        for skip in (PREVIEW_DIR, BATCH_DIR, CONTENT_DIR):
             if skip in dirs:
                 dirs.remove(skip)
         for f in files:

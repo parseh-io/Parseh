@@ -489,7 +489,16 @@ def build_pdf(doc_id, scale, size=texgen.DEFAULT_PRINT_SIZE, mono=False):
             "note": "PDF built but not verified (PyMuPDF not installed).",
             "verify_ok": 0, "verify_failed": 0, "failures": [], "overfull": [],
         })
-    return store.set_build(doc_id, build, snap=snap)["build"]
+    out = store.set_build(doc_id, build, snap=snap)["build"]
+    # the PDF records the source it was built from (meta.json, which now says
+    # it was built, included), so it travels to a paired computer with that
+    # source (lib/syncbuilds.py, a0.7.0)
+    try:
+        import syncbuilds
+        syncbuilds.record(str(store.doc_dir(doc_id)), ["pdf"])
+    except Exception:                                   # noqa: BLE001 -- never the build
+        pass
+    return out
 
 
 # ----------------------------------------------------------------------

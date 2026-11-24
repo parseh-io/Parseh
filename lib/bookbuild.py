@@ -157,7 +157,19 @@ def _say(job, line):
         del job["log"][:-KEEP]
 
 
-def _run(job, cmd, runner):
+def _record(book_dir, what):
+    """A build that ended well records the source it was made from, so the
+    reader and the PDF may travel with it (lib/syncbuilds.py, a0.7.0)."""
+    if what not in ("pdf", "html") or not book_dir:
+        return
+    try:
+        import syncbuilds
+        syncbuilds.record(book_dir, ["reader", "pdf"] if what == "pdf" else ["reader"])
+    except Exception:                                   # noqa: BLE001 -- never the build
+        pass
+
+
+def _run(job, cmd, runner, book_dir=None):
     try:
         if runner is not None:
             code = runner(cmd, lambda line: _say(job, line))
@@ -173,6 +185,8 @@ def _run(job, cmd, runner):
     except Exception as e:                      # sh missing, the environment gone
         _say(job, "the build could not run: %s" % e)
         code = 127
+    if code == 0:
+        _record(book_dir, job.get("what"))
     with LOCK:
         job.update(code=code, ok=code == 0, state="done" if code == 0 else "failed",
                    finished=time.time())
@@ -203,7 +217,7 @@ def start(book_dir, what="pdf", runner=None, chapters=()):
         view = _view(job)
     # the chapters go to `command` only for the draft: the other ways are called as they always were
     cmd = command(book_dir, what, chapters) if what == "draft" else command(book_dir, what)
-    threading.Thread(target=_run, args=(job, cmd, runner), daemon=True).start()
+    threading.Thread(target=_run, args=(job, cmd, runner, key), daemon=True).start()
     return view, True
 
 

@@ -2858,6 +2858,22 @@ def lent_estimate_answer(args, res):
     return estimate_answer(res, args["start"], args["end"], args["kind"])
 
 
+def _whisper_here(model):
+    """Speech to text and this model installed on this computer."""
+    try:
+        gs = sttjobs._getstt()
+        return bool(gs.runtime_ready() and (not model or gs.model_ready(model)))
+    except Exception:                                   # noqa: BLE001
+        return False
+
+
+def builds_arrived(uids):
+    """A partner's reader or PDF written here (lib/syncbuilds.py): a book's
+    card must open it, so the library page is written again."""
+    if any(u.startswith("book:") for u in uids):
+        lent_applied({"kind": "book-build"})
+
+
 def lent_applied(job):
     """A lent book build's PDF and reader written here: the library page too."""
     if job.get("kind") in ("book-build", "narration-align"):
@@ -6692,10 +6708,26 @@ class Handler(SimpleHTTPRequestHandler):
                 # with jobs.send ("Send to <partner>", lib/jobs.js), then send_to -> 202
                 lending = syncjobs.switches()["send"]
                 to = body.get("send_to") if lending else None
+                whisper_here = _whisper_here(body.get("model"))
+                if isinstance(to, str) and to and whisper_here:
+                    # EXACT WORD TIMES ON <partner> (a0.7.0 lane G): Whisper here, the
+                    # aligner there -- the transcription runs here, its alignment is lent
+                    return sttjobs.start(source, lang, body.get("model"), body.get("processing"),
+                                         body.get("duration"), body.get("exact", True), align_on=to)
                 if isinstance(to, str) and to:
                     out = sttjobs.start(source, lang, body.get("model"), body.get("processing"),
                                         body.get("duration"), body.get("exact", True), lend_to=to)
                     return dict(out, _lent=True)
+                if lending and whisper_here and not body.get("align_here") \
+                        and sttjobs.aligner_elsewhere(lang, body.get("exact", True)):
+                    who = syncjobs.who_can("word-align", {"lang": lang})
+                    if any(p["can"] for p in who):
+                        e = sttjobs.Refusal("aligner-elsewhere",
+                                            "This computer has no aligner for exact word times in this "
+                                            "language. A paired computer has one: send the alignment there, "
+                                            "or press Not now to keep Whisper's own times.", 409)
+                        e.extra["jobs"] = {"kind": "word-align", "send": who}
+                        raise e
                 try:
                     return sttjobs.start(source, lang, body.get("model"), body.get("processing"),
                                          body.get("duration"), body.get("exact", True))
@@ -9158,6 +9190,9 @@ def main():
         # --- lane D: jobs lent between paired computers (lib/syncjobs.py)
         syncjobs.FINISH["estimate"] = lent_estimate_answer
         syncjobs.ON_APPLIED.append(lent_applied)
+        # --- lane G: builds travel with their source (lib/syncbuilds.py)
+        import syncbuilds
+        syncbuilds.ON_ARRIVED.append(lambda uids: builds_arrived(uids))
         syncjobs.start()
         # "make this computer identical to <partner>" lists, then cancels, the jobs THIS computer asked
         # and that are still open (lib/syncrules.py JOBS / CANCEL_JOBS; integration of lanes C and D)

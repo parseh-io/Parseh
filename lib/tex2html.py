@@ -11350,6 +11350,13 @@ def main():
     print("paragraphs: %d, contents entries: %d"
           % (sum(len(ch.paragraphs) for ch in chapters), len(toc)))
     print("chapters:", ", ".join(str(c.label) for c in chapters))
+    # the reader records the source it was built from, so it may travel to a
+    # paired computer that has the same source (lib/syncbuilds.py, a0.7.0)
+    try:
+        import syncbuilds
+        syncbuilds.record(book.dir, ["reader"])
+    except Exception:                                   # noqa: BLE001 -- never the reader
+        pass
 
 
 if __name__ == "__main__":

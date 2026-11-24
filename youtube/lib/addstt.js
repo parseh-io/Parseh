@@ -855,9 +855,21 @@
                                                    body: JSON.stringify(body)}, {defer: true})
             .then(function (r) { return r.json().then(function (j) { return {status: r.status, j: j}; }); })
         : post('start', body);
-      starting.then(function (r) {
+      starting.then(function handle(r) {
         if (run !== S.run) { if (r.j && r.j.job) cancelServer(r.j.job); return; }
         var j = r.j;
+        // EXACT WORD TIMES ON A PAIRED COMPUTER (a0.7.0 lane G) declined with "Not now":
+        // the transcription runs here all the same, with Whisper's own word times
+        if (!j.ok && j.code === 'aligner-elsewhere' && !body.align_here) {
+          body.align_here = true;
+          post('start', body).then(handle, function () {
+            if (run !== S.run) return;
+            tidy();
+            note('Parseh did not answer, so nothing was started.', 'bad');
+            paint();
+          });
+          return;
+        }
         if (!j.ok) {
           tidy();
           note(j.error + (j.code === 'busy' ? ' Wait for it to finish, or stop it from the page that started it.' : ''),

@@ -183,6 +183,8 @@ def _caps_here():
             "accepts": switches()["accept"], "reader": False, "estimate": False, "ffmpeg": False,
             "narration": True, "send_only": False}
     with contextlib.suppress(Exception):
+        caps["send_only"] = bool(syncid.device().get("send_only"))
+    with contextlib.suppress(Exception):
         import getstt
         import speechmodels
         if getstt.runtime_ready():
@@ -381,6 +383,59 @@ def _run_stt(rec, say):
     return sttjobs.run_lent(rec, files, out, say, lambda: rec.get("state") != "taken")
 
 
+def _need_words(caps, args):
+    return bool(args.get("lang")) and args.get("lang") in (caps.get("aligners") or [])
+
+
+def _here_words(args):
+    with contextlib.suppress(Exception):
+        import getstt
+        if getstt.aligner_ready(args.get("lang")):
+            return True, ""
+    return False, "this computer has no aligner for exact word times in %s" % (args.get("lang") or "that language")
+
+
+def _run_words(rec, say):
+    """Exact word times for a transcription made on the asking computer: its
+    recording and Whisper's segments are fetched (jobs.input), this computer's
+    aligner (lib/ctcalign.py, in the speech runtime as the worker runs it)
+    makes the words, and the segments go back as the output segments.json.
+    The asker's review takes them in; the video's wordtimes.json then travels
+    with the video like any edit (a0.7.0 lane G)."""
+    import subprocess
+    import getstt
+    a = rec["args"]
+    files = _pull_inputs(rec, say)
+    audio = files.get(a.get("audio") or "")
+    segs = files.get("segments.json")
+    if not audio or not segs:
+        raise JobFailed("the recording did not arrive")
+    folder = getstt.aligner_path(a.get("lang"))
+    if not folder:
+        raise JobFailed("%s has no aligner for %s any more" % (syncid.name(), a.get("lang")))
+    out_dir = os.path.join(_files_dir(rec["id"]), "out")
+    os.makedirs(out_dir, exist_ok=True)
+    spec = os.path.join(_files_dir(rec["id"]), "align.json")
+    out = os.path.join(out_dir, "segments.json")
+    with open(spec, "w", encoding="utf-8") as fh:
+        json.dump({"audio": audio, "audio_kind": "pcm16" if a.get("audio") == "audio.pcm" else "media",
+                   "segments": segs, "aligner": folder, "out": out}, fh)
+    env = dict(os.environ)
+    with contextlib.suppress(Exception):
+        env.update(getstt.worker_env())
+    env.update(PYTHONNOUSERSITE="1", PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")
+    say("making exact word times…")
+    r = subprocess.run([sys.executable, "-B", os.path.join(LIB, "ctcalign.py"), spec], env=env,
+                       capture_output=True, text=True, timeout=3600, stdin=subprocess.DEVNULL)
+    if r.returncode or not os.path.isfile(out):
+        tail = ((r.stdout or "") + (r.stderr or "")).strip().splitlines()[-1:] or ["no output"]
+        raise JobFailed("the aligner failed on %s: %s" % (syncid.name(), tail[0]))
+    result = {}
+    with contextlib.suppress(ValueError, IndexError):
+        result = json.loads((r.stdout or "").strip().splitlines()[-1])
+    return {"result": result, "outputs": {"segments.json": out}}
+
+
 # kind -> words, what a computer needs (from its capabilities), whether this one can, the runner
 KINDS = {
     "book-build": {"title": "Build a book", "need": _need_book, "here": _here_book, "run": _run_book},
@@ -389,6 +444,7 @@ KINDS = {
     "narration-align": {"title": "Align a narration", "need": lambda caps, a: bool(caps.get("narration")),
                         "here": lambda a: (True, ""), "run": _run_align},
     "transcribe": {"title": "Transcribe a video", "need": _need_stt, "here": _here_stt, "run": _run_stt},
+    "word-align": {"title": "Exact word times", "need": _need_words, "here": _here_words, "run": _run_words},
 }
 RUNNERS = {k: v["run"] for k, v in KINDS.items()}      # a test may put a fake runner here
 
@@ -610,6 +666,9 @@ def op_offer(partner, payload, body):
             return {"ok": True, "taken": True, "name": syncid.name()}, None
         if not switches()["accept"]:
             return {"ok": True, "taken": False, "why": "%s does not accept jobs" % syncid.name()}, None
+        if syncid.device().get("send_only"):
+            # a device that only sends (a phone) never works for another
+            return {"ok": True, "taken": False, "why": "%s only sends jobs" % syncid.name()}, None
         if kind not in KINDS:
             return {"ok": True, "taken": False, "why": "%s does not know this job" % syncid.name()}, None
         ok, why = can_here(kind, job.get("args") or {})
@@ -676,7 +735,9 @@ def _work(jid):
             rec["say"] = str(words)[:300]
 
     try:
-        out = RUNNERS[rec["kind"]](rec, say) or {}
+        out = RUNNERS[rec["kind"]](rec, say)
+        if not isinstance(out, dict):                 # a runner that answered True, or nothing
+            out = {}
         outputs = {}
         for inner, path in (out.get("outputs") or {}).items():
             outputs[inner] = {"path": path, "sha": _sha(path), "size": os.path.getsize(path)}
@@ -994,6 +1055,12 @@ def _collect(rec, pid, ans):
             syncexchange.sync_from(pid, only=syncexchange.owner_of(rec["unit"]), why="a job's result")
     if staged and rec.get("unit"):
         _write_outputs(rec, staged)
+        if rec["kind"] in ("book-build", "narration-align"):
+            with contextlib.suppress(Exception):
+                import syncbuilds
+                syncbuilds.record(syncunits.locate(rec["unit"]).where,
+                                  ["reader", "pdf"] if (rec.get("args") or {}).get("what") != "html"
+                                  and rec["kind"] == "book-build" else ["reader"])
     elif staged and rec.get("deliver"):
         # a job on no unit (a transcription): its files handed to the code that asked
         for inner, src in staged.items():
@@ -1106,6 +1173,8 @@ def activity_entries(entry, keep, now=None):
     for j in jobs():
         if j["state"] not in OPEN and j["state"] != "taken" and now - (j["at"] or 0) > keep:
             continue
+        if j["mine"] and j["kind"] in ("transcribe", "word-align"):
+            continue        # the add page's own entry says it (lib/sttjobs.py), with the job's words
         if j["mine"]:
             label = "%s — %s" % (j["title"], j["say"] or _say(j))
         else:
