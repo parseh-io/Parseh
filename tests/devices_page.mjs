@@ -30,7 +30,7 @@ async function until(fn, what, ms = 20000) {
     let v;
     try { v = await fn(); } catch (_) { v = false; }
     if (v) return v;
-    if (Date.now() > end) throw Error('FAIL: timed out: ' + what);
+    if (Date.now() > end) throw Error('FAIL: timed out: ' + what + '\n' + (globalThis.SERVER_LOG ? globalThis.SERVER_LOG().split('\n').filter(l => /lease|Traceback|Error/.test(l)).slice(-12).join('\n') : ''));
     await sleep(80);
   }
 }
@@ -45,6 +45,7 @@ for (const s of [proc.stdout, proc.stderr]) (async () => {
   const r = s.pipeThrough(new TextDecoderStream()).getReader();
   for (;;) { const {value, done} = await r.read(); if (done) break; log.push(value); }
 })();
+globalThis.SERVER_LOG = () => log.join('');
 const seeded = await until(() => { const l = log.join('').split('\n').find(x => x.startsWith('SEEDED ')); return l && JSON.parse(l.slice(7)); },
                            'the harness seeded the tree', 60000);
 await until(async () => (await fetch(base + '/settings/api/ping')).ok, 'the server answers', 60000);

@@ -29,6 +29,7 @@ import json
 import os
 import re
 import sys
+import threading
 
 LIB = os.path.dirname(os.path.realpath(__file__))
 if LIB not in sys.path:
@@ -45,6 +46,11 @@ SETTING = "sync.devices"
 # the routes this module answers are named in serve.py (DEVICES_MORE), as every /settings/api/ route is;
 # these four are open to every device let in (lib/settingspage.py ROUTES: READ)
 OPEN = ("unit", "lease-open", "lease-keep", "lease-close")
+
+# the editors' tickets: a page names its lease before it knows the token, so that leaving at once still lets go
+_TLOCK = threading.Lock()
+_TICKETS = {}                     # ticket -> token
+_CLOSED = set()                   # tickets closed before their open was answered
 
 DIFF_ID = re.compile(r"^[A-Za-z0-9._-]{1,160}$")
 
@@ -317,17 +323,38 @@ def _api(what, body, where):
         uid = resolve(body)
         if not uid:
             return {"token": None, "unit": None}
+        ticket = str(body.get("ticket") or "")[:64]
         try:
             tok = synclock.open_editor(uid, str(body.get("holder") or "editor"))
         except synclock.Busy as e:
             raise Refused(409, "Sync is writing this just now; it opens in a moment.") from e
+        with _TLOCK:
+            if ticket and ticket in _CLOSED:
+                # the page was left before this answer could reach it: its close came first
+                _CLOSED.discard(ticket)
+                synclock.close_editor(tok)
+                return {"token": None, "unit": uid}
+            if ticket:
+                _TICKETS[ticket] = tok
+                while len(_TICKETS) > 500:
+                    _TICKETS.pop(next(iter(_TICKETS)))
         return {"token": tok, "unit": uid, "lease": synclock.LEASE}
     if what == "lease-keep":
         import synclock
         return {"kept": bool(body.get("token")) and synclock.keep(str(body["token"]))}
     if what == "lease-close":
         import synclock
-        return {"closed": bool(body.get("token")) and synclock.close_editor(str(body["token"])) is not None}
+        # A PAGE LEFT WHILE ITS LEASE WAS ON ITS WAY knows only the ticket it sent, not the token: the ticket closes
+        # it, and a close that comes before its own open is remembered, so the open lets go at once
+        tok, ticket = str(body.get("token") or ""), str(body.get("ticket") or "")[:64]
+        with _TLOCK:
+            if ticket:
+                tok = _TICKETS.pop(ticket, None) or tok
+                if not tok:
+                    _CLOSED.add(ticket)
+                    while len(_CLOSED) > 500:
+                        _CLOSED.pop()
+        return {"closed": bool(tok) and synclock.close_editor(tok) is not None}
     raise Refused(404, "No such route.")
 
 

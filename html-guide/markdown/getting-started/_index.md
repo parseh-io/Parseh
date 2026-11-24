@@ -56,6 +56,9 @@ nothing of anybody's, so its shelves are empty until you fill them.
 5. **Update it** from **⚙ Settings → Updating Parseh**, when a new version
    comes out: your books, decks, dictionaries and settings stay as they are.
    [Updating Parseh](updating.md) says how.
+6. **A second computer?** Install Parseh there too and pair the two in
+   **⚙ Settings → Devices**: they keep one shelf between them —
+   [Several computers, one shelf](several-computers.md).
 
 When you are done, the **⏻ stop** button at the top of the hub stops the
 server; while it is still working on something — a build, an upload — it
