@@ -57,6 +57,7 @@ class Jobs(unittest.TestCase):
     names = ("A", "B")
 
     def setUp(self):
+        self.release = threading.Event()     # set in tearDown: lets a held runner end
         self.w = World(*self.names).__enter__()
         for n in self.names:
             setattr(self, n, getattr(self.w, n))
@@ -72,6 +73,13 @@ class Jobs(unittest.TestCase):
         J.CAPS_FORCE[self.B.id] = dict(CANNOT)
 
     def tearDown(self):
+        # A job left working (a runner held for a frozen-holder test) must END HERE, inside this test's stores:
+        # finished later it records its unit in whatever config/sync the next test has put in place
+        # (it once left a stray config/sync beside tests/test_later.py's prefs).
+        self.release.set()
+        for t in threading.enumerate():
+            if t.name.startswith("job-"):
+                t.join(timeout=10)
         J.RUNNERS.clear()
         J.RUNNERS.update(self.was[0])
         J.DEADLINE = self.was[1]
@@ -187,7 +195,7 @@ class Lending(Jobs):
 
     def test_a_partner_silent_after_taking_gives_the_job_back_after_the_deadline(self):
         J.INLINE = False
-        J.RUNNERS["book-build"] = lambda rec, say: threading.Event().wait(30)
+        J.RUNNERS["book-build"] = lambda rec, say: self.release.wait(30)
         with self.on(self.A):
             X.sync_from(self.B.id)                    # A holds the book already: no retry
         jid = self.ask_build()
@@ -216,7 +224,7 @@ class Lending(Jobs):
 
     def test_cancel_takes_the_job_back(self):
         J.INLINE = False
-        J.RUNNERS["book-build"] = lambda rec, say: threading.Event().wait(30)
+        J.RUNNERS["book-build"] = lambda rec, say: self.release.wait(30)
         with self.on(self.A):
             X.sync_from(self.B.id)
         jid = self.ask_build()
