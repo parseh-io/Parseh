@@ -46,7 +46,8 @@ import syncexchange                                            # noqa: E402
 CALL_TIMEOUT = 8.0          # seconds for a rules call (an answer waits in the outbox when it is not heard)
 PREVIEW_MAX = 256 * 1024    # characters of a discard preview kept with a question
 DECISION_DAYS = 60          # a decision nobody needs any more is dropped after this
-TEXT_MAX = 4 << 20          # a file bigger than this is shown as a file kept aside, not as text
+PLOCK_WAIT = 20.0           # seconds an answer waits for a running sync with the partner
+TEXT_MAX = 4 << 20         # a file bigger than this is shown as a file kept aside, not as text
 
 # lane D fills these: jobs this computer has waiting for a partner, and how to cancel them
 JOBS = []                   # fn(partner_id) -> [job dict]
@@ -649,19 +650,37 @@ def _after_pull(partner, theirs, out):
     """Questions the two computers now agree on go (answered elsewhere, or by an edit)."""
     for k in [k for k in _GROUPS if k[1] == partner]:
         _GROUPS.pop(k, None)
-    done = []
-    for q in _questions(partner):
-        for u in q["units"]:
-            m, t = synclog.get(u["unit"]), theirs.get(u["unit"])
-            gone_m = m is None or m.get("deleted")
-            gone_t = t is None or t.get("deleted")
-            if (gone_m and gone_t) or (not gone_m and not gone_t and m.get("hash") == t.get("hash")):
-                done.append(u["unit"])
+    def agreed(uid):
+        m, t = synclog.get(uid), theirs.get(uid)
+        gone_m = m is None or m.get("deleted")
+        gone_t = t is None or t.get("deleted")
+        return (gone_m and gone_t) or (not gone_m and not gone_t and m.get("hash") == t.get("hash"))
+    done = [u["unit"] for q in _questions(partner) for u in q["units"] if agreed(u["unit"])]
     if done:
         _drop_units(partner, done)
+    # a decision lives until the two computers agree: a later conflict on the
+    # same unit is a new one, asked again, even between the same two versions
+    with _LOCK:
+        decided = [r[0] for r in _db().execute("SELECT unit FROM decisions WHERE partner=?", (partner,))]
+    for uid in decided:
+        if agreed(uid):
+            with _LOCK:
+                _db().execute("DELETE FROM decisions WHERE unit=? AND partner=?", (uid, partner))
 
 
 def _on_taken(uid, partner):
+    """A partner's version written here: its question goes; a version a choice
+    made here or there discarded is kept as the choice's, not as an incoming one."""
+    with _LOCK:
+        r = _db().execute("SELECT winner FROM decisions WHERE unit=? AND partner=?", (uid, partner)).fetchone()
+    if r and r[0] == partner:
+        for e in synckeep.entries():
+            if e.get("unit") == uid and e.get("partner") == partner and time.time() - (e.get("at") or 0) < 300:
+                if e.get("why") == "incoming":
+                    import storeguard
+                    e["why"] = "choice"
+                    storeguard.write_json(os.path.join(synckeep.kept_dir(), e["id"], "entry.json"), e)
+                break
     _drop_units(partner, [uid])
     _mark_out_of_date(uid)
 
@@ -721,7 +740,19 @@ def answer(qid, choice, unit=None):
     why = "choice" if q["kind"] == "choice" else "deletion"
     told, texts, failed = [], [], {}
     near = _call(partner, "rules.when", {"units": []}) is not None   # heard now? else the decision waits
-    pull = syncexchange.Pull(partner) if near else None
+    # never beside a sync with the same partner (they would fetch the same files at once);
+    # a sync running now settles the units itself, by the decisions recorded below
+    plock = syncexchange._plock(partner)
+    locked = near and plock.acquire(timeout=PLOCK_WAIT)
+    try:
+        return _answer(q, entries, choice, me, partner, why, told, texts, failed,
+                       syncexchange.Pull(partner) if locked else None, near)
+    finally:
+        if locked:
+            plock.release()
+
+
+def _answer(q, entries, choice, me, partner, why, told, texts, failed, pull, near):
     for u in entries:
         uid = u["unit"]
         winner = _winner_of(q, u, choice)
@@ -737,7 +768,8 @@ def answer(qid, choice, unit=None):
         else:
             texts.append(prev.get("mine", ""))
             if pull is None:
-                failed[uid] = "%s cannot be reached now: taken at the next sync" % partner_name(partner)
+                failed[uid] = ("%s cannot be reached now: taken at the next sync" % partner_name(partner)
+                               if not near else "a sync with %s is running: it takes it" % partner_name(partner))
             else:
                 try:
                     synclog.flush()
@@ -746,7 +778,7 @@ def answer(qid, choice, unit=None):
                         failed[uid] = r
                 except Exception as e:                # noqa: BLE001 -- taken at the next sync, by the decision
                     failed[uid] = str(e)
-    told.append({"unit": uid, "winner": winner, "pair": u["pair"], "title": u.get("title")})
+        told.append({"unit": uid, "winner": winner, "pair": u["pair"], "title": u.get("title")})
     _drop_units(partner, [u["unit"] for u in entries])
     text = "".join(t for t in texts if t)
     diff_id = None

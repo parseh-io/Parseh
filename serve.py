@@ -1913,6 +1913,7 @@ DEVICES_ROUTES = {
     "/settings/api/devices/pair-enter": "pair-enter",
     "/settings/api/devices/rename": "rename",
     "/settings/api/devices/remove": "remove",
+    "/settings/api/devices/rules": "rules",     # lane C: lib/syncrules.py json_api {"do": …}
 }
 ARASAAC_PAGE = "/settings/arasaac/"
 # a picture of the pictograms, for the picker's thumbnails and preview: read-only, the same file for every
@@ -8129,6 +8130,12 @@ class Handler(SimpleHTTPRequestHandler):
                     body.get("address"), body.get("code"), body.get("fingerprint") or None)}
             elif what == "rename":
                 out = {"ok": True, "name": syncid.set_name(body.get("name"))}
+            elif what == "rules":                       # lane C: questions, answers, identical, kept, diffs
+                import syncrules
+                try:
+                    out = syncrules.json_api(body)
+                except (KeyError, RuntimeError) as e:
+                    out = {"ok": False, "error": str(e)}
             else:
                 out = {"ok": True, "removed": syncpeer.remove(body.get("id"))}
         except ValueError as e:
@@ -8927,6 +8934,10 @@ def main():
         syncexchange.recover()
         # --- end lane B
         synclog.start(sync_shelves)
+        # --- lane C (the rules, lib/syncrules.py): the situations the exchange hands over
+        import syncrules
+        syncrules.install()
+        # --- end lane C
         syncexchange.start()                    # lane B
     except Exception as e:                      # noqa: BLE001 -- sync never stops Parseh from starting
         print("!! sync: the change log could not start: %s" % e)

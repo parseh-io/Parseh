@@ -175,13 +175,12 @@ levels are open, the side-by-side layout, a page's own theme switch.
   levels. They are this device's by construction. The brief listed "levels per
   language" as personal. What follows the person is a level's *name*
   (`bk_lvl:…`), and that is what syncs.
-- **Undecided, so the rules (lane C) should confirm with the owner:**
-  - The reading place: here it follows the rule "latest", because the reader
-    already asks whether to jump.
-  - `youtube/anki/seen.json`: here it is additions (a union of guids), on the
-    view that it describes the person's Anki collection.
-  - A personal setting: here it follows the rule "choice", as the brief says.
-    `configbackup` and `prefs` let the later change win.
+- **Decided by the owner on 2026-11-24** (lane C builds it, below):
+  - The reading place: the most recent wins, never asked.
+  - `youtube/anki/seen.json`: additions, a union of guids, never asked.
+  - A personal setting changed on both sides: the most recent wins, by the
+    value's own `at`, never asked. The table's "choice" for a setting means
+    only that its kind is compared as a whole value.
 
 ## The foundations: modules and interfaces
 
@@ -619,3 +618,122 @@ partner at once. A request that comes while one runs is queued behind it.
 The tests drive two installs in one process: `tests/syncfake.py` stands in for
 lane A's `syncpeer` and `syncroutes`, and `tests/test_sync_exchange.py` runs them.
 <!-- end lane B -->
+
+<!-- lane C -->
+## The rules: `lib/syncrules.py` (lane C)
+
+`syncrules.install()` (serve.py, after `synclog.start`, before
+`syncexchange.start`) fills `syncexchange.RULES`, adds three callbacks
+(`ON_TAKEN`, and the two hooks lane C added to the exchange: `BEFORE_PULL`
+(partner) before a pull asks for the rows, `AFTER_PULL` (partner, their rows,
+summary) after a complete one) and registers its own ops with lane A's router.
+Its state is this device's: `config/sync/rules.sqlite` (questions, decisions,
+the outbox, the diff files' units, the out-of-date marks).
+
+| situation | what the rule does |
+|---|---|
+| `setting`, `latest` | Never asked. The most recent wins, by the value's own `at` (`prefs` stores it); a value with no time is judged by the change log's time of each side (`rules.when`). Equal times: the larger hash, so both computers agree. The newer partner's is taken; this computer's newer one is put ahead of both (`synclog.chosen`) and travels. |
+| `progress` | Never asked. Different exercises are different units and simply combine. The same exercise: the state whose latest answer (`history[].at`, `state.last_review`) is newest. |
+| `additions` | Never asked. `ankiseen:` is the union of both sides' guids, written here and put ahead of both. Any other entry changed on both (a clip's record, a card, a Review-later flag): the most recent wins. |
+| `both` | A **question** (`choice`): this computer's version or the partner's. |
+| `deletion` | A **question**: `deletion` (deleted on one side, untouched on the other: delete it everywhere / restore it everywhere) or `deletion-edited` (deleted on one side, edited on the other: send the edited version everywhere / delete it everywhere). All the untouched deletions one pull meets are **one** question with the list. |
+
+### How a question is asked on both computers, and how an answer travels
+
+- The computer whose pull meets the situation holds it (the exchange lists it in
+  `pending()`), records the question with a discard preview of each side, and
+  sends it to the partner (`rules.ask`), so the computer that deleted sees the
+  question too. A question's id is the same on both sides.
+- **Answering** on either computer records a **decision** per unit: which
+  install's version wins, for which pair of versions. Then, on the answering
+  computer: the winner's side is put ahead of both (`synclog.chosen`); a losing
+  side takes the winner's version at once (`Pull.take(force=True)`, under the
+  partner's sync lock, kept for a day as `choice` / `deletion`). The diff of
+  what was discarded is written as a file. Then the partner is told
+  (`rules.answer`, with the units, their winners and the diff text), and
+  nudged.
+- **The partner**, told, records the same decisions, drops the question and
+  pending rows, writes the same diff file, and asks for a sync. When its pull
+  meets the case, the decision settles it: the winner's vector goes ahead, or
+  the loser takes the winner's version.
+- **Away:** an answer the partner cannot hear waits in the outbox and is sent
+  before the next pull from that partner (`BEFORE_PULL`). A computer that
+  meets a situation first asks the partner whether it was already answered
+  there (`rules.decided`), so a question never comes back.
+- A question and a decision go once the two computers agree on the unit
+  (`AFTER_PULL`); a later conflict on the same unit is asked again.
+
+The ops, on lane A's router: `rules.when {units}` → `{rows: {uid: {at, hash,
+deleted}}}`, `rules.decided {unit, pair}` → `{winner}`, `rules.ask {question}`,
+`rules.answer {units: [{unit, winner, pair, title}], choice, diff}`,
+`rules.drop {units}` (make identical: the partner's questions go).
+
+### The Python API the pages call (lane E)
+
+```python
+questions() -> [{"id", "kind": "choice" | "deletion" | "deletion-edited",
+                 "units": [{"unit", "kind", "title"}], "partner", "partner_name",
+                 "mine": {"at", "summary"}, "theirs": {"at", "summary"},
+                 "discard_preview": {"mine": diff text, "theirs": diff text}, "at"}]
+question_for(uid) -> question | None            # the banner on a unit's page
+answer(qid, choice, unit=None) -> {"ok", "diff_id" | None, "waiting"?: {uid: why}}
+    # choice: "mine" | "theirs"; "delete" | "restore"; "send-edited" | "delete"
+    # unit: answer one unit of a grouped deletion ("go through them")
+    # "waiting": units the partner's version will reach at the next sync
+identical_summary(partner_id) -> {"replace", "add", "delete", "lost": [{"unit", "title"}],
+                                  "questions", "jobs": [...]}     # RuntimeError: unreachable
+make_identical(partner_id) -> {"ok", "diff_id", "replaced", "added", "deleted", "failed"}
+kept() -> [{"id", "unit", "title", "why", "partner", "partner_name", "at", "until"}]
+put_back(kept_id) -> {"ok", "unit" | "error"}
+diffs() -> [{"id", "unit", "title", "at", "size"}]
+diff_path(diff_id) -> path            # KeyError when there is none
+delete_diff(diff_id) -> {"ok"}
+out_of_date() -> [{"unit", "title", "what": ["the PDF", "the reader", …]}]
+is_out_of_date(uid) -> bool
+JOBS, CANCEL_JOBS                     # lane D: fn(partner) -> [job]; fn(partner, jobs)
+```
+
+`discard_preview["mine"]` is what choosing the partner's side throws away
+(this computer's version against the kept one), `["theirs"]` the other way.
+The same API is one JSON door for the page and the tests:
+`POST /settings/api/devices/rules {"do": "questions" | "question_for" | "answer"
+| "identical_summary" | "make_identical" | "kept" | "put_back" | "diffs" | "diff"
+| "delete_diff" | "out_of_date", …}` (gated as `sync.devices`; `"diff"` answers
+the file's text).
+
+### Make this computer identical
+
+`identical_summary` compares this computer's log with the partner's rows for
+every unit held here: **replace** (both live, different), **add** (only there),
+**delete** (only here, or a tombstone there), and **lost**: units where this
+computer has a change of its own the partner lacks. `make_identical` then, under
+the partner's sync lock and with no question: takes each of the partner's
+versions (`why="identical"`, kept for a day), deletes here what the partner does
+not have, drops this computer's questions and pending rows with that partner
+(and the partner's, through `rules.drop`), cancels the jobs `JOBS` listed, and
+writes ONE diff file of the lost changes. The partner is not written. Settings
+that are this device's, `holding.json` and the partners are not units and are
+never touched.
+
+### Diff files
+
+Text gets a unified diff, a `.json` file its changed fields, a setting its
+changed fields, a media file one line saying the discarded version is kept for a
+day. Each file is headed with the unit's title and id and which side was kept.
+They stay in `config/sync/diffs/` until the person deletes them.
+
+### Out of date
+
+When a partner's version of a book, a studio document or a note is written here
+(`ON_TAKEN`) and that unit has a build (a book's `main.pdf` and
+`reader/index.html`; a document's or a note's `build/*.pdf|.tex|.html`), the
+unit is marked with the time and the new source hash. A build whose file is
+newer than the mark clears it. Nothing rebuilds on its own. (The builds
+themselves were not changed to record their source hash: a build made after the
+change is by definition from the new source, and `build.sh`'s own
+`.build-key` / `.reader-key` already skip a rebuild that would change nothing.)
+
+Tests: `tests/test_sync_rules.py` (every rule through `tests/syncfake.py`), and
+`tests/test_sync_end_to_end.py` tests 3–5 (two real installs, kept apart by
+freezing one process with SIGSTOP).
+<!-- end lane C -->

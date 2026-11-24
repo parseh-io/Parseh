@@ -272,6 +272,25 @@ class Rules(unittest.TestCase):
         with w.on(B):
             self.assertIn(c2, [k["unit"] for k in R.kept() if k["why"] == "deletion"])
         self.assertEqual(self.units(A), self.units(B))
+        # the tray emptied on A: one question, "delete them all" on B
+        c3, c4 = clip(A, "c.mp3", b"3"), clip(A, "d.mp3", b"4")
+        self.both(A, B)
+        with w.on(A):
+            clips.delete("a.mp3")
+            clips.delete("c.mp3")
+            clips.delete("d.mp3")
+        self.both(B, A)
+        qb = self.on(B, R.questions)
+        self.assertEqual([len(q["units"]) for q in qb], [3])
+        self.assertTrue(self.on(B, R.answer, qb[0]["id"], "delete")["ok"])
+        self.both(B, A)
+        self.both(A, B)
+        for inst in (A, B):
+            self.assertEqual(sorted(os.listdir(inst.p("clips"))), [], inst.name)
+            self.assertEqual(self.on(inst, R.questions), [], inst.name)
+        self.assertEqual(self.units(A), self.units(B))
+        self.assertIn(c3, [k["unit"] for k in self.on(B, R.kept) if k["why"] == "deletion"])
+        self.assertIn(c4, [k["unit"] for k in self.on(B, R.kept) if k["why"] == "deletion"])
 
     def test_deleted_there_edited_here(self):
         A, B, w = self.A, self.B, self.w

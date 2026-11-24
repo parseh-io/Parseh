@@ -250,6 +250,7 @@ ROUTES = {
     "/settings/api/devices/pair-enter": ("sync.devices",),
     "/settings/api/devices/rename": ("sync.devices",),
     "/settings/api/devices/remove": ("sync.devices",),
+    "/settings/api/devices/rules": ("sync.devices",),       # lane C: lib/syncrules.py json_api
     # the reading help: what is there, and what it would cost
     "/lookup/api/status": READ,
     "/lookup/api/plan": READ,
