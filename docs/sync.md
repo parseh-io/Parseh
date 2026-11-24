@@ -499,8 +499,9 @@ this computer: marked, not forgotten) are built in. An op the other side does no
 not know the sync step…: is it an older Parseh?").
 
 **The wire:** POST, with a body made of the JSON and then the raw bytes.
-`X-Parseh-Json` gives the JSON's length and `X-Parseh-Protocol` gives the
-protocol. The answer comes back the same way.
+`X-Parseh-Json` gives the JSON's length, `X-Parseh-Protocol` gives the
+protocol and `X-Parseh-Device` what the device says of itself. The answer comes
+back the same way.
 
 ### Settings → Devices (the JSON for lane E's page)
 
@@ -527,8 +528,11 @@ Every answer carries `moving` (see "The doors are for browsers").
 carries everything a phone needs to pin a computer before it sends anything.
 A device says of itself **"send only"** (never accepts jobs) and **"holds little"**
 (leaves things out by default): `syncid.device()`, false on a computer. Both travel in
-the pairing exchange, both ways, and in every `hello`, both ways (the caller sends its
-own as `device`); each side keeps what the other said in `peers.json` (`device`), and
+the pairing exchange, both ways; in every `hello`, both ways (the caller sends its
+own as `device`); and in the header `X-Parseh-Device` (`{"send_only":…,"holds_little":…}`)
+of every call and every answer, so a phone that changes its mind after pairing is heard
+at the next sync. Each side keeps what the other said in `peers.json` (`device`, written
+only when it changed), and
 Settings → Devices shows it on the partner's row. What they change is lane D's and
 lane B's: `syncjobs.capabilities()["send_only"]` should come from `syncid.device()`
 (it is a constant False today), and a partner that holds little should be offered

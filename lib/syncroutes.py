@@ -15,7 +15,8 @@ served there.  On any other connection a path under /sync/ is refused, whatever
 the Wi-Fi and VPN doors let browsers do.
 
 THE WIRE.  POST, body = JSON then the raw bytes, `X-Parseh-Json` saying how long
-the JSON is, `X-Parseh-Protocol` saying syncid.PROTOCOL; the answer the same way.
+the JSON is, `X-Parseh-Protocol` saying syncid.PROTOCOL, `X-Parseh-Device` what
+this device says of itself (syncid.device()); the answer the same way.
 """
 import os
 import re
@@ -93,6 +94,7 @@ def _send(h, status, doc, body=None):
     h.send_header("Content-Length", str(len(data)))
     h.send_header("X-Parseh-Json", str(jlen))
     h.send_header("X-Parseh-Protocol", str(syncpeer.protocol()))
+    h.send_header("X-Parseh-Device", syncpeer.device_header())
     h.send_header("Cache-Control", "no-store")
     h.end_headers()
     if h.command != "HEAD":
@@ -162,6 +164,7 @@ def answer(h, method):
     if theirs != syncpeer.protocol():
         # said from the CALLER's side, since the caller is who shows it
         return _no(h, 409, read=False, why=syncpeer.protocol_said(theirs, syncpeer.protocol(), syncid.name()))
+    syncpeer.heard_device(pid, h.headers.get("X-Parseh-Device"))
     op = path[len(syncpeer.API):]
     with _LOCK:
         fn = _OPS.get(op)

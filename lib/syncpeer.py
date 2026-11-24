@@ -19,8 +19,11 @@ PROTOCOL is told so, in words, and nothing is kept.
                             "removed_you": {"at": t, "by": "name"} (only when it did)}}}
 
 WHAT A DEVICE SAYS OF ITSELF ("For the phones" in the brief): "send only" and
-"holds little" (lib/syncid.py device()) travel in the pairing exchange and in
-every `hello`, both ways; what a partner said is kept in its record.
+"holds little" (lib/syncid.py device()) travel in the pairing exchange, in
+every `hello`, and in the header X-Parseh-Device of every call and every
+answer, both ways -- so a phone that changes its mind after pairing is heard at
+the next sync; what a partner said is kept in its record (written only when it
+changed).
 
 REMOVING TELLS THE OTHER SIDE.  `remove_telling` first calls the partner's op
 `removed` (best effort, TELL_WAIT seconds), then forgets it here whatever the
@@ -103,6 +106,7 @@ _CODE = {"code": "", "made": 0.0, "wrong": 0}
 _SEEN = {}       # partner id -> (when, reachable: bool), this run's memory
 _CTX = {"key": None, "ctx": None}
 _PROTOCOL_TEST = None   # tests: speak another protocol than syncid.PROTOCOL
+_DEV = {}        # partner id -> what it last said of itself, this run (spares a read of peers.json)
 
 
 class Unreachable(Exception):
@@ -203,6 +207,7 @@ def remove(pid):
             return False
         _write(doc)
         _SEEN.pop(pid, None)
+        _DEV.pop(pid, None)
         _CTX["key"] = None
         return True
 
@@ -219,12 +224,32 @@ def note_device(pid, said):
         return
     d = _device(said)
     with _LOCK:
+        if _DEV.get(pid) == d:
+            return
         doc = _read()
         p = doc["partners"].get(pid)
-        if not p or _device(p.get("device")) == d and "device" in p:
+        if not p:
+            return
+        _DEV[pid] = d
+        if _device(p.get("device")) == d and "device" in p:
             return
         p["device"] = d
         _write(doc)
+
+
+def device_header():
+    """X-Parseh-Device: what this device says of itself, on every call and answer."""
+    return json.dumps(syncid.device(), separators=(",", ":"))
+
+
+def heard_device(pid, value):
+    """The X-Parseh-Device a partner sent (None: it said nothing, an older Parseh)."""
+    if not value:
+        return
+    try:
+        note_device(pid, json.loads(value))
+    except ValueError:
+        pass
 
 
 def hello(pid, timeout=10.0):
@@ -286,6 +311,7 @@ def new_identity():
         doc["partners"] = {}
         _write(doc)
         _SEEN.clear()
+        _DEV.clear()
         _CTX["key"] = None
         _CODE.update(code="", made=0.0, wrong=0)
     return {"install": ident["install"], "forgot": n}
@@ -626,12 +652,14 @@ class _Conn(http.client.HTTPConnection):
         self.sock = self._ctx.wrap_socket(self.sock, server_hostname=SNI)
 
 
-def _exchange(host, port, ctx, path, doc, body, deadline, connect_for):
-    """One request to one address.  -> (status, doc, body, peer DER).
+def _exchange(host, port, ctx, path, doc, body, deadline, connect_for, heard=None):
+    """One request to one address.  -> (status, doc, body, peer DER); `heard`,
+    a dict, gets the answer's X-Parseh-Device as "device".
     socket.timeout / OSError: the address is silent or closed;
     ssl.SSLCertVerificationError: something else answers there;
     other ssl.SSLError: the partner refused us."""
     data, jlen = frame(doc, body)
+    dev = device_header()           # read before connecting: nothing slow between handshake and request
     c = _Conn(host, port, ctx, timeout=max(0.05, min(connect_for, deadline - time.monotonic())))
     try:
         c.connect()
@@ -642,8 +670,11 @@ def _exchange(host, port, ctx, path, doc, body, deadline, connect_for):
         c.putheader("Content-Length", str(len(data)))
         c.putheader("X-Parseh-Json", str(jlen))
         c.putheader("X-Parseh-Protocol", str(protocol()))
+        c.putheader("X-Parseh-Device", dev)
         c.endheaders(data)
         r = c.getresponse()
+        if heard is not None:
+            heard["device"] = r.getheader("X-Parseh-Device")
         raw = r.read(MAX_BODY + (1 << 20))
         try:
             rj = int(r.getheader("X-Parseh-Json") or len(raw))
@@ -696,9 +727,10 @@ def call(partner_id, op, payload, *, body=None, timeout):
             host, port = parse_address(a)
         except ValueError:
             continue
+        heard = {}
         try:
             st, out, rest, _der = _exchange(host, port, ctx, API + op, payload, body,
-                                            deadline, TRY_EACH)
+                                            deadline, TRY_EACH, heard)
         except ssl.SSLCertVerificationError:
             tried.append("%s answers, but it is not %s" % (a, who))
             continue
@@ -711,6 +743,7 @@ def call(partner_id, op, payload, *, body=None, timeout):
                                      else (e.strerror or e.__class__.__name__)
                                      if isinstance(e, OSError) else e.__class__.__name__))
             continue
+        heard_device(partner_id, heard.get("device"))
         if st == 200 and out.get("ok", True) is not False:
             _saw(partner_id, True, a)
             return out, rest

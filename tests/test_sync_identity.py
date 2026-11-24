@@ -11,7 +11,8 @@ UNIT (one temporary tree, tests/synctree.py):
   * new_identity empties the partners and throws a shown code away
 
 REAL (three serve.py processes, tests/sync_harness.py, as tests/test_sync_pairing.py):
-  * B says "send only" and "holds little": A sees it after pairing, and in hello
+  * B says "send only" and "holds little": A sees it after pairing, in hello, and
+    in the header of any call; A changing its mind is heard by B at A's next call
   * A copied whole to another "machine" (C): C's Devices state says it is a copy;
     pairing C with A is refused as "this very computer"; C's new identity empties
     its partners and C then pairs with A
@@ -102,6 +103,12 @@ class Units(SyncTree):
         syncpeer.note_device("a" * 32, {"holds_little": True, "send_only": "yes"})
         self.assertEqual(syncpeer.partners()[0]["device"], {"send_only": False, "holds_little": True},
                          "only a true True counts")
+        # a header heard; nonsense in it is let go
+        syncpeer.heard_device("a" * 32, '{"send_only":false,"holds_little":false}')
+        self.assertEqual(syncpeer.partners()[0]["device"], {"send_only": False, "holds_little": False})
+        syncpeer.heard_device("a" * 32, "not json")
+        syncpeer.heard_device("a" * 32, None)
+        self.assertEqual(syncpeer.device_header(), '{"send_only":true,"holds_little":false}')
         # the hello op answers it, and keeps what the caller says
         out, _ = syncroutes._hello("a" * 32, {"device": {"send_only": True}}, None)
         self.assertEqual(out["device"], {"send_only": True, "holds_little": False})
@@ -208,6 +215,22 @@ class Installs(unittest.TestCase):
         self.be(self.A.tree)
         out = syncpeer.hello(self.b["install"], timeout=10)
         self.assertEqual(out["device"], {"send_only": True, "holds_little": True})
+        # the header of any call: A's record of B loses it, and an echo brings it back
+        doc = syncpeer._read()
+        doc["partners"][self.b["install"]].pop("device")
+        syncpeer._write(doc)
+        syncpeer._DEV.clear()
+        syncpeer.call(self.b["install"], "echo", {}, timeout=10)
+        self.assertEqual(syncpeer.partner(self.b["install"])["device"],
+                         {"send_only": True, "holds_little": True}, "heard in the answer's header")
+        # A changes its mind after pairing (as a phone may): B hears it at A's next call
+        syncid.set_device(holds_little=True)
+        try:
+            syncpeer.call(self.b["install"], "echo", {}, timeout=10)
+            pb = self.B.dev("state")[1]["partners"]
+            self.assertEqual(pb[0]["device"], {"send_only": False, "holds_little": True})
+        finally:
+            syncid.set_device(holds_little=False)
 
     def test_2_a_copy_is_told_refused_as_itself_and_given_its_own_identity(self):
         cls = type(self)
