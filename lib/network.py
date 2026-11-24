@@ -214,9 +214,26 @@ def bind_host(doc=None):
     "This computer only" is not enforced by turning requests away -- it is
     enforced by there being nothing to send a request to.  That is the one
     position of this door that does not depend on a line of Parseh's code
-    being right."""
+    being right.
+
+    SYNC BETWEEN COMPUTERS (a0.7.0, lib/syncpeer.py) adds itself to
+    BIND_WANTED: while this install has a partner, or shows a pairing code,
+    it listens on every interface whatever the doors say -- the doors are for
+    browsers, and a partner gets past Server.verify_request only to be told
+    apart by its TLS ClientHello and its pinned certificate."""
     doc = doc or _read()
-    return "0.0.0.0" if (doc["vpn"] or doc["lan"]) else "127.0.0.1"
+    if doc["vpn"] or doc["lan"]:
+        return "0.0.0.0"
+    for wanted in BIND_WANTED:
+        try:
+            if wanted():
+                return "0.0.0.0"
+        except Exception:                               # noqa: BLE001 -- a hook never decides by failing
+            pass
+    return "127.0.0.1"
+
+
+BIND_WANTED = []     # functions() -> True when something besides the doors needs the network
 
 
 def own_cert(doc=None):

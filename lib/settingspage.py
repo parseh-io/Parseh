@@ -94,6 +94,9 @@ SETTINGS = {
     "network.code": (REACH, "Whoever can read the code can let a device in."),
     "network.forget": (REACH, "Forgetting a device shuts it out; only the computer decides "
                               "who is let in."),
+    # SYNC BETWEEN COMPUTERS (a0.7.0): a partner may call this Parseh's sync routes, so pairing one, removing
+    # one, showing the code and naming this install all decide who may reach it -- the computer's alone
+    "sync.devices": (REACH, "A computer paired here may bring its changes in and take this one's."),
     # THE READING HELP IS NOT RISKY.  Getting a dictionary puts somebody else's
     # data on this computer's own disk and changes nothing about who can reach
     # what.  Removing one changes neither either -- it costs a download, and
@@ -240,6 +243,13 @@ ROUTES = {
     "/settings/api/network": ("network.doors", "network.extra", "network.port", "network.cert"),
     "/settings/api/code": ("network.code",),
     "/settings/api/forget": ("network.forget",),
+    # Settings -> Devices (a0.7.0): pairing, the partners, this install's name -- every one the computer's alone
+    "/settings/api/devices/state": ("sync.devices",),
+    "/settings/api/devices/pair-start": ("sync.devices",),
+    "/settings/api/devices/pair-stop": ("sync.devices",),
+    "/settings/api/devices/pair-enter": ("sync.devices",),
+    "/settings/api/devices/rename": ("sync.devices",),
+    "/settings/api/devices/remove": ("sync.devices",),
     # the reading help: what is there, and what it would cost
     "/lookup/api/status": READ,
     "/lookup/api/plan": READ,

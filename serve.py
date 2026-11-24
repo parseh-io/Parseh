@@ -172,6 +172,8 @@ import later                # noqa: E402  the chunks a person flagged to review 
 import laterpage            # noqa: E402  /later/, the flags across every book and video
 import network              # noqa: E402  who may reach this Parseh, and on which port (§1.1, §3.3)
 import crosssite            # noqa: E402  and that only its own pages may write to it (§3.1)
+import syncpeer             # noqa: E402  sync between computers: the partners, pairing, pinned TLS (a0.7.0, lane A)
+import syncroutes           # noqa: E402  /sync/api/<op>, answered to a paired partner only (a0.7.0, lane A)
 import settingspage         # noqa: E402  the Settings section, and the page a device not let in sees
 import updatepage           # noqa: E402  Settings > Updating Parseh, the page (§13.16)
 import offline              # noqa: E402  what a thing is made of, for a phone to keep (§19.3)
@@ -1901,6 +1903,17 @@ LANGUAGES_ROUTES = {
     "/settings/api/languages/add": "add",
     "/settings/api/languages/answer": "answer",
 }
+# SETTINGS -> DEVICES, its JSON (a0.7.0, lane A: lib/syncpeer.py; the page is lane E's): this install's name, the
+# partners, pairing in both directions, a partner removed.  Every route a POST, the computer's alone
+# (lib/settingspage.py "sync.devices"): pairing decides who may reach this Parseh.
+DEVICES_ROUTES = {
+    "/settings/api/devices/state": "state",
+    "/settings/api/devices/pair-start": "pair-start",
+    "/settings/api/devices/pair-stop": "pair-stop",
+    "/settings/api/devices/pair-enter": "pair-enter",
+    "/settings/api/devices/rename": "rename",
+    "/settings/api/devices/remove": "remove",
+}
 ARASAAC_PAGE = "/settings/arasaac/"
 # a picture of the pictograms, for the picker's thumbnails and preview: read-only, the same file for every
 # device that has been let in (lib/arasaacsearch.py picture() takes digits and nothing else)
@@ -3339,6 +3352,12 @@ class Handler(SimpleHTTPRequestHandler):
         `finally`, after the last byte of the answer has been written, so a
         download is on it while it is packed and while it is sent."""
         self._act, self._after, self._status, self._failed = None, None, 0, False
+        # SYNC (a0.7.0, lib/syncroutes.py): a partner's pinned connection is
+        # answered there and nowhere else, and /sync/ on any other connection
+        # is refused -- before the doors, the cookie and the cross-site check,
+        # which are about browsers
+        if syncroutes.answer(self, method):
+            return
         if method not in crosssite.SAFE:
             # ONLY PARSEH'S OWN PAGES MAY WRITE (lib/crosssite.py, §3.1): a
             # page on another site, open in this computer's browser, could
@@ -7560,6 +7579,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._skills_api(method, path)
         if path in BACKUPS_ROUTES:
             return self._backups_api(method, path)
+        if path in DEVICES_ROUTES:
+            return self._devices_api(method, path)
         if path not in ("/settings/api/network", "/settings/api/code",
                         "/settings/api/forget"):
             return self._not_found()
@@ -8073,6 +8094,55 @@ class Handler(SimpleHTTPRequestHandler):
         code, out = arasaacpage.api(ARASAAC_ROUTES[path], body, self._where())
         return self.send_json(out, code)
 
+    def _devices_api(self, method, path):
+        """Settings -> Devices (a0.7.0, lane A; lib/syncpeer.py).  Gated above by lib/settingspage.py ROUTES
+        ("sync.devices": this computer only) and held to this site by _dispatch (lib/crosssite.py).
+          state       {"this": {install, name, fingerprint, protocol, key}, "partners": syncpeer.partners(),
+                       "pairing": seconds the shown code has left (0: none), "ops": the sync steps answered}
+          pair-start  {code, said, left, addresses, qr, fingerprint, name, protocol}: show this to the other
+          pair-stop   the code thrown away
+          pair-enter  {"code", "address", "fingerprint"?} -> {"partner"}: typed here, from the other's screen
+          rename      {"name"} -> {"name"}     remove  {"id"} -> {"removed"}
+        A pairing that makes this Parseh listen beyond 127.0.0.1 (lib/network.py BIND_WANTED) moves the
+        socket as saving the Network page does; the answer says "moving", and http://localhost keeps answering."""
+        if method != "POST":
+            return self._method_not_allowed()
+        import syncid
+        what = DEVICES_ROUTES[path]
+        body = self._json_body()
+        before = network.bind_host()
+        try:
+            if what == "state":
+                ident = syncid.identity()
+                c = syncpeer.code() if syncpeer.code_live() else {"left": 0}
+                out = {"ok": True, "this": {"install": ident["install"], "name": ident["name"],
+                                            "protocol": ident["protocol"], "key": bool(ident.get("key")),
+                                            "fingerprint": (ident.get("key") or {}).get("fingerprint")},
+                       "partners": syncpeer.partners(), "pairing": c["left"], "ops": syncroutes.ops()}
+            elif what == "pair-start":
+                out = dict(syncpeer.offer(), ok=True)
+            elif what == "pair-stop":
+                syncpeer.stop_offer()
+                out = {"ok": True}
+            elif what == "pair-enter":
+                out = {"ok": True, "partner": syncpeer.pair_with(
+                    body.get("address"), body.get("code"), body.get("fingerprint") or None)}
+            elif what == "rename":
+                out = {"ok": True, "name": syncid.set_name(body.get("name"))}
+            else:
+                out = {"ok": True, "removed": syncpeer.remove(body.get("id"))}
+        except ValueError as e:
+            return self.send_json({"ok": False, "error": str(e)}, 400)
+        except syncpeer.Unreachable as e:
+            return self.send_json({"ok": False, "unreachable": True, "error": str(e)}, 504)
+        except syncpeer.Refused as e:
+            return self.send_json({"ok": False, "error": e.reason}, 409)
+        moving = (network.bind_host() != before and not RUN["forced_host"] and RUN["scheme"] == "https")
+        out["moving"] = moving
+        self.send_json(out)
+        if moving:
+            _rebind_soon(self.server, network.settings())
+
     def _refused(self, route):
         """The table's answer for this POST (lib/settingspage.py ROUTES):
         None when it may go on, else the answer already sent -- 403 with the
@@ -8241,6 +8311,11 @@ class Server(socketserver.ThreadingTCPServer):
         ip = (client_address or ("",))[0]
         if network.may_connect(ip):
             return True
+        if syncpeer.may_knock(ip):
+            # SYNC (a0.7.0, lib/syncpeer.py): a partner may come from where the
+            # browsers' doors are shut; finish_request tells it apart by its
+            # ClientHello and closes anything else, as this would have
+            return True
         now = time.time()
         if now - _REFUSED.get(ip, 0) > 60:
             # once a minute per address: a scanner must not be able to fill
@@ -8286,6 +8361,17 @@ class Server(socketserver.ThreadingTCPServer):
             head = b""
         if not head:
             return _close(request)
+        # ---- SYNC BETWEEN COMPUTERS (a0.7.0, lane A; lib/syncpeer.py, docs/sync.md)
+        # A partner asks for syncpeer.SNI in its ClientHello, which no browser
+        # ever does: its connection is wrapped in the partners' context (the
+        # install's sync certificate, the partners' pinned authorities) and
+        # never in the browsers'.  Anything else that got past
+        # verify_request only because sync may knock is closed here.
+        if head[:1] == b"\x16" and syncpeer.hello_name(request) == syncpeer.SNI:
+            return syncpeer.serve(self, request, client_address)
+        if not network.may_connect((client_address or ("",))[0]):
+            return _close(request)
+        # ---- end of sync
         if head[:1] != b"\x16":
             if localhttp.is_loopback((client_address or ("",))[0]):
                 # THIS COMPUTER, ON PLAIN HTTP (lib/localhttp.py): a browser
@@ -8603,6 +8689,25 @@ def authority_der():
             return ssl.PEM_cert_to_DER_cert(f.read())
     except (OSError, ValueError):
         return None
+
+
+def _sync_where():
+    """syncpeer.WHERE: the port, and every name and address a partner may find
+    this computer by -- the names the browsers' certificate carries
+    (cert_names: the host name, the tailnet's .ts.net name, the addresses),
+    with the host's .local name added (mDNS answers it on most networks;
+    Parseh itself publishes nothing over mDNS, docs/sync.md says why)."""
+    names, ips = cert_names()
+    out = []
+    host = (socket.gethostname() or "").split(".")[0]
+    for n in [n for n in names if n != "localhost"] + ([host + ".local"] if host else []) + \
+            [ip for ip in ips if not ip.startswith("127.")]:
+        if n and n not in out:
+            out.append(n)
+    return {"port": RUN["port"] or network.port(), "names": out or ["localhost"]}
+
+
+syncpeer.WHERE = _sync_where
 
 
 def addresses():
