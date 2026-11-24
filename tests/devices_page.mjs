@@ -277,9 +277,16 @@ try {
   assert(await conf.isHidden(), 'cancel takes it away, nothing changed');
   eq((await api('state')).this.install, '0123456789abcdef'.repeat(2), 'the identity is the same');
 
-  // k) lane I: the third Network door, Paired computers -- shut here (the harness's network.json is fresh), so the
+  // k) lane I: the third Network door, Paired computers -- shut, so the
   //    Devices page says sync from the partners is paused, with a link; opened on Network, at 1280 and at 390 px
   {
+    // b) showed a code, which opened the door: it is shut again on Network's own route, as its switch does
+    eq((await api('state')).door, true, 'showing a code earlier opened the door');
+    const shut = await (await fetch(base + '/settings/api/network', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({paired: false})})).json();
+    eq(shut.ok, true, 'the door shut on Network');
+    await p.reload();
+    await p.waitForSelector('main[data-loaded]');
     const note = p.locator('[data-door-shut]');
     assert(await note.isVisible(), 'Devices: the door shut with partners -> the paused note shows');
     has(await note.textContent(), 'Sync from your partners is paused', 'saying sync is paused');
@@ -290,7 +297,7 @@ try {
     await net.goto(base + '/settings/network/');
     const sw = net.locator('[data-door="paired"]');
     eq(await sw.count(), 1, 'Network has a third switch, Paired computers');
-    eq(await sw.isChecked(), false, 'shut on a fresh install');
+    eq(await sw.isChecked(), false, 'drawn shut');
     const lab = net.locator('label.door', {has: sw});
     has(await lab.textContent(), 'Paired computers', 'named');
     has(await lab.textContent(), 'never a browser', 'saying it lets in no browser');
