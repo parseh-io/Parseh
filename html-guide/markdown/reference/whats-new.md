@@ -17,6 +17,17 @@ guide and rebuilds the readers by itself.
 
 ## a0.7.0 — not yet released
 
+### This computer on plain http://localhost
+
+The computer Parseh runs on now opens it at `http://localhost:7654/`, which
+browsers count as secure, so there is no certificate to accept and no warning;
+a phone or another computer still reaches it over `https://`, on the same port.
+The first time the old `https://localhost` address is opened, what the browser
+kept there — settings, reading places, timing edits not yet saved — is carried
+to the new address, and from then on the old one simply sends the browser on.
+An app installed from the old address has to be installed again, and the page
+says so ([Moving to localhost](../getting-started/starting-and-stopping.md#moving-to-localhost)).
+
 ## a0.6.3 — 23 November 2026
 
 ### The vocabulary as a list
