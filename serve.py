@@ -234,6 +234,7 @@ import skills             # noqa: E402  the prompts as skills for a chatbot
 import skillspage         # noqa: E402  Settings -> Skills for your chatbot
 import backupdays          # noqa: E402  the day of each shelf's last backup (§13.19)
 import backupspage         # noqa: E402  Settings -> Backups
+import devicespage         # noqa: E402  Settings -> Devices (a0.7.0, lane E)
 import configbackup        # noqa: E402  the backup of config/, merged back
 import wholebackup         # noqa: E402  the backup of everything, for a new computer
 import languagespage      # noqa: E402  Settings -> Languages
@@ -499,6 +500,10 @@ STATIC_FILES = {"/lib/lmlikelihoodsettings.js", "/youtube/lib/asrreview.js", "/y
                 # the day of each shelf's last backup, beside its Backup button
                 # (lib/backupday.js, §13.19)
                 "/lib/backupday.js",
+                # sync on a thing's own page: its question's banner, its build out of
+                # date, the editors' leases (lib/syncpage.js, a0.7.0; loaded by
+                # parseh.js, and by its own tag on the studio's pages)
+                "/lib/syncpage.js",
                 # what the server is working on, drawn on every page (loaded
                 # by parseh.js, and by its own tag on the studio's pages)
                 "/lib/activity.js",
@@ -1913,6 +1918,30 @@ DEVICES_ROUTES = {
     "/settings/api/devices/pair-enter": "pair-enter",
     "/settings/api/devices/rename": "rename",
     "/settings/api/devices/remove": "remove",
+}
+# SETTINGS -> DEVICES, its page (a0.7.0, lane E: lib/devicespage.py): what the page needs beyond pairing -- the
+# overview, sync now, "make identical", the job switches, what is held, the answers, a version put back, a diff
+# deleted, a job cancelled (the computer's alone, "sync.devices"); and, open to every device let in, what a unit's
+# page asks (its question, its build out of date) and the editors' leases (lib/synclock.py)
+DEVICES_PAGE = "/settings/devices/"
+DEVICES_QUESTION = re.compile(r"^/settings/devices/question/([A-Za-z0-9._:-]{1,160})$")
+DEVICES_DIFF = re.compile(r"^/settings/devices/diff/([A-Za-z0-9._-]{1,160})$")
+DEVICES_MORE = {
+    "/settings/api/devices/overview": "overview",
+    "/settings/api/devices/sync-now": "sync-now",
+    "/settings/api/devices/identical-summary": "identical-summary",
+    "/settings/api/devices/make-identical": "make-identical",
+    "/settings/api/devices/switches": "switches",
+    "/settings/api/devices/holding": "holding",
+    "/settings/api/devices/fetch": "fetch",
+    "/settings/api/devices/answer": "answer",
+    "/settings/api/devices/put-back": "put-back",
+    "/settings/api/devices/diff-delete": "diff-delete",
+    "/settings/api/devices/job-cancel": "job-cancel",
+    "/settings/api/devices/unit": "unit",
+    "/settings/api/devices/lease-open": "lease-open",
+    "/settings/api/devices/lease-keep": "lease-keep",
+    "/settings/api/devices/lease-close": "lease-close",
 }
 ARASAAC_PAGE = "/settings/arasaac/"
 # a picture of the pictograms, for the picker's thumbnails and preview: read-only, the same file for every
@@ -7512,6 +7541,12 @@ class Handler(SimpleHTTPRequestHandler):
             if method != "GET":
                 return self._method_not_allowed()
             return self.send_html(backupspage.page(self._where()))
+        if path == DEVICES_PAGE.rstrip("/"):
+            return self._redirect(DEVICES_PAGE)
+        if path == DEVICES_PAGE or DEVICES_QUESTION.match(path) or DEVICES_DIFF.match(path):
+            if method != "GET":
+                return self._method_not_allowed()
+            return self._devices_page(path)
         if path == SKILLS_PAGE.rstrip("/"):
             return self._redirect(SKILLS_PAGE)
         if path == SKILLS_PAGE:
@@ -7581,6 +7616,11 @@ class Handler(SimpleHTTPRequestHandler):
             return self._backups_api(method, path)
         if path in DEVICES_ROUTES:
             return self._devices_api(method, path)
+        if path in DEVICES_MORE:
+            if method != "POST":
+                return self._method_not_allowed()
+            code, out = devicespage.api(DEVICES_MORE[path], self._json_body(), self._where())
+            return self.send_json(out, code)
         if path not in ("/settings/api/network", "/settings/api/code",
                         "/settings/api/forget"):
             return self._not_found()
@@ -8121,6 +8161,8 @@ class Handler(SimpleHTTPRequestHandler):
                        "partners": syncpeer.partners(), "pairing": c["left"], "ops": syncroutes.ops()}
             elif what == "pair-start":
                 out = dict(syncpeer.offer(), ok=True)
+                import qrsvg                                  # the page draws the payload as a QR code (lane E)
+                out["qr_svg"] = qrsvg.svg(out["qr"], label="the pairing code as a QR code")
             elif what == "pair-stop":
                 syncpeer.stop_offer()
                 out = {"ok": True}
@@ -8142,6 +8184,27 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_json(out)
         if moving:
             _rebind_soon(self.server, network.settings())
+
+    def _devices_page(self, path):
+        """Settings -> Devices (lib/devicespage.py): the door, one question, one diff file.  The pages are open to
+        read, as every page of Settings is; a diff file is the person's own text and opens on the computer only."""
+        where = self._where()
+        if path == DEVICES_PAGE:
+            return self.send_html(devicespage.page(where))
+        m = DEVICES_QUESTION.match(path)
+        if m:
+            return self.send_html(devicespage.question_page(m.group(1), where))
+        m = DEVICES_DIFF.match(path)
+        if not settingspage.may(devicespage.SETTING, where):
+            return self.send_json({"ok": False, "error": settingspage.refusal(devicespage.SETTING)}, 403)
+        found = devicespage.diff_file(m.group(1))
+        if not found:
+            return self._not_found()
+        with open(found[0], "rb") as fh:
+            data = fh.read()
+        q = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+        extra = {"Content-Disposition": 'attachment; filename="%s"' % found[1]} if q.get("download") else {}
+        return self.send_bytes(data, "text/plain; charset=utf-8", 200, extra)
 
     def _refused(self, route):
         """The table's answer for this POST (lib/settingspage.py ROUTES):

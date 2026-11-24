@@ -28,6 +28,20 @@ to the new address, and from then on the old one simply sends the browser on.
 An app installed from the old address has to be installed again, and the page
 says so ([Moving to localhost](../getting-started/starting-and-stopping.md#moving-to-localhost)).
 
+### Several computers, one shelf
+
+Two computers with Parseh installed can now be **paired** in the new **Settings → Devices**: one shows a code (and a QR
+code), the other types it, and from then on they keep each other up to date whenever both are on and can reach each
+other — no server in between. A thing changed on one goes to the other with no question. A thing changed on **both** is
+never merged: sync asks once, on whichever computer you open next, whether to keep this computer's version or the
+partner's, shows under each button the diff of what it would throw away, and afterwards gives that diff back as a file.
+The question waits in Settings → Devices and as a banner on the thing's own page. A deletion is always asked, many at once
+as one question with the list. Anything a sync replaced is kept for a day and can be put back, and a computer left
+unopened for a while can be made identical to a partner after one summary of what it will lose. An editor that is open
+holds its document, video or deck against sync until it closes. Heavy jobs can be lent between computers, behind two
+switches that start off. Sync is not a backup: a deletion, once answered, travels.
+[Several computers, one shelf](../getting-started/several-computers.md).
+
 ## a0.6.3 — 23 November 2026
 
 ### The vocabulary as a list

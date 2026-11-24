@@ -43,7 +43,7 @@
      reached (lib/keep.js, TO-DO §19.2, §19.5) -->
 <script src="/lib/keep.js" defer></script>
 </head>
-<body data-page="doc" data-live="{{LIVE}}" data-base="{{BASE}}" data-doc-id="{{DOC_ID}}" data-target="{{TARGET}}" data-decks-base="{{DECKS_BASE}}" data-notes-source="{{NOTES_SOURCE}}">
+<body data-page="doc" data-live="{{LIVE}}" data-base="{{BASE}}" data-doc-id="{{DOC_ID}}" data-target="{{TARGET}}" data-decks-base="{{DECKS_BASE}}" data-notes-source="{{NOTES_SOURCE}}" data-sync-unit="{{SYNC_UNIT}}">
 <!-- THE MOBILE BAR (docs/mobile.md): the way back to the library, the theme,
      and the gear after it (static/gear.js) -- the Browser | Mobile switch is in
      the gear's Interface group now -- and nothing that writes this document -->
@@ -226,5 +226,7 @@
 <!-- ?live=1 only: the text of the editor open in another tab, drawn here as it is typed (static/live.js) -->
 {{LIVE_SCRIPT}}
 <script src="{{STUDIO}}/static/latexwait.js" defer></script>
+<!-- sync between computers (a0.7.0): a question waiting on this page, a build out of date, the editor's lease -->
+<script src="/lib/syncpage.js" defer></script>
 </body>
 </html>

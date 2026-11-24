@@ -907,7 +907,7 @@
   // to survive the pointer leaving it, and the next phrase hovered must not
   // wipe a half-typed form.  `editing` is that latch, and every way the
   // cloud closes itself asks it first.
-  var editing = false, editWasPlaying = false;
+  var editing = false, editWasPlaying = false, editLease = null;
 
   /* The colour row, at the foot of the cloud in BOTH its states: marking a
      phrase is a reading gesture and not an edit, so it is one click and it
@@ -2657,6 +2657,7 @@
   function closeEditor() {
     if (!editing) return;
     editing = false;
+    if (editLease) { editLease.release(); editLease = null; }
     srcGen++;              // a lookup still on its way has nobody to tell
     if (strip) { strip.destroy(); strip = null; }   // and a proposal neither
     cloud.classList.remove('editing', 'sideon');
@@ -3066,7 +3067,18 @@
       return;
     }
     if (t.classList.contains('sw')) { setColour(t.dataset.col || ''); return; }
-    if (t.classList.contains('mkedit')) { openEditor(); return; }
+    if (t.classList.contains('mkedit')) {
+      // SYNC (a0.7.0, lib/syncpage.js): the phrase editor holds the video against sync while it is open; while a
+      // sync writes the video it says so and opens a moment later
+      if (window.ParsehLease && !editLease) {
+        window.ParsehLease.hold({path: location.pathname}, 'transcript').then(function (l) {
+          editLease = l;
+          openEditor();
+          if (!editing) { l.release(); editLease = null; }
+        });
+      } else openEditor();
+      return;
+    }
     if (t.classList.contains('ecancel')) { closeEditor(); return; }
     if (t.classList.contains('edv')) { dvStart(t.dataset.dv); return; }
     if (t.classList.contains('edel')) { if (!t.disabled) deleteGloss(); return; }

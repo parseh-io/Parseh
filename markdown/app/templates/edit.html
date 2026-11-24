@@ -24,7 +24,7 @@
 <script src="/lib/pagesettings.js"></script>
 <script src="/lib/prefs.js"></script>
 </head>
-<body data-page="edit" data-base="{{BASE}}" data-doc-id="{{DOC_ID}}" data-target="{{TARGET}}" data-decks-base="{{DECKS_BASE}}" data-notes-source="{{NOTES_SOURCE}}" data-names-mark="{{NAMES_MARK}}">
+<body data-page="edit" data-base="{{BASE}}" data-doc-id="{{DOC_ID}}" data-target="{{TARGET}}" data-decks-base="{{DECKS_BASE}}" data-notes-source="{{NOTES_SOURCE}}" data-names-mark="{{NAMES_MARK}}" data-sync-unit="{{SYNC_UNIT}}">
 <header class="topbar">
   <a class="hublink" href="/" title="Parseh — the hub"><span class="glyph">پ</span>Parseh</a>
   <a class="btn ghost" id="btn-back" href="{{BASE}}/">← Back</a>
@@ -144,5 +144,7 @@
 <script src="{{STUDIO}}/static/editor.js"></script>
 <!-- the gear's rows, after the scripts that hold what they move -->
 <script src="{{STUDIO}}/static/gear.js"></script>
+<!-- sync between computers (a0.7.0): a question waiting on this page, a build out of date, the editor's lease -->
+<script src="/lib/syncpage.js" defer></script>
 </body>
 </html>

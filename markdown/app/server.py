@@ -516,11 +516,25 @@ def render_template(name, mapping):
     mapping = dict(mapping, BASE=base(), MODE_SCRIPT=deckroutes.MODE_SCRIPT,
                    MODE_SWITCH=deckroutes.MODE_SWITCH, APP_HEAD=deckroutes.APP_HEAD,
                    STUDIO=BASE)
+    if name in ("doc.html", "edit.html"):
+        mapping["SYNC_UNIT"] = "" if current_session() is not None else _sync_unit(mapping.get("DOC_ID"))
     if current_session() is not None and name in ("doc.html", "edit.html"):
         tpl = _in_a_file(tpl, name, current_session())
     for k, v in mapping.items():
         tpl = tpl.replace("{{%s}}" % k, v)
     return tpl
+
+
+def _sync_unit(doc_id):
+    """The unit of sync this document or note is (a0.7.0, lib/devicespage.py), for its page's banner and its
+    editor's lease -- "" when the studio runs alone, or for anything sync does not know."""
+    if not doc_id:
+        return ""
+    try:
+        import devicespage
+        return htmlgen.esc(devicespage.unit_at(store.doc_dir(doc_id)))
+    except Exception:                       # noqa: BLE001 -- a page never fails over sync
+        return ""
 
 
 def _in_a_file(tpl, name, sess):
