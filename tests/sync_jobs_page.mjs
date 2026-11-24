@@ -62,6 +62,8 @@ try {
   const book = `${B.tree}/root/books/italian/storia`;
   write(`${book}/book.json`, JSON.stringify({title: 'Storia', language: 'italian'}));
   write(`${book}/ch1.tex`, 'Una storia.\n');
+  // the server's own lib/, as the toolbox serves it from its root (tests/activity.mjs does the same)
+  Deno.symlinkSync(`${root}/lib`, `${B.tree}/root/lib`);
   // a card as the library page draws it (lib/make_index.py), on a page that loads lib/parseh.js
   write(`${B.tree}/root/books/cards.html`, '<!doctype html><meta charset="utf-8"><title>cards</title>' +
     '<script src="/lib/parseh.js"></script><body><div class="card">Storia ' +
@@ -72,8 +74,17 @@ try {
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
-  await page.goto(`http://localhost:${B.port}/books/cards.html`);
-  await page.waitForFunction(() => !!window.ParsehJobs, null, {timeout: 15000});
+  const T0 = Date.now(), trail = [];
+  let reloads = 0;
+  page.on('framenavigated', f => { if (f === page.mainFrame()) reloads++; });
+  page.on('request', q => { if (/__jobs|__build/.test(q.url())) trail.push('>' + ((Date.now() - T0) / 1000).toFixed(1) + ' ' + q.url().replace(/^.*\//, '')); });
+  page.on('response', r => { if (/__jobs|__build/.test(r.url())) r.text().then(t => trail.push('<' + ((Date.now() - T0) / 1000).toFixed(1) + ' ' + t.slice(0, 60)), () => {}); });
+  page.on('response', r => { if (r.status() >= 400 && !(r.status() === 409 && /__build$/.test(r.url()))) errors.push(r.status() + ' ' + r.url()); });
+  const res = await page.goto(`http://localhost:${B.port}/books/cards.html`);
+  check(res && res.status() === 200, 'the page with the card is served: ' + (res && res.status()));
+  await page.waitForFunction(() => !!window.ParsehJobs, null, {timeout: 15000})
+    .catch(e => { throw new Error(e.message + ' -- ' + errors.join(' / ') + ' -- ' +
+      'scripts'); });
   check(true, 'lib/jobs.js loaded beside lib/parseh.js');
   await page.click('button.card-build');
   const panel = page.locator('.pj-panel');
@@ -90,15 +101,20 @@ try {
     const t = await panel.isVisible() ? (await panel.locator('.pj-say').innerText().catch(() => '')) : '';
     if (t) seen.add(t.replace(/:.*$/, ''));
     try { pdf = Deno.statSync(`${book}/storia.pdf`).isFile; } catch (e) { pdf = false; }
-    if (pdf && seen.has('done')) break;
+    if (pdf && (reloads > 1 || (seen.has('done') && trail.some(t => /^<.* \{"state": "done"/.test(t))))) break;
     await sleep(250);
   }
+  if (Deno.env.get('JOBS_TRAIL')) console.log(trail.join('\n'));
   console.log('  the panel said:', [...seen].join(' | '));
+  console.log('  __build/status:', JSON.stringify(await (await fetch(`http://127.0.0.1:${B.port}/books/italian/storia/__build/status`)).json()).slice(0, 400));
   check([...seen].some(s => /^on /.test(s)), 'the panel said "on <partner>"');
-  check(seen.has('done'), 'the panel said "done"');
+  // the card's build reloads the library page 0.9 s after its own poll says "done" (parseh.js
+  // cardBuild), which may come before the panel's next look: either shows the end
+  check(seen.has('done') || reloads > 1, 'the panel said "done", or the page reloaded on "done"');
   check(pdf && Deno.readTextFileSync(`${book}/storia.pdf`).startsWith('%PDF-1.5 built by'), "A's PDF is on B");
-  const toast = await page.evaluate(() => document.body.innerText);
-  check(/built/.test(toast), "the page's own message says it was built");
+  // (the reload is cardBuild's answer to its own poll saying "done", so either proves it)
+  check(reloads > 1 || trail.some(t => /^<.* \{"state": "done"/.test(t)),
+        "the page's own poll of __build/status heard \"done\"");
   check(errors.length === 0, 'no error in the page: ' + errors.join(' / '));
 } catch (e) {
   failed.push(String(e && e.stack || e));
