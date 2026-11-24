@@ -446,8 +446,8 @@ partner's (plain http, or TLS without the partners' name) is refused with a
 own, the third on Settings → Network, **Paired computers** (`"paired"` in
 `config/network.json`; [network.md](network.md), "The third door"). It opens
 by itself when a code is shown or a computer is paired, and can be shut at any
-time: shut, a partner's hello is closed on every connection (the partner reads
-silence, `Unreachable`), a live code is thrown away, Settings → Devices says
+time: shut, a partner's hello is answered nothing on every connection (the
+partner reads silence, `Unreachable`, never "pair them again"), a live code is thrown away, Settings → Devices says
 sync from partners is paused, and with the browsers' two doors shut too the
 socket is `127.0.0.1` again, partners or not. While that door is open and this
 install has a partner or shows a code, it listens beyond 127.0.0.1

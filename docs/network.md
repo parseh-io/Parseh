@@ -69,8 +69,10 @@ answers `"moving": true` and the server re-binds).
   it (the socket moves, the Devices answer says `"moving"`).
 - **It can be shut at any time.** Shut, no partner is served from anywhere —
   not even through a VPN or Wi-Fi door that is open for browsers: the partner's
-  hello is closed before the handshake, which the partner reads as silence
-  (`Unreachable`), never as "pair them again". A pairing code being shown is
+  hello is answered nothing until it gives up (`syncpeer.TRY_EACH`) and then
+  closed, which the partner reads as silence (`Unreachable`). A handshake cut
+  short would read as "it no longer counts this computer: pair them again",
+  which is not true. A pairing code being shown is
   thrown away with the door. The partners are kept; Settings → Devices says
   that sync from them is paused, with a link back here. What this computer
   asks of its partners still goes out: the door is about who reaches *this*

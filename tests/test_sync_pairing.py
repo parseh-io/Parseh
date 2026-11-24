@@ -53,10 +53,10 @@ def free_port():
 
 
 class Install:
-    def __init__(self, base, name, env=None):
+    def __init__(self, base, name, env=None, port=None):
         self.tree = os.path.join(base, name)
         os.makedirs(self.tree, exist_ok=True)       # a test may write its config/ first
-        self.port = free_port()
+        self.port = port or free_port()
         self.log = open(os.path.join(base, name + ".log"), "w")
         self.proc = subprocess.Popen(
             [sys.executable, os.path.join(HERE, "sync_harness.py"), "serve", self.tree, str(self.port)],

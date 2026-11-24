@@ -8376,7 +8376,9 @@ class Handler(SimpleHTTPRequestHandler):
         out["moving"] = moving
         self.send_json(out)
         if moving:
-            _rebind_soon(self.server, network.settings())
+            # on the port this run answers on: a pairing moves the address, never the port (a run started
+            # with a port of its own would otherwise jump to the file's)
+            _rebind_soon(self.server, dict(network.settings(), port=RUN["port"]))
 
     def _devices_page(self, path):
         """Settings -> Devices (lib/devicespage.py): the door, one question, one diff file.  The pages are open to
@@ -8634,6 +8636,17 @@ class Server(socketserver.ThreadingTCPServer):
             # no partner is served, from wherever it knocks -- even through
             # a VPN or Wi-Fi door that is open for browsers
             if not syncpeer.door_open():
+                # SILENCE, not a closed handshake: a partner reads a handshake cut short as "it no longer
+                # counts this computer" (pair them again) -- a closed door is a computer it cannot reach,
+                # so it is answered nothing until it gives up (syncpeer.TRY_EACH), as a shut socket would be
+                end = time.monotonic() + syncpeer.TRY_EACH + 2
+                try:
+                    while time.monotonic() < end:
+                        request.settimeout(max(0.05, end - time.monotonic()))
+                        if not request.recv(4096):
+                            break
+                except OSError:
+                    pass
                 return _close(request)
             return syncpeer.serve(self, request, client_address)
         ip = (client_address or ("",))[0]
@@ -9315,7 +9328,7 @@ def main():
         first = False
         doc = network.settings()
         good = (RUN["host"], RUN["port"],
-                {k: doc[k] for k in ("port", "vpn", "lan", "extra", "cert")})
+                {k: doc[k] for k in ("port", "vpn", "lan", "paired", "extra", "cert")})
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

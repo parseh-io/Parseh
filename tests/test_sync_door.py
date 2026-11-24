@@ -42,7 +42,7 @@ import network          # noqa: E402
 import prefs            # noqa: E402
 import synclog          # noqa: E402
 import syncpeer         # noqa: E402
-from test_sync_pairing import Install   # noqa: E402
+from test_sync_pairing import Install, free_port   # noqa: E402
 
 
 def own_address():
@@ -77,9 +77,10 @@ class PairedDoor(unittest.TestCase):
         cls.base = tempfile.mkdtemp(prefix="sync-door-")
         cls.old = (prefs.STORE, network.STORE, synclog.HOME)
         os.makedirs(os.path.join(cls.base, "A", "config"))
+        port = free_port()          # in the file too: a save on Network moves to the file's port
         with open(os.path.join(cls.base, "A", "config", "network.json"), "w") as fh:
-            json.dump({"vpn": False, "lan": False}, fh)
-        cls.A = Install(cls.base, "A", {"SYNC_BIND_FREE": "1"})
+            json.dump({"vpn": False, "lan": False, "port": port}, fh)
+        cls.A = Install(cls.base, "A", {"SYNC_BIND_FREE": "1"}, port=port)
         cls.B = Install(cls.base, "B")
         try:
             cls.a = cls.A.wait()["this"]
@@ -95,7 +96,8 @@ class PairedDoor(unittest.TestCase):
                 i.stop()
         prefs.STORE, network.STORE, synclog.HOME = cls.old
         syncpeer._CTX["key"] = None
-        shutil.rmtree(cls.base, ignore_errors=True)
+        if not os.environ.get("SYNC_DOOR_KEEP"):        # a failure to look into keeps the two trees and logs
+            shutil.rmtree(cls.base, ignore_errors=True)
 
     def be_b(self):
         prefs.STORE = os.path.join(self.B.tree, "config", "prefs.json")
