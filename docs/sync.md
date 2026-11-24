@@ -717,6 +717,15 @@ off nothing changes: the action runs here or says it cannot, as before.
   `__build/status` follows a lent build in its own shape;
 - estimate by the sound (`/youtube/api/estimate`, `<reader>/__clip/estimate`).
 
+**Not lent yet.** Transcription: for a YouTube video the partner cannot fetch the
+sound itself (Parseh has no downloader: the sound is a browser tab's capture,
+real time, on the device that plays it), and the add page's review lives in
+`lib/sttjobs.py`'s in-memory job; lending it means sending the capture and
+handing the finished transcript back into that review. The cloud-LaTeX drawings
+(`lib/latexbatch.py`) write into this computer's drawing cache, which does not
+sync either. Both are open for a0.7.x.
+
 The test seams: `CAPS_FORCE`, `RUNNERS`, `INLINE` (tests/test_sync_jobs.py) and
-`SYNC_JOBS_FAKE` in tests/sync_harness.py (tests/test_sync_jobs_end_to_end.py).
+`SYNC_JOBS_FAKE` in tests/sync_harness.py (tests/test_sync_jobs_end_to_end.py,
+tests/sync_jobs_page.mjs, which drives a card's build in Chromium).
 <!-- end lane D -->
