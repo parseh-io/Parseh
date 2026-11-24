@@ -42,6 +42,7 @@ import htmlgen          # first: it puts exlex/ (mdparser, texgen) and lib/ on s
 import audiofile
 import clips            # lib/, as audiofile: where the tray is served (preview_assets)
 import languages
+import synctouch         # lib/: the change log's hint, one set.add (docs/sync.md)
 import mdparser
 import srs
 import store
@@ -225,6 +226,7 @@ def _write_bytes(path, data):
     finally:
         if tmp.exists():
             tmp.unlink()
+        synctouch.touch(path)
 
 
 def _json_bytes(obj):
@@ -362,6 +364,7 @@ def _to_trash(d):
         n += 1
         dest = trash / ("%s-%d" % (base, n))
     shutil.move(str(d), str(dest))
+    synctouch.touch(d)
     return dest
 
 
@@ -1400,6 +1403,8 @@ def duplicate_item(folder, slug, item_id, now=None):
 def _remove(d, item):
     (d / "items" / (item["id"] + ".json")).unlink()
     (d / "schedule" / (item["id"] + ".json")).unlink(missing_ok=True)
+    synctouch.touch(d / "items" / (item["id"] + ".json"))
+    synctouch.touch(d / "schedule" / (item["id"] + ".json"))
 
 
 def delete_item(folder, slug, item_id, linked=None):

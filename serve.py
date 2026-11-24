@@ -8708,6 +8708,21 @@ def main():
     except OSError as e:
         print("!! could not write lib/langs.css: %s (the route still answers)" % e)
     studio.ensure_build_env_async()
+    # THE CHANGE LOG OF SYNC (a0.7.0, docs/sync.md): this install's identity
+    # made if it has none, the versions kept for a day cleaned, the whole shelf
+    # compared with the log -- all on a thread of its own, so the start never
+    # waits for it -- and from then on a flush a moment after each write.  The
+    # shelves are the folders this server really serves; config/sync/ follows
+    # prefs.STORE.
+    try:
+        import synclog
+        sync_shelves = {"books": booklib.BOOKS_DIR, "videos": ytpages.VIDEOS, "anki": ANKI,
+                        "library": str(studio.store.LIB), "clips": clips.DIR}
+        if "decks" in sys.modules:
+            sync_shelves["exercises"] = str(sys.modules["decks"].DIR)
+        synclog.start(sync_shelves)
+    except Exception as e:                      # noqa: BLE001 -- sync never stops Parseh from starting
+        print("!! sync: the change log could not start: %s" % e)
     # the daily look for a new version, which does nothing until somebody
     # ticks it on Settings > Updating Parseh (config/updates.json)
     threading.Thread(target=update_daily, daemon=True).start()

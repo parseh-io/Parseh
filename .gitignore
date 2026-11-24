@@ -287,3 +287,6 @@ config/lm-likelihood.json
 config/lm-likelihood.json.tmp
 youtube/videos/.pending-transcriptions/
 llm-scoring/
+# sync (a0.7.0, docs/sync.md): this device's identity, key pair, change log, the versions
+# kept for a day and the diff files -- never synced, never in a backup
+config/sync/

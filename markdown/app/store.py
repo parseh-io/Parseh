@@ -42,6 +42,7 @@ import mdparser
 import latexthemes  # noqa: E402  (lib/, as mdparser has it)
 import prompts      # noqa: E402  the prompts a person wrote: the studio's one custom prompt is one
 import languages
+import synctouch     # lib/: the change log's hint, one set.add (docs/sync.md)
 from texgen import set_target, cur_lang, is_latin_target, parse_mark_fields, clip_window
 from texgen import (LEGACY_UID_RE, doc_name_key, escape_doc_name, find_doclinks,
                     unescape_doc_name, prepare_doc_index, lookup_doclink,
@@ -193,6 +194,9 @@ def _doc_dir(doc_id):
     for L in languages.LANGS.values():
         d = lib() / L.folder / doc_id
         if d.is_dir():
+            # every write to a document finds its folder here first: the change
+            # log's hint (a read costs the flush a few stats and records nothing)
+            synctouch.touch(d)
             return d
     d = lib() / doc_id
     if d.is_dir() and (d / "meta.json").exists():
@@ -202,6 +206,7 @@ def _doc_dir(doc_id):
                   "into library/%s/ (it is read as Persian meanwhile)"
                   % (doc_id, languages.get_or_default(None).folder),
                   file=sys.stderr)
+        synctouch.touch(d)
         return d
     raise KeyError(doc_id)
 
@@ -370,6 +375,7 @@ def _create(markdown, tags):
     doc_id = _slug(fm.get("title", "")) + "-" + uuid.uuid4().hex[:6]
     d = folder_of(fm["target"]) / doc_id
     d.mkdir(parents=True)
+    synctouch.touch(d)
     (d / "source.md").write_text(markdown, encoding="utf-8")
     meta = {
         "id": doc_id,
@@ -3043,7 +3049,9 @@ def _tail(text, n):
 
 
 def delete(doc_id):
-    shutil.rmtree(_doc_dir(doc_id))
+    d = _doc_dir(doc_id)
+    shutil.rmtree(d)
+    synctouch.touch(d)
 
 
 def _decorate(meta):

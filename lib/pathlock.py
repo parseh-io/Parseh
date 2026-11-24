@@ -14,12 +14,23 @@ it may call a library function that takes it again -- and writes through
 `tmp(path)`, a temporary name no other write shares (process, then a number).
 Two different books never wait for each other.
 
+EVERY WRITE THROUGH HERE IS ALSO A HINT TO THE CHANGE LOG (a0.7.0,
+docs/sync.md): `tmp(path)` and the end of `held(folder)` call
+lib/synctouch.py's `touch`, one set.add, and lib/synclog.py works out a
+moment later which unit changed.
+
 Standard library only.
 """
 import contextlib
 import itertools
 import os
+import sys
 import threading
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+import synctouch                                               # noqa: E402
 
 _LOCKS = {}
 _GUARD = threading.Lock()
@@ -46,12 +57,16 @@ def held(path):
     if not path:
         yield
         return
-    with lock(path):
-        yield
+    try:
+        with lock(path):
+            yield
+    finally:
+        synctouch.touch(path)
 
 
 def tmp(path):
     """A temporary name beside `path` that no other write can share."""
+    synctouch.touch(path)
     return "%s.%d.%d.tmp" % (path, os.getpid(), next(_SEQ))
 
 

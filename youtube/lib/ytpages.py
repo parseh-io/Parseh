@@ -68,6 +68,7 @@ import import_apkg  # noqa: E402  bootstrap a deck the store has never held
 import sync_apkg    # noqa: E402  pull Anki-side edits home before exporting
 import check_annotations as CA  # noqa: E402  the transcript parser and the checks
 import tidy as tidier          # noqa: E402  an automatic transcript, cut into sentences
+import synctouch     # noqa: E402  the change log's hint (docs/sync.md)
 import pathlock      # noqa: E402  one writer at a time per video, a temporary name of each write's own
 import texwrite      # noqa: E402  NOT_TEXT and Refused -- edit_meta reuses both rather
                      # than restating them (its own docstring says why)
@@ -1924,6 +1925,7 @@ def trash_video(path):
         n += 1
         dest = "%s-%d" % (base, n)
     shutil.move(path, dest)
+    synctouch.touch(path)        # the change log's hint: the unit went (docs/sync.md)
     return dest
 
 

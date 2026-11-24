@@ -80,6 +80,7 @@ import anki_export as ax
 import languages            # anki_export has put the toolbox's lib/ on the path
 import scratch              # where a package is opened: .tmp/ in Parseh's folder (lib/scratch.py)
 import anki_store
+import synctouch   # lib/: the change log's hint (docs/sync.md)
 import import_apkg as ia
 import notetypes
 from import_apkg import (FIELD_MAP, BR_RE, PARSED_FIELDS, extract_media,  # noqa: F401
@@ -201,6 +202,8 @@ def retire_card(anki_dir, path, fn, why):
                            "why": why}
         anki_store.write_json(src, card)
     os.replace(src, dst)
+    synctouch.touch(src)
+    synctouch.touch(dst)
     return os.path.relpath(dst, anki_dir)
 
 
@@ -259,6 +262,8 @@ def unretire(anki_dir, path, fn):
         anki_store.write_json(src, card)
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     os.replace(src, dst)
+    synctouch.touch(src)
+    synctouch.touch(dst)
     return card if isinstance(card, dict) else None
 
 

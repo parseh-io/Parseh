@@ -51,6 +51,7 @@ import subprocess
 import time
 
 import audiofile
+import synctouch     # the change log's hint, one set.add (docs/sync.md)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIR = os.path.join(ROOT, "clips")
@@ -113,6 +114,7 @@ def delete(name):
         os.remove(p + ".json")
     except OSError:
         pass
+    synctouch.touch(p)
 
 
 def empty():
@@ -205,6 +207,7 @@ def _write_json(p, obj):
         json.dump(obj, f, ensure_ascii=False, indent=1)
         f.write("\n")
     os.replace(tmp, p)
+    synctouch.touch(p)
 
 
 def plays(p):

@@ -42,6 +42,7 @@ FONTS = os.path.join(LIB, "fonts")
 if LIB not in sys.path:
     sys.path.insert(0, LIB)
 import languages  # noqa: E402
+import synctouch  # noqa: E402  the change log's hint (docs/sync.md)
 
 # The id the one recording of a book carries when book.json says nothing of
 # narrations -- which is every book written before a book could have several.
@@ -455,6 +456,7 @@ def trash_book(path):
         n += 1
         dest = "%s-%d" % (base, n)
     shutil.move(path, dest)
+    synctouch.touch(path)        # the change log's hint: the unit went (docs/sync.md)
     return dest
 
 

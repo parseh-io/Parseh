@@ -32,7 +32,13 @@ import json
 import os
 import re
 import threading
+import sys
 import time
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+import synctouch                                               # noqa: E402
 
 SUFFIX = ".damaged-"
 STAMP = "%Y%m%d-%H%M%S"
@@ -126,6 +132,8 @@ def write_text(path, text, ok=None, private=False):
     key = _stat_key(path)
     with _LOCK:
         _GOOD[path] = key
+    # the change log's hint (lib/synctouch.py: one set.add; docs/sync.md)
+    synctouch.touch(path)
 
 
 def write_json(path, doc, ok=None, private=False, indent=1, sort_keys=False):

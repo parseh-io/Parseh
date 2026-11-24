@@ -34,6 +34,7 @@ import unicodedata
 import anki_export  # sibling in youtube/lib/
 import languages    # the registry; anki_export has put lib/ on the path
 import clips        # the tray a card's recording is cut into (lib/clips.py)
+import synctouch    # lib/: the change log's hint, one set.add (docs/sync.md)
 
 
 def lang_code(v):
@@ -87,6 +88,7 @@ def write_json(path, obj):
         json.dump(obj, f, ensure_ascii=False, indent=1)
         f.write("\n")
     os.replace(tmp, path)
+    synctouch.touch(path)
 
 
 def as_dict(v):
