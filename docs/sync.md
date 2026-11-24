@@ -333,3 +333,161 @@ write_diff(uid, text) -> {"name", "path"}, diffs(), delete_diff(name)   # never 
 - **Lane E (the pages)** shows `syncid.name()` / `set_name()`, `synckeep.entries()`
   / `put_back()` and `synckeep.diffs()`, and makes the editors take and renew
   leases.
+
+## Pairing and transport (lane A)
+
+<!-- lane A: lib/syncpeer.py, lib/syncroutes.py; the end of this section is marked -->
+
+### Pairing
+
+One install shows a code on Settings → Devices (`pair-start`); the other types
+it with the first one's address (`pair-enter`). The code follows the rules of
+the Network page's code (`docs/network.md`): six characters, fifteen minutes,
+spent when used, thrown away at the eighth wrong guess. It is a code of its own,
+so letting a phone's browser in and pairing a computer never use up each other's.
+
+- The typing side calls the showing side with no certificate and sends its own
+  install id, name, `syncid.PROTOCOL`, its sync certificate (PEM), its port and
+  the names it can be found by. The answer carries the same from the other side.
+- The answer must carry **the very certificate the handshake showed**, or pairing
+  stops: something on the network would be in between.
+- The QR payload is `parseh-pair:<protocol>?code=…&fp=<sha256 of the DER>&at=host:port,…`.
+  A device that scans it pins the other side's fingerprint before it sends
+  anything (`pair-enter` takes it as `fingerprint`). Typing the code is as safe as
+  the Network page's code. A machine on the same network that relays the
+  connection during those fifteen minutes could pair itself in place of the
+  typing side, but the typing side then fails with "the code has run out", and
+  Settings → Devices lists the partner by name and fingerprint.
+- A partner speaking another protocol is refused, in words, and the code is
+  not spent: "This computer speaks version 1 of the sync protocol and … speaks
+  version 2, so they cannot sync. Update … Parseh to the same version as the
+  other, then pair them again." The same words come back from an op called
+  with another protocol.
+
+Partners are kept in `config/peers.json`, beside `prefs.STORE` as `config/sync/`
+is, so a harness that points prefs at a temporary tree points this there too:
+
+```
+{"format": 1, "partners": {"<install id>": {"id", "name", "cert", "fingerprint",
+  "protocol", "addresses": ["host:port", …], "last_ok", "paired", "last_seen"}}}
+```
+
+### Mutual TLS with pinned certificates
+
+Each install presents its `syncid` certificate (EC P-256, `CA:TRUE, pathlen:0`)
+to its partners, a chain of one, and trusts only the pinned certificates of its
+partners. The calling side trusts only that one partner's certificate. The
+answering side asks for a client certificate and checks it against every
+partner's. A certificate that no partner's authority signed fails the
+handshake, so a stranger is refused before any handler runs. A call with no
+certificate gets through the handshake for one request only, `POST /sync/pair`,
+and is refused everything else with a 403. A removed partner leaves the
+context at once, and a request still arriving on a connection it had open is
+refused by id. The browsers' certificate (`.tls/`, or the person's own,
+`network.own_cert`) is never used between partners.
+
+**How one port serves both: by the name in the ClientHello (SNI).** A partner
+always asks for `sync.parseh.invalid`. No browser ever asks for that name,
+because `.invalid` is reserved (RFC 6761). `Server.finish_request` already
+peeks at the first byte to tell TLS from plain http. It now also peeks at the
+whole ClientHello (`syncpeer.hello_name`, `MSG_PEEK`, at most 3 s) and wraps a
+partner's connection in the partners' context, never in the browsers'. This
+was chosen over the alternatives for these reasons:
+
+- **A second port** would need a second door in every firewall, VPN and router,
+  and a second number to find. It gains nothing.
+- **OpenSSL's SNI callback** (`sni_callback`) swaps the certificate but keeps
+  the browsers' verify mode, so the client certificate could not be asked for
+  only from partners. Asking every browser for one makes some browsers show a
+  certificate picker.
+- **ALPN** is read in the same place and has the same limits. SNI is what every
+  TLS stack sets, and setting it is all a phone's Python needs to call a
+  computer. A phone never listens on the network. It only calls.
+
+**The doors are for browsers.** `/sync/` on any connection that is not a
+partner's (plain http, or TLS without the partners' name) is refused with a
+403, whatever the Wi-Fi and VPN doors let in. While this install has a
+partner or shows a code, it listens beyond 127.0.0.1 (`network.BIND_WANTED`)
+even with both doors shut. In that case `Server.verify_request` lets an
+address from this computer, a VPN or the local network reach
+`finish_request`, which closes everything that is not a partner's ClientHello.
+Nothing from the internet at large (`network.AWAY`) is let through. A pairing
+that changes the bound address moves the socket the way saving the Network
+page does: the answer says `"moving": true`, and http://localhost keeps
+answering.
+
+### Finding a partner
+
+`call` tries, in order:
+
+1. the last address that worked;
+2. every address the partner gave at pairing: the address it called from, and
+   the names its browsers' certificate carries (`cert_names`: the host name,
+   the tailnet's `.ts.net` name, the addresses), with `<host>.local` added.
+
+Each address gets at most `TRY_EACH` (3 s) to answer the handshake, and all of
+them together at most the call's `timeout`. **mDNS (`_parseh._tcp`) is left
+out.** No library for it is in `environment.yml` (zeroconf is not), and
+publishing on mDNS by hand is more code than it is worth while the `.local`
+name already reaches most networks through the system's own resolver.
+
+### Silence is not refusal
+
+A partner that answers nothing within the deadline is `Unreachable`, never
+`Refused` (`lib/offline.py`'s rule, and the memory "offline is silence, not
+refusal"). A partner frozen with SIGSTOP accepts the TCP connection and never
+answers the handshake. It is reported unreachable after `timeout`, and
+`partners()` says `reachable: False` until a call gets through again.
+
+### The contract with the exchange (lane B)
+
+```python
+# lib/syncpeer.py
+call(partner_id, op, payload: dict, *, body: bytes | None = None, timeout: float)
+    -> (dict, bytes | None)          # Unreachable (silence), Refused(reason) (said no)
+partners() -> [{"id", "name", "last_seen", "reachable", "fingerprint", "addresses",
+                "last_ok", "paired", "protocol"}]    # reachable: True / False / None (not tried this run)
+partner(id) -> dict | None, remove(id) -> bool, has_partners()
+MAX_BODY = 64 MiB                    # one call's body: move files in chunks below it
+# lib/syncroutes.py
+register(op, handler)                # op: [a-z][a-z0-9_.-]{0,63}
+handler(partner_id: str, payload: dict, body: bytes | None) -> (dict, bytes | None)
+raise syncroutes.Refuse("words")     # -> the caller's Refused("words"); any other exception -> Refused too
+```
+
+The server dispatches `POST /sync/api/<op>` to the handler only after the
+partner check, on the handler's own thread. A handler that needs a unit takes
+`synclock.sync_write` itself. The ops `hello` (name, protocol, time) and `echo`
+(the payload and the body back, which is what the transport's own test uses)
+are built in. An op the other side does not know is refused in words ("…does
+not know the sync step…: is it an older Parseh?").
+
+**The wire:** POST, with a body made of the JSON and then the raw bytes.
+`X-Parseh-Json` gives the JSON's length and `X-Parseh-Protocol` gives the
+protocol. The answer comes back the same way.
+
+### Settings → Devices (the JSON for lane E's page)
+
+Every route is a POST. All of them belong to this computer alone
+(`lib/settingspage.py` `sync.devices`, REACH):
+
+| route | body | answer |
+|---|---|---|
+| `/settings/api/devices/state` | — | `this` {install, name, protocol, key, fingerprint}, `partners`, `pairing` (seconds the code has left, 0 when none), `ops` |
+| `/settings/api/devices/pair-start` | — | `code`, `said` (KP4-R7M), `left`, `addresses`, `qr`, `fingerprint`, `name`, `protocol` |
+| `/settings/api/devices/pair-stop` | — | the code thrown away |
+| `/settings/api/devices/pair-enter` | `code`, `address`, `fingerprint`? | `partner`; 409 with `error` in words, 504 with `unreachable` |
+| `/settings/api/devices/rename` | `name` | `name` |
+| `/settings/api/devices/remove` | `id` | `removed` |
+
+Every answer carries `moving` (see "The doors are for browsers").
+
+### For the phones
+
+`syncpeer` and `syncroutes` use the standard library only (`ssl`,
+`http.client`). A phone calls computers and never listens. The QR payload
+carries everything a phone needs to pin a computer before it sends anything.
+"Send only" and "holds little" are lane D's and lane B's to publish, through an
+op such as `hello`. Nothing here assumes the partner can run a subprocess.
+
+<!-- end of lane A -->

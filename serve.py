@@ -8369,8 +8369,9 @@ class Server(socketserver.ThreadingTCPServer):
         # verify_request only because sync may knock is closed here.
         if head[:1] == b"\x16" and syncpeer.hello_name(request) == syncpeer.SNI:
             return syncpeer.serve(self, request, client_address)
-        if not network.may_connect((client_address or ("",))[0]):
-            return _close(request)
+        ip = (client_address or ("",))[0]
+        if not network.may_connect(ip) and syncpeer.may_knock(ip):
+            return _close(request)          # let past verify_request for sync only
         # ---- end of sync
         if head[:1] != b"\x16":
             if localhttp.is_loopback((client_address or ("",))[0]):

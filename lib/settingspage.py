@@ -546,8 +546,9 @@ DOORS = (
      ("reading.get", "reading.remove", "reading.stop")),
     ("/settings/network/", "Network",
      "Who may reach %s, the code, the port, the certificate" % NAME,
+     # sync.devices sits here until Settings -> Devices has a page of its own (a0.7.0, lane E moves it there)
      ("network.doors", "network.extra", "network.port", "network.cert", "network.code",
-      "network.forget")),
+      "network.forget", "sync.devices")),
     ("/settings/update/", "Updating %s" % NAME,
      "Another version in place of this one: newer, older, or the same again",
      ("parseh.update", "parseh.check")),
