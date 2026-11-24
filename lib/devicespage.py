@@ -281,8 +281,14 @@ def _api(what, body, where):
             raise ValueError("The answer must be one of: %s." % ", ".join(allowed))
         units = body.get("units")
         if isinstance(units, list) and units:
-            # "go through them": one unit of a grouped deletion at a time
-            r = C.answer(qid, choice, [str(u) for u in units])
+            # "go through them": one unit of a grouped deletion at a time.  lib/syncrules.py answers ONE unit per
+            # call (answer(qid, choice, unit=...)), so a list is answered unit by unit; the last answer is the
+            # page's, and the first that fails stops there and is the one reported
+            r = None
+            for u in units:
+                r = C.answer(qid, choice, unit=str(u))
+                if not (r or {}).get("ok", True):
+                    break
         else:
             r = C.answer(qid, choice)
         return {"result": r, "diff_id": (r or {}).get("diff_id")}

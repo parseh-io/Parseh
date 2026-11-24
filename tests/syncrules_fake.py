@@ -69,7 +69,9 @@ def question_for(uid):
     return next((dict(q) for q in QUESTIONS if any(u["unit"] == uid for u in q["units"])), None)
 
 
-def answer(qid, choice, units=None):
+def answer(qid, choice, unit=None):
+    # as lib/syncrules.py: one unit of a grouped deletion per call
+    units = [unit] if unit else None
     CALLS.append((qid, choice, units))
     q = next((q for q in QUESTIONS if q["id"] == qid), None)
     if q is None:
