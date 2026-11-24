@@ -333,3 +333,131 @@ write_diff(uid, text) -> {"name", "path"}, diffs(), delete_diff(name)   # never 
 - **Lane E (the pages)** shows `syncid.name()` / `set_name()`, `synckeep.entries()`
   / `put_back()` and `synckeep.diffs()`, and makes the editors take and renew
   leases.
+
+<!-- lane B: the exchange -->
+## The exchange: `lib/syncexchange.py` (lane B)
+
+Every exchange is a **pull**. This install asks a partner for its rows
+(`sync.have`), compares each with its own log and takes what it lacks. "Both
+directions" is a pull followed by `sync.nudge`, which makes the partner pull
+from here in turn. Only the receiving side ever writes, so every write is under
+that side's own locks.
+
+Per unit:
+
+| this side's row against the partner's | what the exchange does |
+|---|---|
+| equal hashes (or both tombstones) | agreement: the vectors are merged (`adopt`), nothing moves |
+| ahead, or the same vector | nothing here; the partner takes it when it pulls |
+| behind, the partner's live (or none here) | **taken**, with no question |
+| anything else | a **situation**, handed to `RULES[situation]` (lane C) |
+
+**Files travel by content.** A unit's description (`sync.unit`) names each file
+by its sha256. A file whose sha this computer already has anywhere on its shelf
+is copied locally and never sent. The others come in chunks (`sync.blob`,
+`CHUNK` bytes, each chunk's own sha256 checked) into
+`config/sync/incoming/<sha>.part`, which the next sync continues from where it
+stopped. Only when every file of a unit is here and checked is the unit
+written, inside `synclock.sync_write(uid)`, in this order:
+
+1. `synckeep.keep(uid, "incoming" | "deletion", partner)`;
+2. the journal `config/sync/applying.json`;
+3. the files, each through a temporary file and `os.replace`, and the ones
+   the partner's version lacks removed;
+4. the hash checked against the partner's, then `synclog.adopt(...)`;
+5. the journal removed.
+
+A crash between 2 and 5 is finished by `recover()`, which `serve.py` runs
+before the change log's first scan, and which every sync runs first. A sync cut
+off at any point therefore leaves each unit either as it was or as the
+partner's. A unit that changed here while its files were coming is left for
+the next sync. Finished files in `incoming/` are swept after a complete sync,
+and a partial one after `PART_DAYS`.
+
+The ops, registered through lane A's `syncroutes.register` and called through
+`syncpeer.call`:
+
+```
+sync.have   {}                           -> {"ok", "install", "rows": [{"unit","kind","hash","vv","deleted"}]}
+sync.unit   {"unit"}                     -> {"ok", "unit", "hash", "vv", "deleted", "files" {inner: sha} | "value", "lang_files"?}
+sync.blob   {"sha", "offset", "length"}  -> {"ok", "size", "chunk": sha256 of the bytes}, the bytes
+sync.nudge  {}                           -> {"ok", "queued"}   (the partner pulls from the caller)
+```
+
+An answer with `"ok": false` carries `"error"` in words. `sync.blob` serves only
+a file of a live synced unit, found by its sha.
+
+### The seam for lane C
+
+```python
+SITUATIONS = ("both", "setting", "progress", "additions", "latest", "deletion")
+RULES = {situation: handler}        # default: hold
+HELD = "held"
+def handler(case) -> HELD | anything else   # HELD: listed in pending(); else settled
+class Case:
+    unit, situation, partner        # ids
+    mine, theirs                    # log rows {"unit","kind","hash","vv","deleted"}; mine may be None
+    info()                          # the partner's version now (as sync.unit answers)
+    staged()                        # {inner: local path} of the partner's files, fetched and checked
+    take(why="incoming") -> bool    # write the partner's version (or its deletion) here: kept, written, adopted
+ON_TAKEN = [callback(uid, partner)] # after a partner's version was written here ("out of date")
+pending(partner=None, situation=None) -> [{"unit","kind","rule","situation","partner","mine","theirs","at"}]
+clear_pending(uid, partner=None)    # once a case is answered
+decide(mine_row, theirs_row) -> None | "adopt" | "take" | a situation
+```
+
+- **"both"** is a choice unit changed on both sides. **"setting"** is a personal
+  setting changed on both sides. **"progress"**, **"additions"** and **"latest"**
+  are those rules' units changed on both sides.
+- **"deletion"** covers a tombstone on either side against a live version: deleted
+  there and untouched here, or deleted on one side and edited on the other.
+- A partner that recreated a unit after its tombstone reached it is ahead, and
+  is simply taken.
+- The pending list also holds **"editing"**: an editor held the unit here when the
+  partner's version came. The exchange asks for a sync with that partner when
+  the editor closes (`synclock.on_close`).
+- A held case stays listed until a complete sync no longer finds it, or until
+  `clear_pending()` is called.
+- "Make identical" and "out of date" are lane C's own. They can use `Case.take`,
+  `Pull(partner)` with `.info(uid)` and `.take(uid, why="identical", force=True)`,
+  and `ON_TAKEN`.
+
+### Holding, and what is elsewhere
+
+```python
+holding() -> {"leave_out": {"languages": [language folders], "units": [book|video|deck|doc|ankideck ids]}}
+set_holding(languages=None, units=None)   # config/sync/holding.json, this device's
+holds(uid), owner_of(uid), language_of(uid)
+elsewhere(partner=None) -> [{"unit","kind","owner","partners":[ids]}]   # "on <partner>"
+fetch(uid, partner) -> summary            # the whole owner (a book and its notes...), held from then on
+```
+
+Leaving something out deletes nothing here. It stops this device from taking
+it. "What this device holds" is kept in `config/sync/holding.json` for now. If
+lane A keeps it in `config/peers.json`, `holding()` / `set_holding()` are the
+only places to change.
+
+### When it runs, and what the pages read
+
+```python
+start(tick=None, change_debounce=None), stop()   # serve.py starts it; tests stop it
+request(partner=None, why="")       # a sync soon (every partner when None)
+sync_now(partner=None, wait=False)  # "sync now"; wait=True -> {partner: summary}
+sync_from(partner, only=None, why="", wait=True) -> summary   # one pull
+sync_with(partner, why="") -> summary                           # pull, then nudge
+status() -> {"running", "partners": {id: {"state","last_ok","last_error","last","why"}}, "pending", "elsewhere"}
+```
+
+A summary is `{"partner", "taken", "adopted", "held", "waiting", "elsewhere",
+"failed" {uid: reason}, "complete", "error", "blobs" {"chunks", "bytes",
+"local"}}`.
+
+A sync runs at start, when a partner becomes reachable, `CHANGE_DEBOUNCE`
+seconds after the log recorded a change made here (synclog's flush already
+waits for the writes to settle, and an `adopt` does not count), on `request`,
+and on a nudge. One lock per partner means never two syncs with the same
+partner at once. A request that comes while one runs is queued behind it.
+
+The tests drive two installs in one process: `tests/syncfake.py` stands in for
+lane A's `syncpeer` and `syncroutes`, and `tests/test_sync_exchange.py` runs them.
+<!-- end lane B -->

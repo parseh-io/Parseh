@@ -8811,7 +8811,17 @@ def main():
                         "library": str(studio.store.LIB), "clips": clips.DIR}
         if "decks" in sys.modules:
             sync_shelves["exercises"] = str(sys.modules["decks"].DIR)
+        # --- lane B (the exchange): a write a crash cut off is finished
+        # BEFORE the first scan could record it as this computer's change;
+        # then the scheduler (lib/syncexchange.py), which registers its ops
+        # with lane A's router and syncs with each partner as it can
+        import syncunits
+        import syncexchange
+        syncunits.configure(**sync_shelves)
+        syncexchange.recover()
+        # --- end lane B
         synclog.start(sync_shelves)
+        syncexchange.start()                    # lane B
     except Exception as e:                      # noqa: BLE001 -- sync never stops Parseh from starting
         print("!! sync: the change log could not start: %s" % e)
     # the daily look for a new version, which does nothing until somebody
