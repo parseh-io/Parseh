@@ -149,7 +149,7 @@ try {
   const said = (await panel.innerText()).replace(/\s+/g, ' ');
   check(/Speech to text is not installed/.test(said), 'the panel says why B cannot: ' + said);
   const send = panel.locator('button.pj-go');
-  check((await send.count()) === 1 && /^Send to A/.test(await send.innerText()), 'one "Send to A" button');
+  check((await send.count()) === 1 && /^Send to /.test(await send.innerText()), "one \"Send to <partner>\" button: " + await send.innerText());
   await send.click();
   await until(async () => (await ph()) === 'ready', 'the video in its frame, waiting for "Start recording"', 20000);
   check(!(await panel.isVisible().catch(() => false)), 'the panel went: the page follows its own job');
@@ -162,16 +162,17 @@ try {
     return (await ph()) === 'review';
   }, 'the transcript in the review', 120000);
   console.log('  the page said:', [...seen].join(' | '));
-  check([...seen].some(s => /^(Waiting for a computer|On A|Receiving the recording)/.test(s)),
+  check([...seen].some(s => /^(Waiting for a computer|On |Receiving the recording)/.test(s)),
         'the page said where the work was ("waiting for a computer" / "on A")');
   check(calls.filter(c => /^audio/.test(c)).length >= 2, 'the recording went to B in pieces: ' + calls.join(','));
   const review = await page.textContent('#stt_workspace');
   check(/uno/.test(review) && /quattro/.test(review), "A's transcript is in B's review");
-  check(/Transcribed on A/.test(review), 'the review says where it was transcribed');
+
   await page.click('#stt_use');
   await until(async () => (await ph()) === 'idle', 'Use finishes the review', 20000);
   const box = await page.inputValue('#transcript');
   check(/uno due tre/.test(box) && /quattro cinque/.test(box), 'Use puts it in the box: ' + box.replace(/\s+/g, ' ').slice(0, 80));
+  check(/Transcribed on /.test(await page.textContent('#stt')), 'once used, the page says where it was transcribed');
   check(errors.length === 0, 'no error in the page: ' + errors.join(' / '));
 } catch (e) {
   failed.push(String(e && e.stack || e));

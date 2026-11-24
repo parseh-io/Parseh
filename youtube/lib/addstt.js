@@ -843,7 +843,9 @@
       playerNote.textContent = film ? 'Loading the local video…' : 'Start recording when the video is ready. Playback controls become available after recording.';
       lock(true);
       say('Starting…');
-      openWorkspace();
+      // LENT: the workspace is a modal window and would cover "Send to <partner>"; it opens once it is sent
+      var lent = lending();
+      if (!lent) openWorkspace();
       var body = {source: film ? 'film' : 'youtube', lang: lang.code, model: model,
                   processing: selProc.value, exact: !!exact.checked};
       if (film) body.path = src.value; else body.url = src.value;
@@ -867,6 +869,7 @@
         S.job = j.job;
         S.video = j.video_id || '';
         persist();
+        if (lent) openWorkspace();
         if (film) { S.phase = 'working'; ensureReviewPlayer(); say(j.say || 'Getting ready…'); poll(run); return; }
         S.phase = 'loading';
         say('Loading the video…');

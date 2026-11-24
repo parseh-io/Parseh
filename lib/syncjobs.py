@@ -696,8 +696,11 @@ def _work(jid):
             rec.update(state="failed", reason="the job failed on %s: %s" % (syncid.name(), e),
                        at=time.time())
     with _LOCK:
-        if jid in _doc()["doing"]:
+        gone = jid not in _doc()["doing"]
+        if not gone:
             _save()
+    if gone:                                          # dropped while it ran: its files go too
+        shutil.rmtree(_files_dir(jid), ignore_errors=True)
     with contextlib.suppress(Exception):
         import syncexchange
         syncexchange.request(rec["asked_by"], "a job's result")

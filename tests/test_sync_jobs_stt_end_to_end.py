@@ -80,6 +80,7 @@ class SttEndToEnd(unittest.TestCase):
                                                "fingerprint": offer["fingerprint"]})
             assert st == 200, out
             cls.A_id = out["partner"]["id"]
+            cls.A_name = out["partner"].get("name") or cls.A_id
         except Exception:
             cls.tearDownClass()
             raise
@@ -131,12 +132,12 @@ class SttEndToEnd(unittest.TestCase):
             self.assertNotEqual(s["state"], "failed", s)
             return s["state"] == "done"
         until("the transcript back on B", done, wait=120)
-        self.assertTrue({"On A…", "On A"} & said or any(x.startswith("On A") for x in said), said)
+        self.assertTrue(any(x.startswith("On " + self.A_name) for x in said), said)
         st, res = ask(self.B, "POST", "/youtube/api/transcribe/result", {"job": job})
         self.assertEqual(st, 200, res)
         self.assertIn("uno due tre", res["text"])
         self.assertIn("quattro cinque", res["text"])
-        self.assertIn("Transcribed on A.", res["notes"])
+        self.assertIn("Transcribed on %s." % self.A_name, res["notes"])
         self.assertTrue(res["words"]["held"])
         self.assertTrue(res["review"]["evidence"])
         pending = os.path.join(self.B.tree, "root", "youtube", "videos", ".pending-transcriptions")
@@ -158,7 +159,7 @@ class SttEndToEnd(unittest.TestCase):
             json.dump(dict(fake, delay=3), fh)
         job = self.lend()
         pcm_in(self.B, job, stt_fakes.pcm(4))
-        until("on A", lambda: self.status(job)["say"].startswith("On A"), wait=60)
+        until("on A", lambda: self.status(job)["say"].startswith("On " + self.A_name), wait=60)
         os.kill(self.A.proc.pid, signal.SIGSTOP)
         try:
             t0 = time.time()
