@@ -54,7 +54,18 @@ def serve_tree(tmp, port):
         encoding="utf-8")
     peers = {"format": 1, "partners": {"p-laptop": {
         "id": "p-laptop", "name": "laptop", "cert": "", "fingerprint": "ab" * 32, "protocol": 1,
-        "addresses": ["127.0.0.1:9"], "last_ok": None, "paired": time.time() - 86400, "last_seen": None}}}
+        "addresses": ["127.0.0.1:9"], "last_ok": None, "paired": time.time() - 86400, "last_seen": None,
+        "device": {"send_only": False, "holds_little": True}},
+        # a partner that removed this computer (lane H): its row says so and offers to remove it here too
+        "p-desk": {
+        "id": "p-desk", "name": "desk", "cert": "", "fingerprint": "cd" * 32, "protocol": 1,
+        "addresses": ["127.0.0.1:9"], "last_ok": None, "paired": time.time() - 86400, "last_seen": None,
+        "removed_you": {"at": time.time() - 3600, "by": "desk"}}}}
+    # THIS INSTALL'S IDENTITY WAS MADE ON ANOTHER MACHINE ("oldbox"), as a copied folder's is: the page says so
+    (tmp / "config" / "sync").mkdir(parents=True, exist_ok=True)
+    (tmp / "config" / "sync" / "identity.json").write_text(json.dumps({
+        "format": 1, "install": "0123456789abcdef" * 2, "name": "testbox", "created": time.time() - 86400,
+        "key": None, "machine": {"id": "0" * 64, "host": "oldbox"}}), encoding="utf-8")
     # the shared scripts (/lib/parseh.js, /lib/syncpage.js) are served from the root, as in a checkout
     if not (tmp / "root" / "lib").exists():
         (tmp / "root" / "lib").symlink_to(REPO / "lib")

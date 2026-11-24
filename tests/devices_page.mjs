@@ -14,6 +14,9 @@
 //      editor says so and opens by itself a moment later; a deck's options hold the deck while open
 //   h) "make this computer identical": the summary first (counts, what is lost, jobs cancelled), then one button
 //   i) 390 px wide: the door, the choice page's sides stacked, a deletion-edited answered there, no sideways scroll
+//   j) lane H: the identity made on another machine is told, with a new identity offered (and "the same computer");
+//      a partner that holds little says so; one that removed this computer says so and is removed here too by a
+//      button; the new identity asked in plain words, at 1280 and at 390 px, then given: the partners emptied
 //   CHROME_BIN=... PARSEH_PYTHON=python3 deno run --allow-all tests/devices_page.mjs
 import {chromium} from 'npm:playwright-core@1.52.0';
 
@@ -249,6 +252,59 @@ try {
   await p.click('[data-identical-go="p-laptop"]');
   await until(async () => (await p.locator('[data-identical]').textContent()).includes('now identical'), 'made identical');
   assert(await p.locator('[data-identical] a[download]').count() === 1, 'the lost changes are offered as a diff');
+
+  // j) lane H
+  await p.goto(base + '/settings/devices/');
+  await p.waitForSelector('main[data-loaded]');
+  assert(await p.locator('[data-copied]').isVisible(), 'an identity made on another machine is told');
+  has(await p.locator('[data-copied]').textContent(), 'made on oldbox', 'naming the machine it was made on');
+  eq(await p.locator('[data-copied] [data-copied-new]').count(), 1, 'offering a new identity');
+  eq(await p.locator('[data-copied] [data-same-computer]').count(), 1, 'or "it is the same computer"');
+  has(await p.locator('[data-partner="p-laptop"]').textContent(), 'holds little', 'a partner that holds little says so');
+  const desk = p.locator('[data-partner="p-desk"]');
+  has(await desk.textContent(), 'desk removed this computer on', 'a partner that removed this computer says so');
+  eq(await desk.locator('[data-remove-too="p-desk"]').count(), 1, 'with a button to remove it here too');
+  eq(await desk.locator('[data-sync]').count(), 0, 'and no sync button: it would be refused');
+  assert(await p.locator('[data-new-identity-confirm]').isHidden(), 'the confirmation waits for the button');
+  await p.click('[data-new-identity]');
+  const conf = p.locator('[data-new-identity-confirm]');
+  assert(await conf.isVisible(), 'the new identity is asked first');
+  has(await conf.textContent(), 'a new install id and a new key', 'saying what changes');
+  has(await conf.textContent(), 'The list of partners is emptied', 'that the partners are emptied');
+  has(await conf.textContent(), 'They are not told anything', 'and why they are not told');
+  await p.click('[data-new-identity-cancel]');
+  assert(await conf.isHidden(), 'cancel takes it away, nothing changed');
+  eq((await api('state')).this.install, '0123456789abcdef'.repeat(2), 'the identity is the same');
+  {
+    const phone2 = await browser.newContext({viewport: {width: 390, height: 800}, isMobile: true, hasTouch: true});
+    const m = await phone2.newPage();
+    await m.goto(base + '/settings/devices/');
+    await m.waitForSelector('main[data-loaded]');
+    await m.click('[data-copied-new]');
+    await m.waitForSelector('[data-new-identity-confirm]:not([hidden])');
+    eq(await m.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true,
+       'the notice and the confirmation fit 390 px');
+    for (const sel of ['[data-new-identity-go]', '[data-new-identity-cancel]', '[data-same-computer]', '[data-remove-too="p-desk"]']) {
+      const bb = await m.locator(sel).boundingBox();
+      assert(bb && bb.x >= 0 && bb.x + bb.width <= 390, sel + ' is whole on a 390 px screen');
+    }
+    await phone2.close();
+  }
+  await desk.locator('[data-remove-too="p-desk"]').click();
+  await until(async () => await p.locator('[data-partner="p-desk"]').count() === 0, 'desk removed here too');
+  has(await p.locator('[data-say]').textContent(), 'desk was removed here too', 'and the page says so');
+  await p.click('[data-same-computer]');
+  await until(async () => await p.locator('[data-copied]').isHidden(), 'the notice goes');
+  eq((await api('state')).this.copied, null, '"the same computer" is kept');
+  await p.click('[data-new-identity]');
+  await p.click('[data-new-identity-go]');
+  await until(async () => (await p.locator('[data-say]').textContent()).includes('its own identity now'), 'a new identity');
+  has(await p.locator('[data-say]').textContent(), 'the 1 partner was taken off the list', 'the partners emptied, said');
+  const st = await api('state');
+  assert(st.this.install !== '0123456789abcdef'.repeat(2) && /^[0-9a-f]{32}$/.test(st.this.install), 'a new install id');
+  eq(st.partners, [], 'no partner left');
+  await until(async () => (await p.locator('[data-partners]').textContent()).includes('No partner yet'), 'the page shows none');
+  assert(true, 'the page shows none');
 
   eq(errors, [], 'no page threw');
 } finally {
