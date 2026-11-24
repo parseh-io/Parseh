@@ -132,6 +132,11 @@ def hold(case):
 RULES = {s: hold for s in SITUATIONS}
 # callbacks(uid, partner) after a partner's version was written here (lane C: "out of date")
 ON_TAKEN = []
+# --- lane C: callbacks(partner) before a pull asks for the partner's rows (the
+# rules' outbox), and (partner, {uid: their row}, summary) after a complete one
+BEFORE_PULL = []
+AFTER_PULL = []
+# --- end lane C
 
 
 # ------------------------------------------------------------------ this device's own state
@@ -618,6 +623,7 @@ class Pull:
         recover()
         synclog.flush()
         synclog.scan()
+        _hooks(BEFORE_PULL, self.partner)          # lane C
         got, _ = _call(self.partner, "sync.have", {})
         if not got.get("ok"):
             raise Failed(got.get("error") or "refused")
@@ -699,7 +705,17 @@ class Pull:
             if not self.out["failed"]:
                 _sweep_incoming()
         self.out["complete"] = True
+        _hooks(AFTER_PULL, self.partner, theirs, self.out)   # lane C
         return self.out
+
+
+def _hooks(lst, *args):
+    """lane C's callbacks around a pull; one that fails never stops sync."""
+    for cb in list(lst):
+        try:
+            cb(*args)
+        except Exception as e:                      # noqa: BLE001
+            print("!! sync: a rule's hook failed: %s" % e, flush=True)
 
 
 def decide(mine, theirs):
