@@ -493,13 +493,23 @@
 
     /* ------------------------------------------------------- what is asked */
     function key(src) { return src.kind + ':' + src.value; }
-    function models() {
-      var language = o.lang().code;
-      return ((S.slice && S.slice.models) || []).filter(function (m) {
-        var supported = m.languages || (m.language ? [m.language] : []);
-        return m.ready && (!supported.length || supported.indexOf(language) >= 0);
-      });
+    function fits(m) {
+      var supported = m.languages || (m.language ? [m.language] : []);
+      return !supported.length || supported.indexOf(o.lang().code) >= 0;
     }
+    function ownModels() {
+      return ((S.slice && S.slice.models) || []).filter(function (m) { return m.ready && fits(m); });
+    }
+    // LENT (a0.7.0): no Whisper here, "send heavy jobs" on, and a paired computer that
+    // has one -- its models are offered; the sound is recorded here and sent to it
+    function lentModels() {
+      var s = S.slice, have = {};
+      if (!s || !s.lend || !s.lend.length || (s.installed && ownModels().length)) return [];
+      s.lend.forEach(function (p) { (p.models || []).forEach(function (id) { have[id] = true; }); });
+      return (s.models || []).filter(function (m) { return have[m.id] && fits(m); });
+    }
+    function lending() { return lentModels().length > 0; }
+    function models() { return lending() ? lentModels() : ownModels(); }
     function modelLabel(id) {
       var m = ((S.slice && S.slice.models) || []).filter(function (x) { return x.id === id; })[0];
       return m ? m.label : String(id || '');
@@ -564,9 +574,9 @@
       }
       var s = S.slice, idle = S.phase === 'idle';
       var src = o.source(), lang = o.lang();
-      var ok = !!(s && s.installed && models().length);
+      var ok = !!(s && (s.installed || lending()) && models().length);
       var yt = src.kind === 'yt';
-      var noLang = ok && s.languages && s.languages[lang.code] === false;
+      var noLang = ok && !lending() && s.languages && s.languages[lang.code] === false;
       var noTab = ok && yt ? tabProblem() : '';
       var mode = !src.kind || !s ? 'off' : !ok ? 'absent'
         : (idle && noLang) ? 'nolang' : (idle && noTab) ? 'notab' : 'form';
@@ -597,7 +607,8 @@
         modelNote.hidden = !info || !info.hint;
         // "Processing: Automatic · currently CPU", said in the person's terms
         var proc = selProc.value, cname = (c && c.name) || 'the NVIDIA graphics card';
-        now.textContent = 'Processing: ' + (proc === 'cpu' ? 'CPU'
+        now.textContent = lending() ? 'Processing: on the paired computer it is sent to (this one has no speech to text).'
+          : 'Processing: ' + (proc === 'cpu' ? 'CPU'
           : proc === 'cuda' ? 'NVIDIA GPU · ' + cname
           : 'Automatic · currently ' + (a && a.now === 'cuda' ? cname : 'CPU'));
         // a card that is there but not ready is said, once, with what is missing
@@ -614,10 +625,13 @@
         langNote.appendChild(document.createTextNode('Listens for ' + lang.name + (own ? ' — ' : '')));
         if (own) langNote.appendChild(el('bdi', null, own));
         langNote.appendChild(document.createTextNode(', the language chosen above.'));
-        var aligner = alignerFor(lang.code), exactReady = !!(aligner && aligner.files_ready);
+        // lent, the paired computer's own aligner makes the exact times when it has one
+        var aligner = alignerFor(lang.code), exactReady = lending() || !!(aligner && aligner.files_ready);
         exact.disabled = !exactReady;
         exact.checked = !!(exactReady && exactWanted);
-        exactNote.textContent = exactReady
+        exactNote.textContent = lending()
+          ? 'Exact word times are ' + (exact.checked ? 'asked for' : 'off') + ': the paired computer makes them if it has the alignment network for ' + lang.name + '.'
+          : exactReady
           ? 'Optional alignment network installed — exact word times are ' + (exact.checked ? 'on.' : 'off.')
           : 'Optional — Whisper still gives approximate word times. Get exact word times for ' + lang.name + ' in Settings.';
         how.textContent = film ? SAY_FILM : S.phase === 'ready' ? SAY_READY
@@ -833,7 +847,13 @@
       var body = {source: film ? 'film' : 'youtube', lang: lang.code, model: model,
                   processing: selProc.value, exact: !!exact.checked};
       if (film) body.path = src.value; else body.url = src.value;
-      post('start', body).then(function (r) {
+      // LENT: the same door through lib/jobs.js -- 409 "Send to <partner>", then 202
+      var starting = lending() && window.ParsehJobs
+        ? window.ParsehJobs.fetch(route('start'), {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                                   body: JSON.stringify(body)}, {defer: true})
+            .then(function (r) { return r.json().then(function (j) { return {status: r.status, j: j}; }); })
+        : post('start', body);
+      starting.then(function (r) {
         if (run !== S.run) { if (r.j && r.j.job) cancelServer(r.j.job); return; }
         var j = r.j;
         if (!j.ok) {

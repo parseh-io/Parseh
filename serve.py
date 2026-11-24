@@ -4767,7 +4767,13 @@ class Handler(SimpleHTTPRequestHandler):
             if body.get("full"):
                 return self.send_json(speechpage.view(reading_jobs()["speech"], self._where(),
                                                       self._whose_device()))
-            return self.send_json(getstt.summary(self._where()))
+            slim = getstt.summary(self._where())
+            if syncjobs.switches()["send"]:
+                # a0.7.0 (lane D2): the paired computers that could transcribe for this one,
+                # with their models, so the add page can offer them when this one cannot
+                slim["lend"] = [dict(p, models=list(syncjobs.capabilities(p["id"]).get("whisper") or []))
+                                for p in syncjobs.who_can("transcribe", {}) if p["can"] is not False]
+            return self.send_json(slim)
         if what == "speechcheck":
             # "check again": the graphics card looked at anew, by a child, no model loaded
             getstt.hardware(refresh=True)
@@ -6679,14 +6685,32 @@ class Handler(SimpleHTTPRequestHandler):
                 # ANY DEVICE LET IN may start one (the owner): the bound is the one
                 # slot, and Cancel
                 source, lang = sttjobs.source_of(body)
-                return sttjobs.start(source, lang, body.get("model"), body.get("processing"),
-                                     body.get("duration"), body.get("exact", True))
+                # LENT (a0.7.0, lane D2): with "send heavy jobs" on and no Whisper here, the
+                # sound is still recorded here and a paired computer transcribes it -- 409
+                # with jobs.send ("Send to <partner>", lib/jobs.js), then send_to -> 202
+                lending = syncjobs.switches()["send"]
+                to = body.get("send_to") if lending else None
+                if isinstance(to, str) and to:
+                    out = sttjobs.start(source, lang, body.get("model"), body.get("processing"),
+                                        body.get("duration"), body.get("exact", True), lend_to=to)
+                    return dict(out, _lent=True)
+                try:
+                    return sttjobs.start(source, lang, body.get("model"), body.get("processing"),
+                                         body.get("duration"), body.get("exact", True))
+                except sttjobs.Refusal as e:
+                    if not lending or e.code not in ("not-installed", "no-model", "unsupported-language"):
+                        raise
+                    e.extra["jobs"] = {"kind": "transcribe",
+                                       "send": syncjobs.who_can("transcribe", {"model": body.get("model")})}
+                    raise
             if what == "marks":
                 return sttjobs.marks(token, body.get("marks"))
             if what == "wave":
                 return sttjobs.wave(token, body.get("rate"), body.get("peaks"))
             return getattr(sttjobs, what)(token)
         obj, code = sttjobs.call(go)
+        if obj.pop("_lent", False):
+            code = 202                   # a job lent to a paired computer (lib/jobs.js)
         self.send_json(obj, code)
 
     def _video_edit_chunk(self):
