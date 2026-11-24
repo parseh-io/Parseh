@@ -17,6 +17,7 @@
 //   j) lane H: the identity made on another machine is told, with a new identity offered (and "the same computer");
 //      a partner that holds little says so; one that removed this computer says so and is removed here too by a
 //      button; the new identity asked in plain words, at 1280 and at 390 px, then given: the partners emptied
+//   k) lane I: the third Network door (Paired computers): the paused note on Devices, the switch at 1280 and 390 px
 //   CHROME_BIN=... PARSEH_PYTHON=python3 deno run --allow-all tests/devices_page.mjs
 import {chromium} from 'npm:playwright-core@1.52.0';
 
@@ -275,6 +276,44 @@ try {
   await p.click('[data-new-identity-cancel]');
   assert(await conf.isHidden(), 'cancel takes it away, nothing changed');
   eq((await api('state')).this.install, '0123456789abcdef'.repeat(2), 'the identity is the same');
+
+  // k) lane I: the third Network door, Paired computers -- shut here (the harness's network.json is fresh), so the
+  //    Devices page says sync from the partners is paused, with a link; opened on Network, at 1280 and at 390 px
+  {
+    const note = p.locator('[data-door-shut]');
+    assert(await note.isVisible(), 'Devices: the door shut with partners -> the paused note shows');
+    has(await note.textContent(), 'Sync from your partners is paused', 'saying sync is paused');
+    eq(await note.locator('a[href="/settings/network/"]').count(), 1, 'with a link to Network');
+    eq((await api('state')).door, false, 'the state says the door is shut');
+    const net = await ctx.newPage();
+    net.on('pageerror', e => errors.push(e.message));
+    await net.goto(base + '/settings/network/');
+    const sw = net.locator('[data-door="paired"]');
+    eq(await sw.count(), 1, 'Network has a third switch, Paired computers');
+    eq(await sw.isChecked(), false, 'shut on a fresh install');
+    const lab = net.locator('label.door', {has: sw});
+    has(await lab.textContent(), 'Paired computers', 'named');
+    has(await lab.textContent(), 'never a browser', 'saying it lets in no browser');
+    has(await lab.textContent(), 'computers are paired with this one', 'and who is behind it');
+    eq(await net.locator('label.door').count(), 3, 'three doors, in the style of the other two');
+    await sw.check();
+    await net.click('[data-save]');
+    await until(async () => (await net.locator('[data-doing]').textContent()).startsWith('Saved'), 'saved');
+    eq((await api('state')).door, true, 'the door is open after the save');
+    await p.reload();
+    await p.waitForSelector('main[data-loaded]');
+    assert(await p.locator('[data-door-shut]').isHidden(), 'Devices: the paused note is gone with the door open');
+    await net.close();
+    const phone3 = await browser.newContext({viewport: {width: 390, height: 800}, isMobile: true, hasTouch: true});
+    const m = await phone3.newPage();
+    await m.goto(base + '/settings/network/');
+    eq(await m.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true,
+       'Network with three doors fits 390 px');
+    const bb = await m.locator('label.door', {has: m.locator('[data-door="paired"]')}).boundingBox();
+    assert(bb && bb.x >= 0 && bb.x + bb.width <= 390, 'the third door is whole on a 390 px screen');
+    eq(await m.locator('[data-door="paired"]').isChecked(), true, 'and shown open there');
+    await phone3.close();
+  }
   {
     const phone2 = await browser.newContext({viewport: {width: 390, height: 800}, isMobile: true, hasTouch: true});
     const m = await phone2.newPage();
