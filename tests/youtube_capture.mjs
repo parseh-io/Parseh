@@ -842,8 +842,8 @@ browserNo = await launch(ARGS);
       'a YouTube video’s sound is cut from a recording of this tab, and only Chrome and Edge, on a computer, can record the sound of a tab'],
      'not Chrome or Edge: "cut the audio…" is disabled, and says so under it');
   eq(await why(() => { Object.defineProperty(window, 'isSecureContext', {get: () => false}); }),
-     [true, 'a YouTube video’s sound is cut from a recording of this tab, and recording this tab needs the page opened at the toolbox’s https address, in Chrome or Edge',
-      'a YouTube video’s sound is cut from a recording of this tab, and recording this tab needs the page opened at the toolbox’s https address, in Chrome or Edge'],
+     [true, 'a YouTube video’s sound is cut from a recording of this tab, and recording this tab needs the page opened at this computer’s address, or at the https address from another device, in Chrome or Edge',
+      'a YouTube video’s sound is cut from a recording of this tab, and recording this tab needs the page opened at this computer’s address, or at the https address from another device, in Chrome or Edge'],
      'not https: disabled, saying to open the https address');
 }
 {
@@ -1413,7 +1413,7 @@ async function goldPage(kind, {rate = 1.5} = {}) {
   eq(await both(() => { Object.defineProperty(Navigator.prototype, 'userAgentData', {get: () => undefined}); }, 'not Chromium'),
      'only Chrome and Edge, on a computer, can record the sound of a tab', 'Firefox and Safari have no userAgentData');
   eq(await both(() => { Object.defineProperty(window, 'isSecureContext', {get: () => false}); }, 'not https'),
-     'recording this tab needs the page opened at the toolbox’s https address, in Chrome or Edge', 'a page that is not https');
+     'recording this tab needs the page opened at this computer’s address, or at the https address from another device, in Chrome or Edge', 'a page that is not https');
   eq(await both(() => { const ua = navigator.userAgentData; Object.defineProperty(Navigator.prototype, 'userAgentData', {get: () => ({brands: ua.brands, mobile: true})}); }, 'a phone'),
      'only Chrome and Edge, on a computer, can record the sound of a tab', 'a phone');
   eq(await both(() => { navigator.mediaDevices.getDisplayMedia = undefined; }, 'no getDisplayMedia'),
@@ -1742,7 +1742,7 @@ const gotOf = page => page.evaluate(() => ({error: __got.error, ended: __got.end
     [() => { Object.defineProperty(Navigator.prototype, 'userAgentData', {get: () => undefined}); }, 'Firefox or Safari',
      'only Chrome and Edge, on a computer, can record the sound of a tab'],
     [() => { Object.defineProperty(window, 'isSecureContext', {get: () => false}); }, 'a page that is not https',
-     'recording this tab needs the page opened at the toolbox’s https address, in Chrome or Edge'],
+     'recording this tab needs the page opened at this computer’s address, or at the https address from another device, in Chrome or Edge'],
     [() => { const ua = navigator.userAgentData; Object.defineProperty(Navigator.prototype, 'userAgentData', {get: () => ({brands: ua.brands, mobile: true})}); }, 'a phone',
      'only Chrome and Edge, on a computer, can record the sound of a tab'],
     [() => { delete window.AudioWorkletNode; }, 'a browser with no AudioWorklet', 'this browser cannot read the sound of a shared tab']]) {

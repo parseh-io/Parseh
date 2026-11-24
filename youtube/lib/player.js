@@ -5631,7 +5631,7 @@
     if (CFG.local)
       return 'the film of this video is not on this machine any more, so there is no frame to take';
     if (!window.isSecureContext)
-      return 'capture needs a secure page — open the toolbox over its https address';
+      return 'capture needs a secure page — open the toolbox at this computer’s address, or at the https address from another device';
     if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia)
       return 'a YouTube video’s frame is taken from a share of this tab, and this browser ' +
              'shares no tab — no phone browser does. Capture this video’s frame on the computer.';

@@ -48,10 +48,10 @@ nothing of anybody's, so its shelves are empty until you fill them.
    on Windows, **serve.bat** — whose first run is a
    [setup wizard](windows-wizard.md). See
    [Starting and stopping](starting-and-stopping.md).
-3. **Open it** at `https://localhost:7654/`. Your browser warns you once
-   about the certificate, which Parseh made for itself: accept it, and it
-   never asks again. From a phone, use one of the other addresses Parseh
-   prints — [From a phone or another computer](other-devices.md).
+3. **Open it** at `http://localhost:7654/`. Nothing to accept: this
+   computer needs no certificate. From a phone, use one of the other
+   addresses Parseh prints; its browser warns once about the certificate
+   Parseh made for itself — [From a phone or another computer](other-devices.md).
 4. **Pick a door** on [the hub](the-hub.md).
 5. **Update it** from **⚙ Settings → Updating Parseh**, when a new version
    comes out: your books, decks, dictionaries and settings stay as they are.

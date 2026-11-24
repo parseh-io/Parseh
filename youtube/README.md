@@ -501,7 +501,8 @@ is the way on a touch screen). The card records its `lang`, and is tagged
     can read, so the editor records **this tab** instead: its first step plays
     the stretch around the caption once, sound on, while the tab records it,
     and the waveform and the edges then work on that recording. This needs
-    Chrome or Edge on a computer, and the toolbox's https address. The first
+    Chrome or Edge on a computer, and this computer's address (`http://localhost`),
+    or the https address from another computer. The first
     time, Chrome asks to share the tab: press **Allow** and leave **Also allow
     tab audio** on. The share lasts as long as the page (the frame capture
     uses the same one), so later clips record straight away; Chrome's *Stop

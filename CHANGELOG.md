@@ -1,5 +1,7 @@
 ## [a0.7.0] - unreleased
 ### Added
+- This computer opens Parseh at http://localhost, with no certificate warning; other devices keep https on the same port
+- The old https://localhost address hands what the browser kept to the new one, once, then redirects
 
 ## [a0.6.3] - 2026-11-23
 ### Added

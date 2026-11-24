@@ -2089,10 +2089,38 @@ class _StatusServer:
                     raise
                 time.sleep(0.25)
         if scheme == "https" and cert:
+            # ONE PORT, TWO WAYS IN, as the server has it (lib/localhttp.py):
+            # the page that asked for the update is on http://localhost and
+            # keeps asking over plain http; another device still speaks TLS.
+            # So each connection's first byte is looked at, and plain http
+            # from anything but this computer is closed.
             ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             ctx.load_cert_chain(cert[0], cert[1])
-            self.httpd.socket = ctx.wrap_socket(self.httpd.socket, server_side=True,
-                                                do_handshake_on_connect=False)
+
+            def finish_request(request, client_address, _base=self.httpd.finish_request):
+                import socket
+                try:
+                    request.settimeout(15)
+                    head = request.recv(1, socket.MSG_PEEK)
+                except OSError:
+                    head = b""
+                if head != b"\x16":
+                    if head and _loopback(client_address[0]):
+                        _base(request, client_address)
+                    return
+                try:
+                    tls = ctx.wrap_socket(request, server_side=True)
+                except (ssl.SSLError, OSError):
+                    return
+                try:
+                    _base(tls, client_address)
+                finally:
+                    try:
+                        tls.close()
+                    except OSError:
+                        pass
+
+            self.httpd.finish_request = finish_request
         self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
         self.thread.start()
 
@@ -2102,6 +2130,17 @@ class _StatusServer:
             self.httpd.server_close()
         except OSError:
             pass
+
+
+def _loopback(ip):
+    import ipaddress
+    try:
+        a = ipaddress.ip_address((ip or "").split("%", 1)[0])
+    except ValueError:
+        return False
+    if a.version == 6 and a.ipv4_mapped:
+        a = a.ipv4_mapped
+    return a.is_loopback
 
 
 def _html(s):

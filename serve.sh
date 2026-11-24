@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Run Parseh -- the whole toolbox, one https server -- in the background.
+# Run Parseh -- the whole toolbox, one server -- in the background.
 # Linux and macOS alike.  (On Windows, double-click serve.bat instead.)
 #
 #   ./serve.sh              start it and print the addresses
@@ -17,9 +17,12 @@
 #                           authority a phone was told to trust stays
 #
 # Everything -- the book reader, the video player, the studio, the exercise
-# decks, the Anki store -- is served by serve.py at ONE https address:
+# decks, the Anki store -- is served by serve.py on ONE port:
 #
-#   https://localhost:7654/          (and the Tailscale / LAN addresses it prints)
+#   http://localhost:7654/           this computer: plain http, no certificate,
+#                                    so no warning (lib/localhttp.py)
+#   https://<address>:7654/          another device: the Tailscale / LAN
+#                                    addresses it prints, over TLS
 #
 # WHO CAN REACH IT is not decided here.  A fresh Parseh answers this computer
 # and a VPN, and the Wi-Fi door is shut until Settings > Network opens it; a
@@ -28,8 +31,9 @@
 #
 # The certificate is made by serve.py itself on first start, signed by an
 # authority of this machine's own (docs/mobile.md, "Parseh as an app").
-# Every browser warns once about it; accept, and it never asks again -- or
-# tell a phone to trust the authority, from the mobile hub's "As an app",
+# This computer never sees it (http://localhost needs none).  Another
+# device's browser warns once about it; accept, and it never asks again --
+# or tell a phone to trust the authority, from the mobile hub's "As an app",
 # and it never warns at all.  It is our own server on our own network.
 #
 # `python3 serve.py &` is not enough, and the way it fails is nasty: the job
@@ -103,7 +107,7 @@ do_stop() {
   pid=$(cat "$PIDFILE")
   p=$(port_of); [ -n "$p" ] || p=$PORT
   # ask it to stop the way the page's button does, then insist
-  curl -sk -m 5 -X POST "https://127.0.0.1:$p/__shutdown" >/dev/null 2>&1 || true
+  curl -s -m 5 -X POST "http://127.0.0.1:$p/__shutdown" >/dev/null 2>&1 || true
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     kill -0 "$pid" 2>/dev/null || break
     sleep 0.3
@@ -146,7 +150,7 @@ case "$cmd" in
   stop)   do_stop; exit 0 ;;
   status)
     if running; then
-      echo "running: pid $(cat "$PIDFILE"), https port $(port_of), log $LOG"
+      echo "running: pid $(cat "$PIDFILE"), http://localhost:$(port_of)/, log $LOG"
     else
       echo "not running"
     fi
@@ -217,13 +221,13 @@ fi
 bg=$!
 
 # wait until it actually answers, so a failure to bind is reported here and
-# not discovered later from a browser (-k: our own self-signed certificate).
+# not discovered later from a browser (plain http: this computer needs no TLS).
 # The pidfile appears a moment after the fork -- Python takes longer to start
 # than curl takes to be refused -- so only once it is there can "not running"
 # mean the server died; three seconds without it mean it never started.
 ok=""
 for i in $(seq 1 80); do
-  if curl -sk -m 1 -o /dev/null "https://127.0.0.1:$PORT/" 2>/dev/null; then ok=1; break; fi
+  if curl -s -m 1 -o /dev/null "http://127.0.0.1:$PORT/" 2>/dev/null; then ok=1; break; fi
   if [ -s "$PIDFILE" ]; then running || break
   elif [ "$i" -gt 12 ]; then break; fi
   sleep 0.25

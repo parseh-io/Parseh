@@ -39,8 +39,10 @@ Parseh will live. In that folder:
 |---|---|---|
 | `./install.sh`, then `./serve.sh` | double-click **`Parseh.command`** | double-click **`install.bat`**, then **`serve.bat`** |
 
-Then open <https://localhost:7654/> and accept the browser's warning about
-the certificate, once — it is one Parseh makes for this computer alone.
+Then open <http://localhost:7654/>. This computer is served plain `http://localhost`,
+which browsers count as secure, so there is no certificate warning; a phone or another
+computer reaches Parseh over https with a certificate Parseh makes for itself, and its
+browser warns about it once.
 
 A fresh install answers **this computer** and any other on your **personal VPN**: Tailscale's range is
 trusted out of the box, and any other name or range you add. The local network access is also allowed — open it in **Settings → Network**, on the hub, and let

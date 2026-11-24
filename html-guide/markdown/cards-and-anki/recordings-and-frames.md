@@ -103,7 +103,7 @@ wants a browser that shares a tab, and no phone's does.
 
 | It says | What to do |
 |---|---|
-| capture failed — capture needs a secure page — open the toolbox over its https address | the page was opened over plain `http://`: use the toolbox's `https://` address |
+| capture failed — capture needs a secure page — open the toolbox at this computer’s address, or at the https address from another device | the page was opened over plain `http://`: use the toolbox's `https://` address |
 | a YouTube video’s frame is taken from a share of this tab, and this browser shares no tab — no phone browser does. Capture this video’s frame on the computer | you are on a phone, on a YouTube video. A **film** on this machine has its frame taken anywhere, this phone included; a YouTube video's has to be taken on the computer |
 | capture failed — scroll the video into view first | the video is scrolled out of the window |
 | capture failed — could not see the player in the shared window — keep this window visible on top, then try again | the shared window or screen (Firefox always shares one) did not show the corner dots: the browser window was covered, minimised or elsewhere. *monitor* in place of *window* means a whole screen was shared |

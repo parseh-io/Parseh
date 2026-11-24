@@ -96,7 +96,7 @@ hub says the same at its foot, under **Reachable at**:
 ```text
   https://100.101.102.103:7654/              (tailscale)
   https://192.168.1.20:7654/                 (local network)
-  https://localhost:7654/                    (this machine)
+  http://localhost:7654/                     (this machine)
 ```
 
 | Address | Who can use it |
@@ -199,12 +199,14 @@ things to know before you do:
 
 ## Why HTTPS
 
-Parseh speaks HTTPS, the secure kind of address, even though it only ever
-talks to your own devices. The reason is the browsers: a few things a page
-can do, they allow only on a secure address, and the one plain `http://`
-address they count as secure is `localhost` — the computer Parseh runs on.
-From any other device, a phone or another computer, these three need the
-`https://` address:
+Parseh speaks HTTPS, the secure kind of address, to every device but the
+computer it runs on, even though it only ever talks to your own devices. The
+reason is the browsers: a few things a page can do, they allow only on a
+secure address, and the one plain `http://` address they count as secure is
+`localhost` — the computer Parseh runs on. So that computer opens Parseh at
+`http://localhost:7654/`, with no certificate and no warning, and from any
+other device, a phone or another computer, these three need the `https://`
+address:
 
 | What | The buttons |
 |---|---|
@@ -214,7 +216,7 @@ From any other device, a phone or another computer, these three need the
 
 Without a secure address the studio says *Clipboard unavailable*, and the
 player says that the capture, or the recording, needs the page opened at
-the toolbox's https address.
+this computer's address, or at the https address from another device.
 
 Every other copy works on either kind of address — shift-click in a
 book's reader, a prompt for an LLM copied from a book or a video, the
@@ -222,8 +224,11 @@ copy buttons of the card sheets and of the pages for adding a book or a
 video: where the browser keeps its clipboard back, they copy the older
 way, which every browser still allows.
 
-An old `http://` bookmark on the same port is not an error: Parseh sends it
-on to the `https://` address.
+Both kinds of address use the same port. An old `http://` bookmark on a
+phone is not an error: Parseh sends it on to the `https://` address. And an
+old `https://localhost` bookmark on the computer is not one either: it goes
+on to `http://localhost` (see [Moving to
+localhost](starting-and-stopping.md#moving-to-localhost)).
 
 ## The certificate
 
@@ -234,7 +239,8 @@ local addresses, its Tailscale address and name. It keeps it in `.tls/` in
 the Parseh folder.
 
 Nobody outside this computer vouches for it, so **every browser warns you
-about it once**, on each device. The warning page always has a way through —
+about it once**, on each device other than the computer itself, which opens
+`http://localhost` and is never shown the certificate. The warning page always has a way through —
 in Chrome **Advanced**, then **Proceed** — and once you have accepted it that
 browser does not ask again. This is the whole ceremony: it is your own server
 on your own network, and nobody else is being asked to trust it. A phone can

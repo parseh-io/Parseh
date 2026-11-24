@@ -83,7 +83,7 @@ are those of `lib/runtime.py install`, below; the one worth knowing is
 
 `Parseh.command`, double-clicked in the Finder, runs `./install.sh` the
 first time (when it finds no environment), then `./serve.sh`, and opens
-the browser on `https://localhost:7654/`.
+the browser on `http://localhost:7654/`.
 
 ### lib/runtime.py
 

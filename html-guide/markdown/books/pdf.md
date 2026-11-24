@@ -72,7 +72,7 @@ still written.
 The PDF is `main.pdf`, in the book's own folder:
 `books/<language>/<slug>/main.pdf`. No page links to it yet: open it from
 that folder, or in the browser at its address,
-`https://localhost:7654/books/<language>/<slug>/main.pdf`. It is not in the
+`http://localhost:7654/books/<language>/<slug>/main.pdf`. It is not in the
 book's download — it is made from the text, and built again wherever the
 text goes.
 

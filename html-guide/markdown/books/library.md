@@ -4,7 +4,7 @@ weight: 1
 description: The book cards, building a book, taking one off the shelf, bringing one back, and backing up the whole shelf.
 ---
 
-The hub's **Books** door opens the library, `https://localhost:7654/books/`.
+The hub's **Books** door opens the library, `http://localhost:7654/books/`.
 It is one page: a row of language chips, the books grouped by language,
 the **＋ Add a book** card, and two panels at the foot — one that takes a
 single book back in, and one for the whole shelf.

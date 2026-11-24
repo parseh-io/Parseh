@@ -4,7 +4,7 @@ rem Parseh on Windows -- double-click this file.
 rem
 rem   serve.bat           the first time: a setup wizard (what ./install.sh is on
 rem                       Linux and macOS); then it starts the server and opens
-rem                       Parseh in the browser (https://localhost:7654/ on a
+rem                       Parseh in the browser (http://localhost:7654/ on a
 rem                       fresh install; the port is on Settings > Network)
 rem   serve.bat 9000      ... on another port, this once
 rem   serve.bat setup     run the wizard again
