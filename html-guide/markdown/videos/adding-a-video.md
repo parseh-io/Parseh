@@ -153,6 +153,21 @@ the two Persian models, Arabic dialectal, Italian, Hindi fast and Spanish.
 The packages already contain converted weights and any merged adapters;
 no conversion software is needed on your computer.
 
+**Or on a paired computer: Send to <partner>.** A computer without speech to
+text can lend the work to one that has it
+([Jobs](../getting-started/several-computers.md#jobs)): with **Send heavy jobs
+to paired computers** on here and **Accept jobs from paired devices** on
+there, the block offers that computer's models. **Transcribe** then says why
+this computer cannot and offers **Send to <partner>**. The sound is still
+recorded **here**, exactly as below — a YouTube video's sound is this tab's,
+so the partner could not fetch it itself — and the recording travels to the
+partner, which transcribes it with its own Whisper, word times included. A
+film on this computer is sent whole. While it works the page says
+**Waiting for a computer** or **On <partner>**, and the transcript arrives in
+the same review as one made here. A partner that goes silent gives the job
+back after two minutes, and with nobody reachable the job waits; it never
+fails for that.
+
 **What you choose.**
 
 - **Model.** Installed standard models and installed models for the selected

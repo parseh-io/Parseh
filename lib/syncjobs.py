@@ -116,6 +116,15 @@ def _doc():
         # restart: forgotten, so the asker hears "unknown" and gives it back at once
         for jid in [j for j, r in doc["doing"].items() if r.get("state") == "taken"]:
             doc["doing"].pop(jid)
+        # a transcription asked here lived in the add page's job (lib/sttjobs.py), in
+        # memory, and its recording in a temporary file a restart sweeps: it cannot
+        # come back to anything, so it is taken back from whoever has it
+        for r in doc["asked"].values():
+            if r.get("kind") == "transcribe" and r.get("state") in OPEN:
+                r["drops"] = list(dict.fromkeys((r.get("drops") or []) + [
+                    x for x in (r.get("taken_by"), r.get("asked_of")) if x]))
+                r.update(state="cancelled", reason="Parseh was restarted, so the recording is gone",
+                         say="cancelled")
         _DOCS[p] = doc
     return _DOCS[p]
 
@@ -344,6 +353,34 @@ def _run_align(rec, say):
     return {"result": {}, "outputs": _built_files(d, "html")}
 
 
+def _need_stt(caps, args):
+    have = caps.get("whisper") or []
+    return bool(have) and (not args.get("model") or args.get("model") in have)
+
+
+def _here_stt(args):
+    import sttjobs
+    gs = sttjobs._getstt()
+    if not gs.runtime_ready():
+        return False, "this computer cannot transcribe: speech to text is not installed"
+    if args.get("model") and not gs.model_ready(args["model"]):
+        return False, "this computer cannot transcribe: the model %s is not installed" % args["model"]
+    if sttjobs.busy():
+        return False, "%s is transcribing something else" % syncid.name()
+    return True, ""
+
+
+def _run_stt(rec, say):
+    """A recording made on the asking computer, transcribed here by the add
+    page's own pipeline (lib/sttjobs.py run_lent): the recording is fetched
+    from the asker first (jobs.input, by sha256, in pieces)."""
+    import sttjobs
+    files = _pull_inputs(rec, say)
+    out = os.path.join(_files_dir(rec["id"]), "out")
+    os.makedirs(out, exist_ok=True)
+    return sttjobs.run_lent(rec, files, out, say, lambda: rec.get("state") != "taken")
+
+
 # kind -> words, what a computer needs (from its capabilities), whether this one can, the runner
 KINDS = {
     "book-build": {"title": "Build a book", "need": _need_book, "here": _here_book, "run": _run_book},
@@ -351,6 +388,7 @@ KINDS = {
                  "run": _run_estimate},
     "narration-align": {"title": "Align a narration", "need": lambda caps, a: bool(caps.get("narration")),
                         "here": lambda a: (True, ""), "run": _run_align},
+    "transcribe": {"title": "Transcribe a video", "need": _need_stt, "here": _here_stt, "run": _run_stt},
 }
 RUNNERS = {k: v["run"] for k, v in KINDS.items()}      # a test may put a fake runner here
 
@@ -438,18 +476,28 @@ def video_unit(video_dir):
     return "video:" + rel
 
 
-def ask(kind, args, title, unit=None, prefer=None):
+def ask(kind, args, title, unit=None, prefer=None, inputs=None, deliver=None):
     """A new job, asked here -> its record.  It waits until a partner that can
-    takes it; `prefer` is offered it first (the page's "send to <partner>")."""
+    takes it; `prefer` is offered it first (the page's "send to <partner>").
+
+    `inputs` {inner: path}: files on THIS computer the partner needs (a tab's
+    recording), which it fetches with jobs.input, by sha256, in pieces.
+    `deliver` (a folder here): where the output files of a job on no unit are
+    put once they have arrived, for the code that asked to take them."""
     if kind not in KINDS:
         raise ValueError("no such job: %s" % kind)
+    files = {}
+    for inner, path in (inputs or {}).items():
+        if not _safe_inner(inner):
+            raise ValueError("not a file's name: %s" % inner)
+        files[inner] = {"path": os.path.abspath(path), "sha": _sha(path), "size": os.path.getsize(path)}
     now = time.time()
     rec = {"id": secrets.token_hex(8), "kind": kind, "title": title or KINDS[kind]["title"],
            "args": args or {}, "unit": unit, "unit_hash": _unit_hash(unit) if unit else None,
            "asked_by": syncid.install_id(), "asked_by_name": syncid.name(), "state": "waiting",
            "taken_by": None, "taken_by_name": None, "reason": "", "say": "waiting for a computer",
            "at": now, "asked_at": now, "heard": None, "asked_of": None, "prefer": prefer,
-           "drops": [], "result": None, "note": ""}
+           "drops": [], "result": None, "note": "", "inputs": files, "deliver": deliver}
     with _LOCK:
         _doc()["asked"][rec["id"]] = rec
         _save()
@@ -587,7 +635,9 @@ def op_offer(partner, payload, body):
            "args": job.get("args") or {}, "unit": uid, "asked_by": partner,
            "asked_by_name": job.get("asked_by_name") or _caller_name(partner),
            "taken_by": syncid.install_id(), "taken_by_name": syncid.name(), "state": "taken",
-           "say": "starting…", "reason": "", "at": time.time(), "result": None, "outputs": {}}
+           "say": "starting…", "reason": "", "at": time.time(), "result": None, "outputs": {},
+           "inputs": [f for f in (job.get("inputs") or []) if isinstance(f, dict)
+                      and _safe_inner(str(f.get("inner") or ""))]}
     with _LOCK:
         _doc()["doing"][jid] = rec
         _save()
@@ -646,8 +696,11 @@ def _work(jid):
             rec.update(state="failed", reason="the job failed on %s: %s" % (syncid.name(), e),
                        at=time.time())
     with _LOCK:
-        if jid in _doc()["doing"]:
+        gone = jid not in _doc()["doing"]
+        if not gone:
             _save()
+    if gone:                                          # dropped while it ran: its files go too
+        shutil.rmtree(_files_dir(jid), ignore_errors=True)
     with contextlib.suppress(Exception):
         import syncexchange
         syncexchange.request(rec["asked_by"], "a job's result")
@@ -699,11 +752,77 @@ def op_drop(partner, payload, body):
                 rec.update(state="cancelled", reason="given back to %s" % rec.get("asked_by_name"))
             d["doing"].pop(rec["id"], None)
             _save()
+    if rec is not None and rec.get("asked_by") == partner and rec["state"] != "cancelled":
+        shutil.rmtree(_files_dir(rec["id"]), ignore_errors=True)
     return {"ok": True}, None
 
 
+def op_input(partner, payload, body):
+    """A piece of a file the job needs, served by the computer that ASKED it
+    (a tab's recording), to the partner it was offered to or that has it."""
+    with _LOCK:
+        rec = _doc()["asked"].get(payload.get("id"))
+        if rec is None or partner not in (rec.get("asked_of"), rec.get("taken_by")) \
+                or rec["state"] not in OPEN:
+            return {"ok": False, "error": "no such job here"}, None
+        f = (rec.get("inputs") or {}).get(payload.get("inner"))
+    if f is None or not os.path.isfile(f["path"]):
+        return {"ok": False, "error": "no such file in this job"}, None
+    off, n = int(payload.get("offset") or 0), min(int(payload.get("length") or CHUNK), 8 * CHUNK)
+    with open(f["path"], "rb") as fh:
+        fh.seek(off)
+        data = fh.read(n)
+    return {"ok": True, "size": f["size"], "chunk": hashlib.sha256(data).hexdigest()}, data
+
+
+def _fetch_file(pid, op, jid, inner, size, sha, dst):
+    """One file of a job brought from `pid` in pieces, each piece and the whole
+    checked by its sha256 (jobs.blob from the taker, jobs.input from the asker)."""
+    _Unreachable, Refused = _transport_errors()
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    if os.path.isfile(dst) and _sha(dst) == sha:
+        return dst
+    with open(dst + ".part", "wb") as out:
+        off = 0
+        while off < size or (off == 0 and size == 0):
+            got, data = _call(pid, op, {"id": jid, "inner": inner, "offset": off, "length": CHUNK})
+            if not got.get("ok"):
+                raise Refused(got.get("error") or "the file was refused")
+            data = data or b""
+            if hashlib.sha256(data).hexdigest() != got.get("chunk"):
+                raise Refused("a piece of %s arrived damaged" % inner)
+            out.write(data)
+            off += len(data)
+            if not data:
+                break
+    if _sha(dst + ".part") != sha:
+        os.remove(dst + ".part")
+        raise Refused("%s arrived damaged" % inner)
+    os.replace(dst + ".part", dst)
+    return dst
+
+
+def _pull_inputs(rec, say):
+    """The partner's side: the job's input files fetched from the asker ->
+    {inner: path here}.  One that cannot be brought ends the job "failed", in
+    words."""
+    Unreachable, Refused = _transport_errors()
+    folder = os.path.join(_files_dir(rec["id"]), "in")
+    files = {}
+    who = rec.get("asked_by_name") or rec["asked_by"]
+    for f in rec.get("inputs") or []:
+        inner = f["inner"]
+        say("receiving the recording from %s…" % who)
+        try:
+            files[inner] = _fetch_file(rec["asked_by"], "jobs.input", rec["id"], inner, int(f["size"]),
+                                       f["sha"], os.path.join(folder, *inner.split("/")))
+        except (Unreachable, Refused) as e:
+            raise JobFailed("the recording could not be brought from %s: %s" % (who, e))
+    return files
+
+
 OPS = {"jobs.caps": op_caps, "jobs.offer": op_offer, "jobs.state": op_state,
-       "jobs.blob": op_blob, "jobs.drop": op_drop}
+       "jobs.blob": op_blob, "jobs.drop": op_drop, "jobs.input": op_input}
 
 
 def register():
@@ -796,6 +915,8 @@ def _place(rec):
             continue
         _set(rec, asked_of=pid, offered_at=time.time())
         offer = {k: rec.get(k) for k in ("id", "kind", "title", "args", "unit", "unit_hash", "asked_by_name")}
+        offer["inputs"] = [{"inner": k, "sha": v["sha"], "size": v["size"]}
+                           for k, v in sorted((rec.get("inputs") or {}).items())]
         try:
             ans, _ = _call(pid, "jobs.offer", {"job": offer})
         except Unreachable:
@@ -866,33 +987,19 @@ def _collect(rec, pid, ans):
         if not _safe_inner(inner):
             continue
         dst = os.path.join(folder, *inner.split("/"))
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        if not (os.path.isfile(dst) and _sha(dst) == f["sha"]):
-            with open(dst + ".part", "wb") as out:
-                off = 0
-                while off < f["size"] or (off == 0 and f["size"] == 0):
-                    got, data = _call(pid, "jobs.blob", {"id": rec["id"], "inner": inner, "offset": off,
-                                                          "length": CHUNK})
-                    if not got.get("ok"):
-                        raise Refused(got.get("error") or "the file was refused")
-                    data = data or b""
-                    if hashlib.sha256(data).hexdigest() != got.get("chunk"):
-                        raise Refused("a piece of %s arrived damaged" % inner)
-                    out.write(data)
-                    off += len(data)
-                    if not data:
-                        break
-            if _sha(dst + ".part") != f["sha"]:
-                os.remove(dst + ".part")
-                raise Refused("%s arrived damaged" % inner)
-            os.replace(dst + ".part", dst)
-        staged[inner] = dst
+        staged[inner] = _fetch_file(pid, "jobs.blob", rec["id"], inner, int(f["size"]), f["sha"], dst)
     if rec.get("unit"):
         import syncexchange
         with contextlib.suppress(Exception):
             syncexchange.sync_from(pid, only=syncexchange.owner_of(rec["unit"]), why="a job's result")
     if staged and rec.get("unit"):
         _write_outputs(rec, staged)
+    elif staged and rec.get("deliver"):
+        # a job on no unit (a transcription): its files handed to the code that asked
+        for inner, src in staged.items():
+            dst = os.path.join(rec["deliver"], *inner.split("/"))
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            os.replace(src, dst)
     shutil.rmtree(folder, ignore_errors=True)
     _set(rec, state="done", result=ans.get("result"), say="done", at=time.time(), reason="",
          drops=rec["drops"] + [pid])

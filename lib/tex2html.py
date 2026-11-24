@@ -7442,7 +7442,9 @@ async function narrByEar(n, where) {
         };
         return (window.ParsehJobs ? window.ParsehJobs.fetch : fetch)('__clip/estimate', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({narration: n.id, ...req}), signal: ctl.signal})
+            body: JSON.stringify({narration: n.id, ...req}), signal: ctl.signal},
+            // lent (a0.7.0): from the offer on, the job's own state is followed, not these minutes
+            {offered: () => clearTimeout(timer)})
           .then(r => r.json().catch(() => null).then(j => {
             if (ctl.signal.aborted) failed();
             if (!r.ok || !j || !j.ok)

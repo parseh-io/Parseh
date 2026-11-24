@@ -20,7 +20,10 @@ install's capabilities ("caps", over what it really has), the jobs' deadline
 and how long a partner's capabilities are trusted ("deadline", "caps_ttl"),
 and FAKES THE BOOK BUILD: a runner that waits "run_seconds", then writes a PDF
 and a reader into the book, as ./build.sh would; "no_numpy" makes estimating
-by the sound impossible here, as a Python without NumPy does.
+by the sound impossible here, as a Python without NumPy does.  "stt"
+({"runtime", "models", "segments"}, lane D2) makes this install's speech to
+text tests/addstt_fakes.py's: the real job and worker, with the faster-whisper
+stand-in of tests/fixtures/stt_runtime -- or no speech to text at all.
 
 The books' shelf is the tree's own (root/books), as the server's pages see it.
 """
@@ -39,6 +42,15 @@ def serve_tree(tmp, port):
     tmp = Path(tmp)
     for d in ("config", "tls", "root/youtube/videos", "library", "exercises", "anki", "tray"):
         (tmp / d).mkdir(parents=True, exist_ok=True)
+    stt = (json.loads(os.environ.get("SYNC_JOBS_FAKE") or "null") or {}).get("stt")
+    if stt is not None:
+        # THIS INSTALL'S SPEECH TO TEXT is tests/addstt_fakes.py's (before serve imports getstt):
+        # installed or not, and the real worker with the faster-whisper stand-in when it is
+        import addstt_fakes
+        root = str(tmp / "sttfake")
+        sys.modules["getstt"] = addstt_fakes.make(root)
+        addstt_fakes.configure(root, runtime=bool(stt.get("runtime")), models=stt.get("models") or [],
+                               fake={"segments": stt.get("segments") or [[0.0, 2.0, " uno due tre"]]})
     import serve
     import syncpeer
     serve.TLS_DIR = str(tmp / "tls")

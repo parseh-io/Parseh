@@ -407,10 +407,17 @@ def busy():
 
 
 # ------------------------------------------------------------------------ start
-def start(source, lang, model, processing, duration=None, exact=True):
+def start(source, lang, model, processing, duration=None, exact=True, lend_to=None, lent_for=None):
     """A job, for a source the add flow's validators passed -> {"job", "state",
     "need", ...}.  `source` is what source_of() made; everything here is
-    checked again, because this is the door tests and other code reach too."""
+    checked again, because this is the door tests and other code reach too.
+
+    LENT (a0.7.0, lib/syncjobs.py "transcribe"): `lend_to` (a paired computer's
+    id) makes a job whose sound is recorded HERE as always but transcribed by
+    a paired computer this one has no Whisper for: nothing of speech to text
+    is asked of this computer, and the transcript comes back into the same
+    review (_run_lent).  `lent_for` (the asker's name) is the partner's side:
+    the job is run for another computer, and keeps no pending review here."""
     if not isinstance(model, str) or model not in MODELS:
         raise Refusal("bad-model", "Choose a model from Speech to text settings.")
     if not isinstance(processing, str) or processing not in MODES:
@@ -466,35 +473,41 @@ def start(source, lang, model, processing, duration=None, exact=True):
             raise Refusal("bad-duration", "That is not how long a video can be.")
         hint = float(duration)
 
-    gs = _getstt()
-    if not gs.runtime_ready():
-        raise Refusal("not-installed", "Speech to text is not installed.", 409)
-    if not gs.model_ready(model):
-        raise Refusal("no-model", "The selected model is not installed.", 409)
-    # the language Whisper listens for; a code it lacks is SpeechError
-    wlang = _speech(lambda g, c: g.whisper_code(c), lang)
-    if not isinstance(wlang, str) or not LANG_RE.match(wlang):
-        raise Refusal("unsupported-language", "Speech to text cannot listen for that "
-                      "language.", 409)
-    # the device is resolved HERE, so an explicit NVIDIA GPU that is not ready
-    # is refused at once, before anybody records an hour of sound for it
-    device, _note = _speech(lambda g, m: g.resolve(m), processing)
-    if device not in ("cpu", "cuda"):
-        raise Refusal("failed", "Transcription failed.", 500)
-    name = ""
-    if device == "cuda":
-        try:
-            name = str(gs.hardware()["cuda"].get("name") or "")
-        except Exception:                                    # noqa: BLE001
-            name = ""
-    threads = gs.cpu_threads()
-    aligner = ""
-    ready = getattr(gs, "aligner_ready", None)
-    if exact and callable(ready):
-        try:
-            aligner = lang if ready(lang) else ""
-        except Exception:  # noqa: BLE001
-            aligner = ""
+    if lend_to is not None:
+        # NOTHING OF SPEECH TO TEXT IS ASKED HERE: the partner listens, with its own
+        # Whisper, for the language; its own aligner makes the exact times when it has one
+        gs, wlang, device, name, threads = None, lang, "lent", "", 0
+        aligner = lang if exact else ""
+    else:
+        gs = _getstt()
+        if not gs.runtime_ready():
+            raise Refusal("not-installed", "Speech to text is not installed.", 409)
+        if not gs.model_ready(model):
+            raise Refusal("no-model", "The selected model is not installed.", 409)
+        # the language Whisper listens for; a code it lacks is SpeechError
+        wlang = _speech(lambda g, c: g.whisper_code(c), lang)
+        if not isinstance(wlang, str) or not LANG_RE.match(wlang):
+            raise Refusal("unsupported-language", "Speech to text cannot listen for that "
+                          "language.", 409)
+        # the device is resolved HERE, so an explicit NVIDIA GPU that is not ready
+        # is refused at once, before anybody records an hour of sound for it
+        device, _note = _speech(lambda g, m: g.resolve(m), processing)
+        if device not in ("cpu", "cuda"):
+            raise Refusal("failed", "Transcription failed.", 500)
+        name = ""
+        if device == "cuda":
+            try:
+                name = str(gs.hardware()["cuda"].get("name") or "")
+            except Exception:                                    # noqa: BLE001
+                name = ""
+        threads = gs.cpu_threads()
+        aligner = ""
+        ready = getattr(gs, "aligner_ready", None)
+        if exact and callable(ready):
+            try:
+                aligner = lang if ready(lang) else ""
+            except Exception:  # noqa: BLE001
+                aligner = ""
     tmp = _tmp()
     if kind == "youtube":
         need = FREE_TO_START + (int(hint * SAMPLE_RATE * 2) if hint else 0)
@@ -527,14 +540,19 @@ def start(source, lang, model, processing, duration=None, exact=True):
                "proc": None, "lock": threading.Lock(),
                "pcm": _named(token, ".pcm"), "spec": _named(token, ".spec.json"),
                "log": _named(token, ".log")}
+        if lend_to is not None:
+            job["lend"] = {"to": lend_to, "job": None, "say": "", "state": "", "name": ""}
+        if lent_for is not None:
+            job["lent_for"] = str(lent_for)
         JOBS[token] = job
         # THE JOB HOLDS ITS MODEL, AND WITH IT THE PROGRAM, FROM HERE TO ITS END: a
         # capture is real time and takes as long as the video plays, and Settings
         # must not take the part away under a recording (nothing else notices it)
         job["hold"] = contextlib.ExitStack()
-        job["hold"].enter_context(_using(gs, model))
-        if aligner:
-            job["hold"].enter_context(_using(gs, "align-" + aligner))
+        if gs is not None:
+            job["hold"].enter_context(_using(gs, model))
+            if aligner:
+                job["hold"].enter_context(_using(gs, "align-" + aligner))
         # the answer is made BEFORE the worker's thread can move the state on
         answer = _started(job)
     if kind == "film":
@@ -552,6 +570,8 @@ def _started(job):
     if job.get("correction"):
         out["correction"] = dict(job["correction"])
     out.update(_who(job))
+    if job.get("lend"):
+        out["lent"] = {"to": job["lend"]["to"]}
     return out
 
 
@@ -562,7 +582,7 @@ def _who(job):
 
 
 def _launch(job):
-    threading.Thread(target=_run, args=(job,), daemon=True).start()
+    threading.Thread(target=_run_lent if job.get("lend") else _run, args=(job,), daemon=True).start()
 
 
 # ------------------------------------------------------------------------ audio
@@ -682,6 +702,11 @@ def wave(token, rate, peaks):
 # ----------------------------------------------------------------- status, etc.
 def _say(job):
     s, model = job["state"], job["model"]
+    if job.get("lend") and s in (QUEUED, PREPARING, TRANSCRIBING) and job["lend"].get("say"):
+        # LENT: what the job lent to a paired computer says ("waiting for a
+        # computer", "on <partner>: …"), as lib/jobs.js says it
+        say = job["lend"]["say"]
+        return say[:1].upper() + say[1:] + ("" if say.endswith(("…", ".")) else "…")
     if s == AWAITING:
         return "Waiting for the recording to start…"
     if s == RECEIVING:
@@ -874,6 +899,8 @@ def result(token):
 
 
 def _save_pending(job):
+    if job.get("lent_for"):
+        return                           # run for another computer: its review is there
     try:
         import asrpending
         asrpending.save(job)
@@ -1750,7 +1777,8 @@ def _run(job):
         # Keep captured sound only with the private pending draft, for later
         # rechecks. Use or discard deletes it; scratch files are cleaned now.
         _show_log(job)
-        if not job['cancelled'] and (got.get('done') is not None or got.get('first') is not None):
+        if not job['cancelled'] and not job.get('lent_for') and \
+                (got.get('done') is not None or got.get('first') is not None):
             try:
                 asrpending.retain_audio(job)
             except (OSError, ValueError):
@@ -2138,6 +2166,251 @@ def _finish(job, msg):
         _save_pending(job)
 
 
+# ------------------------------------------------------------------ lent (a0.7.0)
+# A computer without Whisper records the sound as always, and a paired computer
+# that has it transcribes (lib/syncjobs.py kind "transcribe", docs/sync.md
+# "Jobs").  THE RECORDING TRAVELS: the asker names it as the job's input, and
+# the partner fetches it (jobs.input, by sha256, in pieces).  THE TRANSCRIPT
+# COMES BACK INTO THE SAME REVIEW: the partner runs this very pipeline on it
+# (run_lent) and sends back its finished job in the shape a pending review is
+# kept in (asrpending), word times included; the asker takes that in as if its
+# own worker had made it (_adopt).
+LENT_POLL = 1.0
+LENT_FILE = "transcript.json"
+
+
+def _lend_args(job):
+    a = {"lang": job["lang"], "model": job["model"], "exact": bool(job.get("aligner")),
+         "duration": job.get("hint"), "second_pass": bool(job.get("automatic_second_pass", True))}
+    if job["kind"] == "youtube":
+        a.update(source={"kind": "youtube", "id": job["source"]["id"]}, marks=list(job.get("marks") or []))
+        return a, {"audio.pcm": job["pcm"]}
+    path = job["source"]["path"]
+    a["source"] = {"kind": "film", "name": os.path.basename(path)}
+    return a, {"film" + os.path.splitext(path)[1].lower(): path}
+
+
+def _run_lent(job):
+    """The asker's side: the job lent once its sound is in, followed until the
+    transcript is back (or it failed, or was cancelled), then the review."""
+    try:
+        if lend_ask(job):
+            while not lend_look(job):
+                time.sleep(LENT_POLL)
+    except Refusal as e:
+        _end(job, FAILED, e.code, e.say)
+    except Exception:                                        # noqa: BLE001
+        traceback.print_exc()
+        _end(job, FAILED, "failed", "Transcription failed.")
+    finally:
+        _lend_tidy(job)
+
+
+def lend_ask(job):
+    """The job lent: asked of the paired computers, the recording as its input
+    (the test calls the three steps itself, in one thread) -> False if cancelled."""
+    import syncjobs
+    with LOCK:
+        if job["cancelled"]:
+            return False
+        job["state"], job["started"] = QUEUED, _now()
+        job["lend"]["say"] = "sending the recording…"
+    args, inputs = _lend_args(job)
+    what = "a YouTube video" if job["kind"] == "youtube" else os.path.basename(job["source"]["path"])
+    rec = syncjobs.ask("transcribe", args, "Transcribe %s" % what, prefer=job["lend"]["to"],
+                       inputs=inputs, deliver=_named(job["id"], ".lent"))
+    job["lend"]["job"] = rec["id"]
+    return True
+
+
+def lend_look(job):
+    """One look at the lent job -> True once it is over here (the review taken
+    in, or failed, or cancelled).  Nobody reachable is not an end: it waits."""
+    import syncjobs
+    jid = job["lend"]["job"]
+    if job["cancelled"]:
+        syncjobs.cancel(jid)
+        return True
+    v = syncjobs.view(jid)
+    if v is None:
+        _end(job, FAILED, "lent-lost", "The transcription sent to another computer is not "
+             "known here any more.")
+        return True
+    with LOCK:
+        job["lend"].update(say=v.get("say") or "", state=v["state"],
+                           name=v.get("taken_by_name") or job["lend"].get("name") or "")
+        if v["state"] == "taken" and job["state"] == QUEUED:
+            job["state"] = TRANSCRIBING
+        elif v["state"] == "waiting" and job["state"] == TRANSCRIBING:
+            job["state"] = QUEUED         # given back: it waits for a computer again
+        job["touched"] = _now()
+    if v["state"] == "failed":
+        _end(job, FAILED, "lent-failed", (v.get("reason") or "It failed on the other computer")
+             .rstrip(".") + ".")
+        return True
+    if v["state"] == "cancelled":
+        if not job["cancelled"]:
+            _end(job, FAILED, "lent-cancelled", "The transcription sent to another computer "
+                 "was cancelled.")
+        return True
+    if v["state"] != "done":
+        return False
+    try:
+        with open(os.path.join(_named(job["id"], ".lent"), LENT_FILE), encoding="utf-8") as f:
+            record = json.load(f)
+    except (OSError, ValueError):
+        _end(job, FAILED, "lent-lost", "The transcript did not arrive from the other computer.")
+        return True
+    _adopt(job, record)
+    return True
+
+
+def _lend_tidy(job):
+    shutil.rmtree(_named(job["id"], ".lent"), ignore_errors=True)
+    _clean_files(job)                # the recording: moved into the review by _adopt, or gone
+    if job.get("cancelled") or job["state"] == FAILED:
+        import asrpending
+        with contextlib.suppress(OSError):
+            asrpending.remove(job["id"])
+    _unhold(job)
+
+
+# what the partner's finished job hands to the review here (asrpending's fields,
+# less what belongs to this computer: the source, the film, the token, the clock)
+_ADOPT = ("text", "notes", "words", "facts", "warning", "review_evidence", "whisper_source",
+          "first_suspect_word_ids", "last_method", "last_word_ids", "second_pass", "device",
+          "device_name", "fell_back", "total", "done", "model_revision", "wlang", "aligner")
+
+
+def _adopt(job, record):
+    """The partner's finished job taken in as this one's: the review, the word
+    times (held under this job's token), the recording kept for the review's
+    listening; then done, exactly as _finish ends."""
+    import asrpending
+    import wordtimes
+    other = (record.get("job") or {}).get("id") or ""
+    if isinstance(other, str) and TOKEN_RE.match(other):
+        # the word times' ids name the token that made them
+        record = json.loads(json.dumps(record, ensure_ascii=False).replace(other, job["id"]))
+    got = record.get("job") or {}
+    if not isinstance(got.get("text"), str) or not got.get("review_evidence"):
+        _end(job, FAILED, "lent-lost", "The transcript that came back could not be read.")
+        return
+    timings = record.get("timings")
+    if isinstance(timings, dict):
+        timings["job"] = job["id"]
+        try:
+            wordtimes.hold(job["id"], timings)
+        except Exception:                                    # noqa: BLE001 -- never the transcript
+            traceback.print_exc()
+            got["words"] = {"held": False, "count": 0}
+    who = job["lend"].get("name") or "another computer"
+    if job["kind"] == "youtube" and not job["cancelled"]:
+        with contextlib.suppress(OSError, ValueError):
+            asrpending.retain_audio(job)
+    with LOCK:
+        if job["cancelled"]:
+            return
+        for k in _ADOPT:
+            if k in got:
+                job[k] = got[k]
+        job["notes"] = list(job.get("notes") or []) + ["Transcribed on %s." % who]
+        job["review_choice"], job["correction"] = None, {"state": "not-requested", "complete": False}
+        try:
+            import asrdictionary
+            job["dictionary_resolver"] = asrdictionary.Resolver(job["lang"])
+        except Exception:                                    # noqa: BLE001
+            traceback.print_exc()
+        job["state"], job["finished"] = DONE, _now()
+        _unhold(job)
+        _save_pending(job)
+
+
+def run_lent(rec, files, out, say, stopped):
+    """The partner's side (lib/syncjobs.py's runner): the asker's recording
+    transcribed here by this very pipeline -> {"result", "outputs"}, the
+    finished job as LENT_FILE.  `stopped()` says the asker took it back."""
+    import asrpending
+    import syncjobs
+    import wordtimes
+    a = rec.get("args") or {}
+    src = a.get("source") if isinstance(a.get("source"), dict) else {}
+    if src.get("kind") == "youtube":
+        source, pcm = {"kind": "youtube", "id": src.get("id")}, files.get("audio.pcm")
+        if not pcm:
+            raise syncjobs.JobFailed("the recording did not arrive")
+    else:
+        film = [p for inner, p in files.items() if inner.startswith("film.")]
+        if not film:
+            raise syncjobs.JobFailed("the film did not arrive")
+        source, pcm = {"kind": "film", "path": film[0]}, None
+    try:
+        started = start(source, a.get("lang"), a.get("model"), "auto", a.get("duration"),
+                        bool(a.get("exact", True)), lent_for=rec.get("asked_by_name") or "another computer")
+    except Refusal as e:
+        raise syncjobs.JobFailed(e.say.rstrip("."))
+    token = started["job"]
+    try:
+        with LOCK:
+            JOBS[token]["automatic_second_pass"] = bool(a.get("second_pass", True))
+        if pcm:
+            if a.get("marks"):
+                marks(token, a["marks"])
+            size, off = os.path.getsize(pcm), 0
+            with open(pcm, "rb") as fh:
+                while True:
+                    data = fh.read(CHUNK_MAX)
+                    last = fh.tell() >= size
+                    audio(token, off // 2, data, last)
+                    off += len(data)
+                    if last:
+                        break
+        while True:
+            if stopped():
+                cancel(token)
+                raise syncjobs.JobFailed("taken back by %s" % (rec.get("asked_by_name") or "the asker"))
+            st = status(token)
+            if st["state"] in (DONE, REVIEW_CHOICE):
+                break
+            if st["state"] in (FAILED, CANCELLED):
+                raise syncjobs.JobFailed((st.get("error") or st.get("say") or "Transcription failed")
+                                         .rstrip("."))
+            say(st.get("say") or "transcribing…")
+            time.sleep(0.5)
+        with LOCK:
+            job = JOBS[token]
+            record = {"job": asrpending._current_audio_evidence(job), "timings": wordtimes.load(token)}
+            captions = (job.get("facts") or {}).get("captions", 0)
+        path = os.path.join(out, LENT_FILE)
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(record, fh, ensure_ascii=False)
+        return {"result": {"captions": captions}, "outputs": {LENT_FILE: path}}
+    except Refusal as e:
+        raise syncjobs.JobFailed(e.say.rstrip("."))
+    finally:
+        _forget_lent(token)
+
+
+def _forget_lent(token):
+    """Nothing of a job run for another computer is kept here once it ended."""
+    import asrpending
+    import wavefile
+    import wordtimes
+    with LOCK:
+        job = JOBS.get(token)
+    if job is None:
+        return
+    if job["state"] in ACTIVE:
+        cancel(token)
+    with LOCK:
+        JOBS.pop(token, None)
+    _clean_files(job)
+    _unhold(job)
+    for drop in (wavefile.drop, wordtimes.drop, asrpending.remove):
+        with contextlib.suppress(Exception):
+            drop(token)
+
+
 # ------------------------------------------------------------------ the server
 def activity_entries(entry, keep, now=None):
     """The jobs as the activity list has them (lib/activity.py entry()), so
@@ -2152,6 +2425,8 @@ def activity_entries(entry, keep, now=None):
         # having to start another job to find out
         _expire()
         for job in list(JOBS.values()):
+            if job.get("lent_for"):
+                continue                 # the activity list has it as the job done for another
             over = job["state"] in (DONE, FAILED, REVIEW_CHOICE)
             if over and now - (job["finished"] or now) > keep:
                 continue
