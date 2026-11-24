@@ -62,6 +62,9 @@ HARNESSES = {
     "speech_harness.py": "redirects",
     "studio_harness.py": "redirects",
     "mobile_harness.py": "cardkit_harness.py",
+    # a0.7.0: the Devices page's server and the sync suites' whole installs (each in its own temporary tree)
+    "devices_harness.py": "cardkit_harness.py",
+    "sync_harness.py": "cardkit_harness.py",
     "later_harness.py": "mobile_harness.py",
     "outline_harness.py": "mobile_harness.py",
     "vocab_harness.py": "later_harness.py",

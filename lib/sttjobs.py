@@ -407,7 +407,7 @@ def busy():
 
 
 # ------------------------------------------------------------------------ start
-def start(source, lang, model, processing, duration=None, exact=True, lend_to=None, lent_for=None,
+def start(source, lang, model, processing, duration=None, exact=True, *, lend_to=None, lent_for=None,
           align_on=None):
     """A job, for a source the add flow's validators passed -> {"job", "state",
     "need", ...}.  `source` is what source_of() made; everything here is

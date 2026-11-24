@@ -333,8 +333,13 @@ class Start(Base):
 
     def test_extra_fields_a_client_might_send_are_not_part_of_the_signature(self):
         import inspect
-        params = list(inspect.signature(sttjobs.start).parameters)
+        sig = inspect.signature(sttjobs.start).parameters
+        params = [n for n, p in sig.items() if p.kind is not p.KEYWORD_ONLY]
         self.assertEqual(params, ["source", "lang", "model", "processing", "duration", "exact"])
+        # a0.7.0: who the job is lent to, lent for, or aligned on is the SERVER's to say (the partner it
+        # resolved from the jobs switches), never a field a client sends -- so those are keyword-only
+        self.assertEqual(sorted(n for n, p in sig.items() if p.kind is p.KEYWORD_ONLY),
+                         ["align_on", "lend_to", "lent_for"])
         with self.assertRaises(TypeError):
             sttjobs.start({"kind": "film", "path": self.film()}, "fa", TURBO, "cpu",
                           device="cuda")

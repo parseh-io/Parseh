@@ -416,7 +416,9 @@ try {
      'the player\'s translated sentences: Egyptian\'s first, then standard Arabic\'s, each saying which it is');
   // the phrase editor's sources column
   await player.click('#cloud .mkedit');
-  await player.waitForSelector('#cloud .esrc');
+  // the editor opens once its sync lease is held (a0.7.0, lib/syncpage.js), a moment after the press: wait for it
+  // OPEN, as a person does, not for a button the cloud kept from the last time it was open
+  await player.waitForSelector('#cloud.editing .esrc');
   await player.click('#cloud .esrc');
   const pside = await until(() => player.evaluate(() => {
     const f = [...document.querySelectorAll('#cloud .esrcbody .spfrom')].map(x => x.textContent);
@@ -443,7 +445,9 @@ try {
      'no translated sentences for Gulf Arabic yet: Tatoeba has only 81 translated into English, too few to offer — ' +
      'the sentences here are Modern Standard Arabic’s', 'Gulf: the plain line says Tatoeba has too few');
   await player.click('#cloud .mkedit');
-  await player.waitForSelector('#cloud .esrc');
+  // the editor opens once its sync lease is held (a0.7.0, lib/syncpage.js), a moment after the press: wait for it
+  // OPEN, as a person does, not for a button the cloud kept from the last time it was open
+  await player.waitForSelector('#cloud.editing .esrc');
   await player.click('#cloud .esrc');
   const gnote = await until(() => player.evaluate(() => (document.querySelector('#cloud .esrcbody .spvar') || {}).textContent),
                             'the plain line in the sources column');

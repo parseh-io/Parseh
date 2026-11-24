@@ -278,6 +278,13 @@ class Tidy(unittest.TestCase):
 
 BOOT = """
 import os, runpy, sys
+# a0.7.0: a server start makes this computer's sync identity and change log beside config/ (lib/synclog.py
+# home()); a test's server keeps them in a temporary folder instead, so config/ stays as the run found it
+import atexit, shutil, tempfile
+sys.path.insert(0, os.path.join(os.getcwd(), "lib"))
+import synclog
+synclog.HOME = tempfile.mkdtemp(prefix="parseh-test-sync-")
+atexit.register(shutil.rmtree, synclog.HOME, True)
 sys.argv = ["serve.py", "--http", "--local", sys.argv[1]]
 runpy.run_path("serve.py", run_name="__main__")
 """

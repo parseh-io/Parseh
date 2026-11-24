@@ -664,8 +664,10 @@ class Routes(unittest.TestCase):
         import socket
         body = slurp(self.sounds[".mp3"])
         s = socket.create_connection(("127.0.0.1", self.port), timeout=10)
-        s.sendall(("POST /youtube/api/film?name=half.mp3 HTTP/1.1\r\nHost: x\r\nContent-Type: "
-                   "application/octet-stream\r\nContent-Length: %d\r\n\r\n" % len(body)).encode())
+        # the Host names this computer: a plain request naming anything else is refused (421) before its body is
+        # read -- the guard against DNS rebinding that plain http on loopback needs (a0.7.0, lib/localhttp.py)
+        s.sendall(("POST /youtube/api/film?name=half.mp3 HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nContent-Type: "
+                   "application/octet-stream\r\nContent-Length: %d\r\n\r\n" % (self.port, len(body))).encode())
         s.sendall(body[:len(body) // 2])
         time.sleep(0.3)
         self.assertTrue([p for p in self.waiting() if p.endswith(".part")], "half a file is being written")

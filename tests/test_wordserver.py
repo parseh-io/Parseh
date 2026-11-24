@@ -313,6 +313,13 @@ class LookUpTests(unittest.TestCase):
 # from it on every lookup
 BOOT = """
 import os, runpy, sys
+# a0.7.0: a server start makes this computer's sync identity and change log beside config/ (lib/synclog.py
+# home()); a test's server keeps them in a temporary folder instead, so config/ stays as the run found it
+import atexit, shutil, tempfile
+sys.path.insert(0, os.path.join(os.getcwd(), "lib"))
+import synclog
+synclog.HOME = tempfile.mkdtemp(prefix="parseh-test-sync-")
+atexit.register(shutil.rmtree, synclog.HOME, True)
 sys.path.insert(0, os.path.join(os.getcwd(), "lib"))
 import lookup
 lookup.DICT_DIR = sys.argv[1]
