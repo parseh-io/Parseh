@@ -1,3 +1,6 @@
+## [a0.7.1] - unreleased
+### Added
+
 ## [a0.7.0] - 2026-11-25
 ### Added
 - This computer opens Parseh at http://localhost, with no certificate warning; other devices keep https on the same port
